@@ -29,7 +29,7 @@ export default function TermsPage() {
           <section style={styles.section}>
             <h2 style={styles.sectionHeading}>2. Deskripsi Layanan</h2>
             <p style={styles.paragraph}>
-              Markimate menyediakan platform digital marketing agentic in one platform dengan tiga modul utama:
+              Markimate menyediakan platform dengan Semua Tim Digital Marketing dalam satu platform dengan tiga modul utama:
             </p>
             <ul style={styles.bulletList}>
               <li>

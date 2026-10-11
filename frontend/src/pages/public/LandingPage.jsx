@@ -91,7 +91,7 @@ export default function LandingPage() {
           </div>
 
           <h1 style={styles.heroTitle}>
-            {t('hero.title', 'Digital Marketing Agentic in One Platform')}
+            {t('hero.title', 'Full Digital Marketing Team in One Platform')}
           </h1>
 
           <p style={styles.heroSubtitle}>

@@ -24,7 +24,7 @@ export const TRANSLATIONS = {
     // Hero Section
     hero: {
       badge: 'Markimate · powered by 3our',
-      title: 'Digital Marketing Agentic in One Platform',
+      title: 'Full Digital Marketing Team in One Platform',
       subtitle:
         'Hire specialized AI marketing roles or deploy an entire full-stack digital marketing team — at a fraction of in-house team costs, with 100% human-in-the-loop review and approval before anything goes live.',
       ctaPrimary: 'Explore Live Demo',
@@ -329,6 +329,7 @@ export const TRANSLATIONS = {
     // Footer
     footer: {
       rights: 'All rights reserved.',
+      slogan: 'Full Digital Marketing Team in One Platform',
       platformLegal: 'Platform & Legal',
       terms: 'Terms of Service',
       privacy: 'Privacy Policy',
@@ -374,7 +375,7 @@ export const TRANSLATIONS = {
     // Hero Section
     hero: {
       badge: 'Markimate · powered by 3our',
-      title: 'Digital Marketing Agentic in One Platform',
+      title: 'Semua Tim Digital Marketing dalam satu platform',
       subtitle:
         'Pilih role spesialis yang kamu butuhkan atau rekrut seluruh tim digital marketing AI — mulai dari sebagian kecil biaya tim in-house, dengan hasil kerja yang tetap kamu review dan setujui sebelum tayang.',
       ctaPrimary: 'Coba Demo Sekarang',
@@ -679,6 +680,7 @@ export const TRANSLATIONS = {
     // Footer
     footer: {
       rights: 'Seluruh hak cipta dilindungi undang-undang.',
+      slogan: 'Semua Tim Digital Marketing dalam satu platform',
       platformLegal: 'Platform & Hukum',
       terms: 'Syarat & Ketentuan Layanan',
       privacy: 'Kebijakan Privasi',

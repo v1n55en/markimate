@@ -92,7 +92,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
           </Link>
           <h1 style={styles.title}>Markimate</h1>
           <p style={styles.subtitle}>
-            digital marketing agentic in one platform · <strong>powered by 3our</strong>
+            {lang === 'id' ? 'Semua Tim Digital Marketing dalam satu platform' : 'Full Digital Marketing Team in One Platform'} · <strong>powered by 3our</strong>
           </p>
         </div>
 

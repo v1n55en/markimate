@@ -23,7 +23,7 @@ export default function PrivacyPage() {
           <section style={styles.section}>
             <h2 style={styles.sectionHeading}>1. Pendahuluan & Identitas Pengelola</h2>
             <p style={styles.paragraph}>
-              Selamat datang di <strong>Markimate</strong>, platform digital marketing agentic in one platform yang dikembangkan dan dioperasikan oleh <strong>Markimate · powered by 3our</strong>. Kami berkomitmen penuh untuk melindungi privasi, integritas, dan keamanan data seluruh pengguna kami, termasuk data yang diakses melalui integrasi Application Programming Interface (API) platform pihak ketiga.
+              Selamat datang di <strong>Markimate</strong>, platform dengan Semua Tim Digital Marketing dalam satu platform yang dikembangkan dan dioperasikan oleh <strong>Markimate · powered by 3our</strong>. Kami berkomitmen penuh untuk melindungi privasi, integritas, dan keamanan data seluruh pengguna kami, termasuk data yang diakses melalui integrasi Application Programming Interface (API) platform pihak ketiga.
             </p>
             <div style={styles.highlightBox}>
               <div style={styles.companyRow}>
