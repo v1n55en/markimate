@@ -42,6 +42,9 @@ export default function AdsReportsPage({ user }) {
 
   useEffect(() => {
     loadData();
+    const onWsChange = () => loadData();
+    window.addEventListener('supermat:workspace-changed', onWsChange);
+    return () => window.removeEventListener('supermat:workspace-changed', onWsChange);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [platformFilter, yearFilter]);
 

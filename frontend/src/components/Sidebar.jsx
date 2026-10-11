@@ -13,23 +13,45 @@ import {
   FileText,
   Menu,
   X,
+  Lock,
+  Eye,
+  Users,
+  Sparkles,
+  TrendingUp,
+  Clock,
+  ChevronDown,
+  ChevronRight,
+  LayoutGrid,
 } from 'lucide-react';
+import WorkspaceSelector from './common/WorkspaceSelector';
+import { useWorkspace } from '../context/WorkspaceContext';
+import { ROLES } from '../config/roles';
 
 export default function Sidebar({ user, onLogout, plan, usage }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [soonExpanded, setSoonExpanded] = useState(false);
+  const { activeWorkspace } = useWorkspace();
 
   const used = usage?.runsThisMonth ?? 0;
   const limit = usage?.limit ?? 0;
   const pct = limit ? Math.min(100, Math.round((used / limit) * 100)) : 0;
 
   const isDemo = Boolean(user?.isDemo);
+  const activeModules = activeWorkspace?.modules || ['seo', 'ads_report', 'ads_spy'];
 
-  // Definisi menu navigasi berkelompok
-  const navSections = [
-    {
-      group: 'SEO Automation',
+  const isSeoActive = activeModules.includes('seo');
+  const isAdsActive = activeModules.includes('ads_report');
+  const isSpyActive = activeModules.includes('ads_spy');
+
+  // 1. Modul-modul aktif yang dibeli
+  const activeSections = [];
+
+  if (isSeoActive) {
+    activeSections.push({
+      group: 'SEO Specialist',
+      moduleKey: 'seo',
       items: [
         {
           id: 'seo-keywords',
@@ -50,10 +72,14 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
           icon: Settings,
         },
       ],
-      showQuota: true, // Kartu kuota artikel hanya tampil di grup SEO
-    },
-    {
-      group: 'Ads Report',
+      showQuota: true,
+    });
+  }
+
+  if (isAdsActive) {
+    activeSections.push({
+      group: 'Ads Specialist (Report)',
+      moduleKey: 'ads_report',
       items: [
         {
           id: 'ads-summary',
@@ -73,22 +99,78 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
           path: '/app/ads/reports',
           label: 'Laporan Iklan',
           icon: FileText,
-          matchPrefix: true, // match /app/ads/reports/:reportId juga
+          matchPrefix: true,
         },
       ],
-    },
-    {
-      group: 'Akun',
+    });
+  }
+
+  if (isSpyActive) {
+    activeSections.push({
+      group: 'Ads Creative Spy',
+      moduleKey: 'ads_spy',
       items: [
         {
-          id: 'billing',
-          path: '/app/billing',
-          label: 'Langganan',
-          icon: CreditCard,
+          id: 'spy-summary',
+          path: '/app/spy',
+          label: 'Ringkasan Spy',
+          icon: Eye,
+          exact: true,
+        },
+        {
+          id: 'spy-competitors',
+          path: '/app/spy/competitors',
+          label: 'Kompetitor',
+          icon: Users,
+        },
+        {
+          id: 'spy-library',
+          path: '/app/spy/library',
+          label: 'Galeri Creative',
+          icon: Sparkles,
+        },
+        {
+          id: 'spy-insights',
+          path: '/app/spy/insights',
+          label: 'Insight AI',
+          icon: TrendingUp,
         },
       ],
-    },
-  ];
+    });
+  }
+
+  // 2. Modul tersedia tapi belum dibeli (terkunci dengan ikon gembok)
+  const lockedRoles = [];
+  if (!isSeoActive) {
+    lockedRoles.push({
+      key: 'seo',
+      name: 'SEO Specialist',
+      category: 'Content',
+      path: '/app/modules/seo',
+      icon: Terminal,
+    });
+  }
+  if (!isAdsActive) {
+    lockedRoles.push({
+      key: 'ads_report',
+      name: 'Ads Specialist (Report)',
+      category: 'Ads',
+      path: '/app/modules/ads_report',
+      icon: LayoutDashboard,
+    });
+  }
+  if (!isSpyActive) {
+    lockedRoles.push({
+      key: 'ads_spy',
+      name: 'Ads Creative Spy',
+      category: 'Research',
+      path: '/app/modules/ads_spy',
+      icon: Eye,
+    });
+  }
+
+  // 3. Modul segera hadir (13 role)
+  const soonRoles = ROLES.filter((r) => r.status === 'soon');
 
   const isItemActive = (item) => {
     if (item.exact) return location.pathname === item.path;
@@ -159,14 +241,17 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
           )}
         </div>
 
+        {/* Pemilih Workspace / Multi-brand */}
+        <WorkspaceSelector />
+
         {/* User Info Card */}
         <div style={styles.userCard}>
           <div style={styles.avatar}>
             <User size={16} color="var(--text-secondary)" />
           </div>
           <div style={styles.userInfo}>
-            <p style={styles.userName} title={user?.brandName}>
-              {user?.brandName || 'My Brand'}
+            <p style={styles.userName} title={activeWorkspace?.name || user?.brandName}>
+              {activeWorkspace?.name || user?.brandName || 'My Brand'}
             </p>
             <span style={styles.userRole}>
               {user?.role === 'admin' ? '🛡️ Admin 3Our' : user?.email}
@@ -176,7 +261,32 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
 
         {/* Navigation Sections */}
         <nav style={styles.navScroll}>
-          {navSections.map((section, sIdx) => (
+          {/* 0. Dashboard Workspace */}
+          <div style={styles.sectionBlock}>
+            <div style={styles.itemsList}>
+              <button
+                onClick={() => handleNavClick('/app')}
+                style={{
+                  ...styles.navLink,
+                  ...(location.pathname === '/app' ? styles.navLinkActive : {}),
+                }}
+              >
+                {location.pathname === '/app' && <div style={styles.activeBar} />}
+                <LayoutGrid
+                  size={17}
+                  color={
+                    location.pathname === '/app'
+                      ? 'var(--accent-cyan)'
+                      : 'var(--text-secondary)'
+                  }
+                />
+                <span>Dashboard Workspace</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 1. Modul-modul Aktif */}
+          {activeSections.map((section, sIdx) => (
             <div key={sIdx} style={styles.sectionBlock}>
               <div style={styles.sectionHeader}>
                 <span style={styles.sectionGroupTitle}>{section.group}</span>
@@ -260,6 +370,98 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
               )}
             </div>
           ))}
+
+          {/* 2. Modul Tersedia tapi Terkunci (Belum Diaktifkan untuk Workspace Ini) */}
+          {lockedRoles.length > 0 && (
+            <div style={styles.sectionBlock}>
+              <div style={styles.sectionHeader}>
+                <span style={styles.sectionGroupTitle}>Modul Tersedia</span>
+              </div>
+              <div style={styles.itemsList}>
+                {lockedRoles.map((role) => {
+                  const Icon = role.icon;
+                  return (
+                    <button
+                      key={role.key}
+                      onClick={() => handleNavClick(role.path)}
+                      style={styles.lockedNavLink}
+                      title={`Aktifkan modul ${role.name}`}
+                    >
+                      <Icon size={16} color="var(--text-muted)" />
+                      <span style={styles.lockedLabel}>{role.name}</span>
+                      <span style={styles.lockedBadge}>
+                        <Lock size={10} />
+                        Buka
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 3. Modul Segera Hadir (Collapsible Accordion) */}
+          <div style={styles.sectionBlock}>
+            <button
+              onClick={() => setSoonExpanded(!soonExpanded)}
+              style={styles.soonHeaderBtn}
+              type="button"
+            >
+              <div style={styles.soonHeaderLeft}>
+                <span style={styles.sectionGroupTitle}>Segera Hadir</span>
+                <span style={styles.soonCountBadge}>{soonRoles.length}</span>
+              </div>
+              {soonExpanded ? (
+                <ChevronDown size={14} color="var(--text-muted)" />
+              ) : (
+                <ChevronRight size={14} color="var(--text-muted)" />
+              )}
+            </button>
+
+            {soonExpanded && (
+              <div style={styles.soonList}>
+                {soonRoles.map((role) => (
+                  <button
+                    key={role.key}
+                    onClick={() => handleNavClick(`/app/modules/${role.key}`)}
+                    style={styles.soonItemBtn}
+                    title={role.description}
+                  >
+                    <Clock size={13} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+                    <span style={styles.soonItemName}>{role.name}</span>
+                    <span style={styles.soonCategoryTag}>{role.category}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 4. Pengaturan Akun & Langganan */}
+          <div style={styles.sectionBlock}>
+            <div style={styles.sectionHeader}>
+              <span style={styles.sectionGroupTitle}>Akun</span>
+            </div>
+            <div style={styles.itemsList}>
+              <button
+                onClick={() => handleNavClick('/app/billing')}
+                style={{
+                  ...styles.navLink,
+                  ...(location.pathname === '/app/billing' ? styles.navLinkActive : {}),
+                }}
+              >
+                {location.pathname === '/app/billing' && <div style={styles.activeBar} />}
+                <CreditCard
+                  size={17}
+                  color={
+                    location.pathname === '/app/billing'
+                      ? 'var(--accent-cyan)'
+                      : 'var(--text-secondary)'
+                  }
+                />
+                <span>Langganan</span>
+              </button>
+            </div>
+          </div>
         </nav>
 
         {/* Footer Logout */}
@@ -576,5 +778,100 @@ const styles = {
     borderRadius: '6px',
     textAlign: 'left',
     transition: 'color var(--transition-fast)',
+  },
+  lockedNavLink: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.65rem',
+    padding: '0.5rem 0.75rem',
+    fontSize: '0.8rem',
+    fontWeight: '500',
+    color: 'var(--text-muted)',
+    backgroundColor: 'transparent',
+    border: '1px dashed rgba(255, 255, 255, 0.08)',
+    cursor: 'pointer',
+    borderRadius: '6px',
+    textAlign: 'left',
+    transition: 'all var(--transition-fast)',
+    width: '100%',
+  },
+  lockedLabel: {
+    flex: 1,
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  lockedBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.2rem',
+    fontSize: '0.65rem',
+    fontWeight: '700',
+    color: 'var(--accent-yellow)',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    padding: '0.1rem 0.35rem',
+    borderRadius: '4px',
+  },
+  soonHeaderBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    padding: '0.4rem 0.5rem',
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    borderRadius: '6px',
+  },
+  soonHeaderLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.45rem',
+  },
+  soonCountBadge: {
+    fontSize: '0.65rem',
+    fontWeight: '700',
+    color: 'var(--text-muted)',
+    backgroundColor: 'var(--bg-base)',
+    padding: '0.1rem 0.35rem',
+    borderRadius: '999px',
+    border: '1px solid var(--border-muted)',
+  },
+  soonList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.2rem',
+    paddingLeft: '0.25rem',
+    marginTop: '0.2rem',
+    maxHeight: '180px',
+    overflowY: 'auto',
+  },
+  soonItemBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.4rem 0.6rem',
+    borderRadius: '6px',
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    textAlign: 'left',
+    width: '100%',
+    transition: 'background-color var(--transition-fast)',
+  },
+  soonItemName: {
+    flex: 1,
+    fontSize: '0.75rem',
+    color: 'var(--text-secondary)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  },
+  soonCategoryTag: {
+    fontSize: '0.62rem',
+    color: 'var(--text-muted)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+    padding: '0.1rem 0.3rem',
+    borderRadius: '4px',
   },
 };

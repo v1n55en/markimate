@@ -1,11 +1,8 @@
-// Klien API Modul Ads Report Supermat
 import { api } from '../api';
 import {
   PLATFORMS_META,
-  INITIAL_CONNECTIONS,
-  INITIAL_SUMMARY,
-  INITIAL_REPORTS,
   REPORT_DETAILS,
+  getInitialMockDataForWorkspace,
 } from './mockData';
 
 // Mode Mock default aktif kecuali VITE_ADS_MOCK disetel secara eksplisit ke 'false'
@@ -15,13 +12,26 @@ export const isAdsMock = () => {
   return true; // default true untuk dev & reviewer preview
 };
 
+// Ambil ID workspace aktif saat ini
+export function getActiveWsId() {
+  try {
+    return localStorage.getItem('supermat_workspace') || 'ws-3our-official';
+  } catch {
+    return 'ws-3our-official';
+  }
+}
+
 // Key storage untuk persistensi sesi mock demo
 const STORAGE_KEYS = {
-  CONNECTIONS: 'supermat_ads_mock_connections_v1',
-  REPORTS: 'supermat_ads_mock_reports_v1',
-  SUMMARY: 'supermat_ads_mock_summary_v1',
-  DETAILS: 'supermat_ads_mock_details_v1',
+  CONNECTIONS: 'supermat_ads_mock_connections_v2',
+  REPORTS: 'supermat_ads_mock_reports_v2',
+  SUMMARY: 'supermat_ads_mock_summary_v2',
+  DETAILS: 'supermat_ads_mock_details_v2',
 };
+
+function getWsStorageKey(baseKey, wsId = getActiveWsId()) {
+  return `${baseKey}_${wsId}`;
+}
 
 // Helper state storage mock
 function getStoredJson(key, fallback) {
@@ -42,27 +52,33 @@ function setStoredJson(key, val) {
   }
 }
 
-export function resetMockData() {
-  setStoredJson(STORAGE_KEYS.CONNECTIONS, INITIAL_CONNECTIONS);
-  setStoredJson(STORAGE_KEYS.REPORTS, INITIAL_REPORTS);
-  setStoredJson(STORAGE_KEYS.SUMMARY, INITIAL_SUMMARY);
-  setStoredJson(STORAGE_KEYS.DETAILS, REPORT_DETAILS);
+export function resetMockData(targetWsId) {
+  const wsId = targetWsId || getActiveWsId();
+  const init = getInitialMockDataForWorkspace(wsId);
+  setStoredJson(getWsStorageKey(STORAGE_KEYS.CONNECTIONS, wsId), init.connections);
+  setStoredJson(getWsStorageKey(STORAGE_KEYS.REPORTS, wsId), init.reports);
+  setStoredJson(getWsStorageKey(STORAGE_KEYS.SUMMARY, wsId), init.summary);
+  setStoredJson(getWsStorageKey(STORAGE_KEYS.DETAILS, wsId), init.details);
 }
 
-function getMockConnections() {
-  return getStoredJson(STORAGE_KEYS.CONNECTIONS, INITIAL_CONNECTIONS);
+function getMockConnections(wsId = getActiveWsId()) {
+  const init = getInitialMockDataForWorkspace(wsId);
+  return getStoredJson(getWsStorageKey(STORAGE_KEYS.CONNECTIONS, wsId), init.connections);
 }
 
-function getMockReports() {
-  return getStoredJson(STORAGE_KEYS.REPORTS, INITIAL_REPORTS);
+function getMockReports(wsId = getActiveWsId()) {
+  const init = getInitialMockDataForWorkspace(wsId);
+  return getStoredJson(getWsStorageKey(STORAGE_KEYS.REPORTS, wsId), init.reports);
 }
 
-function getMockSummary() {
-  return getStoredJson(STORAGE_KEYS.SUMMARY, INITIAL_SUMMARY);
+function getMockSummary(wsId = getActiveWsId()) {
+  const init = getInitialMockDataForWorkspace(wsId);
+  return getStoredJson(getWsStorageKey(STORAGE_KEYS.SUMMARY, wsId), init.summary);
 }
 
-function getMockDetails() {
-  return getStoredJson(STORAGE_KEYS.DETAILS, REPORT_DETAILS);
+function getMockDetails(wsId = getActiveWsId()) {
+  const init = getInitialMockDataForWorkspace(wsId);
+  return getStoredJson(getWsStorageKey(STORAGE_KEYS.DETAILS, wsId), init.details);
 }
 
 // 1. Ringkasan Ads Report
@@ -151,7 +167,7 @@ export async function finishConnect(platform, query = {}) {
       connections.push(updatedConn);
     }
 
-    setStoredJson(STORAGE_KEYS.CONNECTIONS, connections);
+    setStoredJson(getWsStorageKey(STORAGE_KEYS.CONNECTIONS), connections);
     return { ok: true, connection: updatedConn };
   }
 
@@ -177,7 +193,7 @@ export async function disconnect(id) {
       }
       return c;
     });
-    setStoredJson(STORAGE_KEYS.CONNECTIONS, updated);
+    setStoredJson(getWsStorageKey(STORAGE_KEYS.CONNECTIONS), updated);
     return { ok: true };
   }
   return api(`/api/ads/connections/${id}`, { method: 'DELETE' });
@@ -261,12 +277,12 @@ export async function approveReport(id) {
       }
       return r;
     });
-    setStoredJson(STORAGE_KEYS.REPORTS, updated);
+    setStoredJson(getWsStorageKey(STORAGE_KEYS.REPORTS), updated);
 
     const details = getMockDetails();
     if (details[id]) {
       details[id].status = 'Terkirim';
-      setStoredJson(STORAGE_KEYS.DETAILS, details);
+      setStoredJson(getWsStorageKey(STORAGE_KEYS.DETAILS), details);
     }
 
     return { ok: true, status: 'Terkirim' };

@@ -27,6 +27,9 @@ export default function AdsConnectionsPage() {
 
   useEffect(() => {
     loadData();
+    const onWsChange = () => loadData();
+    window.addEventListener('supermat:workspace-changed', onWsChange);
+    return () => window.removeEventListener('supermat:workspace-changed', onWsChange);
   }, []);
 
   const handleConnect = async (platformKey) => {

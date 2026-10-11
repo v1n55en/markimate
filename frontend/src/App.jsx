@@ -29,6 +29,16 @@ import AdsReportDetailPage from './pages/ads/AdsReportDetailPage';
 import AdsCallbackPage from './pages/ads/AdsCallbackPage';
 
 import { api, getToken, setToken } from './api';
+import { WorkspaceProvider } from './context/WorkspaceContext';
+import ModuleGuard from './components/common/ModuleGuard';
+import ModuleActivatePage from './pages/app/ModuleActivatePage';
+import WorkspaceDashboardPage from './pages/app/WorkspaceDashboardPage';
+
+// Halaman Ads Creative Spy
+import SpyOverviewPage from './pages/spy/SpyOverviewPage';
+import SpyCompetitorsPage from './pages/spy/SpyCompetitorsPage';
+import SpyLibraryPage from './pages/spy/SpyLibraryPage';
+import SpyInsightsPage from './pages/spy/SpyInsightsPage';
 
 // Komponen Pembungkus Route Terproteksi
 function ProtectedLayout({ me, onLogout, refreshMe }) {
@@ -72,27 +82,112 @@ function ProtectedLayout({ me, onLogout, refreshMe }) {
 
         <main className="main-content">
           <Routes>
-            <Route index element={<Navigate to="/app/ads" replace />} />
-            {/* Rute Modul SEO */}
+            <Route index element={<WorkspaceDashboardPage me={me} />} />
+
+            {/* Rute Modul SEO (Guarded) */}
             <Route
               path="seo/keywords"
-              element={<KeywordManager me={me} refreshMe={refreshMe} goTo={goTo} />}
+              element={
+                <ModuleGuard moduleKey="seo">
+                  <KeywordManager me={me} refreshMe={refreshMe} goTo={goTo} />
+                </ModuleGuard>
+              }
             />
             <Route
               path="seo/analytics"
-              element={<AnalyticsDashboard me={me} />}
+              element={
+                <ModuleGuard moduleKey="seo">
+                  <AnalyticsDashboard me={me} />
+                </ModuleGuard>
+              }
             />
             <Route
               path="seo/settings"
-              element={<CmsSettings me={me} refreshMe={refreshMe} goTo={goTo} />}
+              element={
+                <ModuleGuard moduleKey="seo">
+                  <CmsSettings me={me} refreshMe={refreshMe} goTo={goTo} />
+                </ModuleGuard>
+              }
             />
 
-            {/* Rute Modul Ads Report */}
-            <Route path="ads" element={<AdsSummaryPage />} />
-            <Route path="ads/connections" element={<AdsConnectionsPage />} />
-            <Route path="ads/reports" element={<AdsReportsPage user={user} />} />
-            <Route path="ads/reports/:reportId" element={<AdsReportDetailPage user={user} />} />
-            <Route path="ads/connect/:platform/callback" element={<AdsCallbackPage />} />
+            {/* Rute Modul Ads Report (Guarded) */}
+            <Route
+              path="ads"
+              element={
+                <ModuleGuard moduleKey="ads_report">
+                  <AdsSummaryPage />
+                </ModuleGuard>
+              }
+            />
+            <Route
+              path="ads/connections"
+              element={
+                <ModuleGuard moduleKey="ads_report">
+                  <AdsConnectionsPage />
+                </ModuleGuard>
+              }
+            />
+            <Route
+              path="ads/reports"
+              element={
+                <ModuleGuard moduleKey="ads_report">
+                  <AdsReportsPage user={user} />
+                </ModuleGuard>
+              }
+            />
+            <Route
+              path="ads/reports/:reportId"
+              element={
+                <ModuleGuard moduleKey="ads_report">
+                  <AdsReportDetailPage user={user} />
+                </ModuleGuard>
+              }
+            />
+            <Route
+              path="ads/connect/:platform/callback"
+              element={
+                <ModuleGuard moduleKey="ads_report">
+                  <AdsCallbackPage />
+                </ModuleGuard>
+              }
+            />
+
+            {/* Rute Modul Ads Creative Spy (Guarded) */}
+            <Route
+              path="spy"
+              element={
+                <ModuleGuard moduleKey="ads_spy">
+                  <SpyOverviewPage />
+                </ModuleGuard>
+              }
+            />
+            <Route
+              path="spy/competitors"
+              element={
+                <ModuleGuard moduleKey="ads_spy">
+                  <SpyCompetitorsPage />
+                </ModuleGuard>
+              }
+            />
+            <Route
+              path="spy/library"
+              element={
+                <ModuleGuard moduleKey="ads_spy">
+                  <SpyLibraryPage />
+                </ModuleGuard>
+              }
+            />
+            <Route
+              path="spy/insights"
+              element={
+                <ModuleGuard moduleKey="ads_spy">
+                  <SpyInsightsPage />
+                </ModuleGuard>
+              }
+            />
+
+            {/* Halaman Aktivasi Modul & Waitlist */}
+            <Route path="modules/:key" element={<ModuleActivatePage />} />
 
             {/* Rute Akun */}
             <Route path="billing" element={<BillingPage me={me} refreshMe={refreshMe} />} />
@@ -199,49 +294,51 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Rute Publik */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/roles/:key" element={<RoleDetailPage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
-        <Route path="/terms" element={<TermsPage />} />
+      <WorkspaceProvider>
+        <Routes>
+          {/* Rute Publik */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/roles/:key" element={<RoleDetailPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
 
-        <Route
-          path="/login"
-          element={
-            me ? (
-              <Navigate to="/app/ads" replace />
-            ) : (
-              <AuthScreen onLoginSuccess={handleLoginSuccess} initialMode="login" />
-            )
-          }
-        />
-        <Route
-          path="/register"
-          element={
-            me ? (
-              <Navigate to="/app/ads" replace />
-            ) : (
-              <AuthScreen onLoginSuccess={handleLoginSuccess} initialMode="register" />
-            )
-          }
-        />
+          <Route
+            path="/login"
+            element={
+              me ? (
+                <Navigate to="/app/ads" replace />
+              ) : (
+                <AuthScreen onLoginSuccess={handleLoginSuccess} initialMode="login" />
+              )
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              me ? (
+                <Navigate to="/app/ads" replace />
+              ) : (
+                <AuthScreen onLoginSuccess={handleLoginSuccess} initialMode="register" />
+              )
+            }
+          />
 
-        {/* Rute Terproteksi Aplikasi */}
-        <Route
-          path="/app/*"
-          element={
-            <ProtectedLayout
-              me={me}
-              onLogout={handleLogout}
-              refreshMe={refreshMe}
-            />
-          }
-        />
+          {/* Rute Terproteksi Aplikasi */}
+          <Route
+            path="/app/*"
+            element={
+              <ProtectedLayout
+                me={me}
+                onLogout={handleLogout}
+                refreshMe={refreshMe}
+              />
+            }
+          />
 
-        {/* Catch-all redirect ke Beranda */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Catch-all redirect ke Beranda */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </WorkspaceProvider>
     </BrowserRouter>
   );
 }

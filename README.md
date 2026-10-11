@@ -1,65 +1,134 @@
 # Supermat — AI Digital Marketing Team Platform
 
 Web app SaaS **Supermat Powered by 3Our Indonesia**:
-1. **SEO Article Automation**: Pengguna mendaftar, menghubungkan **WordPress**, **Wix**, **Sanity**, atau **Shopify Blog** miliknya, memasukkan keyword → 3Our (lewat n8n) meriset tren & volume, menulis artikel SEO dengan AI, lalu artikel direview dan diterbitkan ke CMS user.
-2. **Ads Performance Report**: Konsolidasi performa iklan bulanan multi-platform (**Shopee Ads**, **TikTok Ads**, **TikTok Shop GMV Max**, **Meta Ads**, **Google Ads**), visualisasi metrik (Spend, ROAS, GMV), insight AI, dan integrasi siap ekspor ke Google Slides & Google Sheets. Termasuk mode demo untuk review Shopee Open Platform & TikTok Marketing API.
+Platform AI Digital Marketing Team modular all-in-one yang mengintegrasikan 16 peran spesialis digital marketing ke dalam satu dashboard kolaboratif multi-brand.
 
 ```
 frontend (React 19, Vite, React Router v7)  →  backend (Express, Supabase)  →  n8n 3Our (webhook "Supermat API")
-   ├── SEO Automation (CMS Publish)         └── Ads Report (Shopee, TikTok, Meta, Google APIs)
-   └── Ads Report (Dashboard & Review)
+   ├── Multi-Workspace Context (Brand Isolation)   └── Ads Report (Shopee, TikTok, Meta, Google APIs)
+   ├── SEO Automation (CMS Publish)
+   ├── Ads Performance Report (Dashboard & Analytics)
+   ├── Ads Creative Spy (Competitor Intelligence)
+   └── 13 Role Coming Soon (Waitlist Engine)
 ```
 
-## Struktur repo
+---
 
-| Folder | Isi |
+## 16 AI Digital Marketing Roles (Modular Architecture)
+
+Supermat dirancang dengan model modular berbasis peran spesialis:
+
+| Kategori | Role Key | Nama Role | Status | Harga / Bulan |
+|---|---|---|---|---|
+| **Traffic & Organic** | `seo` | AI SEO Specialist | **Tersedia** | Rp 1.500.000 |
+| | `content` | AI Content Strategist | Segera Hadir | Rp 1.250.000 |
+| | `copywriter` | AI Copywriter & Storyteller | Segera Hadir | Rp 1.000.000 |
+| | `social` | AI Social Media Manager | Segera Hadir | Rp 1.250.000 |
+| **Paid Advertising** | `ads_report` | AI Ads Performance Reporter | **Tersedia** | Rp 1.500.000 |
+| | `ads_spy` | AI Ads Creative Spy | **Tersedia** | Rp 1.000.000 |
+| | `media_buyer` | AI Media Buyer Assistant | Segera Hadir | Rp 2.000.000 |
+| | `ad_copy` | AI Ad Copywriter Multi-Platform | Segera Hadir | Rp 1.000.000 |
+| **Conversion & Retention** | `cro` | AI Landing Page & CRO Specialist | Segera Hadir | Rp 1.500.000 |
+| | `email_crm` | AI Email & CRM Strategist | Segera Hadir | Rp 1.250.000 |
+| | `wa_crm` | AI WhatsApp Commerce Specialist | Segera Hadir | Rp 1.250.000 |
+| | `affiliate` | AI KOL & Affiliate Scout | Segera Hadir | Rp 1.250.000 |
+| **Strategy & Market Intel** | `market_research` | AI Market & Consumer Researcher | Segera Hadir | Rp 1.500.000 |
+| | `pricing` | AI Pricing & Promo Strategist | Segera Hadir | Rp 1.250.000 |
+| | `cmo` | AI Fractional CMO | Segera Hadir | Rp 2.500.000 |
+| | `cs_intelligence` | AI Customer Insights & Review Miner | Segera Hadir | Rp 1.000.000 |
+
+### Paket & Bundling
+- **Pilih Modul Lepas**: Kombinasikan peran spesifik sesuai kebutuhan brand Anda.
+- **Paket Fokus 3 (Best Value)**: Diskon otomatis 20% saat mengaktifkan 3 modul aktif sekaligus.
+- **Paket All-in-One AI Team**: Akses penuh ke seluruh 16 modul saat diluncurkan (Rp 7.875.000/bln — hemat 65%).
+- **Managed by 3Our**: Layanan hybrid AI + Digital Marketing Team spesialis manusia dari 3Our Indonesia (Rp 25.000.000/bln).
+
+---
+
+## Modul Utama yang Aktif
+
+### 1. AI SEO Specialist (`/app/keywords`)
+- Riset keyword real-time berbasis Google Trends & volume pencarian.
+- Penulisan artikel SEO mendalam dengan Gemini AI + Google Search grounding.
+- Integrasi langsung ke CMS: **WordPress**, **Wix Blog**, **Sanity**, dan **Shopify Blog**.
+- Workflow Review Ready (Human-in-the-Loop drawer) sebelum terbit langsung ke CMS.
+
+### 2. AI Ads Performance Reporter (`/app/ads`)
+- Konsolidasi performa multi-platform: **Shopee Ads**, **TikTok Ads**, **TikTok Shop GMV Max**, **Meta Ads**, **Google Ads**.
+- Visualisasi metrik kunci: Ad Spend, ROAS, GMV, CPC, CTR.
+- Executive summary AI dan generator slide ekspor presentasi bulanan.
+
+### 3. AI Ads Creative Spy (`/app/spy`)
+- Pantau kompetitor secara otomatis di Meta Ads Library, TikTok Creative Center, & Google Ads Transparency.
+- Deteksi iklan winning (>30 hari tayang konsisten).
+- Reverse engineering kreatif iklan dengan AI: Hook, Angle, Penawaran, Target Audience, dan Visual Breakdown.
+- Swipe File personal per brand dan Laporan Intelijen Kreatif mingguan.
+
+### 4. Multi-Workspace Isolation (`WorkspaceContext`)
+- Kelola multi-brand dalam satu login Supermat tanpa saling campur data.
+- Switcher brand instan dengan state terisolasi (`ws-3our-official`, `ws-kopi-makmur`, `ws-hijab-store`).
+- Event reactive `supermat:workspace-changed` untuk pembaruan komponen real-time.
+
+---
+
+## Struktur Direktori Repo
+
+| Folder | Deskripsi |
 |---|---|
-| `frontend/` | React 19 + Vite. Login/daftar, Kontrol Automasi (keyword, run, review drawer), Pengaturan CMS & API (WordPress/Wix/Sanity/Shopify + tes koneksi, API key 3Our), Langganan (dummy checkout), Analitik. |
-| `backend/` | Express (ESM). JWT auth, Supabase (fallback `database.json` untuk dev), proxy ke n8n dengan `X-Supermat-Key`, kredensial CMS per user, kuota paket, public API `/api/v1/*`, cron jadwal. |
-| `automation/` | Sumber & hasil build workflow n8n: `build-workflows.mjs` + `src/*.js` → `n8n-main-workflow.json`, `n8n-adapter-wordpress.json`, `n8n-adapter-wix.json`, `n8n-adapter-sanity.json`, `n8n-adapter-shopify.json` (import ke n8n). |
-| `docs/` | Spesifikasi desain. |
+| `frontend/` | React 19 + Vite. Single Page Application (SPA), Landing Page 16 Role, Detail Role, Workspace Dashboard, SEO Automation, Ads Report, Ads Creative Spy, Modular Billing, ModuleGuard. |
+| `frontend/src/config/` | Konfigurasi tunggal 16 role (`roles.js`) dan kalkulasi modular pricing (`pricing.js`). |
+| `frontend/src/context/` | State workspace multi-brand (`WorkspaceContext.jsx`). |
+| `frontend/src/spy/` | Mock data dan API client untuk modul AI Ads Creative Spy (`spyApi.js`, `mockData.js`). |
+| `frontend/src/ads/` | Mock data dan API client untuk modul Ads Performance Report (`adsApi.js`, `mockData.js`). |
+| `backend/` | Express (ESM). JWT auth, Supabase (fallback `database.json` untuk dev), proxy ke n8n dengan `X-Supermat-Key`, kredensial CMS per user, kuota paket, public API `/api/v1/*`. |
+| `automation/` | Sumber & hasil build workflow n8n: `build-workflows.mjs` + `src/*.js` → `n8n-main-workflow.json`, `n8n-adapter-wordpress.json`, `n8n-adapter-wix.json`, `n8n-adapter-sanity.json`, `n8n-adapter-shopify.json`. |
+| `docs/` | Spesifikasi desain & PRD. |
 
-## Alur produk
+---
 
-1. **Daftar/Masuk** → backend membuat akun (plan `free`, API key `spm_live_…`).
-2. **Pengaturan CMS** → simpan kredensial WordPress (URL, user, Application Password) atau Wix (Site ID, API key) atau Sanity (Project ID, dataset, token Editor, opsional URL Studio / document type / field isi / pola URL publik) → backend langsung **tes koneksi** (`/wp-json/wp/v2/users/me`, `blog/v3/posts`, query + dry-run mutation Sanity, atau GraphQL shop/blog/scope Shopify) dan menandai *verified*.
-3. **Kontrol Automasi** → tambah keyword → backend `POST n8n /webhook/supermat-trigger` → n8n: Google Trends + Autocomplete (SerpAPI) → Ahrefs (RapidAPI) → pilih target keyword → Gemini (+ tool Google Search) → artikel JSON.
-   - **Free**: artikel langsung dikirim sebagai **draf** ke CMS (`action: draft`).
-   - **Pro + Web Approver**: status `Review Ready` → user edit di drawer → **Simpan draf** / **Publikasikan** → backend `POST n8n /webhook/supermat-publish` dengan kredensial CMS user (diambil dari server, bukan dari browser).
-4. **Jadwal** (Pro): keyword `daily`/`weekly` dijalankan oleh Vercel Cron → `GET /api/cron/run-scheduled` (header `Authorization: Bearer CRON_SECRET`).
-5. **Langganan**: halaman dummy (QRIS/VA/kartu) → `POST /api/billing/checkout` mengaktifkan plan `premium` 30 hari. Tidak ada transaksi nyata.
-6. **3Our API** (per user, header `X-API-Key`): `POST /api/v1/articles/generate`, `POST /api/v1/articles/:id/publish`, `GET /api/v1/articles`.
+## Environment Variables
 
-## Deploy
+### Frontend (`frontend/.env`)
+| Variable | Deskripsi | Default / Contoh |
+|---|---|---|
+| `VITE_API_BASE_URL` | Base URL backend API Supermat | `https://supermat-api.vercel.app` (prod) / `http://localhost:5001` (dev) |
+| `VITE_ADS_MOCK` | Aktifkan mock data untuk modul Ads Report | `true` (jika tidak terhubung API iklan live) |
+| `VITE_SPY_MOCK` | Aktifkan mock data untuk modul Ads Creative Spy | `true` (default dev & demo mode) |
 
-### n8n (3Our)
-Workflow sudah terpasang & aktif di `n8n.3ourasia.id`:
-- `Supermat API: Generate & Publish (3Our)` — id `9cXOiWyr2L2qdWrv` (webhook `supermat-trigger`, `supermat-publish`)
-- `Supermat Adapter: WordPress` — id `XokXcBPuDOlIexss`
-- `Supermat Adapter: Wix Blog` — id `54QOd6HkD0duCqGq`
-- `Supermat Adapter: Sanity` — id `yRYqxg0wtw0Q0C9t` (draf `drafts.<id>` via Mutations API; terbit via Mutations/Actions API; isi = Portable Text)
-- `Supermat Adapter: Shopify Blog` — id `mPOJqWf1KKYoK1Bp` (GraphQL `articleCreate`/`articleUpdate`; auth: token `shpat_` atau Client ID + Secret app Dev Dashboard → client_credentials, token 24 jam; scope `write_content`)
+### Backend (`backend/.env`)
+| Variable | Deskripsi |
+|---|---|
+| `SUPABASE_URL` | URL project Supabase |
+| `SUPABASE_SCHEMA` | Schema database (`supermat`) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Service Role Key |
+| `JWT_SECRET` | Secret key untuk penandatanganan JWT |
+| `SUPERMAT_API_KEY` | API Key penghubung backend ↔ n8n |
+| `N8N_BASE_URL` | URL instance n8n |
+| `CRON_SECRET` | Bearer token untuk trigger jadwal Vercel cron |
 
-API key 3Our ↔ n8n: kedua webhook memakai **Header Auth** dengan credential n8n **"Supermat API Key (Header)"** (header `X-Supermat-Key`). Nilainya hanya disimpan di credential itu dan di env Vercel `SUPERMAT_API_KEY` — keduanya harus sama. **Jangan tulis key di repo (repo ini publik).** Ganti key: edit credential di n8n → edit env di Vercel → Redeploy.
+---
 
-Mengubah workflow: edit `automation/src/*.js` / `build-workflows.mjs`, jalankan `node automation/build-workflows.mjs`, lalu import JSON ke n8n (Import from file) dan salin ke workflow dengan id di atas (atau update node-nya langsung).
+## Menjalankan Aplikasi Secara Lokal
 
-### Backend (Vercel project `supermat-api`, root `backend/`)
-1. Database: schema `supermat` di project Supabase "Debounce WA 3Our" (`jgavqcrsolndrltadlxq`) — sudah dibuat dari `backend/supabase.sql` dan di-expose di Data API. (Free plan Supabase maksimal 2 project, jadi Supermat menumpang dengan schema terpisah.)
-2. Env config (sudah diisi): `SUPABASE_URL`, `SUPABASE_SCHEMA=supermat`, `N8N_BASE_URL`, `FRONTEND_ORIGIN`, `FREE_MONTHLY_LIMIT`.
-3. Env rahasia (isi sendiri, tipe Secret): `SUPABASE_SERVICE_ROLE_KEY`, `JWT_SECRET`, `SUPERMAT_API_KEY`, `CRON_SECRET`.
-4. Entry function `api/index.js` (maxDuration 60 detik, karena generate artikel ±20–30 detik); `vercel.json` berisi cron harian `0 1 * * *` (08.00 WIB) → `/api/cron/run-scheduled`.
-5. Env lama v1 (`N8N_URL_RUN`, `N8N_URL_PUBLISH`, `FONNTE_TOKEN`, `SUPABASE_KEY`) tidak dipakai lagi dan boleh dihapus.
-
-### Frontend (Vercel project `supermat` → supermat-three.vercel.app, root `frontend/`)
-Env: `VITE_API_BASE_URL=https://supermat-api.vercel.app` (sudah ada).
-
-## Dev lokal
 ```bash
-cd backend && cp .env.example .env && npm i && npm run dev      # tanpa Supabase → database.json
-cd frontend && npm i && VITE_API_BASE_URL=http://localhost:5001 npm run dev
+# 1. Jalankan Backend (port 5001)
+cd backend
+cp .env.example .env
+npm install
+npm run dev
+
+# 2. Jalankan Frontend (port 5173)
+cd frontend
+npm install
+VITE_API_BASE_URL=http://localhost:5001 VITE_ADS_MOCK=true VITE_SPY_MOCK=true npm run dev
 ```
 
-## Catatan keamanan
-- Kredensial CMS disimpan apa adanya di tabel `cms_connections.config` (jsonb). Backend memakai service-role key, jadi tabel tidak terbuka ke klien. Enkripsi kolom bisa ditambah kemudian.
-- Key 3Our (SerpAPI/RapidAPI/Gemini) hanya ada di credential n8n; tidak ada lagi key yang di-hardcode di workflow.
+Buka browser di `http://localhost:5173`.
+
+---
+
+## Standar Branding & Identitas
+Sesuai arahan resmi:
+- Entitas resmi aplikasi: **Supermat Powered by 3Our Indonesia**.
+- Tidak menggunakan penamaan "PT" atau "PT Stambha Racana Ahita".
+- Seluruh dokumen legal, footer, navbar, dan dashboard menggunakan format `Powered by 3Our Indonesia`.
