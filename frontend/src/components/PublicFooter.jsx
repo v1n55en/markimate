@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import { Mail, MapPin, Building2, ShieldCheck } from 'lucide-react';
+import { Mail, MapPin, ShieldCheck } from 'lucide-react';
 import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
+import SupermatLogo from './common/SupermatLogo';
 
 export default function PublicFooter() {
   const { t } = useLanguage();
@@ -12,7 +13,7 @@ export default function PublicFooter() {
           {/* Company info */}
           <div style={styles.companyCol}>
             <div style={styles.legalName}>
-              <Building2 size={16} color="var(--accent-cyan)" />
+              <SupermatLogo size={20} />
               <strong>Supermat</strong>
               <span style={styles.brandTag}>Powered by 3Our Indonesia</span>
             </div>

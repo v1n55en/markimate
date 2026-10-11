@@ -5,7 +5,6 @@ import {
   BarChart2,
   Settings,
   LogOut,
-  Rocket,
   User,
   CreditCard,
   LayoutDashboard,
@@ -24,6 +23,7 @@ import {
   LayoutGrid,
 } from 'lucide-react';
 import WorkspaceSelector from './common/WorkspaceSelector';
+import SupermatLogo from './common/SupermatLogo';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { ROLES } from '../config/roles';
 
@@ -191,7 +191,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
       {/* Mobile Hamburger Button */}
       <div style={styles.mobileBar} className="mobile-top-bar">
         <div style={styles.mobileBrand}>
-          <Rocket size={18} color="var(--accent-cyan)" />
+          <SupermatLogo size={20} />
           <span style={styles.mobileTitle}>Supermat</span>
           {isDemo && <span style={styles.demoBadge}>DEMO</span>}
         </div>
@@ -224,7 +224,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
         <div style={styles.brand}>
           <div style={styles.brandLeft}>
             <div style={styles.logoBox}>
-              <Rocket size={20} color="var(--accent-cyan)" />
+              <SupermatLogo size={24} />
             </div>
             <div>
               <div style={styles.brandTitleRow}>

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { ShieldCheck, Rocket, UserPlus, LogIn, ArrowRight, Sparkles } from 'lucide-react';
+import { ShieldCheck, UserPlus, LogIn, ArrowRight, Sparkles } from 'lucide-react';
 import { api, setToken } from '../api';
 import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
+import SupermatLogo from './common/SupermatLogo';
 
 export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
   const [searchParams] = useSearchParams();
@@ -86,7 +87,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
         <div style={styles.header}>
           <Link to="/" style={styles.logoLink}>
             <div style={styles.logoContainer}>
-              <Rocket size={26} color="var(--accent-cyan)" />
+              <SupermatLogo size={32} />
             </div>
           </Link>
           <h1 style={styles.title}>Supermat</h1>
