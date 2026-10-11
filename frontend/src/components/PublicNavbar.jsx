@@ -16,8 +16,8 @@ export default function PublicNavbar() {
             <SupermatLogo size={24} />
           </div>
           <div>
-            <span style={styles.brandTitle}>Supermat</span>
-            <span style={styles.brandSub}>Powered by 3Our Indonesia</span>
+            <span style={styles.brandTitle}>Agentia</span>
+            <span style={styles.brandSub}>powered by 3our</span>
           </div>
         </Link>
 

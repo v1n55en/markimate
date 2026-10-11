@@ -86,12 +86,12 @@ export default function LandingPage() {
           <div style={styles.heroBadgeRow}>
             <span style={styles.heroBadge}>
               <Sparkles size={14} color="var(--accent-cyan)" />
-              {t('hero.badge', 'Supermat Powered by 3Our Indonesia')}
+              {t('hero.badge', 'Agentia · powered by 3our')}
             </span>
           </div>
 
           <h1 style={styles.heroTitle}>
-            {t('hero.title', 'Your Autonomous AI Digital Marketing Team')}
+            {t('hero.title', 'Digital Marketing Agentic in One Platform')}
           </h1>
 
           <p style={styles.heroSubtitle}>
@@ -293,7 +293,7 @@ export default function LandingPage() {
                 </span>
                 <span style={styles.inHouseTotal}>{formatIDR(TEAM_COST_BENCHMARK.focus3)}/mo</span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--accent-green)', fontWeight: '700' }}>
-                  Supermat Focus 3: Rp 3.200.000/mo
+                  {lang === 'id' ? 'Agentia Fokus 3: Rp 3.200.000/bln' : 'Agentia Focus 3: Rp 3,200,000/mo'}
                 </span>
               </div>
             </div>
@@ -308,7 +308,7 @@ export default function LandingPage() {
                       {lang === 'id' ? 'Rata-rata Gaji In-House' : 'Avg In-House Payroll'}
                     </th>
                     <th style={{ ...styles.th, textAlign: 'right' }}>
-                      {lang === 'id' ? 'Biaya di Supermat' : 'Supermat Cost'}
+                      {lang === 'id' ? 'Biaya di Agentia' : 'Agentia Cost'}
                     </th>
                   </tr>
                 </thead>
@@ -444,7 +444,7 @@ export default function LandingPage() {
                 <span style={styles.planPeriod}>{lang === 'id' ? '/ retainer' : '/ retainer'}</span>
               </div>
               <ul style={styles.planFeatures}>
-                <li>{lang === 'id' ? 'Platform Supermat dikelola penuh oleh tim 3Our' : 'Supermat platform fully operated by 3Our specialists'}</li>
+                <li>{lang === 'id' ? 'Platform Agentia dikelola penuh oleh tim 3Our' : 'Agentia platform fully operated by 3Our specialists'}</li>
                 <li>{lang === 'id' ? 'Konsultasi strategi bulanan 1-on-1' : '1-on-1 monthly strategic growth consultations'}</li>
                 <li>{lang === 'id' ? 'Produksi konten & optimasi kampanye ads langsung' : 'Hands-on creative production and media buying execution'}</li>
                 <li>{lang === 'id' ? 'Laporan eksekutif siap presentasi' : 'Executive slide decks prepared for board meetings'}</li>

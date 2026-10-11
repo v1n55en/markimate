@@ -25,7 +25,7 @@ export const BUNDLES = [
   {
     key: 'all_in_one',
     name: 'All-in-One AI Team',
-    description: 'Akses penuh ke seluruh 16 role tim marketing AI Supermat. Modul baru langsung aktif otomatis saat diluncurkan.',
+    description: 'Akses penuh ke seluruh 16 role tim marketing AI Agentia. Modul baru langsung aktif otomatis saat diluncurkan.',
     modules: 'all',
     price: 7875000, // Rp 7.875.000 / bln
     preorder: true,
@@ -34,14 +34,14 @@ export const BUNDLES = [
   {
     key: 'managed',
     name: 'Managed by 3Our',
-    description: 'Layanan terkelola penuh (Full-service). Tim agensi 3Our mengoperasikan platform Supermat untuk brand Anda.',
+    description: 'Layanan terkelola penuh (Full-service). Tim agensi 3Our mengoperasikan platform Agentia untuk brand Anda.',
     contactSales: true,
     badge: 'Solusi Agensi',
-    contactUrl: 'https://wa.me/6281234567890?text=Halo%203Our,%20saya%20tertarik%20dengan%20paket%20Managed%20by%203Our%20Supermat',
+    contactUrl: 'https://wa.me/6281234567890?text=Halo%203Our,%20saya%20tertarik%20dengan%20paket%20Managed%20by%203Our%20Agentia',
   },
 ];
 
-// Benchmark biaya tim in-house vs Supermat (dari kalkulator)
+// Benchmark biaya tim in-house vs Agentia (dari kalkulator)
 export const TEAM_COST_BENCHMARK = {
   focus3: 29375000, // Rata-rata gaji 3 staf in-house (SEO Specialist, Media Buyer, Market Researcher)
   full: 64375000, // Gaji tim in-house lengkap 6-8 orang + tools berlangganan

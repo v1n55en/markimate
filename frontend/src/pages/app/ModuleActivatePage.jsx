@@ -39,8 +39,8 @@ export default function ModuleActivatePage() {
           <h2>{lang === 'id' ? 'Modul Tidak Ditemukan' : 'Module Not Found'}</h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
             {lang === 'id'
-              ? `Role atau modul dengan kunci "${key}" tidak terdaftar di sistem Supermat.`
-              : `Marketing AI role module "${key}" is not registered in Supermat.`}
+              ? `Role atau modul dengan kunci "${key}" tidak terdaftar di sistem Agentia.`
+              : `Marketing AI role module "${key}" is not registered in Agentia.`}
           </p>
           <button onClick={() => navigate('/app')} style={styles.primaryBtn}>
             {lang === 'id' ? 'Kembali ke Dashboard' : 'Back to Dashboard'}
@@ -279,7 +279,7 @@ export default function ModuleActivatePage() {
                 </div>
 
                 <p style={styles.soonNotice}>
-                  Role <strong>{role.name}</strong> sedang dipersiapkan oleh tim AI Supermat & 3Our Indonesia. Daftarkan email Anda untuk menjadi pengguna awal (early access) saat modul ini dirilis.
+                  Role <strong>{role.name}</strong> sedang dipersiapkan oleh tim AI Agentia & 3Our. Daftarkan email Anda untuk menjadi pengguna awal (early access) saat modul ini dirilis.
                 </p>
 
                 <button

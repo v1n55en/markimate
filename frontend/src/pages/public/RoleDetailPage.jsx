@@ -229,8 +229,8 @@ export default function RoleDetailPage() {
               <div style={styles.sampleFooter}>
                 <span style={styles.sampleNote}>
                   {lang === 'id'
-                    ? 'Setiap deliverable dapat ditinjau, disunting, dan disetujui di dalam dasbor Supermat sebelum diterbitkan atau digunakan.'
-                    : 'Every deliverable can be reviewed, edited, and approved inside the Supermat console before being published.'}
+                    ? 'Setiap deliverable dapat ditinjau, disunting, dan disetujui di dalam dasbor Agentia sebelum diterbitkan atau digunakan.'
+                    : 'Every deliverable can be reviewed, edited, and approved inside the Agentia console before being published.'}
                 </span>
                 {isAvailable && role.path && (
                   <button

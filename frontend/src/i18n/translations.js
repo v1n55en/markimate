@@ -18,13 +18,13 @@ export const TRANSLATIONS = {
 
     // Public Header / Navbar
     header: {
-      tagline: 'Powered by 3Our Indonesia',
+      tagline: 'powered by 3our',
     },
 
     // Hero Section
     hero: {
-      badge: 'Supermat Powered by 3Our Indonesia',
-      title: 'Your Autonomous AI Digital Marketing Team',
+      badge: 'Agentia · powered by 3our',
+      title: 'Digital Marketing Agentic in One Platform',
       subtitle:
         'Hire specialized AI marketing roles or deploy an entire full-stack digital marketing team — at a fraction of in-house team costs, with 100% human-in-the-loop review and approval before anything goes live.',
       ctaPrimary: 'Explore Live Demo',
@@ -67,7 +67,7 @@ export const TRANSLATIONS = {
     howItWorks: {
       title: 'How It Works: 3 Steps to Autonomous Growth',
       subtitle:
-        'Supermat blends autonomous AI execution with strict human oversight so your brand stays high-quality, authentic, and protected.',
+        'Agentia blends autonomous agentic AI execution with strict human oversight so your brand stays high-quality, authentic, and protected.',
       step1Title: '1. Connect & Configure',
       step1Desc:
         'Link your CMS (WordPress, Wix, Sanity, Shopify) or connect advertising channels (Meta, Google, TikTok, Shopee). Set your brand voice, guidelines, and target keywords.',
@@ -81,14 +81,14 @@ export const TRANSLATIONS = {
 
     // Cost Benchmark Table
     benchmark: {
-      title: 'Cost Comparison: In-House Team vs Agency vs Supermat',
+      title: 'Cost Comparison: In-House Team vs Agency vs Agentia',
       subtitle:
         'Compare the typical monthly investment required to run a full digital marketing team.',
       colItem: 'Comparison Metric',
       colInhouse: 'In-House Team (4–6 Staff)',
       colAgency: 'Digital Agency Retainer',
       colFreelancer: 'Independent Freelancers',
-      colSupermat: 'Supermat AI Team',
+      colSupermat: 'Agentia AI Team',
       rowCost: 'Monthly Cost',
       rowTurnaround: 'Execution Speed',
       rowMultichannel: 'Multi-Channel Coverage',
@@ -133,13 +133,13 @@ export const TRANSLATIONS = {
     // FAQ
     faq: {
       title: 'Frequently Asked Questions',
-      subtitle: 'Everything you need to know about Supermat and our AI marketing roles.',
-      q1: 'What makes Supermat different from ChatGPT or generic AI writing tools?',
-      a1: 'Supermat provides specialized autonomous agents connected directly to live APIs (Google Trends, SerpAPI, Meta Ad Library, TikTok Creative Center, Shopee Ads, WordPress, etc.). You do not need to write complex prompts—each role executes structured end-to-end tasks with built-in human editorial approval.',
-      q2: 'Does Supermat publish articles or launch ads automatically without my consent?',
-      a2: 'No. Supermat strictly enforces Human-in-the-Loop (HITL). Articles are saved in a review drawer where you can edit, polish, and approve them before 1-click publishing. Advertising reports and creative insights are provided as recommendations for your review.',
+      subtitle: 'Everything you need to know about Agentia and our AI marketing roles.',
+      q1: 'What makes Agentia different from ChatGPT or generic AI writing tools?',
+      a1: 'Agentia provides specialized autonomous agents connected directly to live APIs (Google Trends, SerpAPI, Meta Ad Library, TikTok Creative Center, Shopee Ads, WordPress, etc.). You do not need to write complex prompts—each role executes structured end-to-end tasks with built-in human editorial approval.',
+      q2: 'Does Agentia publish articles or launch ads automatically without my consent?',
+      a2: 'No. Agentia strictly enforces Human-in-the-Loop (HITL). Articles are saved in a review drawer where you can edit, polish, and approve them before 1-click publishing. Advertising reports and creative insights are provided as recommendations for your review.',
       q3: 'Can I manage multiple brands or client websites from one account?',
-      a3: 'Yes! Supermat features Workspace Isolation. You can switch between brands in seconds, and each workspace keeps its own keywords, competitor spy tracking, advertising connections, and invoices separated.',
+      a3: 'Yes! Agentia features Workspace Isolation. You can switch between brands in seconds, and each workspace keeps its own keywords, competitor spy tracking, advertising connections, and invoices separated.',
       q4: 'What happens when I subscribe to a module?',
       a4: 'You get immediate access to all tools and workflows in that module for your active workspace, including allocated monthly quotas and export capabilities.',
     },
@@ -311,8 +311,8 @@ export const TRANSLATIONS = {
 
     // Auth Screen
     auth: {
-      signInTitle: 'Welcome Back to Supermat',
-      signUpTitle: 'Create Your Supermat Account',
+      signInTitle: 'Welcome Back to Agentia',
+      signUpTitle: 'Create Your Agentia Account',
       signInSubtitle: 'Sign in to access your multi-brand AI marketing workspace.',
       signUpSubtitle: 'Deploy your autonomous AI digital marketing team in minutes.',
       labelEmail: 'Work Email Address',
@@ -368,13 +368,13 @@ export const TRANSLATIONS = {
 
     // Public Header / Navbar
     header: {
-      tagline: 'Powered by 3Our Indonesia',
+      tagline: 'powered by 3our',
     },
 
     // Hero Section
     hero: {
-      badge: 'Supermat Powered by 3Our Indonesia',
-      title: 'Tim Digital Marketing AI untuk Bisnismu',
+      badge: 'Agentia · powered by 3our',
+      title: 'Digital Marketing Agentic in One Platform',
       subtitle:
         'Pilih role spesialis yang kamu butuhkan atau rekrut seluruh tim digital marketing AI — mulai dari sebagian kecil biaya tim in-house, dengan hasil kerja yang tetap kamu review dan setujui sebelum tayang.',
       ctaPrimary: 'Coba Demo Sekarang',
@@ -417,7 +417,7 @@ export const TRANSLATIONS = {
     howItWorks: {
       title: 'Cara Kerja: 3 Langkah Simpel',
       subtitle:
-        'Supermat menggabungkan otomatisasi AI cerdas dengan kendali penuh manusia agar bisnis Anda tetap otentik dan aman.',
+        'Agentia menggabungkan otomatisasi agentic AI cerdas dengan kendali penuh manusia agar bisnis Anda tetap otentik dan aman.',
       step1Title: '1. Hubungkan & Atur',
       step1Desc:
         'Sambungkan CMS blog (WordPress, Wix, Sanity, Shopify) atau channel iklanmu (Meta, Google, TikTok, Shopee). Tentukan keyword atau brand guideline.',
@@ -431,14 +431,14 @@ export const TRANSLATIONS = {
 
     // Cost Benchmark Table
     benchmark: {
-      title: 'Benchmark Biaya: Tim In-House vs Agensi vs Supermat',
+      title: 'Benchmark Biaya: Tim In-House vs Agensi vs Agentia',
       subtitle:
         'Perbandingan biaya bulanan riil untuk mengoperasikan tim pemasaran digital lengkap.',
       colItem: 'Komponen Perbandingan',
       colInhouse: 'Tim In-House (4–6 Orang)',
       colAgency: 'Agensi Digital Marketing',
       colFreelancer: 'Freelancer Lepas',
-      colSupermat: 'Supermat AI Team',
+      colSupermat: 'Tim AI Agentia',
       rowCost: 'Biaya Bulanan',
       rowTurnaround: 'Kecepatan Eksekusi',
       rowMultichannel: 'Cakupan Multi-Saluran',
@@ -483,13 +483,13 @@ export const TRANSLATIONS = {
     // FAQ
     faq: {
       title: 'Pertanyaan yang Sering Diajukan',
-      subtitle: 'Semua informasi penting seputar cara kerja dan implementasi Supermat.',
-      q1: 'Apa perbedaan Supermat dengan ChatGPT biasa?',
-      a1: 'Supermat bukan sekadar chat prompt, melainkan agen AI spesialis yang terhubung langsung ke API live (Google Trends, SerpAPI, Meta Ad Library, TikTok Creative Center, Shopee Ads, WordPress, dll.). Anda tidak perlu memikirkan prompt—setiap role mengeksekusi alur kerja riil dengan persetujuan manusia.',
-      q2: 'Apakah Supermat menerbitkan artikel atau iklan otomatis tanpa persetujuan saya?',
-      a2: 'Tidak. Supermat memegang prinsip teguh Human-in-the-Loop (HITL). Artikel masuk ke drawer review untuk diedit dan disetujui sebelum 1-klik terbit. Laporan dan insight iklan disajikan sebagai rekomendasi strategis.',
+      subtitle: 'Semua informasi penting seputar cara kerja dan implementasi Agentia.',
+      q1: 'Apa perbedaan Agentia dengan ChatGPT biasa?',
+      a1: 'Agentia bukan sekadar chat prompt, melainkan agen AI spesialis yang terhubung langsung ke API live (Google Trends, SerpAPI, Meta Ad Library, TikTok Creative Center, Shopee Ads, WordPress, dll.). Anda tidak perlu memikirkan prompt—setiap role mengeksekusi alur kerja riil dengan persetujuan manusia.',
+      q2: 'Apakah Agentia menerbitkan artikel atau iklan otomatis tanpa persetujuan saya?',
+      a2: 'Tidak. Agentia memegang prinsip teguh Human-in-the-Loop (HITL). Artikel masuk ke drawer review untuk diedit dan disetujui sebelum 1-klik terbit. Laporan dan insight iklan disajikan sebagai rekomendasi strategis.',
       q3: 'Bisakah saya mengelola beberapa brand atau toko dalam satu akun?',
-      a3: 'Bisa! Supermat dilengkapi fitur Workspace Isolation. Anda dapat berpindah antar brand dalam hitungan detik; setiap brand memiliki keyword, data kompetitor, koneksi akun iklan, dan invoice masing-masing yang terpisah rapi.',
+      a3: 'Bisa! Agentia dilengkapi fitur Workspace Isolation. Anda dapat berpindah antar brand dalam hitungan detik; setiap brand memiliki keyword, data kompetitor, koneksi akun iklan, dan invoice masing-masing yang terpisah rapi.',
       q4: 'Bagaimana sistem langganan modul per role?',
       a4: 'Anda bebas memilih modul mana saja yang ingin diaktifkan. Anda hanya membayar role yang Anda butuhkan tanpa terbebani biaya fitur yang tidak digunakan.',
     },
@@ -661,8 +661,8 @@ export const TRANSLATIONS = {
 
     // Auth Screen
     auth: {
-      signInTitle: 'Selamat Datang di Supermat',
-      signUpTitle: 'Buat Akun Supermat Baru',
+      signInTitle: 'Selamat Datang di Agentia',
+      signUpTitle: 'Buat Akun Agentia Baru',
       signInSubtitle: 'Masuk untuk mengakses workspace tim marketing AI multi-brand Anda.',
       signUpSubtitle: 'Kerahkan tim digital marketing AI Anda dalam hitungan menit.',
       labelEmail: 'Alamat Email Kerja',

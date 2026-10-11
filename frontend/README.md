@@ -1,6 +1,7 @@
-# Supermat Frontend (React 19 + Vite)
+# Agentia Frontend (React 19 + Vite)
 
-Frontend web application untuk platform SaaS **Supermat Powered by 3Our Indonesia**.
+Frontend web application untuk platform SaaS **Agentia · powered by 3our**.
+Slogan: **digital marketing agentic in one platform**.
 Mendukung ekosistem AI Digital Marketing Team (16 Roles).
 
 ---

@@ -90,9 +90,9 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
               <SupermatLogo size={32} />
             </div>
           </Link>
-          <h1 style={styles.title}>Supermat</h1>
+          <h1 style={styles.title}>Agentia</h1>
           <p style={styles.subtitle}>
-            AI Digital Marketing Team · <strong>Powered by 3Our Indonesia</strong>
+            digital marketing agentic in one platform · <strong>powered by 3our</strong>
           </p>
         </div>
 
@@ -239,7 +239,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
         <div style={styles.footer}>
           <ShieldCheck size={14} color="var(--accent-green)" />
           <span style={styles.footerText}>
-            Supermat Powered by 3Our Indonesia · Keamanan Data OAuth Read-Only
+            Agentia · powered by 3our · Keamanan Data OAuth Read-Only
           </span>
         </div>
       </div>

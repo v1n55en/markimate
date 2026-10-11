@@ -1,6 +1,6 @@
 import logoSrc from '../../assets/logo.png';
 
-export default function SupermatLogo({ size = 28, style = {}, alt = 'Supermat Logo' }) {
+export default function SupermatLogo({ size = 28, style = {}, alt = 'Agentia Logo' }) {
   return (
     <img
       src={logoSrc}

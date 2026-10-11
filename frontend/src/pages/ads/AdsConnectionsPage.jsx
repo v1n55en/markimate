@@ -97,7 +97,7 @@ export default function AdsConnectionsPage() {
       <div style={styles.guaranteeBox}>
         <ShieldCheck size={20} color="var(--accent-green)" style={{ flexShrink: 0 }} />
         <div style={styles.guaranteeText}>
-          <strong>Jaminan Akses Read-Only & Perlindungan Privasi:</strong> Supermat hanya meminta izin baca (read-only) untuk mengagregasi data performa dan biaya kampanye. Kami tidak pernah memodifikasi setelan iklan, memotong saldo, atau membagikan metrik bisnis Anda kepada pihak luar.{' '}
+          <strong>Jaminan Akses Read-Only & Perlindungan Privasi:</strong> Agentia hanya meminta izin baca (read-only) untuk mengagregasi data performa dan biaya kampanye. Kami tidak pernah memodifikasi setelan iklan, memotong saldo, atau membagikan metrik bisnis Anda kepada pihak luar.{' '}
           <Link to="/privacy" style={styles.guaranteeLink} target="_blank">
             Baca Kebijakan Privasi Lengkap →
           </Link>

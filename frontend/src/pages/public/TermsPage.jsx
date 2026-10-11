@@ -14,7 +14,7 @@ export default function TermsPage() {
           </div>
           <h1 style={styles.title}>Syarat & Ketentuan Layanan</h1>
           <p style={styles.subtitle}>
-            Supermat Powered by 3Our Indonesia · Terakhir diperbarui: Oktober 2026
+            Agentia · powered by 3our · Terakhir diperbarui: Oktober 2026
           </p>
         </div>
 
@@ -22,14 +22,14 @@ export default function TermsPage() {
           <section style={styles.section}>
             <h2 style={styles.sectionHeading}>1. Ketentuan Umum</h2>
             <p style={styles.paragraph}>
-              Dengan mendaftar, mengakses, atau menggunakan layanan Supermat yang disediakan oleh <strong>Supermat Powered by 3Our Indonesia</strong> (&quot;kami&quot;), Anda menyatakan telah membaca, memahami, dan menyetujui seluruh syarat dan ketentuan ini. Apabila Anda tidak menyetujui bagian mana pun dari ketentuan ini, Anda dipersilakan untuk tidak menggunakan layanan kami.
+              Dengan mendaftar, mengakses, atau menggunakan layanan Agentia yang disediakan oleh <strong>Agentia · powered by 3our</strong> (&quot;kami&quot;), Anda menyatakan telah membaca, memahami, dan menyetujui seluruh syarat dan ketentuan ini. Apabila Anda tidak menyetujui bagian mana pun dari ketentuan ini, Anda dipersilakan untuk tidak menggunakan layanan kami.
             </p>
           </section>
 
           <section style={styles.section}>
             <h2 style={styles.sectionHeading}>2. Deskripsi Layanan</h2>
             <p style={styles.paragraph}>
-              Supermat menyediakan platform produktivitas digital dengan dua fungsionalitas utama:
+              Agentia menyediakan platform digital marketing agentic in one platform dengan tiga modul utama:
             </p>
             <ul style={styles.bulletList}>
               <li>
@@ -38,13 +38,16 @@ export default function TermsPage() {
               <li>
                 <strong>Ads Performance Report:</strong> Integrasi pelaporan analitik berbasis API dari platform periklanan (Meta Ads, Google Ads, TikTok Ads, TikTok Shop GMV Max, dan Shopee Ads) guna menyajikan visualisasi data, analisis ROAS, dan ekspor ke Google Slides/Sheets.
               </li>
+              <li>
+                <strong>Ads Creative Spy:</strong> Alat pemantauan materi iklan kompetitor di Meta Ad Library dan TikTok Creative Center guna kurasi format winning dan formula copywriting.
+              </li>
             </ul>
           </section>
 
           <section style={styles.section}>
             <h2 style={styles.sectionHeading}>3. Kewajiban & Integritas Akun Pengguna</h2>
             <p style={styles.paragraph}>
-              Pengguna bertanggung jawab penuh atas kerahasiaan kredensial akun mereka. Pengguna menjamin bahwa akun toko, ad account, serta website CMS yang dihubungkan ke Supermat adalah milik sah pengguna atau pengguna memiliki kuasa resmi dari pemilik yang bersangkutan untuk mengelolanya.
+              Pengguna bertanggung jawab penuh atas kerahasiaan kredensial akun mereka. Pengguna menjamin bahwa akun toko, ad account, serta website CMS yang dihubungkan ke Agentia adalah milik sah pengguna atau pengguna memiliki kuasa resmi dari pemilik yang bersangkutan untuk mengelolanya.
             </p>
           </section>
 
@@ -64,7 +67,7 @@ export default function TermsPage() {
           <section style={styles.section}>
             <h2 style={styles.sectionHeading}>5. Batasan Tanggung Jawab</h2>
             <p style={styles.paragraph}>
-              Supermat berfungsi sebagai alat automasi pelaporan dan pembuatan konten. Kami tidak menjamin hasil peringkat mesin pencari (ranking SEO tertentu) atau performa return of ad spend (ROAS) tertentu, karena faktor algoritma platform pihak ketiga dan dinamika pasar berada di luar kendali kami.
+              Agentia berfungsi sebagai alat automasi pelaporan dan pembuatan konten. Kami tidak menjamin hasil peringkat mesin pencari (ranking SEO tertentu) atau performa return of ad spend (ROAS) tertentu, karena faktor algoritma platform pihak ketiga dan dinamika pasar berada di luar kendali kami.
             </p>
           </section>
 
@@ -74,7 +77,7 @@ export default function TermsPage() {
               Untuk pertanyaan resmi atau korespondensi terkait Syarat dan Ketentuan ini, silakan hubungi:
             </p>
             <div style={styles.legalBox}>
-              <p style={{ margin: 0 }}><strong>Supermat Powered by 3Our Indonesia</strong></p>
+              <p style={{ margin: 0 }}><strong>Agentia · powered by 3our</strong></p>
               <p style={{ margin: '0.2rem 0', color: 'var(--text-muted)' }}>Jl. BSD Raya Utama, Kabupaten Tangerang, Banten</p>
               <p style={{ margin: '0.2rem 0' }}>Email: <a href="mailto:3our.id@gmail.com" style={{ color: 'var(--accent-cyan)' }}>3our.id@gmail.com</a></p>
             </div>
