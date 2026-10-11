@@ -142,7 +142,7 @@ export default function SpyCompetitorsPage() {
         <div>
           <h1 style={styles.pageTitle}>Daftar Kompetitor yang Dipantau</h1>
           <p style={styles.pageSubtitle}>
-            Supermat memindai Meta Ad Library secara berkala untuk mendeteksi setiap peluncuran iklan baru dan materi kreatif winning.
+            Markimate memindai Meta Ad Library secara berkala untuk mendeteksi setiap peluncuran iklan baru dan materi kreatif winning.
           </p>
         </div>
 

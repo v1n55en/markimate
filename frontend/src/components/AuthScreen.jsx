@@ -90,7 +90,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
               <SupermatLogo size={32} />
             </div>
           </Link>
-          <h1 style={styles.title}>Agentia</h1>
+          <h1 style={styles.title}>Markimate</h1>
           <p style={styles.subtitle}>
             digital marketing agentic in one platform · <strong>powered by 3our</strong>
           </p>
@@ -239,7 +239,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
         <div style={styles.footer}>
           <ShieldCheck size={14} color="var(--accent-green)" />
           <span style={styles.footerText}>
-            Agentia · powered by 3our · Keamanan Data OAuth Read-Only
+            Markimate · powered by 3our · Keamanan Data OAuth Read-Only
           </span>
         </div>
       </div>

@@ -14,7 +14,7 @@ export default function PublicFooter() {
           <div style={styles.companyCol}>
             <div style={styles.legalName}>
               <SupermatLogo size={20} />
-              <strong>Agentia</strong>
+              <strong>Markimate</strong>
               <span style={styles.brandTag}>powered by 3our</span>
             </div>
             <div style={styles.addressLine}>
@@ -50,7 +50,7 @@ export default function PublicFooter() {
 
         <div style={styles.bottomRow}>
           <span style={styles.copyright}>
-            © {new Date().getFullYear()} Agentia · powered by 3our. {t('footer.rights', 'All rights reserved.')}
+            © {new Date().getFullYear()} Markimate · powered by 3our. {t('footer.rights', 'All rights reserved.')}
           </span>
           <span style={styles.metaNote}>
             digital marketing agentic in one platform

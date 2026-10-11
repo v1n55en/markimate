@@ -66,7 +66,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
   };
 
   const deleteKeyword = async (id) => {
-    if (!window.confirm('Hapus keyword ini dari Supermat? (Post di CMS tidak ikut terhapus)')) return;
+    if (!window.confirm('Hapus keyword ini dari Markimate? (Post di CMS tidak ikut terhapus)')) return;
     setBusyFor(id, 'delete');
     try { await api(`/api/keywords/${id}`, { method: 'DELETE' }); setKeywords(l => l.filter(k => k.id !== id)); } catch (e) { setError(e.message); } finally { setBusyFor(id, null); }
   };

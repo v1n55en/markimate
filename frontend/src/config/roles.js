@@ -444,12 +444,12 @@ export const ROLES = [
     deliverables: 'Unified 30-day cross-functional digital marketing growth blueprint.',
     deliverables_id: 'Rencana aksi pertumbuhan digital 30 hari lintas departemen.',
     features: [
-      'Holistic data synthesis across all active Supermat modules',
+      'Holistic data synthesis across all active Markimate modules',
       'High-impact growth opportunity prioritization matrix (ICE framework)',
       'Monthly revenue target vs actual pacing analysis and corrective roadmap',
     ],
     features_id: [
-      'Sintesis data holistik dari seluruh modul Supermat',
+      'Sintesis data holistik dari seluruh modul Markimate',
       'Penetapan prioritas inisiatif pemasaran dengan dampak tertinggi',
       'Evaluasi target capaian pendapatan vs realisasi bulan berjalan',
     ],

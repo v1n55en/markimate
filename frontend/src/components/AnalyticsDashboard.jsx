@@ -32,7 +32,7 @@ export default function AnalyticsDashboard({ me }) {
     <div>
       <header style={{ marginBottom: '1.5rem' }}>
         <h1>Analitik & Insights</h1>
-        <p style={{ color: 'var(--text-secondary)' }}>Ringkasan produksi konten {user.brandName} di Supermat. Data performa Google Search Console per artikel akan menyusul.</p>
+        <p style={{ color: 'var(--text-secondary)' }}>Ringkasan produksi konten {user.brandName} di Markimate. Data performa Google Search Console per artikel akan menyusul.</p>
       </header>
 
       <div className="grid-4" style={{ marginBottom: '1.5rem' }}>

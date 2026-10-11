@@ -12,7 +12,7 @@ export default function PrivacyPage() {
           <div style={styles.iconBox}>
             <ShieldCheck size={28} color="var(--accent-green)" />
           </div>
-          <h1 style={styles.title}>Kebijakan Privasi Agentia</h1>
+          <h1 style={styles.title}>Kebijakan Privasi Markimate</h1>
           <p style={styles.subtitle}>
             Terakhir diperbarui: 11 Oktober 2026 · Berlaku untuk seluruh pengguna dan peninjau platform
           </p>
@@ -23,12 +23,12 @@ export default function PrivacyPage() {
           <section style={styles.section}>
             <h2 style={styles.sectionHeading}>1. Pendahuluan & Identitas Pengelola</h2>
             <p style={styles.paragraph}>
-              Selamat datang di <strong>Agentia</strong>, platform digital marketing agentic in one platform yang dikembangkan dan dioperasikan oleh <strong>Agentia · powered by 3our</strong>. Kami berkomitmen penuh untuk melindungi privasi, integritas, dan keamanan data seluruh pengguna kami, termasuk data yang diakses melalui integrasi Application Programming Interface (API) platform pihak ketiga.
+              Selamat datang di <strong>Markimate</strong>, platform digital marketing agentic in one platform yang dikembangkan dan dioperasikan oleh <strong>Markimate · powered by 3our</strong>. Kami berkomitmen penuh untuk melindungi privasi, integritas, dan keamanan data seluruh pengguna kami, termasuk data yang diakses melalui integrasi Application Programming Interface (API) platform pihak ketiga.
             </p>
             <div style={styles.highlightBox}>
               <div style={styles.companyRow}>
                 <Building2 size={16} color="var(--accent-cyan)" />
-                <span><strong>Entitas Pengelola Resmi:</strong> Agentia · powered by 3our</span>
+                <span><strong>Entitas Pengelola Resmi:</strong> Markimate · powered by 3our</span>
               </div>
               <div style={styles.companyRow}>
                 <MapPin size={16} color="var(--accent-cyan)" />
@@ -45,7 +45,7 @@ export default function PrivacyPage() {
           <section style={styles.section}>
             <h2 style={styles.sectionHeading}>2. Data yang Kami Kumpulkan & Akses</h2>
             <p style={styles.paragraph}>
-              Agentia menyediakan modul layanan: <em>SEO Article Automation</em>, <em>Ads Performance Report</em>, dan <em>Ads Creative Spy</em>. Dalam menyediakan layanan laporan performa periklanan, sistem kami mengakses data dari platform mitra (seperti Shopee Open Platform, TikTok Marketing API & TikTok Shop, Meta Marketing API, serta Google Ads API):
+              Markimate menyediakan modul layanan: <em>SEO Article Automation</em>, <em>Ads Performance Report</em>, dan <em>Ads Creative Spy</em>. Dalam menyediakan layanan laporan performa periklanan, sistem kami mengakses data dari platform mitra (seperti Shopee Open Platform, TikTok Marketing API & TikTok Shop, Meta Marketing API, serta Google Ads API):
             </p>
             <ul style={styles.bulletList}>
               <li>
@@ -58,7 +58,7 @@ export default function PrivacyPage() {
                 <strong>Metadata Kampanye & Materi Iklan:</strong> Nama kampanye, grup iklan, nama produk terkait iklan, format iklan, serta thumbnail materi kreatif untuk keperluan penyusunan laporan visual.
               </li>
               <li>
-                <strong>Data Akun Pengguna Agentia:</strong> Nama brand bisnis, alamat email, serta preferensi CMS yang didaftarkan saat pembuatan akun.
+                <strong>Data Akun Pengguna Markimate:</strong> Nama brand bisnis, alamat email, serta preferensi CMS yang didaftarkan saat pembuatan akun.
               </li>
             </ul>
           </section>
@@ -69,7 +69,7 @@ export default function PrivacyPage() {
             <div style={styles.alertBox}>
               <CheckCircle2 size={18} color="var(--accent-green)" style={{ flexShrink: 0 }} />
               <div>
-                <strong>Akses Sepenuhnya Read-Only (Hanya Baca):</strong> Seluruh otorisasi yang diminta oleh Agentia bersifat read-only. Kami <em>tidak pernah</em> meminta atau menggunakan izin untuk membuat, memodifikasi, menghentikan kampanye iklan, memotong saldo keuangan, atau mengubah pengaturan toko Anda.
+                <strong>Akses Sepenuhnya Read-Only (Hanya Baca):</strong> Seluruh otorisasi yang diminta oleh Markimate bersifat read-only. Kami <em>tidak pernah</em> meminta atau menggunakan izin untuk membuat, memodifikasi, menghentikan kampanye iklan, memotong saldo keuangan, atau mengubah pengaturan toko Anda.
               </div>
             </div>
             <p style={styles.paragraph}>Data yang diakses digunakan semata-mata untuk tujuan:</p>
@@ -84,7 +84,7 @@ export default function PrivacyPage() {
           <section style={styles.section}>
             <h2 style={styles.sectionHeading}>4. Jaminan Tidak Menjual atau Membagikan Data</h2>
             <p style={styles.paragraph}>
-              <strong>Agentia · powered by 3our menegaskan bahwa kami tidak pernah dan tidak akan pernah menjual, menyewakan, menukar, atau memonetisasi data bisnis, data iklan, atau informasi pelanggan Anda kepada pihak ketiga mana pun</strong> untuk tujuan periklanan pihak ketiga, pialang data (data broker), atau tujuan lain di luar operasional layanan Agentia yang secara tegas disetujui pengguna.
+              <strong>Markimate · powered by 3our menegaskan bahwa kami tidak pernah dan tidak akan pernah menjual, menyewakan, menukar, atau memonetisasi data bisnis, data iklan, atau informasi pelanggan Anda kepada pihak ketiga mana pun</strong> untuk tujuan periklanan pihak ketiga, pialang data (data broker), atau tujuan lain di luar operasional layanan Markimate yang secara tegas disetujui pengguna.
             </p>
           </section>
 
@@ -110,14 +110,14 @@ export default function PrivacyPage() {
             </p>
             <ol style={styles.orderedList}>
               <li>
-                <strong>Melalui Dasbor Agentia:</strong> Masuk ke akun Anda, buka menu <em>Ads Report → Koneksi Platform</em>, lalu klik tombol <em>Putuskan</em> pada akun yang ingin dicabut. Token akses akan segera dihapus dari sistem kami.
+                <strong>Melalui Dasbor Markimate:</strong> Masuk ke akun Anda, buka menu <em>Ads Report → Koneksi Platform</em>, lalu klik tombol <em>Putuskan</em> pada akun yang ingin dicabut. Token akses akan segera dihapus dari sistem kami.
               </li>
               <li>
                 <strong>Melalui Pengaturan Platform Masing-Masing:</strong>
                 <ul style={{ ...styles.bulletList, marginTop: '0.5rem' }}>
                   <li>Shopee: Masuk ke <em>Shopee Seller Centre → Pengaturan Akun → Aplikasi Mitra Terhubung</em> dan klik Cabut Akses.</li>
-                  <li>TikTok: Masuk ke <em>TikTok Business Center / Seller Center → Authorized Apps</em> dan hapus otorisasi Agentia.</li>
-                  <li>Meta: Buka <em>Pengaturan Bisnis Meta → Integrasi Bisnis</em> dan hapus Agentia.</li>
+                  <li>TikTok: Masuk ke <em>TikTok Business Center / Seller Center → Authorized Apps</em> dan hapus otorisasi Markimate.</li>
+                  <li>Meta: Buka <em>Pengaturan Bisnis Meta → Integrasi Bisnis</em> dan hapus Markimate.</li>
                   <li>Google: Buka <em>Akun Google → Keamanan → Kelola akses pihak ketiga</em> dan cabut izin.</li>
                 </ul>
               </li>
@@ -140,7 +140,7 @@ export default function PrivacyPage() {
             </p>
             <div style={styles.contactCard}>
               <p style={{ margin: 0 }}><strong>Departemen Legal & Privasi Data</strong></p>
-              <p style={{ margin: '0.25rem 0' }}>Agentia · powered by 3our</p>
+              <p style={{ margin: '0.25rem 0' }}>Markimate · powered by 3our</p>
               <p style={{ margin: '0.25rem 0', color: 'var(--text-muted)' }}>Jl. BSD Raya Utama, Kabupaten Tangerang, Banten</p>
               <p style={{ margin: '0.25rem 0' }}>
                 Email:{' '}

@@ -192,7 +192,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
       <div style={styles.mobileBar} className="mobile-top-bar">
         <div style={styles.mobileBrand}>
           <SupermatLogo size={20} />
-          <span style={styles.mobileTitle}>Supermat</span>
+          <span style={styles.mobileTitle}>Markimate</span>
           {isDemo && <span style={styles.demoBadge}>DEMO</span>}
         </div>
         <button
@@ -228,7 +228,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
             </div>
             <div>
               <div style={styles.brandTitleRow}>
-                <h2 style={styles.brandTitle}>Agentia</h2>
+                <h2 style={styles.brandTitle}>Markimate</h2>
                 {isDemo && <span style={styles.demoBadge}>DEMO</span>}
               </div>
               <span style={styles.brandVersion}>powered by 3our</span>

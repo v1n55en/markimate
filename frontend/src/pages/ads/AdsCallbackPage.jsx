@@ -81,7 +81,7 @@ export default function AdsCallbackPage() {
             </div>
             <h2 style={styles.title}>Mengautentikasi {platformMeta.name}…</h2>
             <p style={styles.text}>
-              Menghubungkan token otorisasi dan memvalidasi akses read-only dengan server Agentia. Harap tunggu sebentar.
+              Menghubungkan token otorisasi dan memvalidasi akses read-only dengan server Markimate. Harap tunggu sebentar.
             </p>
           </div>
         )}
@@ -94,7 +94,7 @@ export default function AdsCallbackPage() {
             </div>
             <h2 style={styles.title}>Berhasil Terhubung!</h2>
             <p style={styles.text}>
-              Akun <strong>{platformMeta.name}</strong> berhasil dihubungkan ke Agentia. Laporan performa kampanye akan otomatis disinkronkan.
+              Akun <strong>{platformMeta.name}</strong> berhasil dihubungkan ke Markimate. Laporan performa kampanye akan otomatis disinkronkan.
             </p>
             <div style={styles.redirectBadge}>
               Dialihkan kembali ke halaman koneksi dalam {countdown} detik…

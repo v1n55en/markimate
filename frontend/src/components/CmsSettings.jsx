@@ -5,7 +5,7 @@ import { api, API_BASE_URL } from '../api';
 const CMS_META = {
   wordpress: {
     label: 'WordPress', color: '#21759b',
-    help: 'Buat Application Password di WordPress: Users → Profile → Application Passwords → beri nama "Supermat" → salin sandi 24 karakter. Akun harus bisa menulis post (Author/Editor/Admin).',
+    help: 'Buat Application Password di WordPress: Users → Profile → Application Passwords → beri nama "Markimate" → salin sandi 24 karakter. Akun harus bisa menulis post (Author/Editor/Admin).',
     fields: [
       { key: 'url', label: 'URL situs WordPress', placeholder: 'https://namadomain.com' },
       { key: 'user', label: 'Username WordPress', placeholder: 'admin' },
@@ -92,7 +92,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
     <div>
       <header style={{ marginBottom: '1.5rem' }}>
         <h1>Pengaturan CMS & API</h1>
-        <p style={{ color: 'var(--text-secondary)' }}>Hubungkan CMS milikmu. Kredensial disimpan aman di server Supermat dan hanya dipakai saat mengirim artikel ke situsmu.</p>
+        <p style={{ color: 'var(--text-secondary)' }}>Hubungkan CMS milikmu. Kredensial disimpan aman di server Markimate dan hanya dipakai saat mengirim artikel ke situsmu.</p>
       </header>
 
       <div className="grid-2" style={{ alignItems: 'start' }}>
@@ -133,7 +133,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
           <div style={styles.toggleRow}>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>Web Approver {!isPremium && <Lock size={14} color="var(--text-muted)" />}</div>
-              <div style={styles.sub}>Artikel ditahan sebagai "Review Ready" — kamu tinjau & edit di Supermat sebelum dikirim ke CMS. Nonaktif = draf langsung dibuat di CMS.</div>
+              <div style={styles.sub}>Artikel ditahan sebagai "Review Ready" — kamu tinjau & edit di Markimate sebelum dikirim ke CMS. Nonaktif = draf langsung dibuat di CMS.</div>
             </div>
             <label className="switch" title={isPremium ? '' : 'Fitur paket Pro'}>
               <input type="checkbox" checked={isPremium && user.webApprover !== false} disabled={!isPremium} onChange={e => toggleApprover(e.target.checked)} />
@@ -154,7 +154,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
         {/* 3Our API */}
         <div className="card">
           <h2 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Key size={16} color="var(--accent-cyan)" /> 3Our API</h2>
-          <p style={styles.sub}>Pakai Supermat dari sistemmu sendiri (Zapier, n8n, aplikasi internal). Semua riset & AI pakai infrastruktur 3Our — kamu tidak perlu API key SerpAPI/Gemini sendiri.</p>
+          <p style={styles.sub}>Pakai Markimate dari sistemmu sendiri (Zapier, n8n, aplikasi internal). Semua riset & AI pakai infrastruktur 3Our — kamu tidak perlu API key SerpAPI/Gemini sendiri.</p>
           <label className="form-label" style={{ marginTop: '0.75rem' }}>API key kamu</label>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <input className="form-input" readOnly value={user.apiKey || ''} style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }} />

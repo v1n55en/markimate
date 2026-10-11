@@ -288,7 +288,7 @@ export default function App() {
   if (booting) {
     return (
       <div style={styles.loadingScreen}>
-        Memuat Supermat…
+        Memuat Markimate…
       </div>
     );
   }

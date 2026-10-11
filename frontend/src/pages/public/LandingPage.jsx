@@ -86,7 +86,7 @@ export default function LandingPage() {
           <div style={styles.heroBadgeRow}>
             <span style={styles.heroBadge}>
               <Sparkles size={14} color="var(--accent-cyan)" />
-              {t('hero.badge', 'Agentia · powered by 3our')}
+              {t('hero.badge', 'Markimate · powered by 3our')}
             </span>
           </div>
 
@@ -224,7 +224,7 @@ export default function LandingPage() {
             <p style={styles.sectionSub}>
               {t(
                 'howItWorks.subtitle',
-                'Supermat blends autonomous AI execution with strict human oversight so your brand stays high-quality, authentic, and protected.'
+                'Markimate blends autonomous AI execution with strict human oversight so your brand stays high-quality, authentic, and protected.'
               )}
             </p>
           </div>
@@ -268,7 +268,7 @@ export default function LandingPage() {
         {/* 4. Perbandingan Biaya (Tim In-House vs Supermat) */}
         <section style={styles.section}>
           <div style={styles.sectionHeader}>
-            <h2 style={styles.sectionHeading}>{t('benchmark.title', 'Cost Comparison: In-House Team vs Agency vs Supermat')}</h2>
+            <h2 style={styles.sectionHeading}>{t('benchmark.title', 'Cost Comparison: In-House Team vs Agency vs Markimate')}</h2>
             <p style={styles.sectionSub}>
               {t(
                 'benchmark.subtitle',
@@ -293,7 +293,7 @@ export default function LandingPage() {
                 </span>
                 <span style={styles.inHouseTotal}>{formatIDR(TEAM_COST_BENCHMARK.focus3)}/mo</span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--accent-green)', fontWeight: '700' }}>
-                  {lang === 'id' ? 'Agentia Fokus 3: Rp 3.200.000/bln' : 'Agentia Focus 3: Rp 3,200,000/mo'}
+                  {lang === 'id' ? 'Markimate Fokus 3: Rp 3.200.000/bln' : 'Markimate Focus 3: Rp 3,200,000/mo'}
                 </span>
               </div>
             </div>
@@ -308,7 +308,7 @@ export default function LandingPage() {
                       {lang === 'id' ? 'Rata-rata Gaji In-House' : 'Avg In-House Payroll'}
                     </th>
                     <th style={{ ...styles.th, textAlign: 'right' }}>
-                      {lang === 'id' ? 'Biaya di Agentia' : 'Agentia Cost'}
+                      {lang === 'id' ? 'Biaya di Markimate' : 'Markimate Cost'}
                     </th>
                   </tr>
                 </thead>
@@ -444,7 +444,7 @@ export default function LandingPage() {
                 <span style={styles.planPeriod}>{lang === 'id' ? '/ retainer' : '/ retainer'}</span>
               </div>
               <ul style={styles.planFeatures}>
-                <li>{lang === 'id' ? 'Platform Agentia dikelola penuh oleh tim 3Our' : 'Agentia platform fully operated by 3Our specialists'}</li>
+                <li>{lang === 'id' ? 'Platform Markimate dikelola penuh oleh tim 3Our' : 'Markimate platform fully operated by 3Our specialists'}</li>
                 <li>{lang === 'id' ? 'Konsultasi strategi bulanan 1-on-1' : '1-on-1 monthly strategic growth consultations'}</li>
                 <li>{lang === 'id' ? 'Produksi konten & optimasi kampanye ads langsung' : 'Hands-on creative production and media buying execution'}</li>
                 <li>{lang === 'id' ? 'Laporan eksekutif siap presentasi' : 'Executive slide decks prepared for board meetings'}</li>
@@ -491,7 +491,7 @@ export default function LandingPage() {
         <section style={styles.section}>
           <div style={styles.sectionHeader}>
             <h2 style={styles.sectionHeading}>{t('faq.title', 'Frequently Asked Questions')}</h2>
-            <p style={styles.sectionSub}>{t('faq.subtitle', 'Everything you need to know about Supermat and our AI marketing roles.')}</p>
+            <p style={styles.sectionSub}>{t('faq.subtitle', 'Everything you need to know about Markimate and our AI marketing roles.')}</p>
           </div>
 
           <div style={styles.faqList}>

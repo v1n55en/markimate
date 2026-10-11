@@ -269,7 +269,7 @@ export default function AdsSummaryPage() {
               <div>
                 <h4 style={styles.bannerTitle}>Otomatisasi Laporan Siap Pakai</h4>
                 <p style={styles.bannerText}>
-                  Setiap awal bulan, Agentia dan mesin automasi 3Our menyusun laporan eksekutif lengkap ke Google Slides dan Google Sheets yang dapat langsung dibagikan atau dipresentasikan kepada stakeholder.
+                  Setiap awal bulan, Markimate dan mesin automasi 3Our menyusun laporan eksekutif lengkap ke Google Slides dan Google Sheets yang dapat langsung dibagikan atau dipresentasikan kepada stakeholder.
                 </p>
               </div>
             </div>
