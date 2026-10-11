@@ -91,7 +91,7 @@ Supermat dirancang dengan model modular berbasis peran spesialis:
 ### Frontend (`frontend/.env`)
 | Variable | Deskripsi | Default / Contoh |
 |---|---|---|
-| `VITE_API_BASE_URL` | Base URL backend API Supermat | `https://supermat-api.vercel.app` (prod) / `http://localhost:5001` (dev) |
+| `VITE_API_BASE_URL` | Base URL backend API Markimate | `https://markimate-api.vercel.app` (prod) / `http://localhost:5001` (dev) |
 | `VITE_ADS_MOCK` | Aktifkan mock data untuk modul Ads Report | `true` (jika tidak terhubung API iklan live) |
 | `VITE_SPY_MOCK` | Aktifkan mock data untuk modul Ads Creative Spy | `true` (default dev & demo mode) |
 
