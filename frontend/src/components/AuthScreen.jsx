@@ -76,9 +76,9 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
               <Rocket size={26} color="var(--accent-cyan)" />
             </div>
           </Link>
-          <h1 style={styles.title}>Supermat Platform</h1>
+          <h1 style={styles.title}>Supermat</h1>
           <p style={styles.subtitle}>
-            Platform SaaS 3Our untuk <strong>SEO Article Automation</strong> & <strong>Ads Performance Report</strong>
+            AI Digital Marketing Team · <strong>Powered by 3Our Indonesia</strong>
           </p>
         </div>
 
@@ -221,7 +221,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
         <div style={styles.footer}>
           <ShieldCheck size={14} color="var(--accent-green)" />
           <span style={styles.footerText}>
-            PT Stambha Racana Ahita · Keamanan Data OAuth Read-Only
+            Supermat Powered by 3Our Indonesia · Keamanan Data OAuth Read-Only
           </span>
         </div>
       </div>

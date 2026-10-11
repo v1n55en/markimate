@@ -10,8 +10,8 @@ export default function PublicFooter() {
           <div style={styles.companyCol}>
             <div style={styles.legalName}>
               <Building2 size={16} color="var(--accent-cyan)" />
-              <strong>PT Stambha Racana Ahita</strong>
-              <span style={styles.brandTag}>· 3Our Indonesia</span>
+              <strong>Supermat</strong>
+              <span style={styles.brandTag}>Powered by 3Our Indonesia</span>
             </div>
             <div style={styles.addressLine}>
               <MapPin size={15} color="var(--text-muted)" style={{ flexShrink: 0 }} />
@@ -43,10 +43,10 @@ export default function PublicFooter() {
 
         <div style={styles.bottomRow}>
           <span style={styles.copyright}>
-            © {new Date().getFullYear()} Supermat by 3Our (PT Stambha Racana Ahita). Seluruh hak cipta dilindungi undang-undang.
+            © {new Date().getFullYear()} Supermat Powered by 3Our Indonesia. Seluruh hak cipta dilindungi undang-undang.
           </span>
           <span style={styles.metaNote}>
-            Modul SEO Automation & Ads Performance Reporting
+            AI Digital Marketing Team Platform
           </span>
         </div>
       </div>

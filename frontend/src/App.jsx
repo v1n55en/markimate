@@ -19,6 +19,7 @@ import BillingPage from './components/BillingPage';
 import LandingPage from './pages/public/LandingPage';
 import PrivacyPage from './pages/public/PrivacyPage';
 import TermsPage from './pages/public/TermsPage';
+import RoleDetailPage from './pages/public/RoleDetailPage';
 
 // Halaman Ads Report
 import AdsSummaryPage from './pages/ads/AdsSummaryPage';
@@ -201,6 +202,7 @@ export default function App() {
       <Routes>
         {/* Rute Publik */}
         <Route path="/" element={<LandingPage />} />
+        <Route path="/roles/:key" element={<RoleDetailPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/terms" element={<TermsPage />} />
 

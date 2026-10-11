@@ -1,9 +1,7 @@
 # Supermat Frontend (React 19 + Vite)
 
-Frontend web application untuk platform SaaS **Supermat by 3Our (PT Stambha Racana Ahita)**.
-Mendukung dua modul terintegrasi:
-1. **SEO Article Automation**: Riset keyword, generator artikel AI, verifikasi & penerbitan CMS (WordPress, Wix, Sanity, Shopify).
-2. **Ads Performance Report**: Konsolidasi performa periklanan multi-channel (Shopee Ads, TikTok Ads, TikTok Shop GMV Max, Meta Ads, Google Ads), analitik ROAS & GMV, serta ekspor laporan bulanan ke Google Slides & Google Sheets.
+Frontend web application untuk platform SaaS **Supermat Powered by 3Our Indonesia**.
+Mendukung ekosistem AI Digital Marketing Team (16 Roles).
 
 ---
 
@@ -34,8 +32,9 @@ VITE_ADS_MOCK=true
 
 | Rute | Akses | Halaman / Deskripsi |
 |---|---|---|
-| `/` | Publik | Landing page 2 modul Supermat (SEO Automation & Ads Report) |
-| `/privacy` | Publik | Kebijakan Privasi PT Stambha Racana Ahita (izin Read-Only & penarikan akses) |
+| `/` | Publik | Landing page AI Digital Marketing Team (16 Roles) |
+| `/roles/:key` | Publik | Detail spesifikasi per role, deliverable, dan waitlist |
+| `/privacy` | Publik | Kebijakan Privasi Supermat Powered by 3Our Indonesia |
 | `/terms` | Publik | Syarat & Ketentuan Layanan |
 | `/login` | Publik | Layar masuk akun pengguna & tombol jalan pintas akun Demo Reviewer |
 | `/register` | Publik | Layar pendaftaran brand baru |

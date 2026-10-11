@@ -11,14 +11,15 @@ export default function PublicNavbar() {
           </div>
           <div>
             <span style={styles.brandTitle}>Supermat</span>
-            <span style={styles.brandSub}>by 3Our</span>
+            <span style={styles.brandSub}>Powered by 3Our Indonesia</span>
           </div>
         </Link>
 
         <nav style={styles.nav}>
-          <Link to="/" style={styles.navLink}>Beranda</Link>
+          <a href="/#roles" style={styles.navLink}>Role Tim</a>
+          <a href="/#how-it-works" style={styles.navLink}>Cara Kerja</a>
+          <a href="/#pricing" style={styles.navLink}>Harga</a>
           <Link to="/privacy" style={styles.navLink}>Privasi</Link>
-          <Link to="/terms" style={styles.navLink}>Syarat & Ketentuan</Link>
         </nav>
 
         <div style={styles.ctaGroup}>

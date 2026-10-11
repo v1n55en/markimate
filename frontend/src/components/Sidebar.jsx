@@ -146,7 +146,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
                 <h2 style={styles.brandTitle}>Supermat</h2>
                 {isDemo && <span style={styles.demoBadge}>DEMO</span>}
               </div>
-              <span style={styles.brandVersion}>by 3Our · v2.0</span>
+              <span style={styles.brandVersion}>Powered by 3Our Indonesia</span>
             </div>
           </div>
           {mobileOpen && (

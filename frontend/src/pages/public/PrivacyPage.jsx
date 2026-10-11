@@ -23,12 +23,12 @@ export default function PrivacyPage() {
           <section style={styles.section}>
             <h2 style={styles.sectionHeading}>1. Pendahuluan & Identitas Pengelola</h2>
             <p style={styles.paragraph}>
-              Selamat datang di <strong>Supermat</strong>, platform perangkat lunak sebagai layanan (SaaS) yang dikembangkan dan dioperasikan oleh <strong>PT Stambha Racana Ahita</strong> (beroperasi di bawah jenama <strong>3Our</strong>). Kami berkomitmen penuh untuk melindungi privasi, integritas, dan keamanan data seluruh pengguna kami, termasuk data yang diakses melalui integrasi Application Programming Interface (API) platform pihak ketiga.
+              Selamat datang di <strong>Supermat</strong>, platform perangkat lunak sebagai layanan (SaaS) yang dikembangkan dan dioperasikan oleh <strong>Supermat Powered by 3Our Indonesia</strong>. Kami berkomitmen penuh untuk melindungi privasi, integritas, dan keamanan data seluruh pengguna kami, termasuk data yang diakses melalui integrasi Application Programming Interface (API) platform pihak ketiga.
             </p>
             <div style={styles.highlightBox}>
               <div style={styles.companyRow}>
                 <Building2 size={16} color="var(--accent-cyan)" />
-                <span><strong>Entitas Pengelola Resmi:</strong> PT Stambha Racana Ahita</span>
+                <span><strong>Entitas Pengelola Resmi:</strong> Supermat Powered by 3Our Indonesia</span>
               </div>
               <div style={styles.companyRow}>
                 <MapPin size={16} color="var(--accent-cyan)" />
@@ -84,7 +84,7 @@ export default function PrivacyPage() {
           <section style={styles.section}>
             <h2 style={styles.sectionHeading}>4. Jaminan Tidak Menjual atau Membagikan Data</h2>
             <p style={styles.paragraph}>
-              <strong>PT Stambha Racana Ahita menegaskan bahwa kami tidak pernah dan tidak akan pernah menjual, menyewakan, menukar, atau memonetisasi data bisnis, data iklan, atau informasi pelanggan Anda kepada pihak ketiga mana pun</strong> untuk tujuan periklanan pihak ketiga, pialang data (data broker), atau tujuan lain di luar operasional layanan Supermat yang secara tegas disetujui pengguna.
+              <strong>Supermat Powered by 3Our Indonesia menegaskan bahwa kami tidak pernah dan tidak akan pernah menjual, menyewakan, menukar, atau memonetisasi data bisnis, data iklan, atau informasi pelanggan Anda kepada pihak ketiga mana pun</strong> untuk tujuan periklanan pihak ketiga, pialang data (data broker), atau tujuan lain di luar operasional layanan Supermat yang secara tegas disetujui pengguna.
             </p>
           </section>
 
@@ -140,7 +140,7 @@ export default function PrivacyPage() {
             </p>
             <div style={styles.contactCard}>
               <p style={{ margin: 0 }}><strong>Departemen Legal & Privasi Data</strong></p>
-              <p style={{ margin: '0.25rem 0' }}>PT Stambha Racana Ahita (3Our Indonesia)</p>
+              <p style={{ margin: '0.25rem 0' }}>Supermat Powered by 3Our Indonesia</p>
               <p style={{ margin: '0.25rem 0', color: 'var(--text-muted)' }}>Jl. BSD Raya Utama, Kabupaten Tangerang, Banten</p>
               <p style={{ margin: '0.25rem 0' }}>
                 Email:{' '}

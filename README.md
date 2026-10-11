@@ -1,6 +1,6 @@
-# Supermat — SaaS Automasi SEO & Ads Report by 3Our
+# Supermat — AI Digital Marketing Team Platform
 
-Web app SaaS oleh **3Our Indonesia (PT Stambha Racana Ahita)** dengan 2 modul utama:
+Web app SaaS **Supermat Powered by 3Our Indonesia**:
 1. **SEO Article Automation**: Pengguna mendaftar, menghubungkan **WordPress**, **Wix**, **Sanity**, atau **Shopify Blog** miliknya, memasukkan keyword → 3Our (lewat n8n) meriset tren & volume, menulis artikel SEO dengan AI, lalu artikel direview dan diterbitkan ke CMS user.
 2. **Ads Performance Report**: Konsolidasi performa iklan bulanan multi-platform (**Shopee Ads**, **TikTok Ads**, **TikTok Shop GMV Max**, **Meta Ads**, **Google Ads**), visualisasi metrik (Spend, ROAS, GMV), insight AI, dan integrasi siap ekspor ke Google Slides & Google Sheets. Termasuk mode demo untuk review Shopee Open Platform & TikTok Marketing API.
 

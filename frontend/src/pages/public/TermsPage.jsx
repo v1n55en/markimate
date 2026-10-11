@@ -14,7 +14,7 @@ export default function TermsPage() {
           </div>
           <h1 style={styles.title}>Syarat & Ketentuan Layanan</h1>
           <p style={styles.subtitle}>
-            Supermat by 3Our (PT Stambha Racana Ahita) · Terakhir diperbarui: Oktober 2026
+            Supermat Powered by 3Our Indonesia · Terakhir diperbarui: Oktober 2026
           </p>
         </div>
 
@@ -22,7 +22,7 @@ export default function TermsPage() {
           <section style={styles.section}>
             <h2 style={styles.sectionHeading}>1. Ketentuan Umum</h2>
             <p style={styles.paragraph}>
-              Dengan mendaftar, mengakses, atau menggunakan layanan Supermat yang disediakan oleh <strong>PT Stambha Racana Ahita</strong> (&quot;kami&quot;), Anda menyatakan telah membaca, memahami, dan menyetujui seluruh syarat dan ketentuan ini. Apabila Anda tidak menyetujui bagian mana pun dari ketentuan ini, Anda dipersilakan untuk tidak menggunakan layanan kami.
+              Dengan mendaftar, mengakses, atau menggunakan layanan Supermat yang disediakan oleh <strong>Supermat Powered by 3Our Indonesia</strong> (&quot;kami&quot;), Anda menyatakan telah membaca, memahami, dan menyetujui seluruh syarat dan ketentuan ini. Apabila Anda tidak menyetujui bagian mana pun dari ketentuan ini, Anda dipersilakan untuk tidak menggunakan layanan kami.
             </p>
           </section>
 
@@ -74,7 +74,7 @@ export default function TermsPage() {
               Untuk pertanyaan resmi atau korespondensi terkait Syarat dan Ketentuan ini, silakan hubungi:
             </p>
             <div style={styles.legalBox}>
-              <p style={{ margin: 0 }}><strong>PT Stambha Racana Ahita</strong></p>
+              <p style={{ margin: 0 }}><strong>Supermat Powered by 3Our Indonesia</strong></p>
               <p style={{ margin: '0.2rem 0', color: 'var(--text-muted)' }}>Jl. BSD Raya Utama, Kabupaten Tangerang, Banten</p>
               <p style={{ margin: '0.2rem 0' }}>Email: <a href="mailto:3our.id@gmail.com" style={{ color: 'var(--accent-cyan)' }}>3our.id@gmail.com</a></p>
             </div>
