@@ -1,11 +1,13 @@
-# Supermat — SEO Article Automation by 3Our
+# Supermat — SaaS Automasi SEO & Ads Report by 3Our
 
-Web app SaaS: user mendaftar, menghubungkan **WordPress**, **Wix**, **Sanity**, atau **Shopify Blog** miliknya, memasukkan keyword → 3Our (lewat n8n) meriset tren & volume, menulis artikel SEO dengan AI, lalu artikel direview di web (paket Pro) dan diterbitkan ke CMS user. Semua API key riset/AI (SerpAPI, Ahrefs via RapidAPI, Gemini) milik 3Our — user cukup berlangganan ke 3Our (billing masih **dummy/simulasi**).
+Web app SaaS oleh **3Our Indonesia (PT Stambha Racana Ahita)** dengan 2 modul utama:
+1. **SEO Article Automation**: Pengguna mendaftar, menghubungkan **WordPress**, **Wix**, **Sanity**, atau **Shopify Blog** miliknya, memasukkan keyword → 3Our (lewat n8n) meriset tren & volume, menulis artikel SEO dengan AI, lalu artikel direview dan diterbitkan ke CMS user.
+2. **Ads Performance Report**: Konsolidasi performa iklan bulanan multi-platform (**Shopee Ads**, **TikTok Ads**, **TikTok Shop GMV Max**, **Meta Ads**, **Google Ads**), visualisasi metrik (Spend, ROAS, GMV), insight AI, dan integrasi siap ekspor ke Google Slides & Google Sheets. Termasuk mode demo untuk review Shopee Open Platform & TikTok Marketing API.
 
 ```
-frontend (React/Vite, Vercel)  →  backend (Express, Vercel)  →  n8n 3Our (webhook "Supermat API")  →  SerpAPI / RapidAPI / Gemini
-        ↑ login, keyword, review          ↑ auth, Supabase, kredensial CMS user          ↓
-                                                                               adapter WordPress / Wix → CMS milik user
+frontend (React 19, Vite, React Router v7)  →  backend (Express, Supabase)  →  n8n 3Our (webhook "Supermat API")
+   ├── SEO Automation (CMS Publish)         └── Ads Report (Shopee, TikTok, Meta, Google APIs)
+   └── Ads Report (Dashboard & Review)
 ```
 
 ## Struktur repo

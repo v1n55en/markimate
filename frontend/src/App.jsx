@@ -1,52 +1,280 @@
 import { useState, useEffect, useCallback } from 'react';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
+import { Sparkles } from 'lucide-react';
 import AuthScreen from './components/AuthScreen';
 import Sidebar from './components/Sidebar';
 import KeywordManager from './components/KeywordManager';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import CmsSettings from './components/CmsSettings';
 import BillingPage from './components/BillingPage';
+
+// Halaman Publik
+import LandingPage from './pages/public/LandingPage';
+import PrivacyPage from './pages/public/PrivacyPage';
+import TermsPage from './pages/public/TermsPage';
+
+// Halaman Ads Report
+import AdsSummaryPage from './pages/ads/AdsSummaryPage';
+import AdsConnectionsPage from './pages/ads/AdsConnectionsPage';
+import AdsReportsPage from './pages/ads/AdsReportsPage';
+import AdsReportDetailPage from './pages/ads/AdsReportDetailPage';
+import AdsCallbackPage from './pages/ads/AdsCallbackPage';
+
 import { api, getToken, setToken } from './api';
 
+// Komponen Pembungkus Route Terproteksi
+function ProtectedLayout({ me, onLogout, refreshMe }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  if (!me) {
+    const nextPath = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?next=${nextPath}`} replace />;
+  }
+
+  const user = me.user;
+  const plan = user.plan || 'free';
+  const isDemo = Boolean(user.isDemo);
+
+  const goTo = (tab) => {
+    if (tab === 'keywords') navigate('/app/seo/keywords');
+    else if (tab === 'analytics') navigate('/app/seo/analytics');
+    else if (tab === 'settings') navigate('/app/seo/settings');
+    else if (tab === 'billing') navigate('/app/billing');
+    else navigate(`/app/${tab}`);
+  };
+
+  return (
+    <div className="app-container">
+      <Sidebar
+        user={user}
+        onLogout={onLogout}
+        plan={plan}
+        usage={me.usage}
+      />
+
+      <div style={styles.contentWrapper}>
+        {/* Banner Akun Demo */}
+        {isDemo && (
+          <div style={styles.demoBanner}>
+            <Sparkles size={14} color="var(--accent-yellow)" />
+            <span>Akun demo — data contoh</span>
+          </div>
+        )}
+
+        <main className="main-content">
+          <Routes>
+            <Route index element={<Navigate to="/app/ads" replace />} />
+            {/* Rute Modul SEO */}
+            <Route
+              path="seo/keywords"
+              element={<KeywordManager me={me} refreshMe={refreshMe} goTo={goTo} />}
+            />
+            <Route
+              path="seo/analytics"
+              element={<AnalyticsDashboard me={me} />}
+            />
+            <Route
+              path="seo/settings"
+              element={<CmsSettings me={me} refreshMe={refreshMe} goTo={goTo} />}
+            />
+
+            {/* Rute Modul Ads Report */}
+            <Route path="ads" element={<AdsSummaryPage />} />
+            <Route path="ads/connections" element={<AdsConnectionsPage />} />
+            <Route path="ads/reports" element={<AdsReportsPage user={user} />} />
+            <Route path="ads/reports/:reportId" element={<AdsReportDetailPage user={user} />} />
+            <Route path="ads/connect/:platform/callback" element={<AdsCallbackPage />} />
+
+            {/* Rute Akun */}
+            <Route path="billing" element={<BillingPage me={me} refreshMe={refreshMe} />} />
+
+            {/* Fallback di dalam /app */}
+            <Route path="*" element={<Navigate to="/app/ads" replace />} />
+          </Routes>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+// Komponen Utama App
 export default function App() {
   const [me, setMe] = useState(null); // { user, plan, usage, cms }
   const [booting, setBooting] = useState(true);
-  const [activeTab, setActiveTab] = useState('keywords'); // keywords | analytics | settings | billing
 
   const refreshMe = useCallback(async () => {
-    if (!getToken()) { setMe(null); return null; }
-    try { const data = await api('/api/me'); setMe(data); return data; }
-    catch { setToken(''); setMe(null); return null; }
+    // Cek apakah ada sesi mock demo yang tersimpan
+    try {
+      const demoRaw = localStorage.getItem('supermat_demo_session');
+      if (demoRaw) {
+        const demoData = JSON.parse(demoRaw);
+        if (demoData?.user) {
+          const fullMe = {
+            user: demoData.user,
+            plan: demoData.user.plan || 'premium',
+            usage: { runsThisMonth: 12, limit: 100 },
+            cms: { wordpress: null, wix: null, sanity: null, shopify: null },
+          };
+          setMe(fullMe);
+          return fullMe;
+        }
+      }
+    } catch {
+      // abaikan jika parsing demo gagal
+    }
+
+    if (!getToken()) {
+      setMe(null);
+      return null;
+    }
+
+    try {
+      const data = await api('/api/me');
+      setMe(data);
+      return data;
+    } catch {
+      setToken('');
+      setMe(null);
+      return null;
+    }
   }, []);
 
   useEffect(() => {
-    // bersihkan sisa sesi mock versi lama
-    ['supermat_user', 'supermat_plan', 'supermat_keywords', 'supermat_credentials', 'supermat_run_count'].forEach(k => { try { localStorage.removeItem(k); } catch { /* abaikan */ } });
+    // Bersihkan sesi mock legacy lama kecuali demo session baru
+    ['supermat_user', 'supermat_plan', 'supermat_keywords', 'supermat_credentials', 'supermat_run_count'].forEach((k) => {
+      try { localStorage.removeItem(k); } catch { /* abaikan */ }
+    });
+
     refreshMe().finally(() => setBooting(false));
-    const onLogout = () => { setMe(null); setActiveTab('keywords'); };
+
+    const onLogout = () => {
+      setToken('');
+      localStorage.removeItem('supermat_demo_session');
+      setMe(null);
+    };
+
     window.addEventListener('supermat:logout', onLogout);
     return () => window.removeEventListener('supermat:logout', onLogout);
   }, [refreshMe]);
 
-  const handleLoginSuccess = async () => { setBooting(true); await refreshMe(); setBooting(false); };
-  const handleLogout = () => { setToken(''); setMe(null); setActiveTab('keywords'); };
+  const handleLoginSuccess = async (user) => {
+    setBooting(true);
+    if (user?.isDemo) {
+      setMe({
+        user,
+        plan: user.plan || 'premium',
+        usage: { runsThisMonth: 12, limit: 100 },
+        cms: { wordpress: null, wix: null, sanity: null, shopify: null },
+      });
+      setBooting(false);
+      return;
+    }
+    await refreshMe();
+    setBooting(false);
+  };
+
+  const handleLogout = () => {
+    setToken('');
+    try { localStorage.removeItem('supermat_demo_session'); } catch { /* abaikan */ }
+    setMe(null);
+    window.dispatchEvent(new Event('supermat:logout'));
+  };
 
   if (booting) {
-    return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>Memuat Supermat…</div>;
+    return (
+      <div style={styles.loadingScreen}>
+        Memuat Supermat…
+      </div>
+    );
   }
-  if (!me) return <AuthScreen onLoginSuccess={handleLoginSuccess} />;
-
-  const user = me.user;
-  const plan = user.plan || 'free';
 
   return (
-    <div className="app-container">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} user={user} onLogout={handleLogout} plan={plan} usage={me.usage} />
-      <main className="main-content">
-        {activeTab === 'keywords' && <KeywordManager me={me} refreshMe={refreshMe} goTo={setActiveTab} />}
-        {activeTab === 'analytics' && <AnalyticsDashboard me={me} />}
-        {activeTab === 'settings' && <CmsSettings me={me} refreshMe={refreshMe} goTo={setActiveTab} />}
-        {activeTab === 'billing' && <BillingPage me={me} refreshMe={refreshMe} />}
-      </main>
-    </div>
+    <BrowserRouter>
+      <Routes>
+        {/* Rute Publik */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+
+        <Route
+          path="/login"
+          element={
+            me ? (
+              <Navigate to="/app/ads" replace />
+            ) : (
+              <AuthScreen onLoginSuccess={handleLoginSuccess} initialMode="login" />
+            )
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            me ? (
+              <Navigate to="/app/ads" replace />
+            ) : (
+              <AuthScreen onLoginSuccess={handleLoginSuccess} initialMode="register" />
+            )
+          }
+        />
+
+        {/* Rute Terproteksi Aplikasi */}
+        <Route
+          path="/app/*"
+          element={
+            <ProtectedLayout
+              me={me}
+              onLogout={handleLogout}
+              refreshMe={refreshMe}
+            />
+          }
+        />
+
+        {/* Catch-all redirect ke Beranda */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
+
+const styles = {
+  loadingScreen: {
+    minHeight: '100vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'var(--text-muted)',
+    fontSize: '0.9rem',
+    backgroundColor: 'var(--bg-base)',
+  },
+  contentWrapper: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100vh',
+    overflow: 'hidden',
+    backgroundColor: 'var(--bg-base)',
+  },
+  demoBanner: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.45rem',
+    padding: '0.35rem 1rem',
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderBottom: '1px solid rgba(245, 158, 11, 0.25)',
+    color: 'var(--accent-yellow)',
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    letterSpacing: '0.02em',
+    zIndex: 40,
+    flexShrink: 0,
+  },
+};

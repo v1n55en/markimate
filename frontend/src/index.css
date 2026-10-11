@@ -401,3 +401,37 @@ input:checked + .slider:before {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* Mobile Responsive Drawer & Layout */
+@media (max-width: 768px) {
+  .mobile-top-bar {
+    display: flex !important;
+  }
+
+  .app-container {
+    flex-direction: column !important;
+    width: 100vw;
+  }
+
+  .main-content {
+    padding: 1.25rem !important;
+    padding-top: calc(56px + 1.25rem) !important;
+    height: auto !important;
+    min-height: 100vh;
+  }
+
+  aside.app-sidebar {
+    position: fixed !important;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    transform: translateX(-100%);
+    transition: transform var(--transition-smooth);
+    z-index: 150;
+  }
+
+  aside.app-sidebar.drawer-open {
+    transform: translateX(0) !important;
+  }
+}
+

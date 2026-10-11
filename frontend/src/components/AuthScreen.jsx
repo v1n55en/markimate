@@ -1,15 +1,47 @@
 import { useState } from 'react';
-import { ShieldCheck, Rocket, UserPlus, LogIn, ArrowRight } from 'lucide-react';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { ShieldCheck, Rocket, UserPlus, LogIn, ArrowRight, Sparkles } from 'lucide-react';
 import { api, setToken } from '../api';
 
-export default function AuthScreen({ onLoginSuccess }) {
-  const [isLogin, setIsLogin] = useState(true);
+export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const nextParam = searchParams.get('next') || '/app/ads';
+
+  const [isLogin, setIsLogin] = useState(initialMode !== 'register');
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [brandName, setBrandName] = useState('');
   const [niche, setNiche] = useState('F&B');
   const [error, setError] = useState('');
+
+  const handleDemoLogin = async () => {
+    setLoading(true);
+    setError('');
+    // Simulasi sesi demo reviewer
+    const demoPayload = {
+      user: {
+        id: 'demo-reviewer-1',
+        email: 'reviewer@shopee-tiktok.demo',
+        brandName: '3Our Official Demo Brand',
+        isDemo: true,
+        role: 'admin',
+        plan: 'premium',
+      },
+      token: 'supermat_demo_token_' + Date.now(),
+    };
+    try {
+      localStorage.setItem('supermat_demo_session', JSON.stringify(demoPayload));
+      setToken(demoPayload.token);
+      await onLoginSuccess(demoPayload.user);
+      navigate(nextParam);
+    } catch (err) {
+      setError(err.message || 'Gagal masuk ke akun demo.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,8 +55,9 @@ export default function AuthScreen({ onLoginSuccess }) {
         : await api('/api/auth/register', { method: 'POST', body: { email, password, brandName, niche } });
       setToken(data.token);
       await onLoginSuccess(data.user);
+      navigate(nextParam);
     } catch (err) {
-      setError(err.message || 'Gagal masuk. Coba lagi.');
+      setError(err.message || 'Gagal masuk. Pastikan backend aktif atau gunakan Akun Demo Reviewer.');
     } finally {
       setLoading(false);
     }
@@ -38,28 +71,56 @@ export default function AuthScreen({ onLoginSuccess }) {
 
       <div style={styles.authCard} className="card">
         <div style={styles.header}>
-          <div style={styles.logoContainer}>
-            <Rocket size={28} color="var(--accent-cyan)" />
-          </div>
-          <h1 style={styles.title}>Supermat Automation</h1>
+          <Link to="/" style={styles.logoLink}>
+            <div style={styles.logoContainer}>
+              <Rocket size={26} color="var(--accent-cyan)" />
+            </div>
+          </Link>
+          <h1 style={styles.title}>Supermat Platform</h1>
           <p style={styles.subtitle}>
-            SEO Article Automation by 3Our — riset keyword, tulis artikel AI, terbit ke WordPress / Wix kamu
+            Platform SaaS 3Our untuk <strong>SEO Article Automation</strong> & <strong>Ads Performance Report</strong>
           </p>
+        </div>
+
+        {/* Demo Reviewer Shortcut Button */}
+        <div style={styles.demoBox}>
+          <div style={styles.demoTopRow}>
+            <Sparkles size={16} color="var(--accent-yellow)" />
+            <span style={styles.demoTitle}>Untuk Reviewer Shopee & TikTok</span>
+          </div>
+          <p style={styles.demoDesc}>
+            Gunakan akun demo untuk menguji langsung alur otorisasi toko/iklan dan melihat sampel laporan lengkap tanpa konfigurasi backend.
+          </p>
+          <button
+            type="button"
+            onClick={handleDemoLogin}
+            disabled={loading}
+            style={styles.demoBtn}
+          >
+            <span>Masuk sebagai Akun Demo (Reviewer)</span>
+            <ArrowRight size={14} />
+          </button>
+        </div>
+
+        <div style={styles.divider}>
+          <span>atau masuk dengan akun Anda</span>
         </div>
 
         <div style={styles.tabContainer}>
           <button 
+            type="button"
             style={{...styles.tab, ...(isLogin ? styles.tabActive : {})}} 
             onClick={() => { setIsLogin(true); setError(''); }}
           >
-            <LogIn size={16} />
+            <LogIn size={15} />
             Masuk
           </button>
           <button 
+            type="button"
             style={{...styles.tab, ...(!isLogin ? styles.tabActive : {})}} 
             onClick={() => { setIsLogin(false); setError(''); }}
           >
-            <UserPlus size={16} />
+            <UserPlus size={15} />
             Daftar Baru
           </button>
         </div>
@@ -69,24 +130,26 @@ export default function AuthScreen({ onLoginSuccess }) {
         <form onSubmit={handleSubmit} style={styles.form}>
           {!isLogin && (
             <>
-              <div className="form-group">
-                <label className="form-label">Nama Brand Bisnis</label>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label" style={styles.label}>Nama Brand Bisnis</label>
                 <input 
                   type="text" 
                   className="form-input" 
                   placeholder="Contoh: Kopi Makmur" 
                   value={brandName}
                   onChange={(e) => setBrandName(e.target.value)}
+                  style={styles.input}
                   required 
                 />
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Niche Usaha / Kategori</label>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label" style={styles.label}>Niche Usaha / Kategori</label>
                 <select 
                   className="form-select"
                   value={niche}
                   onChange={(e) => setNiche(e.target.value)}
+                  style={styles.select}
                 >
                   <option value="F&B">F&B (Kuliner / Kafe / Resto)</option>
                   <option value="Retail">Retail & Fashion (E-commerce)</option>
@@ -99,26 +162,28 @@ export default function AuthScreen({ onLoginSuccess }) {
             </>
           )}
 
-          <div className="form-group">
-            <label className="form-label">Email Pengguna</label>
+          <div className="form-group" style={{ marginBottom: '1rem' }}>
+            <label className="form-label" style={styles.label}>Alamat Email</label>
             <input 
               type="email" 
               className="form-input" 
-              placeholder="klien@bisnis.com" 
+              placeholder="nama@bisnis.com" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              style={styles.input}
               required 
             />
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Kata Sandi</label>
+          <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+            <label className="form-label" style={styles.label}>Kata Sandi</label>
             <input 
               type="password" 
               className="form-input" 
               placeholder="••••••••" 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              style={styles.input}
               required 
             />
           </div>
@@ -130,19 +195,34 @@ export default function AuthScreen({ onLoginSuccess }) {
             disabled={loading}
           >
             {loading ? (
-              <span style={styles.loader}>Memuat...</span>
+              <span style={styles.loader}>Memproses…</span>
+            ) : isLogin ? (
+              <>
+                <span>Masuk Sekarang</span>
+                <ArrowRight size={16} />
+              </>
             ) : (
               <>
-                {isLogin ? 'Masuk ke Dashboard' : 'Mulai Automasi Bisnis'}
+                <span>Daftar Akun Baru</span>
                 <ArrowRight size={16} />
               </>
             )}
           </button>
         </form>
 
+        <div style={styles.footerLinks}>
+          <Link to="/privacy" style={styles.footerLink}>Kebijakan Privasi</Link>
+          <span>·</span>
+          <Link to="/terms" style={styles.footerLink}>Syarat & Ketentuan</Link>
+          <span>·</span>
+          <Link to="/" style={styles.footerLink}>Beranda</Link>
+        </div>
+
         <div style={styles.footer}>
-          <ShieldCheck size={14} color="var(--text-muted)" />
-          <span style={styles.footerText}>Koneksi aman dengan enkripsi SSL</span>
+          <ShieldCheck size={14} color="var(--accent-green)" />
+          <span style={styles.footerText}>
+            PT Stambha Racana Ahita · Keamanan Data OAuth Read-Only
+          </span>
         </div>
       </div>
     </div>
@@ -151,131 +231,229 @@ export default function AuthScreen({ onLoginSuccess }) {
 
 const styles = {
   container: {
+    minHeight: '100vh',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: '100vh',
-    width: '100vw',
-    backgroundColor: '#09090b',
+    padding: '2rem 1.5rem',
     position: 'relative',
     overflow: 'hidden',
-    padding: '1.5rem'
+    backgroundColor: 'var(--bg-base)',
   },
   glowCyan: {
     position: 'absolute',
-    top: '10%',
-    left: '20%',
+    top: '20%',
+    left: '25%',
     width: '350px',
     height: '350px',
-    backgroundColor: 'rgba(6, 182, 212, 0.08)',
     borderRadius: '50%',
-    filter: 'blur(80px)',
-    pointerEvents: 'none'
+    background: 'radial-gradient(circle, rgba(6, 182, 212, 0.12) 0%, rgba(0, 0, 0, 0) 70%)',
+    pointerEvents: 'none',
   },
   glowPurple: {
     position: 'absolute',
-    bottom: '15%',
+    bottom: '20%',
     right: '25%',
     width: '400px',
     height: '400px',
-    backgroundColor: 'rgba(162, 28, 175, 0.06)',
     borderRadius: '50%',
-    filter: 'blur(90px)',
-    pointerEvents: 'none'
+    background: 'radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, rgba(0, 0, 0, 0) 70%)',
+    pointerEvents: 'none',
   },
   authCard: {
-    width: '100%',
     maxWidth: '460px',
-    padding: '2.5rem',
+    width: '100%',
+    padding: '2rem 2.25rem',
     borderRadius: '16px',
-    zIndex: 10
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border-muted)',
+    boxShadow: 'var(--shadow-lg)',
+    zIndex: 10,
   },
   header: {
     textAlign: 'center',
-    marginBottom: '2rem'
+    marginBottom: '1.25rem',
+  },
+  logoLink: {
+    display: 'inline-block',
   },
   logoContainer: {
     display: 'inline-flex',
-    padding: '0.875rem',
+    padding: '0.75rem',
     borderRadius: '12px',
     backgroundColor: 'rgba(6, 182, 212, 0.1)',
     border: '1px solid rgba(6, 182, 212, 0.2)',
-    marginBottom: '1rem'
+    marginBottom: '0.75rem',
   },
   title: {
-    fontSize: '1.5rem',
+    fontSize: '1.35rem',
     fontWeight: '700',
-    letterSpacing: '-0.02em',
-    marginBottom: '0.5rem',
-    color: 'var(--text-primary)'
+    color: 'var(--text-primary)',
+    marginBottom: '0.35rem',
   },
   subtitle: {
-    fontSize: '0.875rem',
+    fontSize: '0.825rem',
     color: 'var(--text-secondary)',
-    lineHeight: '1.4'
+    lineHeight: 1.45,
+  },
+  demoBox: {
+    backgroundColor: 'rgba(245, 158, 11, 0.06)',
+    border: '1px solid rgba(245, 158, 11, 0.25)',
+    borderRadius: '10px',
+    padding: '0.85rem 1rem',
+    marginBottom: '1.25rem',
+  },
+  demoTopRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.45rem',
+    marginBottom: '0.3rem',
+  },
+  demoTitle: {
+    fontSize: '0.78rem',
+    fontWeight: '700',
+    color: 'var(--accent-yellow)',
+  },
+  demoDesc: {
+    fontSize: '0.725rem',
+    color: 'var(--text-secondary)',
+    lineHeight: 1.35,
+    margin: '0 0 0.65rem 0',
+  },
+  demoBtn: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.4rem',
+    padding: '0.5rem 0.85rem',
+    borderRadius: '6px',
+    backgroundColor: 'var(--accent-yellow)',
+    border: 'none',
+    color: '#000000',
+    fontSize: '0.78rem',
+    fontWeight: '700',
+    cursor: 'pointer',
+    transition: 'opacity var(--transition-fast)',
+  },
+  divider: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'var(--text-muted)',
+    fontSize: '0.725rem',
+    marginBottom: '1rem',
   },
   tabContainer: {
     display: 'flex',
-    gap: '0.5rem',
+    gap: '0.4rem',
     padding: '0.25rem',
     backgroundColor: '#09090b',
     border: '1px solid var(--border-muted)',
     borderRadius: '8px',
-    marginBottom: '1.5rem'
+    marginBottom: '1.25rem',
   },
   tab: {
     flex: 1,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '0.5rem',
-    padding: '0.5rem 1rem',
-    fontSize: '0.875rem',
+    gap: '0.4rem',
+    padding: '0.45rem 0.75rem',
+    fontSize: '0.825rem',
     fontWeight: '500',
     backgroundColor: 'transparent',
     border: 'none',
     color: 'var(--text-secondary)',
     cursor: 'pointer',
     borderRadius: '6px',
-    transition: 'all var(--transition-fast)'
+    transition: 'all var(--transition-fast)',
   },
   tabActive: {
     backgroundColor: 'var(--bg-surface-hover)',
     color: 'var(--text-primary)',
-    border: '1px solid var(--border-muted)'
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column'
-  },
-  submitBtn: {
-    width: '100%',
-    padding: '0.75rem',
-    fontSize: '0.875rem',
-    marginTop: '0.75rem'
+    border: '1px solid var(--border-muted)',
   },
   errorAlert: {
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
     border: '1px solid rgba(239, 68, 68, 0.2)',
     color: 'var(--accent-red)',
-    padding: '0.75rem 1rem',
+    padding: '0.65rem 0.85rem',
     borderRadius: '8px',
-    fontSize: '0.875rem',
-    marginBottom: '1rem'
+    fontSize: '0.8rem',
+    marginBottom: '1rem',
+  },
+  form: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  label: {
+    display: 'block',
+    fontSize: '0.78rem',
+    fontWeight: '500',
+    color: 'var(--text-secondary)',
+    marginBottom: '0.35rem',
+  },
+  input: {
+    width: '100%',
+    padding: '0.6rem 0.75rem',
+    borderRadius: '6px',
+    backgroundColor: 'var(--bg-base)',
+    border: '1px solid var(--border-muted)',
+    color: 'var(--text-primary)',
+    fontSize: '0.85rem',
+    outline: 'none',
+  },
+  select: {
+    width: '100%',
+    padding: '0.6rem 0.75rem',
+    borderRadius: '6px',
+    backgroundColor: 'var(--bg-base)',
+    border: '1px solid var(--border-muted)',
+    color: 'var(--text-primary)',
+    fontSize: '0.85rem',
+    outline: 'none',
+  },
+  submitBtn: {
+    width: '100%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.5rem',
+    padding: '0.7rem',
+    borderRadius: '8px',
+    backgroundColor: 'var(--accent-cyan)',
+    border: 'none',
+    color: '#000000',
+    fontSize: '0.85rem',
+    fontWeight: '700',
+    cursor: 'pointer',
   },
   loader: {
     display: 'inline-block',
-    animation: 'pulse 1.5s infinite'
+  },
+  footerLinks: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.65rem',
+    marginTop: '1.25rem',
+    fontSize: '0.75rem',
+    color: 'var(--text-muted)',
+  },
+  footerLink: {
+    color: 'var(--text-muted)',
+    textDecoration: 'none',
   },
   footer: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '0.5rem',
-    marginTop: '2rem'
+    gap: '0.45rem',
+    marginTop: '1rem',
   },
   footerText: {
-    fontSize: '0.75rem',
-    color: 'var(--text-muted)'
-  }
+    fontSize: '0.725rem',
+    color: 'var(--text-muted)',
+  },
 };

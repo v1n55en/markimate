@@ -1,16 +1,72 @@
-# React + Vite
+# Supermat Frontend (React 19 + Vite)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Frontend web application untuk platform SaaS **Supermat by 3Our (PT Stambha Racana Ahita)**.
+Mendukung dua modul terintegrasi:
+1. **SEO Article Automation**: Riset keyword, generator artikel AI, verifikasi & penerbitan CMS (WordPress, Wix, Sanity, Shopify).
+2. **Ads Performance Report**: Konsolidasi performa periklanan multi-channel (Shopee Ads, TikTok Ads, TikTok Shop GMV Max, Meta Ads, Google Ads), analitik ROAS & GMV, serta ekspor laporan bulanan ke Google Slides & Google Sheets.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🛠️ Menjalankan Secara Lokal
 
-## React Compiler
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Server pengembangan Vite akan berjalan di `http://localhost:5173`.
 
-## Expanding the ESLint configuration
+### Variabel Lingkungan (`.env`)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Lihat `.env.example`:
+```env
+VITE_API_BASE_URL=http://localhost:5001
+VITE_ADS_MOCK=true
+```
+
+- `VITE_API_BASE_URL`: URL backend Express Supermat.
+- `VITE_ADS_MOCK`: Setel ke `'true'` (default) untuk menjalankan modul Ads Report dalam **Mode Demo / Mock Offline** dengan data contoh lengkap dan alur simulasi OAuth tanpa ketergantungan backend. Setel ke `'false'` ketika backend telah mengimplementasikan endpoint Ads Report.
+
+---
+
+## 🧭 Struktur Rute (React Router v7)
+
+| Rute | Akses | Halaman / Deskripsi |
+|---|---|---|
+| `/` | Publik | Landing page 2 modul Supermat (SEO Automation & Ads Report) |
+| `/privacy` | Publik | Kebijakan Privasi PT Stambha Racana Ahita (izin Read-Only & penarikan akses) |
+| `/terms` | Publik | Syarat & Ketentuan Layanan |
+| `/login` | Publik | Layar masuk akun pengguna & tombol jalan pintas akun Demo Reviewer |
+| `/register` | Publik | Layar pendaftaran brand baru |
+| `/app/ads` | Terproteksi | **Ringkasan Ads Report** (KPI gabungan, spend, ROAS, kartu platform) |
+| `/app/ads/connections` | Terproteksi | **Koneksi Platform Iklan** (Meta, Google, TikTok, GMV Max, Shopee) |
+| `/app/ads/reports` | Terproteksi | **Daftar Laporan Bulanan** (filter platform, tahun, pencarian klien) |
+| `/app/ads/reports/:reportId` | Terproteksi | **Detail Laporan Lengkap** (KPI, grafik tren 6 bulan & harian, kampanye, top produk, materi kreatif, AI insights) |
+| `/app/ads/connect/:platform/callback` | Terproteksi | **Callback OAuth** simulasi otorisasi platform |
+| `/app/seo/keywords` | Terproteksi | Kontrol Automasi SEO |
+| `/app/seo/analytics` | Terproteksi | Analitik & Insights SEO |
+| `/app/seo/settings` | Terproteksi | Pengaturan CMS & API Key |
+| `/app/billing` | Terproteksi | Langganan & Kuota Artikel |
+
+---
+
+## 🧑‍💻 Akun Demo Reviewer (Shopee & TikTok)
+
+Untuk kemudahan evaluasi oleh tim review platform (Shopee Open Platform & TikTok Marketing API):
+1. Buka `/login` atau klik **Masuk sebagai Akun Demo (Reviewer)**.
+2. Reviewer langsung login dengan status admin demo (`isDemo: true`).
+3. Pada halaman **Koneksi Platform**, status Shopee dapat diuji dengan menekan tombol **Hubungkan Shopee** → diarahkan ke halaman callback → status berubah menjadi **Terhubung**.
+4. Buka **Laporan Iklan** → pilih **Laporan Shopee Ads & TikTok Shop GMV Max** untuk melihat detail KPI, produk terlaris, dan insight AI.
+
+---
+
+## 📦 Skrip Build & Lint
+
+```bash
+# Uji linting ESLint
+npm run lint
+
+# Build untuk produksi
+npm run build
+```
