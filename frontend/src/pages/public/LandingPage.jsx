@@ -279,73 +279,153 @@ export default function LandingPage() {
 
           <div style={styles.comparisonWrapper} className="card">
             <div style={styles.comparisonHeader}>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: '1 1 280px' }}>
                 <span style={styles.comparisonBadge}>
-                  {lang === 'id' ? 'Kalkulator Penghematan' : 'Cost Savings Calculator'}
+                  {t('benchmark.savingsBadge', 'Cost Savings Calculator')}
                 </span>
                 <h3 style={styles.comparisonTitle}>
-                  {lang === 'id' ? 'Hemat Hingga 89% Biaya Operasional Pemasaran' : 'Save Up to 89% on Marketing Operating Costs'}
+                  {t('benchmark.savingsTitle', 'Save Up to 89% on Marketing Operating Costs')}
                 </h3>
               </div>
               <div style={styles.benchmarkBox}>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {lang === 'id' ? 'Gaji In-House 3 Role:' : 'In-House 3-Role Payroll:'}
+                  {t('benchmark.inhouse3Title', 'In-House 3-Role Payroll:')}
                 </span>
-                <span style={styles.inHouseTotal}>{formatIDR(TEAM_COST_BENCHMARK.focus3)}/mo</span>
+                <span style={styles.inHouseTotal}>{formatIDR(TEAM_COST_BENCHMARK.focus3, lang)}/mo</span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--accent-green)', fontWeight: '700' }}>
-                  {lang === 'id' ? 'Markimate Fokus 3: Rp 3.200.000/bln' : 'Markimate Focus 3: Rp 3,200,000/mo'}
+                  {t('benchmark.focus3Badge', lang === 'id' ? 'Markimate Fokus 3: Rp 3.200.000/bln' : 'Markimate Focus 3: Rp 3,200,000/mo')}
                 </span>
               </div>
             </div>
 
-            <div style={styles.tableScroll}>
-              <table style={styles.comparisonTable}>
-                <thead>
-                  <tr>
-                    <th style={styles.th}>{lang === 'id' ? 'Role Spesialis' : 'Specialist Role'}</th>
-                    <th style={styles.th}>{lang === 'id' ? 'Deliverable Bulanan' : 'Monthly Deliverables'}</th>
-                    <th style={{ ...styles.th, textAlign: 'right' }}>
-                      {lang === 'id' ? 'Rata-rata Gaji In-House' : 'Avg In-House Payroll'}
-                    </th>
-                    <th style={{ ...styles.th, textAlign: 'right' }}>
-                      {lang === 'id' ? 'Biaya di Markimate' : 'Markimate Cost'}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {IN_HOUSE_COMPARISON.map((row, idx) => (
-                    <tr key={idx} style={styles.tr}>
-                      <td style={styles.td}>
-                        <strong>{row.role}</strong>
+            {/* Desktop / Tablet View (Structured Table) */}
+            <div className="comp-table-desktop">
+              <div style={styles.tableScroll}>
+                <table style={styles.comparisonTable}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>{t('benchmark.thRole', 'Specialist Role')}</th>
+                      <th style={styles.th}>{t('benchmark.thDeliverables', 'Monthly Deliverables')}</th>
+                      <th style={{ ...styles.th, textAlign: 'right' }}>
+                        {t('benchmark.thInHouse', 'Avg In-House Payroll')}
+                      </th>
+                      <th style={{ ...styles.th, textAlign: 'right' }}>
+                        {t('benchmark.thMarkimate', 'Markimate Cost')}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {IN_HOUSE_COMPARISON.map((row, idx) => {
+                      const roleName = lang === 'en' ? (row.role_en || row.role) : (row.role_id || row.role);
+                      const deliverablesText = lang === 'en' ? (row.deliverables_en || row.deliverables) : (row.deliverables_id || row.deliverables);
+                      return (
+                        <tr key={idx} style={styles.tr}>
+                          <td style={styles.td}>
+                            <strong>{roleName}</strong>
+                          </td>
+                          <td style={styles.td}>{deliverablesText}</td>
+                          <td style={{ ...styles.td, textAlign: 'right', color: 'var(--text-muted)' }}>
+                            <span style={{ textDecoration: 'line-through' }}>
+                              {formatIDR(row.inHouseMonthly, lang)}
+                            </span>
+                          </td>
+                          <td style={{ ...styles.td, textAlign: 'right' }}>
+                            <strong style={{ color: 'var(--accent-cyan)' }}>
+                              {formatIDR(row.supermatMonthly, lang)}
+                            </strong>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    <tr style={styles.totalRow}>
+                      <td style={styles.tdTotal} colSpan={2}>
+                        <strong>{t('benchmark.totalTitle', 'Total Monthly Investment (3 Core Focus Pillars)')}</strong>
                       </td>
-                      <td style={styles.td}>{row.deliverables}</td>
-                      <td style={{ ...styles.td, textAlign: 'right', color: 'var(--text-muted)' }}>
-                        <span style={{ textDecoration: 'line-through' }}>
-                          {formatIDR(row.inHouseMonthly)}
-                        </span>
+                      <td style={{ ...styles.tdTotal, textAlign: 'right', color: 'var(--text-muted)' }}>
+                        <strong>{formatIDR(TEAM_COST_BENCHMARK.focus3, lang)} / mo</strong>
                       </td>
-                      <td style={{ ...styles.td, textAlign: 'right' }}>
-                        <strong style={{ color: 'var(--accent-cyan)' }}>
-                          {formatIDR(row.supermatMonthly)}
+                      <td style={{ ...styles.tdTotal, textAlign: 'right' }}>
+                        <strong style={{ color: 'var(--accent-green)', fontSize: '1.05rem' }}>
+                          {formatIDR(3200000, lang)} / mo ({t('benchmark.totalDiscount', 'Discount Bundle')})
                         </strong>
                       </td>
                     </tr>
-                  ))}
-                  <tr style={styles.totalRow}>
-                    <td style={styles.tdTotal} colSpan={2}>
-                      <strong>{lang === 'id' ? 'Total Investasi Bulanan (3 Pilar Fokus)' : 'Total Monthly Investment (3 Core Focus Pillars)'}</strong>
-                    </td>
-                    <td style={{ ...styles.tdTotal, textAlign: 'right', color: 'var(--text-muted)' }}>
-                      <strong>{formatIDR(TEAM_COST_BENCHMARK.focus3)} / mo</strong>
-                    </td>
-                    <td style={{ ...styles.tdTotal, textAlign: 'right' }}>
-                      <strong style={{ color: 'var(--accent-green)', fontSize: '1.05rem' }}>
-                        Rp 3.200.000 / mo ({lang === 'id' ? 'Bundle Hemat' : 'Discount Bundle'})
-                      </strong>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Mobile View (Touch-Friendly Responsive Cards) */}
+            <div className="comp-cards-mobile">
+              {IN_HOUSE_COMPARISON.map((row, idx) => {
+                const roleName = lang === 'en' ? (row.role_en || row.role) : (row.role_id || row.role);
+                const deliverablesText = lang === 'en' ? (row.deliverables_en || row.deliverables) : (row.deliverables_id || row.deliverables);
+                return (
+                  <div key={idx} style={styles.mobileCompCard}>
+                    <div style={styles.mobileCompHeader}>
+                      <span style={styles.mobileCompRoleTitle}>{roleName}</span>
+                      <span style={styles.mobileCompSavingsBadge}>
+                        {t('benchmark.saveTag', 'Save')} {row.savingsPct}%
+                      </span>
+                    </div>
+                    <p style={styles.mobileCompDeliverables}>{deliverablesText}</p>
+                    <div style={styles.mobileCompPriceGrid}>
+                      <div style={styles.mobileCompPriceBox}>
+                        <span style={styles.mobileCompPriceLabel}>
+                          {t('benchmark.thInHouse', 'In-House Payroll')}
+                        </span>
+                        <span style={styles.mobileCompInhouseVal}>
+                          {formatIDR(row.inHouseMonthly, lang)}
+                        </span>
+                      </div>
+                      <div style={{ ...styles.mobileCompPriceBox, textAlign: 'right' }}>
+                        <span style={styles.mobileCompPriceLabel}>
+                          {t('benchmark.thMarkimate', 'Markimate')}
+                        </span>
+                        <span style={styles.mobileCompMarkimateVal}>
+                          {formatIDR(row.supermatMonthly, lang)} <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}>/ mo</span>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Total Focus 3 Summary Card for Mobile */}
+              <div style={styles.mobileTotalCard}>
+                <div style={styles.mobileTotalHeader}>
+                  <span style={styles.mobileTotalBadge}>
+                    {lang === 'id' ? 'Paket Fokus 3 · Hemat 89%' : 'Focus 3 Bundle · Save 89%'}
+                  </span>
+                  <h4 style={styles.mobileTotalTitle}>
+                    {t('benchmark.totalTitle', 'Total Monthly Investment')}
+                  </h4>
+                </div>
+
+                <div style={styles.mobileTotalRow}>
+                  <div>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>
+                      {lang === 'id' ? 'In-House 3 Role' : 'In-House 3 Roles'}
+                    </span>
+                    <span style={styles.mobileTotalInhouse}>
+                      {formatIDR(TEAM_COST_BENCHMARK.focus3, lang)}/mo
+                    </span>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--accent-green)', fontWeight: 600, display: 'block' }}>
+                      {lang === 'id' ? 'Bundle Markimate' : 'Markimate Bundle'}
+                    </span>
+                    <span style={styles.mobileTotalMarkimate}>
+                      {formatIDR(3200000, lang)}/mo
+                    </span>
+                  </div>
+                </div>
+
+                <div style={styles.mobileTotalNote}>
+                  <Sparkles size={14} color="var(--accent-green)" style={{ flexShrink: 0 }} />
+                  <span>{t('benchmark.saveMonthlyNote', 'You save Rp 26,175,000 every month')}</span>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -944,6 +1024,127 @@ const styles = {
     padding: '0.85rem',
     borderTop: '2px solid var(--border-active)',
     color: 'var(--text-primary)',
+  },
+  // Mobile Comparison Cards
+  mobileCompCard: {
+    backgroundColor: 'var(--bg-base)',
+    border: '1px solid var(--border-muted)',
+    borderRadius: '12px',
+    padding: '1.15rem 1rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.75rem',
+  },
+  mobileCompHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '0.5rem',
+  },
+  mobileCompRoleTitle: {
+    fontSize: '0.95rem',
+    fontWeight: '700',
+    color: 'var(--text-primary)',
+  },
+  mobileCompSavingsBadge: {
+    fontSize: '0.7rem',
+    fontWeight: '700',
+    padding: '0.2rem 0.55rem',
+    borderRadius: '999px',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    color: 'var(--accent-green)',
+    border: '1px solid rgba(16, 185, 129, 0.3)',
+    whiteSpace: 'nowrap',
+  },
+  mobileCompDeliverables: {
+    fontSize: '0.8rem',
+    color: 'var(--text-secondary)',
+    lineHeight: 1.45,
+    margin: 0,
+  },
+  mobileCompPriceGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '0.75rem',
+    paddingTop: '0.75rem',
+    borderTop: '1px solid var(--border-muted)',
+  },
+  mobileCompPriceBox: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.2rem',
+  },
+  mobileCompPriceLabel: {
+    fontSize: '0.675rem',
+    color: 'var(--text-muted)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+    fontWeight: '600',
+  },
+  mobileCompInhouseVal: {
+    fontSize: '0.9rem',
+    color: 'var(--accent-red)',
+    textDecoration: 'line-through',
+    fontWeight: '600',
+  },
+  mobileCompMarkimateVal: {
+    fontSize: '0.975rem',
+    color: 'var(--accent-cyan)',
+    fontWeight: '700',
+  },
+  mobileTotalCard: {
+    backgroundColor: 'rgba(6, 182, 212, 0.05)',
+    border: '1px solid rgba(6, 182, 212, 0.25)',
+    borderRadius: '12px',
+    padding: '1.25rem 1rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.85rem',
+  },
+  mobileTotalHeader: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.25rem',
+  },
+  mobileTotalBadge: {
+    fontSize: '0.7rem',
+    fontWeight: '700',
+    color: 'var(--accent-cyan)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+  },
+  mobileTotalTitle: {
+    fontSize: '1.05rem',
+    fontWeight: '800',
+    color: 'var(--text-primary)',
+    margin: 0,
+  },
+  mobileTotalRow: {
+    display: 'flex',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    padding: '0.75rem 0',
+    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+  },
+  mobileTotalInhouse: {
+    fontSize: '0.85rem',
+    color: 'var(--accent-red)',
+    textDecoration: 'line-through',
+    fontWeight: '600',
+  },
+  mobileTotalMarkimate: {
+    fontSize: '1.15rem',
+    color: 'var(--accent-green)',
+    fontWeight: '800',
+  },
+  mobileTotalNote: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.4rem',
+    fontSize: '0.78rem',
+    color: 'var(--accent-green)',
+    fontWeight: '600',
   },
   pricingCardsGrid: {
     display: 'grid',

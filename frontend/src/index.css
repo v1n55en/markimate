@@ -432,6 +432,28 @@ input:checked + .slider:before {
   display: none;
 }
 
+/* Cost comparison responsive switcher */
+.comp-table-desktop {
+  display: block;
+  width: 100%;
+}
+
+.comp-cards-mobile {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .comp-table-desktop {
+    display: none !important;
+  }
+  .comp-cards-mobile {
+    display: flex !important;
+    flex-direction: column;
+    gap: 0.875rem;
+    width: 100%;
+  }
+}
+
 /* Ensure no text blows out its parent container */
 h1, h2, h3, h4, h5, h6, p, span, strong, a {
   overflow-wrap: break-word;

@@ -50,26 +50,44 @@ export const TEAM_COST_BENCHMARK = {
 export const IN_HOUSE_COMPARISON = [
   {
     role: 'SEO Specialist',
+    role_id: 'SEO Specialist',
+    role_en: 'SEO Specialist',
     inHouseMonthly: 9000000,
     supermatMonthly: 1500000,
     deliverables: 'Riset keyword, penulisan artikel mendalam, dan penerbitan berkala ke CMS.',
+    deliverables_id: 'Riset keyword, penulisan artikel mendalam, dan penerbitan berkala ke CMS.',
+    deliverables_en: 'Keyword research, in-depth article writing, and scheduled publishing to your CMS.',
+    savingsPct: 83,
   },
   {
     role: 'Ads Specialist (Reporting)',
+    role_id: 'Ads Specialist (Pelaporan)',
+    role_en: 'Ads Specialist (Reporting)',
     inHouseMonthly: 11000000,
     supermatMonthly: 1500000,
     deliverables: 'Konsolidasi performa multi-platform, analitik ROAS & GMV, slide presentasi.',
+    deliverables_id: 'Konsolidasi performa multi-platform, analitik ROAS & GMV, slide presentasi.',
+    deliverables_en: 'Multi-platform performance consolidation, ROAS & GMV analytics, executive slide decks.',
+    savingsPct: 86,
   },
   {
     role: 'Ads Creative Researcher (Spy)',
+    role_id: 'Ads Creative Researcher (Spy)',
+    role_en: 'Ads Creative Researcher (Spy)',
     inHouseMonthly: 9375000,
     supermatMonthly: 1000000,
     deliverables: 'Pemantauan iklan kompetitor, kurasi winning ads, analisis formula hook.',
+    deliverables_id: 'Pemantauan iklan kompetitor, kurasi winning ads, analisis formula hook.',
+    deliverables_en: 'Competitor ad library tracking, winning creative curation, and hook formula analysis.',
+    savingsPct: 89,
   },
 ];
 
 // Format Rupiah standar
-export const formatIDR = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
+export const formatIDR = (n, lang = 'id') => {
+  const locale = lang === 'en' ? 'en-US' : 'id-ID';
+  return 'Rp ' + Number(n || 0).toLocaleString(locale);
+};
 
 // Kalkulator harga modul modular
 export function calculatePricing({
