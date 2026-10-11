@@ -37,7 +37,7 @@ export const BUNDLES = [
     description: 'Layanan terkelola penuh (Full-service). Tim agensi 3Our mengoperasikan platform Markimate untuk brand Anda.',
     contactSales: true,
     badge: 'Solusi Agensi',
-    contactUrl: 'https://wa.me/6281234567890?text=Halo%203Our,%20saya%20tertarik%20dengan%20paket%20Managed%20by%203Our%20Markimate',
+    contactUrl: 'https://wa.me/6285179642520?text=Halo%203Our,%20saya%20tertarik%20dengan%20paket%20Managed%20by%203Our%20Markimate',
   },
 ];
 

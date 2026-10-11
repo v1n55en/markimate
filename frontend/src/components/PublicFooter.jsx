@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Mail, MapPin, ShieldCheck } from 'lucide-react';
+import { Mail, MapPin, Phone, ShieldCheck } from 'lucide-react';
 import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
 import SupermatLogo from './common/SupermatLogo';
 
@@ -23,7 +23,11 @@ export default function PublicFooter() {
             </div>
             <div style={styles.emailLine}>
               <Mail size={15} color="var(--text-muted)" style={{ flexShrink: 0 }} />
-              <a href="mailto:3our.id@gmail.com" style={styles.emailLink}>3our.id@gmail.com</a>
+              <a href="mailto:info@3ourasia.id" style={styles.emailLink}>info@3ourasia.id</a>
+            </div>
+            <div style={styles.emailLine}>
+              <Phone size={15} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+              <a href="https://wa.me/6285179642520" target="_blank" rel="noreferrer" style={styles.emailLink}>+62 851-7964-2520</a>
             </div>
             <div style={{ marginTop: '0.75rem' }}>
               <LanguageSwitcher size="small" />

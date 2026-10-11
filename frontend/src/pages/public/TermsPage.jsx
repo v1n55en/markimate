@@ -79,7 +79,8 @@ export default function TermsPage() {
             <div style={styles.legalBox}>
               <p style={{ margin: 0 }}><strong>Markimate · powered by 3our</strong></p>
               <p style={{ margin: '0.2rem 0', color: 'var(--text-muted)' }}>Jl. BSD Raya Utama, Kabupaten Tangerang, Banten</p>
-              <p style={{ margin: '0.2rem 0' }}>Email: <a href="mailto:3our.id@gmail.com" style={{ color: 'var(--accent-cyan)' }}>3our.id@gmail.com</a></p>
+              <p style={{ margin: '0.2rem 0' }}>Email: <a href="mailto:info@3ourasia.id" style={{ color: 'var(--accent-cyan)' }}>info@3ourasia.id</a></p>
+              <p style={{ margin: '0.2rem 0' }}>WhatsApp: <a href="https://wa.me/6285179642520" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-cyan)' }}>+62 851-7964-2520</a></p>
             </div>
           </section>
         </div>

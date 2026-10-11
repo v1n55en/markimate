@@ -1,4 +1,4 @@
-import { ShieldCheck, Mail, MapPin, Building2, CheckCircle2, Lock } from 'lucide-react';
+import { ShieldCheck, Mail, MapPin, Phone, Building2, CheckCircle2, Lock } from 'lucide-react';
 import PublicNavbar from '../../components/PublicNavbar';
 import PublicFooter from '../../components/PublicFooter';
 
@@ -36,7 +36,11 @@ export default function PrivacyPage() {
               </div>
               <div style={styles.companyRow}>
                 <Mail size={16} color="var(--accent-cyan)" />
-                <span><strong>Email Kontak Resmi:</strong> 3our.id@gmail.com</span>
+                <span><strong>Email Kontak Resmi:</strong> <a href="mailto:info@3ourasia.id" style={{ color: 'var(--accent-cyan)' }}>info@3ourasia.id</a></span>
+              </div>
+              <div style={styles.companyRow}>
+                <Phone size={16} color="var(--accent-cyan)" />
+                <span><strong>WhatsApp Resmi:</strong> <a href="https://wa.me/6285179642520" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-cyan)' }}>+62 851-7964-2520</a></span>
               </div>
             </div>
           </section>
@@ -144,8 +148,14 @@ export default function PrivacyPage() {
               <p style={{ margin: '0.25rem 0', color: 'var(--text-muted)' }}>Jl. BSD Raya Utama, Kabupaten Tangerang, Banten</p>
               <p style={{ margin: '0.25rem 0' }}>
                 Email:{' '}
-                <a href="mailto:3our.id@gmail.com" style={{ color: 'var(--accent-cyan)' }}>
-                  3our.id@gmail.com
+                <a href="mailto:info@3ourasia.id" style={{ color: 'var(--accent-cyan)' }}>
+                  info@3ourasia.id
+                </a>
+              </p>
+              <p style={{ margin: '0.25rem 0' }}>
+                WhatsApp:{' '}
+                <a href="https://wa.me/6285179642520" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-cyan)' }}>
+                  +62 851-7964-2520
                 </a>
               </p>
             </div>

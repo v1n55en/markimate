@@ -531,7 +531,7 @@ export default function LandingPage() {
                 <li>{lang === 'id' ? 'Laporan eksekutif siap presentasi' : 'Executive slide decks prepared for board meetings'}</li>
               </ul>
               <a
-                href={managedBundle?.contactUrl || 'https://wa.me/6281234567890'}
+                href={managedBundle?.contactUrl || 'https://wa.me/6285179642520'}
                 target="_blank"
                 rel="noreferrer"
                 style={styles.planBtnContact}
