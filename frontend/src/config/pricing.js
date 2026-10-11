@@ -83,11 +83,30 @@ export const IN_HOUSE_COMPARISON = [
   },
 ];
 
-// Format Rupiah standar
-export const formatIDR = (n, lang = 'id') => {
-  const locale = lang === 'en' ? 'en-US' : 'id-ID';
-  return 'Rp ' + Number(n || 0).toLocaleString(locale);
+// Format mata uang: USD ($) jika 'en', IDR (Rp) jika 'id'
+export const formatCurrency = (n, lang = 'id') => {
+  if (lang === 'en') {
+    // Pemetaan angka bulat untuk harga paket standar
+    if (n === 1500000) return '$99';
+    if (n === 1000000) return '$69';
+    if (n === 3200000) return '$210';
+    if (n === 4000000) return '$267';
+    if (n === 7875000) return '$499';
+    if (n === 9000000) return '$600';
+    if (n === 11000000) return '$750';
+    if (n === 9375000) return '$625';
+    if (n === 29375000) return '$1,975';
+    if (n === 26175000) return '$1,765';
+    if (n === 64375000) return '$4,290';
+    // Fallback konversi 1 USD = Rp 15.000
+    const usd = Math.round(Number(n || 0) / 15000);
+    return '$' + usd.toLocaleString('en-US');
+  }
+  return 'Rp ' + Number(n || 0).toLocaleString('id-ID');
 };
+
+// Alias formatIDR yang otomatis menyesuaikan mata uang berdasarkan bahasa
+export const formatIDR = (n, lang = 'id') => formatCurrency(n, lang);
 
 // Kalkulator harga modul modular
 export function calculatePricing({

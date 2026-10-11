@@ -24,7 +24,7 @@ import {
   Bell,
 } from 'lucide-react';
 import { getRoleByKey } from '../../config/roles';
-import { MODULE_PRICES, MODULE_QUOTA, formatIDR } from '../../config/pricing';
+import { MODULE_PRICES, MODULE_QUOTA, formatCurrency } from '../../config/pricing';
 import PublicNavbar from '../../components/PublicNavbar';
 import PublicFooter from '../../components/PublicFooter';
 import WaitlistModal from '../../components/common/WaitlistModal';
@@ -148,7 +148,7 @@ export default function RoleDetailPage() {
                   {lang === 'id' ? 'Investasi Modul Mandiri' : 'Individual Role Investment'}
                 </span>
                 <div style={styles.priceRow}>
-                  <span style={styles.priceAmount}>{formatIDR(price)}</span>
+                  <span style={styles.priceAmount}>{formatCurrency(price, lang)}</span>
                   <span style={styles.pricePeriod}>{t('bundles.perMonth', '/ month')}</span>
                 </div>
                 {quota && (

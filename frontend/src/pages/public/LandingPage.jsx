@@ -33,6 +33,7 @@ import {
   TEAM_COST_BENCHMARK,
   IN_HOUSE_COMPARISON,
   formatIDR,
+  formatCurrency,
 } from '../../config/pricing';
 import PublicNavbar from '../../components/PublicNavbar';
 import PublicFooter from '../../components/PublicFooter';
@@ -293,7 +294,7 @@ export default function LandingPage() {
                 </span>
                 <span style={styles.inHouseTotal}>{formatIDR(TEAM_COST_BENCHMARK.focus3, lang)}/mo</span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--accent-green)', fontWeight: '700' }}>
-                  {t('benchmark.focus3Badge', lang === 'id' ? 'Markimate Fokus 3: Rp 3.200.000/bln' : 'Markimate Focus 3: Rp 3,200,000/mo')}
+                  {t('benchmark.focus3Badge', lang === 'id' ? 'Markimate Fokus 3: Rp 3.200.000/bln' : 'Markimate Focus 3: $210/mo')}
                 </span>
               </div>
             </div>
@@ -346,7 +347,7 @@ export default function LandingPage() {
                       </td>
                       <td style={{ ...styles.tdTotal, textAlign: 'right' }}>
                         <strong style={{ color: 'var(--accent-green)', fontSize: '1.05rem' }}>
-                          {formatIDR(3200000, lang)} / mo ({t('benchmark.totalDiscount', 'Discount Bundle')})
+                          {formatCurrency(3200000, lang)} {lang === 'id' ? '/ bln' : '/ mo'} ({t('benchmark.totalDiscount', 'Discount Bundle')})
                         </strong>
                       </td>
                     </tr>
@@ -416,14 +417,14 @@ export default function LandingPage() {
                       {lang === 'id' ? 'Bundle Markimate' : 'Markimate Bundle'}
                     </span>
                     <span style={styles.mobileTotalMarkimate}>
-                      {formatIDR(3200000, lang)}/mo
+                      {formatCurrency(3200000, lang)}{lang === 'id' ? '/bln' : '/mo'}
                     </span>
                   </div>
                 </div>
 
                 <div style={styles.mobileTotalNote}>
                   <Sparkles size={14} color="var(--accent-green)" style={{ flexShrink: 0 }} />
-                  <span>{t('benchmark.saveMonthlyNote', 'You save Rp 26,175,000 every month')}</span>
+                  <span>{t('benchmark.saveMonthlyNote', lang === 'id' ? 'Anda menghemat Rp 26.175.000 setiap bulan' : 'You save $1,765 every month')}</span>
                 </div>
               </div>
             </div>
@@ -452,14 +453,14 @@ export default function LandingPage() {
               </p>
               <div style={styles.planPriceRow}>
                 <span style={styles.planPriceVal}>
-                  {lang === 'id' ? 'Mulai Rp 1 jt' : 'From Rp 1M'}
+                  {lang === 'id' ? 'Mulai Rp 1 jt' : 'From $69'}
                 </span>
                 <span style={styles.planPeriod}>{t('bundles.perMonth', '/ month')}</span>
               </div>
               <ul style={styles.planFeatures}>
-                <li>AI SEO Specialist: Rp 1.5M (20 articles)</li>
-                <li>AI Ads Report: Rp 1.5M (3 ad accounts)</li>
-                <li>AI Ads Creative Spy: Rp 1.0M (5 competitors)</li>
+                <li>{lang === 'id' ? 'AI SEO Specialist: Rp 1.5jt (20 artikel)' : 'AI SEO Specialist: $99 (20 articles)'}</li>
+                <li>{lang === 'id' ? 'AI Ads Report: Rp 1.5jt (3 akun iklan)' : 'AI Ads Report: $99 (3 ad accounts)'}</li>
+                <li>{lang === 'id' ? 'AI Ads Creative Spy: Rp 1.0jt (5 kompetitor)' : 'AI Ads Creative Spy: $69 (5 competitors)'}</li>
                 <li>{lang === 'id' ? 'Aktifkan & batalkan kapan saja' : 'Activate & pause anytime'}</li>
               </ul>
               <Link to="/register" style={styles.planBtnSecondary}>
@@ -473,11 +474,11 @@ export default function LandingPage() {
               <h3 style={styles.planName}>{t('bundles.fokus3Title', 'Focus 3 Bundle')}</h3>
               <p style={styles.planDesc}>{t('bundles.fokus3Desc', 'Activate any 3 available roles with an automatic 20% discount.')}</p>
               <div style={styles.planPriceRow}>
-                <span style={styles.planPriceVal}>Rp 3.200.000</span>
+                <span style={styles.planPriceVal}>{formatCurrency(3200000, lang)}</span>
                 <span style={styles.planPeriod}>{t('bundles.perMonth', '/ month')}</span>
               </div>
               <div style={styles.discountBadge}>
-                {lang === 'id' ? 'Hemat 20% vs Beli Satuan (Rp 4.000.000)' : 'Save 20% vs Standalone (Rp 4,000,000)'}
+                {lang === 'id' ? 'Hemat 20% vs Beli Satuan (Rp 4.000.000)' : 'Save 20% vs Standalone ($267)'}
               </div>
               <ul style={styles.planFeatures}>
                 <li>{lang === 'id' ? 'Semua fitur SEO Specialist (20 artikel)' : 'All SEO Specialist features (20 articles)'}</li>
@@ -497,7 +498,7 @@ export default function LandingPage() {
               <h3 style={styles.planName}>{t('bundles.allInOneTitle', 'All-in-One AI Team')}</h3>
               <p style={styles.planDesc}>{t('bundles.allInOneDesc', 'Full access to all 16 AI marketing roles upon launch.')}</p>
               <div style={styles.planPriceRow}>
-                <span style={styles.planPriceVal}>{formatIDR(allInOneBundle?.price)}</span>
+                <span style={styles.planPriceVal}>{formatCurrency(allInOneBundle?.price, lang)}</span>
                 <span style={styles.planPeriod}>{t('bundles.perMonth', '/ month')}</span>
               </div>
               <div style={styles.preorderNotice}>

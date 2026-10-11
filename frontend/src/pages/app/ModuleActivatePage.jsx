@@ -15,7 +15,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { getRoleByKey } from '../../config/roles';
-import { MODULE_PRICES, MODULE_QUOTA, formatIDR } from '../../config/pricing';
+import { MODULE_PRICES, MODULE_QUOTA, formatCurrency } from '../../config/pricing';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useLanguage } from '../../context/LanguageContext';
 import WaitlistModal from '../../components/common/WaitlistModal';
@@ -193,7 +193,7 @@ export default function ModuleActivatePage() {
                   <div>
                     <span style={styles.planSub}>{t('activatePage.pricingCardTitle', 'Module Pricing')}</span>
                     <div style={styles.priceRow}>
-                      <span style={styles.priceNumber}>{formatIDR(price)}</span>
+                      <span style={styles.priceNumber}>{formatCurrency(price, lang)}</span>
                       <span style={styles.pricePeriod}>{t('bundles.perMonth', '/ month')}</span>
                     </div>
                   </div>

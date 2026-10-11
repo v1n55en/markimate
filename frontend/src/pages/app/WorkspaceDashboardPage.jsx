@@ -175,7 +175,7 @@ export default function WorkspaceDashboardPage({ me }) {
                 Riset keyword otomatis, tulis artikel SEO 1.200+ kata, dan terbitkan langsung ke CMS WordPress/Wix.
               </p>
               <div style={styles.lockedPriceBox}>
-                <span>Mulai dari <strong>{formatIDR(MODULE_PRICES.seo)}</strong>/bln</span>
+                <span>{lang === 'id' ? 'Mulai dari' : 'From'} <strong>{formatIDR(MODULE_PRICES.seo, lang)}</strong>{lang === 'id' ? '/bln' : '/mo'}</span>
                 <span style={styles.lockedQuotaText}>{MODULE_QUOTA.seo}</span>
               </div>
               <Link to="/app/modules/seo" style={styles.cardActivateBtn}>
@@ -269,7 +269,7 @@ export default function WorkspaceDashboardPage({ me }) {
                 Laporan konsolidasi 5 platform iklan & marketplace siap kirim ke Slides & Sheets untuk review bulanan.
               </p>
               <div style={styles.lockedPriceBox}>
-                <span>Mulai dari <strong>{formatIDR(MODULE_PRICES.ads_report)}</strong>/bln</span>
+                <span>{lang === 'id' ? 'Mulai dari' : 'From'} <strong>{formatIDR(MODULE_PRICES.ads_report, lang)}</strong>{lang === 'id' ? '/bln' : '/mo'}</span>
                 <span style={styles.lockedQuotaText}>{MODULE_QUOTA.ads_report}</span>
               </div>
               <Link to="/app/modules/ads_report" style={styles.cardActivateBtn}>
@@ -356,7 +356,7 @@ export default function WorkspaceDashboardPage({ me }) {
                 Deteksi iklan kompetitor yang sedang tayang, analisa hook & penawaran, dan simpan ke swipe file brand Anda.
               </p>
               <div style={styles.lockedPriceBox}>
-                <span>Mulai dari <strong>{formatIDR(MODULE_PRICES.ads_spy)}</strong>/bln</span>
+                <span>{lang === 'id' ? 'Mulai dari' : 'From'} <strong>{formatIDR(MODULE_PRICES.ads_spy, lang)}</strong>{lang === 'id' ? '/bln' : '/mo'}</span>
                 <span style={styles.lockedQuotaText}>{MODULE_QUOTA.ads_spy}</span>
               </div>
               <Link to="/app/modules/ads_spy" style={styles.cardActivateBtn}>
