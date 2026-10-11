@@ -253,7 +253,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '2rem 1.5rem',
+    padding: 'clamp(1rem, 3vw, 2rem) clamp(0.75rem, 3vw, 1.5rem)',
     position: 'relative',
     overflow: 'hidden',
     backgroundColor: 'var(--bg-base)',
@@ -281,7 +281,7 @@ const styles = {
   authCard: {
     maxWidth: '460px',
     width: '100%',
-    padding: '2rem 2.25rem',
+    padding: 'clamp(1.5rem, 4vw, 2.25rem) clamp(1rem, 3.5vw, 2rem)',
     borderRadius: '16px',
     backgroundColor: 'var(--bg-surface)',
     border: '1px solid var(--border-muted)',

@@ -141,7 +141,7 @@ export default function LandingPage() {
             </p>
 
             {/* Filter Kategori */}
-            <div style={styles.categoryFilters}>
+            <div style={styles.categoryFilters} className="mobile-horizontal-scroll">
               {localizedCategories.map((cat) => (
                 <button
                   key={cat.key}
@@ -581,14 +581,14 @@ const styles = {
   },
   main: {
     flex: 1,
-    padding: '2rem 1.5rem 4rem 1.5rem',
+    padding: 'clamp(1.25rem, 3vw, 2rem) clamp(0.75rem, 3vw, 1.5rem) 4rem clamp(0.75rem, 3vw, 1.5rem)',
     maxWidth: '1200px',
     margin: '0 auto',
     width: '100%',
   },
   hero: {
     textAlign: 'center',
-    padding: '3.5rem 1rem 4rem 1rem',
+    padding: 'clamp(2rem, 5vw, 3.5rem) 0.5rem clamp(2.5rem, 5vw, 4rem) 0.5rem',
     maxWidth: '860px',
     margin: '0 auto',
   },
@@ -610,15 +610,15 @@ const styles = {
     fontWeight: '600',
   },
   heroTitle: {
-    fontSize: '2.75rem',
+    fontSize: 'clamp(1.75rem, 5.5vw, 2.75rem)',
     fontWeight: '800',
     letterSpacing: '-0.03em',
-    lineHeight: 1.18,
+    lineHeight: 1.2,
     marginBottom: '1.25rem',
     color: 'var(--text-primary)',
   },
   heroSubtitle: {
-    fontSize: '1.05rem',
+    fontSize: 'clamp(0.875rem, 2.5vw, 1.05rem)',
     color: 'var(--text-secondary)',
     lineHeight: 1.6,
     marginBottom: '2rem',
@@ -627,7 +627,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '1rem',
+    gap: '0.85rem',
     flexWrap: 'wrap',
     marginBottom: '2.5rem',
   },
@@ -679,14 +679,14 @@ const styles = {
     marginBottom: '2.5rem',
   },
   sectionHeading: {
-    fontSize: '2rem',
+    fontSize: 'clamp(1.35rem, 4vw, 2rem)',
     fontWeight: '800',
     color: 'var(--text-primary)',
     marginBottom: '0.5rem',
     letterSpacing: '-0.02em',
   },
   sectionSub: {
-    fontSize: '0.95rem',
+    fontSize: 'clamp(0.85rem, 2.2vw, 0.95rem)',
     color: 'var(--text-muted)',
     maxWidth: '680px',
     margin: '0 auto',
@@ -709,6 +709,8 @@ const styles = {
     fontWeight: '500',
     cursor: 'pointer',
     transition: 'all var(--transition-fast)',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
   },
   categoryTabActive: {
     backgroundColor: 'var(--bg-surface-hover)',
@@ -718,7 +720,7 @@ const styles = {
   },
   rolesGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(270px, 100%), 1fr))',
     gap: '1.25rem',
   },
   roleCard: {
@@ -834,11 +836,11 @@ const styles = {
   },
   stepsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    gap: '1.5rem',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))',
+    gap: '1.25rem',
   },
   stepCard: {
-    padding: '2rem 1.75rem',
+    padding: 'clamp(1.25rem, 3vw, 2rem) clamp(1rem, 3vw, 1.75rem)',
     position: 'relative',
   },
   stepNumber: {
@@ -867,7 +869,7 @@ const styles = {
     margin: 0,
   },
   comparisonWrapper: {
-    padding: '2rem',
+    padding: 'clamp(1rem, 3vw, 2rem)',
     overflow: 'hidden',
   },
   comparisonHeader: {
@@ -875,8 +877,8 @@ const styles = {
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
-    gap: '1.5rem',
-    marginBottom: '2rem',
+    gap: '1.25rem',
+    marginBottom: '1.75rem',
   },
   comparisonBadge: {
     fontSize: '0.725rem',
@@ -888,7 +890,7 @@ const styles = {
     marginBottom: '0.25rem',
   },
   comparisonTitle: {
-    fontSize: '1.35rem',
+    fontSize: 'clamp(1.15rem, 3.5vw, 1.35rem)',
     fontWeight: '800',
     color: 'var(--text-primary)',
     margin: 0,
@@ -896,11 +898,12 @@ const styles = {
   benchmarkBox: {
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     backgroundColor: 'var(--bg-base)',
     padding: '0.75rem 1rem',
     borderRadius: '8px',
     border: '1px solid var(--border-muted)',
+    maxWidth: '100%',
   },
   inHouseTotal: {
     fontSize: '1.1rem',
@@ -910,14 +913,17 @@ const styles = {
   },
   tableScroll: {
     overflowX: 'auto',
+    WebkitOverflowScrolling: 'touch',
+    width: '100%',
   },
   comparisonTable: {
     width: '100%',
+    minWidth: '520px',
     borderCollapse: 'collapse',
     fontSize: '0.85rem',
   },
   th: {
-    padding: '0.75rem 1rem',
+    padding: '0.75rem 0.85rem',
     backgroundColor: 'var(--bg-base)',
     color: 'var(--text-secondary)',
     fontWeight: '600',
@@ -928,24 +934,24 @@ const styles = {
     borderBottom: '1px solid var(--border-muted)',
   },
   td: {
-    padding: '0.85rem 1rem',
+    padding: '0.8rem 0.85rem',
     color: 'var(--text-secondary)',
   },
   totalRow: {
     backgroundColor: 'rgba(6, 182, 212, 0.05)',
   },
   tdTotal: {
-    padding: '1rem',
+    padding: '0.85rem',
     borderTop: '2px solid var(--border-active)',
     color: 'var(--text-primary)',
   },
   pricingCardsGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))',
     gap: '1.25rem',
   },
   planCard: {
-    padding: '1.75rem',
+    padding: 'clamp(1.25rem, 3vw, 1.75rem)',
     display: 'flex',
     flexDirection: 'column',
     position: 'relative',
@@ -1122,7 +1128,7 @@ const styles = {
     marginBottom: '2rem',
   },
   ctaBannerBox: {
-    padding: '3rem 2rem',
+    padding: 'clamp(1.75rem, 5vw, 3rem) clamp(1rem, 4vw, 2rem)',
     textAlign: 'center',
     borderRadius: '16px',
     border: '1px solid rgba(6, 182, 212, 0.3)',
@@ -1133,22 +1139,22 @@ const styles = {
     alignItems: 'center',
   },
   ctaBannerTitle: {
-    fontSize: '1.85rem',
+    fontSize: 'clamp(1.35rem, 4.5vw, 1.85rem)',
     fontWeight: '800',
     color: 'var(--text-primary)',
     marginBottom: '0.5rem',
   },
   ctaBannerSub: {
-    fontSize: '0.95rem',
+    fontSize: 'clamp(0.85rem, 2.5vw, 0.95rem)',
     color: 'var(--text-secondary)',
     maxWidth: '640px',
-    marginBottom: '2rem',
+    marginBottom: '1.75rem',
     lineHeight: 1.5,
   },
   ctaBannerBtns: {
     display: 'flex',
     justifyContent: 'center',
-    gap: '1rem',
+    gap: '0.85rem',
     flexWrap: 'wrap',
   },
 };

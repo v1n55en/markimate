@@ -273,7 +273,7 @@ export default function SpyInsightsPage() {
 
 const styles = {
   container: {
-    padding: '1.5rem',
+    padding: 'clamp(0.85rem, 2.5vw, 1.5rem)',
     maxWidth: '1200px',
     margin: '0 auto',
     display: 'flex',
@@ -281,6 +281,7 @@ const styles = {
     gap: '1.25rem',
     overflowY: 'auto',
     height: '100%',
+    width: '100%',
   },
   tabsRow: {
     display: 'flex',

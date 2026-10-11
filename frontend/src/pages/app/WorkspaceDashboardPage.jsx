@@ -468,36 +468,37 @@ export default function WorkspaceDashboardPage({ me }) {
 
 const styles = {
   container: {
-    padding: '1.75rem',
+    padding: 'clamp(0.85rem, 2.5vw, 1.75rem)',
     maxWidth: '1200px',
     margin: '0 auto',
     display: 'flex',
     flexDirection: 'column',
-    gap: '1.5rem',
+    gap: '1.25rem',
     overflowY: 'auto',
     height: '100%',
+    width: '100%',
   },
   headerBanner: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '1.5rem 1.75rem',
+    padding: 'clamp(1rem, 2.5vw, 1.5rem)',
     borderRadius: '12px',
     backgroundColor: 'var(--bg-surface)',
     border: '1px solid var(--border-muted)',
-    gap: '1.5rem',
+    gap: '1.25rem',
     flexWrap: 'wrap',
   },
   headerLeft: {
     display: 'flex',
     alignItems: 'flex-start',
-    gap: '1rem',
+    gap: '0.85rem',
     flex: 1,
-    minWidth: '280px',
+    minWidth: 'min(280px, 100%)',
   },
   brandIconBox: {
-    width: '44px',
-    height: '44px',
+    width: '40px',
+    height: '40px',
     borderRadius: '10px',
     backgroundColor: 'rgba(6, 182, 212, 0.1)',
     display: 'flex',
@@ -514,7 +515,7 @@ const styles = {
     flexWrap: 'wrap',
   },
   brandTitle: {
-    fontSize: '1.4rem',
+    fontSize: 'clamp(1.2rem, 3.5vw, 1.4rem)',
     fontWeight: '800',
     color: 'var(--text-primary)',
     margin: 0,
@@ -539,8 +540,9 @@ const styles = {
   headerRight: {
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     gap: '0.5rem',
+    flexWrap: 'wrap',
   },
   activeModulesCounter: {
     display: 'inline-flex',
@@ -564,7 +566,7 @@ const styles = {
   },
   moduleGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(290px, 100%), 1fr))',
     gap: '1.25rem',
   },
   moduleCard: {

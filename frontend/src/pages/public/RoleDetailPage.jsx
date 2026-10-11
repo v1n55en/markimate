@@ -284,7 +284,7 @@ const styles = {
   },
   main: {
     flex: 1,
-    padding: '2rem 1.5rem 4rem 1.5rem',
+    padding: 'clamp(1.25rem, 3vw, 2rem) clamp(0.75rem, 3vw, 1.5rem) 4rem clamp(0.75rem, 3vw, 1.5rem)',
     maxWidth: '1100px',
     margin: '0 auto',
     width: '100%',
@@ -314,23 +314,24 @@ const styles = {
     fontSize: '0.85rem',
   },
   heroCard: {
-    padding: '2.5rem',
+    padding: 'clamp(1.25rem, 3vw, 2.5rem)',
     display: 'flex',
     justifyContent: 'space-between',
-    gap: '2.5rem',
+    gap: '1.75rem',
     flexWrap: 'wrap',
-    marginBottom: '3rem',
+    marginBottom: '2.5rem',
     borderLeft: '4px solid var(--accent-cyan)',
   },
   heroLeft: {
     flex: 1,
-    minWidth: '320px',
+    minWidth: 'min(300px, 100%)',
   },
   badgeRow: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.65rem',
     marginBottom: '1rem',
+    flexWrap: 'wrap',
   },
   categoryBadge: {
     padding: '0.2rem 0.6rem',
@@ -377,12 +378,13 @@ const styles = {
   roleTitleRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: '1rem',
+    gap: '0.85rem',
     marginBottom: '1rem',
+    flexWrap: 'wrap',
   },
   roleIconBox: {
-    width: '52px',
-    height: '52px',
+    width: '48px',
+    height: '48px',
     borderRadius: '12px',
     backgroundColor: 'rgba(6, 182, 212, 0.1)',
     border: '1px solid rgba(6, 182, 212, 0.2)',
@@ -392,7 +394,7 @@ const styles = {
     flexShrink: 0,
   },
   roleTitle: {
-    fontSize: '1.75rem',
+    fontSize: 'clamp(1.35rem, 4.5vw, 1.75rem)',
     fontWeight: '800',
     color: 'var(--text-primary)',
     margin: 0,
@@ -411,11 +413,12 @@ const styles = {
     border: '1px solid var(--border-muted)',
   },
   heroRight: {
-    width: '320px',
+    width: '100%',
+    maxWidth: '340px',
     flexShrink: 0,
   },
   pricingBox: {
-    padding: '1.5rem',
+    padding: '1.25rem',
     borderRadius: '12px',
     backgroundColor: 'var(--bg-base)',
     border: '1px solid var(--border-active)',

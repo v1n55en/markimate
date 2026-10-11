@@ -259,7 +259,7 @@ export default function SpyOverviewPage() {
 
 const styles = {
   container: {
-    padding: '1.5rem',
+    padding: 'clamp(0.85rem, 2.5vw, 1.5rem)',
     maxWidth: '1200px',
     margin: '0 auto',
     display: 'flex',
@@ -267,6 +267,7 @@ const styles = {
     gap: '1.25rem',
     overflowY: 'auto',
     height: '100%',
+    width: '100%',
   },
   tabsRow: {
     display: 'flex',
@@ -373,7 +374,7 @@ const styles = {
   },
   kpiGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))',
     gap: '1rem',
   },
   kpiCard: {

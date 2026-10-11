@@ -226,7 +226,7 @@ export default function BillingPage({ refreshMe }) {
       )}
 
       {/* 2. Grid Dua Kolom: Pilihan Modul vs Ringkasan Checkout */}
-      <div style={styles.mainGrid}>
+      <div style={styles.mainGrid} className="responsive-split-grid">
         {/* Kolom Kiri: Pilihan Modul & Bundle */}
         <div style={styles.leftColumn}>
           <div style={styles.sectionHeadingRow}>
@@ -671,32 +671,33 @@ export default function BillingPage({ refreshMe }) {
 
 const styles = {
   container: {
-    padding: '1.75rem',
+    padding: 'clamp(0.85rem, 2.5vw, 1.75rem)',
     maxWidth: '1200px',
     margin: '0 auto',
     display: 'flex',
     flexDirection: 'column',
-    gap: '1.5rem',
+    gap: '1.25rem',
     overflowY: 'auto',
     height: '100%',
+    width: '100%',
   },
   header: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: '1.5rem',
+    gap: '1.25rem',
     flexWrap: 'wrap',
   },
   headerLeft: {
     display: 'flex',
     alignItems: 'flex-start',
-    gap: '1rem',
+    gap: '0.85rem',
     flex: 1,
-    minWidth: '280px',
+    minWidth: 'min(280px, 100%)',
   },
   headerIconBox: {
-    width: '44px',
-    height: '44px',
+    width: '40px',
+    height: '40px',
     borderRadius: '10px',
     backgroundColor: 'rgba(6, 182, 212, 0.1)',
     display: 'flex',
@@ -713,7 +714,7 @@ const styles = {
     flexWrap: 'wrap',
   },
   title: {
-    fontSize: '1.45rem',
+    fontSize: 'clamp(1.2rem, 3.5vw, 1.45rem)',
     fontWeight: '800',
     color: 'var(--text-primary)',
     margin: 0,

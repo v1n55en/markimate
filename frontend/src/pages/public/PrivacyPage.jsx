@@ -168,7 +168,7 @@ const styles = {
   },
   main: {
     flex: 1,
-    padding: '2.5rem 1.5rem 4rem 1.5rem',
+    padding: 'clamp(1.25rem, 3vw, 2.5rem) clamp(0.75rem, 3vw, 1.5rem) 4rem clamp(0.75rem, 3vw, 1.5rem)',
     maxWidth: '920px',
     margin: '0 auto',
     width: '100%',
@@ -189,7 +189,7 @@ const styles = {
     marginBottom: '1rem',
   },
   title: {
-    fontSize: '2rem',
+    fontSize: 'clamp(1.4rem, 4.5vw, 2rem)',
     fontWeight: '800',
     color: 'var(--text-primary)',
     marginBottom: '0.5rem',

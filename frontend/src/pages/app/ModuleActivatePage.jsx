@@ -109,7 +109,7 @@ export default function ModuleActivatePage() {
           </div>
         )}
 
-        <div style={styles.grid}>
+        <div style={styles.grid} className="responsive-split-grid">
           {/* Sisi Kiri: Detail Role & Fitur */}
           <div style={styles.leftCol}>
             <div style={styles.roleHeaderCard} className="card">
@@ -440,7 +440,7 @@ const styles = {
     border: '1px solid transparent',
   },
   title: {
-    fontSize: '1.65rem',
+    fontSize: 'clamp(1.3rem, 4vw, 1.65rem)',
     fontWeight: '800',
     color: 'var(--text-primary)',
     margin: '0 0 0.75rem 0',

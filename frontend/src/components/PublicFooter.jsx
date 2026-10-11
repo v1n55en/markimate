@@ -65,7 +65,7 @@ const styles = {
   footer: {
     borderTop: '1px solid var(--border-muted)',
     backgroundColor: '#09090b',
-    padding: '3rem 1.5rem 2rem 1.5rem',
+    padding: 'clamp(2rem, 4vw, 3rem) clamp(1rem, 3vw, 1.5rem) 2rem clamp(1rem, 3vw, 1.5rem)',
     color: 'var(--text-secondary)',
     marginTop: 'auto',
   },
@@ -77,8 +77,8 @@ const styles = {
     display: 'flex',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
-    gap: '2.5rem',
-    paddingBottom: '2.5rem',
+    gap: '2rem',
+    paddingBottom: '2rem',
     borderBottom: '1px solid var(--border-muted)',
   },
   companyCol: {
