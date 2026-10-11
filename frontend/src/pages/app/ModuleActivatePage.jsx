@@ -14,32 +14,36 @@ import {
   Bell,
   ArrowUpRight,
 } from 'lucide-react';
-import { ROLES } from '../../config/roles';
+import { getRoleByKey } from '../../config/roles';
 import { MODULE_PRICES, MODULE_QUOTA, formatIDR } from '../../config/pricing';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useLanguage } from '../../context/LanguageContext';
 import WaitlistModal from '../../components/common/WaitlistModal';
 
 export default function ModuleActivatePage() {
   const { key } = useParams();
   const navigate = useNavigate();
   const { activeWorkspace, isModuleActive, activateModule } = useWorkspace();
+  const { t, lang } = useLanguage();
 
   const [waitlistRole, setWaitlistRole] = useState(null);
   const [activating, setActivating] = useState(false);
   const [justActivated, setJustActivated] = useState(false);
 
-  const role = ROLES.find((r) => r.key === key);
+  const role = getRoleByKey(key, lang);
 
   if (!role) {
     return (
       <div style={styles.notFoundContainer}>
         <div style={styles.notFoundCard} className="card">
-          <h2>Modul Tidak Ditemukan</h2>
+          <h2>{lang === 'id' ? 'Modul Tidak Ditemukan' : 'Module Not Found'}</h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-            Role atau modul dengan kunci &ldquo;{key}&rdquo; tidak terdaftar di sistem Supermat.
+            {lang === 'id'
+              ? `Role atau modul dengan kunci "${key}" tidak terdaftar di sistem Supermat.`
+              : `Marketing AI role module "${key}" is not registered in Supermat.`}
           </p>
-          <button onClick={() => navigate('/app/ads')} style={styles.primaryBtn}>
-            Kembali ke Beranda
+          <button onClick={() => navigate('/app')} style={styles.primaryBtn}>
+            {lang === 'id' ? 'Kembali ke Dashboard' : 'Back to Dashboard'}
           </button>
         </div>
       </div>
@@ -49,7 +53,7 @@ export default function ModuleActivatePage() {
   const isAvailable = role.status === 'available';
   const isActive = isModuleActive(role.key);
   const price = MODULE_PRICES[role.key] || 0;
-  const quota = MODULE_QUOTA[role.key] || 'Akses tak terbatas';
+  const quota = MODULE_QUOTA[role.key] || (lang === 'id' ? 'Akses tak terbatas' : 'Unlimited access');
 
   const getModuleHomePath = (roleKey) => {
     if (roleKey === 'seo') return '/app/seo/keywords';
@@ -73,7 +77,7 @@ export default function ModuleActivatePage() {
       <div style={styles.topBar}>
         <button onClick={() => navigate(-1)} style={styles.backBtn}>
           <ChevronLeft size={16} />
-          <span>Kembali</span>
+          <span>{lang === 'id' ? 'Kembali' : 'Back'}</span>
         </button>
         <span style={styles.workspaceIndicator}>
           Workspace: <strong>{activeWorkspace?.name}</strong>
@@ -99,7 +103,7 @@ export default function ModuleActivatePage() {
               onClick={() => navigate(getModuleHomePath(role.key))}
               style={styles.openModuleBtn}
             >
-              <span>Buka Modul</span>
+              <span>{t('dashboard.openModule', 'Open Module')}</span>
               <ArrowRight size={16} />
             </button>
           </div>
@@ -121,7 +125,7 @@ export default function ModuleActivatePage() {
                     }}
                   >
                     <Check size={12} />
-                    Tersedia
+                    {t('rolesGrid.statusAvailable', 'Available')}
                   </span>
                 ) : (
                   <span
@@ -133,7 +137,7 @@ export default function ModuleActivatePage() {
                     }}
                   >
                     <Clock size={12} />
-                    Segera Hadir
+                    {t('rolesGrid.statusSoon', 'Coming Soon')}
                   </span>
                 )}
               </div>
@@ -146,7 +150,7 @@ export default function ModuleActivatePage() {
                 <div style={styles.deliverablesBox}>
                   <div style={styles.deliverablesLabel}>
                     <Layers size={14} color="var(--accent-cyan)" />
-                    <span>Hasil Kerja (Deliverables)</span>
+                    <span>{t('roleDetail.deliverablesTitle', 'Expected Deliverables')}</span>
                   </div>
                   <p style={styles.deliverablesText}>{role.deliverables}</p>
                 </div>
@@ -158,7 +162,7 @@ export default function ModuleActivatePage() {
               <div style={styles.featuresCard} className="card">
                 <h3 style={styles.sectionHeading}>
                   <Zap size={16} color="var(--accent-cyan)" />
-                  Kemampuan Spesialis AI
+                  {t('activatePage.featuresTitle', 'Core AI Capabilities')}
                 </h3>
                 <div style={styles.featuresList}>
                   {role.features.map((feat, idx) => (
@@ -187,31 +191,31 @@ export default function ModuleActivatePage() {
                     )}
                   </div>
                   <div>
-                    <span style={styles.planSub}>Harga Langganan Modul</span>
+                    <span style={styles.planSub}>{t('activatePage.pricingCardTitle', 'Module Pricing')}</span>
                     <div style={styles.priceRow}>
                       <span style={styles.priceNumber}>{formatIDR(price)}</span>
-                      <span style={styles.pricePeriod}>/ bulan</span>
+                      <span style={styles.pricePeriod}>{t('bundles.perMonth', '/ month')}</span>
                     </div>
                   </div>
                 </div>
 
                 <div style={styles.quotaBox}>
-                  <span style={styles.quotaTitle}>Kuota Termasuk:</span>
+                  <span style={styles.quotaTitle}>{t('roleDetail.quotaTitle', 'Included Quota:')}</span>
                   <p style={styles.quotaValue}>{quota}</p>
                 </div>
 
                 <div style={styles.actionBenefits}>
                   <div style={styles.benefitRow}>
                     <Check size={14} color="var(--accent-green)" />
-                    <span>Otomasi AI terjadwal tanpa intervensi manual</span>
+                    <span>{lang === 'id' ? 'Otomasi AI terjadwal tanpa intervensi manual' : 'Scheduled AI automation with zero manual prompts'}</span>
                   </div>
                   <div style={styles.benefitRow}>
                     <Check size={14} color="var(--accent-green)" />
-                    <span>Human-in-the-loop: tinjau & setujui sebelum terbit</span>
+                    <span>{lang === 'id' ? 'Human-in-the-loop: tinjau & setujui sebelum terbit' : 'Human-in-the-loop: review and approve before publishing'}</span>
                   </div>
                   <div style={styles.benefitRow}>
                     <Check size={14} color="var(--accent-green)" />
-                    <span>Batal kapan saja tanpa kontrak tahunan terikat</span>
+                    <span>{lang === 'id' ? 'Batal kapan saja tanpa kontrak tahunan terikat' : 'Cancel anytime with zero long-term lock-in'}</span>
                   </div>
                 </div>
 
@@ -220,7 +224,7 @@ export default function ModuleActivatePage() {
                     onClick={() => navigate(getModuleHomePath(role.key))}
                     style={styles.actionPrimaryBtn}
                   >
-                    <span>Masuk ke Modul</span>
+                    <span>{t('dashboard.openModule', 'Open Console')}</span>
                     <ArrowRight size={16} />
                   </button>
                 ) : (
@@ -230,11 +234,11 @@ export default function ModuleActivatePage() {
                     style={styles.actionPrimaryBtn}
                   >
                     {activating ? (
-                      <span>Mengaktifkan Modul…</span>
+                      <span>{t('activatePage.activating', 'Activating Module...')}</span>
                     ) : (
                       <>
                         <Sparkles size={16} />
-                        <span>Aktifkan Modul Sekarang</span>
+                        <span>{t('activatePage.btnActivate', 'Activate Module Now (1-Click)')}</span>
                       </>
                     )}
                   </button>

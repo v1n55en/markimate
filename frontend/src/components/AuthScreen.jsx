@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { ShieldCheck, Rocket, UserPlus, LogIn, ArrowRight, Sparkles } from 'lucide-react';
 import { api, setToken } from '../api';
+import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
 
 export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { t, lang } = useLanguage();
   const nextParam = searchParams.get('next') || '/app/ads';
 
   const [isLogin, setIsLogin] = useState(initialMode !== 'register');
@@ -37,7 +39,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
       await onLoginSuccess(demoPayload.user);
       navigate(nextParam);
     } catch (err) {
-      setError(err.message || 'Gagal masuk ke akun demo.');
+      setError(err.message || (lang === 'id' ? 'Gagal masuk ke akun demo.' : 'Failed to launch demo account.'));
     } finally {
       setLoading(false);
     }
@@ -46,8 +48,14 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!email || !password) { setError('Harap isi semua field wajib.'); return; }
-    if (!isLogin && !brandName) { setError('Harap isi nama brand bisnis Anda.'); return; }
+    if (!email || !password) {
+      setError(lang === 'id' ? 'Harap isi semua field wajib.' : 'Please fill in all required fields.');
+      return;
+    }
+    if (!isLogin && !brandName) {
+      setError(lang === 'id' ? 'Harap isi nama brand bisnis Anda.' : 'Please enter your brand / workspace name.');
+      return;
+    }
     setLoading(true);
     try {
       const data = isLogin
@@ -57,7 +65,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
       await onLoginSuccess(data.user);
       navigate(nextParam);
     } catch (err) {
-      setError(err.message || 'Gagal masuk. Pastikan backend aktif atau gunakan Akun Demo Reviewer.');
+      setError(err.message || (lang === 'id' ? 'Gagal masuk. Pastikan backend aktif atau gunakan Akun Demo Reviewer.' : 'Sign in failed. Make sure backend is running or use Instant Demo Workspace.'));
     } finally {
       setLoading(false);
     }
@@ -70,6 +78,11 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
       <div style={styles.glowPurple}></div>
 
       <div style={styles.authCard} className="card">
+        {/* Top bar with language switcher */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+          <LanguageSwitcher size="small" />
+        </div>
+
         <div style={styles.header}>
           <Link to="/" style={styles.logoLink}>
             <div style={styles.logoContainer}>
@@ -86,10 +99,14 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
         <div style={styles.demoBox}>
           <div style={styles.demoTopRow}>
             <Sparkles size={16} color="var(--accent-yellow)" />
-            <span style={styles.demoTitle}>Untuk Reviewer Shopee & TikTok</span>
+            <span style={styles.demoTitle}>
+              {lang === 'id' ? 'Untuk Reviewer Shopee & TikTok' : 'Instant Reviewer Demo Access'}
+            </span>
           </div>
           <p style={styles.demoDesc}>
-            Gunakan akun demo untuk menguji langsung alur otorisasi toko/iklan dan melihat sampel laporan lengkap tanpa konfigurasi backend.
+            {lang === 'id'
+              ? 'Gunakan akun demo untuk menguji langsung alur otorisasi toko/iklan dan melihat sampel laporan lengkap tanpa konfigurasi backend.'
+              : 'Launch the interactive demo workspace to inspect multi-channel reporting, creative spy intelligence, and approval workflows without backend configuration.'}
           </p>
           <button
             type="button"
@@ -97,13 +114,13 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
             disabled={loading}
             style={styles.demoBtn}
           >
-            <span>Masuk sebagai Akun Demo (Reviewer)</span>
+            <span>{t('auth.btnDemo', 'Launch Instant Demo Workspace')}</span>
             <ArrowRight size={14} />
           </button>
         </div>
 
         <div style={styles.divider}>
-          <span>atau masuk dengan akun Anda</span>
+          <span>{lang === 'id' ? 'atau masuk dengan akun Anda' : 'or continue with your credentials'}</span>
         </div>
 
         <div style={styles.tabContainer}>
@@ -113,7 +130,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
             onClick={() => { setIsLogin(true); setError(''); }}
           >
             <LogIn size={15} />
-            Masuk
+            {t('nav.login', 'Sign In')}
           </button>
           <button 
             type="button"
@@ -121,7 +138,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
             onClick={() => { setIsLogin(false); setError(''); }}
           >
             <UserPlus size={15} />
-            Daftar Baru
+            {lang === 'id' ? 'Daftar Baru' : 'Register'}
           </button>
         </div>
 

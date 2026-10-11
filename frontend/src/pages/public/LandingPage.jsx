@@ -24,7 +24,10 @@ import {
   HelpCircle,
   ExternalLink,
 } from 'lucide-react';
-import { ROLES, ROLE_CATEGORIES } from '../../config/roles';
+import {
+  getLocalizedRoles,
+  getLocalizedCategories,
+} from '../../config/roles';
 import {
   BUNDLES,
   TEAM_COST_BENCHMARK,
@@ -34,6 +37,7 @@ import {
 import PublicNavbar from '../../components/PublicNavbar';
 import PublicFooter from '../../components/PublicFooter';
 import WaitlistModal from '../../components/common/WaitlistModal';
+import { useLanguage } from '../../context/LanguageContext';
 
 // Pemeta ikon Lucide untuk kartu role
 const ICON_MAP = {
@@ -56,16 +60,19 @@ const ICON_MAP = {
 };
 
 export default function LandingPage() {
+  const { t, lang } = useLanguage();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [activeWaitlistRole, setActiveWaitlistRole] = useState(null);
+
+  const localizedRoles = getLocalizedRoles(lang);
+  const localizedCategories = getLocalizedCategories(lang);
 
   // Filter daftar role berdasarkan kategori
   const filteredRoles =
     selectedCategory === 'all'
-      ? ROLES
-      : ROLES.filter((r) => r.category === selectedCategory);
+      ? localizedRoles
+      : localizedRoles.filter((r) => r.category === selectedCategory);
 
-  const focus3Bundle = BUNDLES.find((b) => b.key === 'focus3');
   const allInOneBundle = BUNDLES.find((b) => b.key === 'all_in_one');
   const managedBundle = BUNDLES.find((b) => b.key === 'managed');
 
@@ -79,40 +86,43 @@ export default function LandingPage() {
           <div style={styles.heroBadgeRow}>
             <span style={styles.heroBadge}>
               <Sparkles size={14} color="var(--accent-cyan)" />
-              Supermat Powered by 3Our Indonesia
+              {t('hero.badge', 'Supermat Powered by 3Our Indonesia')}
             </span>
           </div>
 
           <h1 style={styles.heroTitle}>
-            Tim Digital Marketing AI untuk Bisnismu
+            {t('hero.title', 'Your Autonomous AI Digital Marketing Team')}
           </h1>
 
           <p style={styles.heroSubtitle}>
-            Pilih role spesialis yang kamu butuhkan atau rekrut seluruh tim — mulai dari sebagian kecil biaya tim in-house, dengan hasil kerja yang tetap kamu review dan setujui.
+            {t(
+              'hero.subtitle',
+              'Hire specialized AI marketing roles or deploy an entire full-stack digital marketing team — at a fraction of in-house team costs, with 100% human-in-the-loop review and approval before anything goes live.'
+            )}
           </p>
 
           <div style={styles.heroCtas}>
             <Link to="/login" style={styles.primaryCta}>
-              <span>Coba Demo Sekarang</span>
+              <span>{t('hero.ctaPrimary', 'Explore Live Demo')}</span>
               <ArrowRight size={16} />
             </Link>
             <a href="#pricing" style={styles.secondaryCta}>
-              Lihat Paket & Harga
+              {t('hero.ctaSecondary', 'View Plans & Pricing')}
             </a>
           </div>
 
           <div style={styles.heroProof}>
             <div style={styles.proofItem}>
               <CheckCircle2 size={15} color="var(--accent-green)" />
-              <span>3 Role Aktif Siap Digunakan</span>
+              <span>{t('hero.proof1', '3 Active Roles Ready to Deploy')}</span>
             </div>
             <div style={styles.proofItem}>
               <CheckCircle2 size={15} color="var(--accent-green)" />
-              <span>13 Role Dalam Pengembangan</span>
+              <span>{t('hero.proof2', '13 Specialized Roles in Pipeline')}</span>
             </div>
             <div style={styles.proofItem}>
               <CheckCircle2 size={15} color="var(--accent-green)" />
-              <span>Human-in-the-Loop Approval</span>
+              <span>{t('hero.proof3', 'Human-in-the-Loop Editorial Approval')}</span>
             </div>
           </div>
         </section>
@@ -120,14 +130,19 @@ export default function LandingPage() {
         {/* 2. Grid "Tim Kamu" (16 Role) */}
         <section id="roles" style={styles.section}>
           <div style={styles.sectionHeader}>
-            <h2 style={styles.sectionHeading}>Susunan Tim Marketing AI Kamu</h2>
+            <h2 style={styles.sectionHeading}>
+              {t('rolesGrid.sectionTitle', 'Your Autonomous Marketing Team')}
+            </h2>
             <p style={styles.sectionSub}>
-              Setiap role bertindak sebagai agen otonom khusus yang menghasilkan pekerjaan nyata untuk brand Anda
+              {t(
+                'rolesGrid.sectionSubtitle',
+                '16 specialized AI roles covering every digital marketing function. Activate individual modules or orchestrate the entire team.'
+              )}
             </p>
 
             {/* Filter Kategori */}
             <div style={styles.categoryFilters}>
-              {ROLE_CATEGORIES.map((cat) => (
+              {localizedCategories.map((cat) => (
                 <button
                   key={cat.key}
                   onClick={() => setSelectedCategory(cat.key)}
@@ -165,10 +180,12 @@ export default function LandingPage() {
                     </div>
                     {isAvail ? (
                       <span style={styles.badgeAvailable}>
-                        <span style={styles.greenDot} /> Tersedia
+                        <span style={styles.greenDot} /> {t('rolesGrid.statusAvailable', 'Active & Ready')}
                       </span>
                     ) : (
-                      <span style={styles.badgeSoon}>Segera hadir</span>
+                      <span style={styles.badgeSoon}>
+                        {t('rolesGrid.statusSoon', 'Coming Soon')}
+                      </span>
                     )}
                   </div>
 
@@ -181,7 +198,7 @@ export default function LandingPage() {
                   <div style={styles.cardFooter}>
                     {isAvail ? (
                       <Link to={`/roles/${role.key}`} style={styles.learnMoreLink}>
-                        <span>Pelajari Fitur</span>
+                        <span>{t('rolesGrid.viewDetails', 'Role Details')}</span>
                         <ArrowRight size={14} />
                       </Link>
                     ) : (
@@ -190,7 +207,7 @@ export default function LandingPage() {
                         style={styles.waitlistBtn}
                       >
                         <Bell size={13} />
-                        <span>Kabari saya</span>
+                        <span>{t('rolesGrid.joinWaitlist', 'Join Waitlist')}</span>
                       </button>
                     )}
                   </div>
@@ -203,34 +220,46 @@ export default function LandingPage() {
         {/* 3. Cara Kerja (3 Langkah) */}
         <section id="how-it-works" style={styles.section}>
           <div style={styles.sectionHeader}>
-            <h2 style={styles.sectionHeading}>Cara Kerja Sederhana</h2>
+            <h2 style={styles.sectionHeading}>{t('howItWorks.title', 'How It Works: 3 Steps to Autonomous Growth')}</h2>
             <p style={styles.sectionSub}>
-              Hanya 3 langkah mudah antara AI yang bekerja di balik layar dan persetujuan bisnis Anda
+              {t(
+                'howItWorks.subtitle',
+                'Supermat blends autonomous AI execution with strict human oversight so your brand stays high-quality, authentic, and protected.'
+              )}
             </p>
           </div>
 
           <div style={styles.stepsGrid}>
             <div style={styles.stepCard} className="card">
               <div style={styles.stepNumber}>1</div>
-              <h3 style={styles.stepTitle}>Hubungkan Akun Bisnis</h3>
+              <h3 style={styles.stepTitle}>{t('howItWorks.step1Title', '1. Connect & Configure')}</h3>
               <p style={styles.stepDesc}>
-                Sambungkan CMS blog (WordPress, Wix, Shopify) dan akun iklan (Shopee, TikTok, Meta, Google). Izin sepenuhnya aman & <strong>Read-Only</strong>.
+                {t(
+                  'howItWorks.step1Desc',
+                  'Link your CMS (WordPress, Wix, Sanity, Shopify) or connect advertising channels (Meta, Google, TikTok, Shopee). Set your brand voice, guidelines, and target keywords.'
+                )}
               </p>
             </div>
 
             <div style={styles.stepCard} className="card">
               <div style={styles.stepNumber}>2</div>
-              <h3 style={styles.stepTitle}>AI Bekerja Otomatis</h3>
+              <h3 style={styles.stepTitle}>{t('howItWorks.step2Title', '2. Autonomous Execution & Intelligence')}</h3>
               <p style={styles.stepDesc}>
-                Setiap spesialis AI meriset keyword, menulis draft artikel, mengagregasi ROAS & GMV, serta memindai ads library kompetitor secara terjadwal.
+                {t(
+                  'howItWorks.step2Desc',
+                  'AI specialists conduct trend research, draft SEO content, track competitor ad libraries, and consolidate multi-channel performance data 24/7.'
+                )}
               </p>
             </div>
 
             <div style={styles.stepCard} className="card">
               <div style={styles.stepNumber}>3</div>
-              <h3 style={styles.stepTitle}>Kamu Review & Setujui</h3>
+              <h3 style={styles.stepTitle}>{t('howItWorks.step3Title', '3. Human-in-the-Loop Approval')}</h3>
               <p style={styles.stepDesc}>
-                Prinsip <em>Human-in-the-Loop</em>: seluruh hasil kerja (artikel atau laporan) masuk ke meja review. Kamu cukup klik setujui untuk terbit atau ekspor.
+                {t(
+                  'howItWorks.step3Desc',
+                  'Review drafts in the editorial drawer, tweak ad insights, and publish directly to your store or CMS with a single click. Zero hallucinations published without your sign-off.'
+                )}
               </p>
             </div>
           </div>
@@ -239,25 +268,32 @@ export default function LandingPage() {
         {/* 4. Perbandingan Biaya (Tim In-House vs Supermat) */}
         <section style={styles.section}>
           <div style={styles.sectionHeader}>
-            <h2 style={styles.sectionHeading}>Bandingkan Biaya: Tim In-House vs Supermat</h2>
+            <h2 style={styles.sectionHeading}>{t('benchmark.title', 'Cost Comparison: In-House Team vs Agency vs Supermat')}</h2>
             <p style={styles.sectionSub}>
-              Dapatkan kapabilitas tim profesional tanpa beban rekrutmen, BPJS, pelatihan, dan overhead bulanan
+              {t(
+                'benchmark.subtitle',
+                'Compare the typical monthly investment required to run a full digital marketing team.'
+              )}
             </p>
           </div>
 
           <div style={styles.comparisonWrapper} className="card">
             <div style={styles.comparisonHeader}>
               <div style={{ flex: 1 }}>
-                <span style={styles.comparisonBadge}>Kalkulator Penghematan</span>
+                <span style={styles.comparisonBadge}>
+                  {lang === 'id' ? 'Kalkulator Penghematan' : 'Cost Savings Calculator'}
+                </span>
                 <h3 style={styles.comparisonTitle}>
-                  Hemat Hingga 89% Biaya Operasional Pemasaran
+                  {lang === 'id' ? 'Hemat Hingga 89% Biaya Operasional Pemasaran' : 'Save Up to 89% on Marketing Operating Costs'}
                 </h3>
               </div>
               <div style={styles.benchmarkBox}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Gaji In-House 3 Role:</span>
-                <span style={styles.inHouseTotal}>{formatIDR(TEAM_COST_BENCHMARK.focus3)}/bln</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  {lang === 'id' ? 'Gaji In-House 3 Role:' : 'In-House 3-Role Payroll:'}
+                </span>
+                <span style={styles.inHouseTotal}>{formatIDR(TEAM_COST_BENCHMARK.focus3)}/mo</span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--accent-green)', fontWeight: '700' }}>
-                  Supermat Fokus 3: Rp 3.200.000/bln
+                  Supermat Focus 3: Rp 3.200.000/mo
                 </span>
               </div>
             </div>
@@ -266,10 +302,14 @@ export default function LandingPage() {
               <table style={styles.comparisonTable}>
                 <thead>
                   <tr>
-                    <th style={styles.th}>Role Spesialis</th>
-                    <th style={styles.th}>Deliverable Bulanan</th>
-                    <th style={{ ...styles.th, textAlign: 'right' }}>Rata-rata Gaji In-House</th>
-                    <th style={{ ...styles.th, textAlign: 'right' }}>Biaya di Supermat</th>
+                    <th style={styles.th}>{lang === 'id' ? 'Role Spesialis' : 'Specialist Role'}</th>
+                    <th style={styles.th}>{lang === 'id' ? 'Deliverable Bulanan' : 'Monthly Deliverables'}</th>
+                    <th style={{ ...styles.th, textAlign: 'right' }}>
+                      {lang === 'id' ? 'Rata-rata Gaji In-House' : 'Avg In-House Payroll'}
+                    </th>
+                    <th style={{ ...styles.th, textAlign: 'right' }}>
+                      {lang === 'id' ? 'Biaya di Supermat' : 'Supermat Cost'}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -293,14 +333,14 @@ export default function LandingPage() {
                   ))}
                   <tr style={styles.totalRow}>
                     <td style={styles.tdTotal} colSpan={2}>
-                      <strong>Total Investasi Bulanan (3 Pilar Fokus)</strong>
+                      <strong>{lang === 'id' ? 'Total Investasi Bulanan (3 Pilar Fokus)' : 'Total Monthly Investment (3 Core Focus Pillars)'}</strong>
                     </td>
                     <td style={{ ...styles.tdTotal, textAlign: 'right', color: 'var(--text-muted)' }}>
-                      <strong>{formatIDR(TEAM_COST_BENCHMARK.focus3)} / bln</strong>
+                      <strong>{formatIDR(TEAM_COST_BENCHMARK.focus3)} / mo</strong>
                     </td>
                     <td style={{ ...styles.tdTotal, textAlign: 'right' }}>
                       <strong style={{ color: 'var(--accent-green)', fontSize: '1.05rem' }}>
-                        Rp 3.200.000 / bln (Bundle Hemat)
+                        Rp 3.200.000 / mo ({lang === 'id' ? 'Bundle Hemat' : 'Discount Bundle'})
                       </strong>
                     </td>
                   </tr>
@@ -313,92 +353,101 @@ export default function LandingPage() {
         {/* 5. Paket & Harga (#pricing) */}
         <section id="pricing" style={styles.section}>
           <div style={styles.sectionHeader}>
-            <h2 style={styles.sectionHeading}>Pilihan Paket Fleksibel</h2>
+            <h2 style={styles.sectionHeading}>{t('bundles.title', 'Flexible Plans for Every Stage of Growth')}</h2>
             <p style={styles.sectionSub}>
-              Pilih hanya role yang kamu butuhkan, atau ambil paket bundle lengkap untuk hasil maksimal
+              {t(
+                'bundles.subtitle',
+                'Pick standalone roles for specific bottlenecks, or deploy bundled packages for compound growth.'
+              )}
             </p>
           </div>
 
           <div style={styles.pricingCardsGrid}>
             {/* Paket 1: Beli Satuan */}
             <div style={styles.planCard} className="card">
-              <span style={styles.planBadge}>Fleksibel</span>
-              <h3 style={styles.planName}>Per Modul Mandiri</h3>
-              <p style={styles.planDesc}>Beli satuan role sesuai kebutuhan spesifik bisnismu.</p>
+              <span style={styles.planBadge}>{lang === 'id' ? 'Fleksibel' : 'Modular'}</span>
+              <h3 style={styles.planName}>{lang === 'id' ? 'Per Modul Mandiri' : 'Individual Roles'}</h3>
+              <p style={styles.planDesc}>
+                {lang === 'id' ? 'Beli satuan role sesuai kebutuhan spesifik bisnismu.' : 'Subscribe to individual roles based on your exact business needs.'}
+              </p>
               <div style={styles.planPriceRow}>
-                <span style={styles.planPriceVal}>Mulai Rp 1 jt</span>
-                <span style={styles.planPeriod}>/ bulan</span>
+                <span style={styles.planPriceVal}>
+                  {lang === 'id' ? 'Mulai Rp 1 jt' : 'From Rp 1M'}
+                </span>
+                <span style={styles.planPeriod}>{t('bundles.perMonth', '/ month')}</span>
               </div>
               <ul style={styles.planFeatures}>
-                <li>SEO Specialist: Rp 1,5 jt (20 artikel)</li>
-                <li>Ads Report: Rp 1,5 jt (3 akun iklan)</li>
-                <li>Ads Creative Spy: Rp 1 jt (5 kompetitor)</li>
-                <li>Aktifkan & batalkan kapan saja</li>
+                <li>AI SEO Specialist: Rp 1.5M (20 articles)</li>
+                <li>AI Ads Report: Rp 1.5M (3 ad accounts)</li>
+                <li>AI Ads Creative Spy: Rp 1.0M (5 competitors)</li>
+                <li>{lang === 'id' ? 'Aktifkan & batalkan kapan saja' : 'Activate & pause anytime'}</li>
               </ul>
               <Link to="/register" style={styles.planBtnSecondary}>
-                Pilih Modul
+                {t('bundles.ctaSelect', 'Select Plan')}
               </Link>
             </div>
 
             {/* Paket 2: Bundle Fokus 3 (Paling Populer) */}
             <div style={{ ...styles.planCard, ...styles.planCardFeatured }} className="card">
-              <span style={styles.planBadgeFeatured}>{focus3Bundle?.badge || 'Paling Populer'}</span>
-              <h3 style={styles.planName}>{focus3Bundle?.name || 'Paket Fokus 3'}</h3>
-              <p style={styles.planDesc}>{focus3Bundle?.description}</p>
+              <span style={styles.planBadgeFeatured}>{t('bundles.popularBadge', 'Best Value')}</span>
+              <h3 style={styles.planName}>{t('bundles.fokus3Title', 'Focus 3 Bundle')}</h3>
+              <p style={styles.planDesc}>{t('bundles.fokus3Desc', 'Activate any 3 available roles with an automatic 20% discount.')}</p>
               <div style={styles.planPriceRow}>
                 <span style={styles.planPriceVal}>Rp 3.200.000</span>
-                <span style={styles.planPeriod}>/ bulan</span>
+                <span style={styles.planPeriod}>{t('bundles.perMonth', '/ month')}</span>
               </div>
-              <div style={styles.discountBadge}>Hemat 20% vs Beli Satuan (Rp 4.000.000)</div>
+              <div style={styles.discountBadge}>
+                {lang === 'id' ? 'Hemat 20% vs Beli Satuan (Rp 4.000.000)' : 'Save 20% vs Standalone (Rp 4,000,000)'}
+              </div>
               <ul style={styles.planFeatures}>
-                <li>Semua fitur SEO Specialist (20 artikel)</li>
-                <li>Semua fitur Ads Report (Meta, Google, TikTok, Shopee)</li>
-                <li>Semua fitur Ads Creative Spy (5 kompetitor)</li>
-                <li>Ekspor Google Slides & Sheets</li>
-                <li>Dukungan prioritas tim 3Our</li>
+                <li>{lang === 'id' ? 'Semua fitur SEO Specialist (20 artikel)' : 'All SEO Specialist features (20 articles)'}</li>
+                <li>{lang === 'id' ? 'Semua fitur Ads Report (Meta, Google, TikTok, Shopee)' : 'All Ads Report channels (Meta, Google, TikTok, Shopee)'}</li>
+                <li>{lang === 'id' ? 'Semua fitur Ads Creative Spy (5 kompetitor)' : 'All Ads Creative Spy tools (5 competitors)'}</li>
+                <li>{lang === 'id' ? 'Ekspor Google Slides & Sheets' : 'Export to Google Slides & Google Sheets'}</li>
+                <li>{lang === 'id' ? 'Dukungan prioritas tim 3Our' : 'Priority 3Our specialist support'}</li>
               </ul>
               <Link to="/register" style={styles.planBtnPrimary}>
-                Mulai Paket Fokus 3
+                {t('bundles.ctaSelect', 'Select Plan')}
               </Link>
             </div>
 
             {/* Paket 3: All-in-One Pre-order */}
             <div style={styles.planCard} className="card">
-              <span style={styles.planBadgePreorder}>{allInOneBundle?.badge || 'Pre-order'}</span>
-              <h3 style={styles.planName}>{allInOneBundle?.name || 'All-in-One AI Team'}</h3>
-              <p style={styles.planDesc}>{allInOneBundle?.description}</p>
+              <span style={styles.planBadgePreorder}>Pre-Order</span>
+              <h3 style={styles.planName}>{t('bundles.allInOneTitle', 'All-in-One AI Team')}</h3>
+              <p style={styles.planDesc}>{t('bundles.allInOneDesc', 'Full access to all 16 AI marketing roles upon launch.')}</p>
               <div style={styles.planPriceRow}>
                 <span style={styles.planPriceVal}>{formatIDR(allInOneBundle?.price)}</span>
-                <span style={styles.planPeriod}>/ bulan</span>
+                <span style={styles.planPeriod}>{t('bundles.perMonth', '/ month')}</span>
               </div>
               <div style={styles.preorderNotice}>
-                Modul baru otomatis aktif saat rilis tanpa biaya tambahan
+                {lang === 'id' ? 'Modul baru otomatis aktif saat rilis tanpa biaya tambahan' : 'Upcoming modules unlock automatically upon release at zero extra charge'}
               </div>
               <ul style={styles.planFeatures}>
-                <li>Akses instan ke 3 role yang sudah tersedia</li>
-                <li>Akses otomatis ke 13 role berikutnya saat rilis</li>
-                <li>Kuota kompetitor & artikel 2x lipat</li>
-                <li>Kunci harga seumur hidup</li>
+                <li>{lang === 'id' ? 'Akses instan ke 3 role yang sudah tersedia' : 'Instant access to all 3 currently available roles'}</li>
+                <li>{lang === 'id' ? 'Akses otomatis ke 13 role berikutnya saat rilis' : 'Automatic access to upcoming 13 roles upon release'}</li>
+                <li>{lang === 'id' ? 'Kuota kompetitor & artikel 2x lipat' : '2x article & competitor tracking quotas'}</li>
+                <li>{lang === 'id' ? 'Kunci harga seumur hidup' : 'Lifetime price-lock guarantee'}</li>
               </ul>
               <Link to="/register" style={styles.planBtnSecondary}>
-                Pre-order All-in-One
+                {t('bundles.ctaPreorder', 'Pre-Order Access')}
               </Link>
             </div>
 
             {/* Paket 4: Managed by 3Our */}
             <div style={styles.planCard} className="card">
-              <span style={styles.planBadge}>Layanan Penuh</span>
-              <h3 style={styles.planName}>{managedBundle?.name || 'Managed by 3Our'}</h3>
-              <p style={styles.planDesc}>{managedBundle?.description}</p>
+              <span style={styles.planBadge}>{lang === 'id' ? 'Layanan Penuh' : 'Full Service'}</span>
+              <h3 style={styles.planName}>{t('bundles.managedTitle', 'Managed by 3Our')}</h3>
+              <p style={styles.planDesc}>{t('bundles.managedDesc', 'Hybrid AI team with dedicated human marketing specialists from 3Our Indonesia.')}</p>
               <div style={styles.planPriceRow}>
-                <span style={styles.planPriceVal}>Custom</span>
-                <span style={styles.planPeriod}>/ konsultasi</span>
+                <span style={styles.planPriceVal}>{lang === 'id' ? 'Konsultasi' : 'Custom'}</span>
+                <span style={styles.planPeriod}>{lang === 'id' ? '/ retainer' : '/ retainer'}</span>
               </div>
               <ul style={styles.planFeatures}>
-                <li>Platform Supermat dikelola penuh oleh tim 3Our</li>
-                <li>Konsultasi strategi bulanan 1-on-1</li>
-                <li>Produksi konten & optimasi kampanye ads langsung</li>
-                <li>Laporan eksekutif siap presentasi</li>
+                <li>{lang === 'id' ? 'Platform Supermat dikelola penuh oleh tim 3Our' : 'Supermat platform fully operated by 3Our specialists'}</li>
+                <li>{lang === 'id' ? 'Konsultasi strategi bulanan 1-on-1' : '1-on-1 monthly strategic growth consultations'}</li>
+                <li>{lang === 'id' ? 'Produksi konten & optimasi kampanye ads langsung' : 'Hands-on creative production and media buying execution'}</li>
+                <li>{lang === 'id' ? 'Laporan eksekutif siap presentasi' : 'Executive slide decks prepared for board meetings'}</li>
               </ul>
               <a
                 href={managedBundle?.contactUrl || 'https://wa.me/6281234567890'}
@@ -406,7 +455,7 @@ export default function LandingPage() {
                 rel="noreferrer"
                 style={styles.planBtnContact}
               >
-                <span>Hubungi Sales</span>
+                <span>{t('bundles.ctaContactWA', 'Chat on WhatsApp')}</span>
                 <ExternalLink size={14} />
               </a>
             </div>
@@ -416,9 +465,12 @@ export default function LandingPage() {
         {/* 6. Ekosistem Integrasi */}
         <section style={styles.section}>
           <div style={styles.sectionHeader}>
-            <h2 style={styles.sectionHeading}>Ekosistem Terintegrasi</h2>
+            <h2 style={styles.sectionHeading}>{t('integrations.title', 'Integrated with the Tools You Use Every Day')}</h2>
             <p style={styles.sectionSub}>
-              Bekerja mulus dengan platform periklanan, marketplace, dan CMS terdepan
+              {t(
+                'integrations.subtitle',
+                'Direct API connections to top publishing CMS platforms, advertising networks, and e-commerce ecosystems.'
+              )}
             </p>
           </div>
 
@@ -438,48 +490,48 @@ export default function LandingPage() {
         {/* 7. FAQ Section */}
         <section style={styles.section}>
           <div style={styles.sectionHeader}>
-            <h2 style={styles.sectionHeading}>Pertanyaan Umum (FAQ)</h2>
-            <p style={styles.sectionSub}>Semua hal yang perlu kamu ketahui tentang Supermat v3</p>
+            <h2 style={styles.sectionHeading}>{t('faq.title', 'Frequently Asked Questions')}</h2>
+            <p style={styles.sectionSub}>{t('faq.subtitle', 'Everything you need to know about Supermat and our AI marketing roles.')}</p>
           </div>
 
           <div style={styles.faqList}>
             <div style={styles.faqItem} className="card">
               <h4 style={styles.faqQuestion}>
                 <HelpCircle size={17} color="var(--accent-cyan)" />
-                Apakah Supermat aman untuk akun iklan dan toko saya?
+                {t('faq.q1')}
               </h4>
               <p style={styles.faqAnswer}>
-                Sangat aman. Supermat hanya menggunakan izin <strong>Read-Only</strong> resmi melalui OAuth (Shopee Open Platform, TikTok Marketing API, Meta Graph API, Google Ads). Kami tidak meminta akses untuk mengubah saldo, memodifikasi kampanye, atau mengubah setelan toko. Kredensial token disimpan dengan enkripsi AES-256.
+                {t('faq.a1')}
               </p>
             </div>
 
             <div style={styles.faqItem} className="card">
               <h4 style={styles.faqQuestion}>
                 <HelpCircle size={17} color="var(--accent-cyan)" />
-                Apa yang dimaksud dengan prinsip &quot;Human-in-the-Loop&quot;?
+                {t('faq.q2')}
               </h4>
               <p style={styles.faqAnswer}>
-                Kami percaya bahwa AI harus mempercepat pekerjaan, bukan menggantikan penilaian manusia sepenuhnya. Setiap artikel blog atau laporan iklan yang dihasilkan oleh Supermat berada dalam status <em>Draft / Review Ready</em> terlebih dahulu. Anda atau tim Anda memiliki kontrol penuh untuk memeriksa, menyunting, dan menyetujuinya sebelum terbit ke CMS atau dikirim ke klien.
+                {t('faq.a2')}
               </p>
             </div>
 
             <div style={styles.faqItem} className="card">
               <h4 style={styles.faqQuestion}>
                 <HelpCircle size={17} color="var(--accent-cyan)" />
-                Bisakah saya hanya berlangganan 1 role saja?
+                {t('faq.q3')}
               </h4>
               <p style={styles.faqAnswer}>
-                Ya! Supermat v3 bersifat modular. Jika Anda hanya membutuhkan riset iklan kompetitor, Anda cukup mengaktifkan role <em>Ads Creative Spy</em> seharga Rp 1.000.000/bulan tanpa kewajiban membeli modul lain. Anda bisa menambah role lain kapan saja seiring pertumbuhan bisnis.
+                {t('faq.a3')}
               </p>
             </div>
 
             <div style={styles.faqItem} className="card">
               <h4 style={styles.faqQuestion}>
                 <HelpCircle size={17} color="var(--accent-cyan)" />
-                Bagaimana cara kerja role &quot;Segera Hadir&quot;?
+                {t('faq.q4')}
               </h4>
               <p style={styles.faqAnswer}>
-                Role yang bertanda <em>Segera Hadir</em> sedang dalam tahap pengujian akhir. Anda dapat mendaftarkan email Anda melalui tombol &quot;Kabari saya&quot; untuk mendapatkan notifikasi peluncuran dan penawaran early-bird. Pemegang paket All-in-One akan otomatis mendapatkan akses ke role baru ini saat dirilis.
+                {t('faq.a4')}
               </p>
             </div>
           </div>
@@ -489,18 +541,18 @@ export default function LandingPage() {
         <section style={styles.ctaBannerSection}>
           <div style={styles.ctaBannerBox} className="card">
             <Zap size={32} color="var(--accent-cyan)" style={{ marginBottom: '1rem' }} />
-            <h2 style={styles.ctaBannerTitle}>Mulai Perkuat Pemasaran Digital Bisnismu Hari Ini</h2>
+            <h2 style={styles.ctaBannerTitle}>{t('finalCta.title', 'Ready to Scale Your Marketing with AI?')}</h2>
             <p style={styles.ctaBannerSub}>
-              Coba akun demo gratis untuk melihat bagaimana tim digital marketing AI bekerja secara sinergis.
+              {t('finalCta.subtitle', 'Experience the future of digital marketing today. Test all live features on our interactive demo account with zero credit card required.')}
             </p>
             <div style={styles.ctaBannerBtns}>
               <Link to="/login" style={styles.primaryCta}>
-                <span>Masuk Akun Demo Reviewer</span>
+                <span>{t('finalCta.btnDemo', 'Try Interactive Demo')}</span>
                 <ArrowRight size={16} />
               </Link>
-              <Link to="/register" style={styles.secondaryCta}>
-                Daftar Brand Baru
-              </Link>
+              <a href="#roles" style={styles.secondaryCta}>
+                {t('finalCta.btnRoles', 'Browse 16 Roles')}
+              </a>
             </div>
           </div>
         </section>

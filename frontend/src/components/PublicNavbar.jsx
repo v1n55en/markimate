@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom';
 import { Rocket, ArrowRight, LogIn } from 'lucide-react';
+import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
 
 export default function PublicNavbar() {
+  const { t } = useLanguage();
+
   return (
     <header style={styles.header}>
       <div style={styles.container}>
@@ -16,19 +19,20 @@ export default function PublicNavbar() {
         </Link>
 
         <nav style={styles.nav}>
-          <a href="/#roles" style={styles.navLink}>Role Tim</a>
-          <a href="/#how-it-works" style={styles.navLink}>Cara Kerja</a>
-          <a href="/#pricing" style={styles.navLink}>Harga</a>
-          <Link to="/privacy" style={styles.navLink}>Privasi</Link>
+          <a href="/#roles" style={styles.navLink}>{t('nav.teamRoles', 'AI Roles')}</a>
+          <a href="/#how-it-works" style={styles.navLink}>{t('nav.howItWorks', 'How It Works')}</a>
+          <a href="/#pricing" style={styles.navLink}>{t('nav.pricing', 'Pricing')}</a>
+          <Link to="/privacy" style={styles.navLink}>{t('nav.privacy', 'Privacy')}</Link>
         </nav>
 
         <div style={styles.ctaGroup}>
+          <LanguageSwitcher />
           <Link to="/login" style={styles.loginBtn}>
             <LogIn size={15} />
-            <span>Masuk</span>
+            <span>{t('nav.login', 'Sign In')}</span>
           </Link>
           <Link to="/register" style={styles.registerBtn}>
-            <span>Daftar Gratis</span>
+            <span>{t('nav.register', 'Start Free Demo')}</span>
             <ArrowRight size={15} />
           </Link>
         </div>

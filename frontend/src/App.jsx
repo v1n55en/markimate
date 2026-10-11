@@ -30,6 +30,7 @@ import AdsCallbackPage from './pages/ads/AdsCallbackPage';
 
 import { api, getToken, setToken } from './api';
 import { WorkspaceProvider } from './context/WorkspaceContext';
+import { LanguageProvider } from './context/LanguageContext';
 import ModuleGuard from './components/common/ModuleGuard';
 import ModuleActivatePage from './pages/app/ModuleActivatePage';
 import WorkspaceDashboardPage from './pages/app/WorkspaceDashboardPage';
@@ -295,49 +296,51 @@ export default function App() {
   return (
     <BrowserRouter>
       <WorkspaceProvider>
-        <Routes>
-          {/* Rute Publik */}
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/roles/:key" element={<RoleDetailPage />} />
-          <Route path="/privacy" element={<PrivacyPage />} />
-          <Route path="/terms" element={<TermsPage />} />
+        <LanguageProvider>
+          <Routes>
+            {/* Rute Publik */}
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/roles/:key" element={<RoleDetailPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
 
-          <Route
-            path="/login"
-            element={
-              me ? (
-                <Navigate to="/app/ads" replace />
-              ) : (
-                <AuthScreen onLoginSuccess={handleLoginSuccess} initialMode="login" />
-              )
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              me ? (
-                <Navigate to="/app/ads" replace />
-              ) : (
-                <AuthScreen onLoginSuccess={handleLoginSuccess} initialMode="register" />
-              )
-            }
-          />
+            <Route
+              path="/login"
+              element={
+                me ? (
+                  <Navigate to="/app/ads" replace />
+                ) : (
+                  <AuthScreen onLoginSuccess={handleLoginSuccess} initialMode="login" />
+                )
+              }
+            />
+            <Route
+              path="/register"
+              element={
+                me ? (
+                  <Navigate to="/app/ads" replace />
+                ) : (
+                  <AuthScreen onLoginSuccess={handleLoginSuccess} initialMode="register" />
+                )
+              }
+            />
 
-          {/* Rute Terproteksi Aplikasi */}
-          <Route
-            path="/app/*"
-            element={
-              <ProtectedLayout
-                me={me}
-                onLogout={handleLogout}
-                refreshMe={refreshMe}
-              />
-            }
-          />
+            {/* Rute Terproteksi Aplikasi */}
+            <Route
+              path="/app/*"
+              element={
+                <ProtectedLayout
+                  me={me}
+                  onLogout={handleLogout}
+                  refreshMe={refreshMe}
+                />
+              }
+            />
 
-          {/* Catch-all redirect ke Beranda */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+            {/* Catch-all redirect ke Beranda */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </LanguageProvider>
       </WorkspaceProvider>
     </BrowserRouter>
   );

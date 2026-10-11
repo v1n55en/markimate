@@ -49,25 +49,32 @@ const ICON_MAP = {
   Compass,
 };
 
+import { useLanguage } from '../../context/LanguageContext';
+
 export default function RoleDetailPage() {
   const { key } = useParams();
   const navigate = useNavigate();
+  const { t, lang } = useLanguage();
   const [showWaitlistModal, setShowWaitlistModal] = useState(false);
 
-  const role = getRoleByKey(key);
+  const role = getRoleByKey(key, lang);
 
   if (!role) {
     return (
       <div style={styles.page}>
         <PublicNavbar />
         <main style={{ ...styles.main, textAlign: 'center', padding: '5rem 1rem' }}>
-          <h2 style={{ color: 'var(--text-primary)' }}>Role Tidak Ditemukan</h2>
+          <h2 style={{ color: 'var(--text-primary)' }}>
+            {lang === 'id' ? 'Role Tidak Ditemukan' : 'Role Not Found'}
+          </h2>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-            Role marketing dengan kode &quot;{key}&quot; tidak terdaftar.
+            {lang === 'id'
+              ? `Role marketing dengan kode "${key}" tidak terdaftar.`
+              : `Marketing AI role with key "${key}" was not found.`}
           </p>
           <Link to="/" style={styles.backBtn}>
             <ArrowLeft size={16} />
-            <span>Kembali ke Beranda</span>
+            <span>{t('roleDetail.backLink', 'Back to All Roles')}</span>
           </Link>
         </main>
         <PublicFooter />
@@ -89,7 +96,7 @@ export default function RoleDetailPage() {
         <div style={styles.topNav}>
           <Link to="/" style={styles.backLink}>
             <ArrowLeft size={16} />
-            <span>Semua Role Tim Digital Marketing</span>
+            <span>{t('roleDetail.backLink', 'Back to All Roles')}</span>
           </Link>
         </div>
 
@@ -101,12 +108,12 @@ export default function RoleDetailPage() {
               {isAvailable ? (
                 <span style={styles.availableBadge}>
                   <span style={styles.greenDot} />
-                  Tersedia Sekarang
+                  {t('roleDetail.statusActive', 'Active & Available')}
                 </span>
               ) : (
                 <span style={styles.soonBadge}>
                   <Bell size={12} />
-                  Segera Hadir
+                  {t('roleDetail.statusSoon', 'In Development')}
                 </span>
               )}
             </div>
@@ -125,7 +132,7 @@ export default function RoleDetailPage() {
 
             <div style={styles.deliverableBox}>
               <strong style={{ color: 'var(--text-primary)', fontSize: '0.825rem' }}>
-                Hasil Kerja (Deliverables):
+                {t('roleDetail.deliverablesTitle', 'Expected Deliverables & Outputs')}:
               </strong>
               <span style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', marginTop: '0.2rem', display: 'block' }}>
                 {role.deliverables}
@@ -137,28 +144,36 @@ export default function RoleDetailPage() {
           <div style={styles.heroRight}>
             {isAvailable ? (
               <div style={styles.pricingBox}>
-                <span style={styles.pricingTag}>Investasi Modul Mandiri</span>
+                <span style={styles.pricingTag}>
+                  {lang === 'id' ? 'Investasi Modul Mandiri' : 'Individual Role Investment'}
+                </span>
                 <div style={styles.priceRow}>
                   <span style={styles.priceAmount}>{formatIDR(price)}</span>
-                  <span style={styles.pricePeriod}>/ bulan</span>
+                  <span style={styles.pricePeriod}>{t('bundles.perMonth', '/ month')}</span>
                 </div>
                 {quota && (
                   <div style={styles.quotaRow}>
-                    <span style={styles.quotaText}>Termasuk: {quota}</span>
+                    <span style={styles.quotaText}>
+                      {lang === 'id' ? `Termasuk: ${quota}` : `Includes: ${quota}`}
+                    </span>
                   </div>
                 )}
                 <div style={styles.pricingCtas}>
                   <Link to="/register" style={styles.primaryActionBtn}>
-                    <span>Mulai Langganan</span>
+                    <span>{t('bundles.ctaSelect', 'Start Subscription')}</span>
                     <ArrowRight size={15} />
                   </Link>
                   <Link to="/login" style={styles.secondaryActionBtn}>
-                    Coba Akun Demo
+                    {t('finalCta.btnDemo', 'Explore Demo Account')}
                   </Link>
                 </div>
                 <div style={styles.guaranteeText}>
                   <ShieldCheck size={14} color="var(--accent-green)" />
-                  <span>Garansi Human-in-the-Loop: Review sebelum terbit</span>
+                  <span>
+                    {lang === 'id'
+                      ? 'Garansi Human-in-the-Loop: Review sebelum terbit'
+                      : 'Human-in-the-Loop Guarantee: Review before live'}
+                  </span>
                 </div>
               </div>
             ) : (
@@ -166,16 +181,20 @@ export default function RoleDetailPage() {
                 <div style={styles.waitlistIconBox}>
                   <Bell size={24} color="var(--accent-yellow)" />
                 </div>
-                <h3 style={styles.waitlistTitle}>Ingin Menggunakan Role Ini?</h3>
+                <h3 style={styles.waitlistTitle}>
+                  {lang === 'id' ? 'Ingin Menggunakan Role Ini?' : 'Want to Deploy This AI Role?'}
+                </h3>
                 <p style={styles.waitlistSubtitle}>
-                  Daftarkan email Anda untuk mendapatkan prioritas akses beta dan diskon early-bird saat modul ini dirilis.
+                  {lang === 'id'
+                    ? 'Daftarkan email Anda untuk mendapatkan prioritas akses beta dan diskon early-bird saat modul ini dirilis.'
+                    : 'Register your work email for priority beta onboarding and early-bird discounts when this role launches.'}
                 </p>
                 <button
                   onClick={() => setShowWaitlistModal(true)}
                   style={styles.notifyBtn}
                 >
                   <Bell size={15} />
-                  <span>Kabari Saya Saat Siap</span>
+                  <span>{t('rolesGrid.joinWaitlist', 'Join Waitlist')}</span>
                 </button>
               </div>
             )}
@@ -184,7 +203,7 @@ export default function RoleDetailPage() {
 
         {/* Fitur & Kemampuan */}
         <div style={styles.section}>
-          <h2 style={styles.sectionHeading}>Fitur & Kemampuan Utama</h2>
+          <h2 style={styles.sectionHeading}>{t('roleDetail.capabilitiesTitle', 'Core Capabilities')}</h2>
           <div style={styles.featuresGrid}>
             {role.features?.map((feat, idx) => (
               <div key={idx} style={styles.featureCard} className="card">
@@ -200,23 +219,25 @@ export default function RoleDetailPage() {
         {/* Contoh Output / Mock deliverables */}
         {role.sampleOutput && (
           <div style={styles.section}>
-            <h2 style={styles.sectionHeading}>Contoh Hasil Kerja Role</h2>
+            <h2 style={styles.sectionHeading}>{t('roleDetail.sampleOutputTitle', 'Sample Production Output')}</h2>
             <div style={styles.sampleOutputCard} className="card">
               <div style={styles.sampleHeader}>
                 <Sparkles size={16} color="var(--accent-yellow)" />
-                <span style={styles.sampleTitle}>Preview Deliverable</span>
+                <span style={styles.sampleTitle}>Deliverable Preview</span>
               </div>
               <p style={styles.sampleContent}>{role.sampleOutput}</p>
               <div style={styles.sampleFooter}>
                 <span style={styles.sampleNote}>
-                  Setiap deliverable dapat ditinjau, disunting, dan disetujui di dalam dasbor Supermat sebelum diterbitkan atau digunakan.
+                  {lang === 'id'
+                    ? 'Setiap deliverable dapat ditinjau, disunting, dan disetujui di dalam dasbor Supermat sebelum diterbitkan atau digunakan.'
+                    : 'Every deliverable can be reviewed, edited, and approved inside the Supermat console before being published.'}
                 </span>
                 {isAvailable && role.path && (
                   <button
                     onClick={() => navigate(role.path)}
                     style={styles.sampleDirectBtn}
                   >
-                    Buka Modul di App →
+                    {t('dashboard.openModule', 'Open Console')} →
                   </button>
                 )}
               </div>
@@ -228,14 +249,18 @@ export default function RoleDetailPage() {
         <div style={styles.bottomCtaBox} className="card">
           <div>
             <h3 style={styles.bottomCtaTitle}>
-              Butuh Lebih dari Satu Role? Hemat dengan Bundle &quot;Fokus 3&quot;
+              {lang === 'id'
+                ? 'Butuh Lebih dari Satu Role? Hemat dengan Bundle "Fokus 3"'
+                : 'Need Multiple Roles? Save 20% with the Focus 3 Bundle'}
             </h3>
             <p style={styles.bottomCtaDesc}>
-              Dapatkan SEO Specialist, Ads Specialist (Report), dan Ads Creative Spy sekaligus dengan diskon 20%.
+              {lang === 'id'
+                ? 'Dapatkan SEO Specialist, Ads Specialist (Report), dan Ads Creative Spy sekaligus dengan diskon 20%.'
+                : 'Deploy SEO Specialist, Ads Report, and Ads Creative Spy simultaneously with an automatic 20% discount.'}
             </p>
           </div>
           <Link to="/#pricing" style={styles.bottomCtaLink}>
-            Lihat Skema Paket
+            {t('hero.ctaSecondary', 'View Plans & Pricing')}
           </Link>
         </div>
       </main>

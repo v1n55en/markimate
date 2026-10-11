@@ -16,12 +16,14 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { MODULE_PRICES, MODULE_QUOTA, formatIDR } from '../../config/pricing';
 import { getAdsSummary, listConnections } from '../../ads/adsApi';
 import { formatCompactIDR, formatRoas } from '../../ads/format';
 
 export default function WorkspaceDashboardPage({ me }) {
   const { activeWorkspace, isModuleActive } = useWorkspace();
+  const { t, lang } = useLanguage();
 
   const [loading, setLoading] = useState(true);
   const [adsSummary, setAdsSummary] = useState(null);
@@ -78,7 +80,9 @@ export default function WorkspaceDashboardPage({ me }) {
               <span style={styles.nicheBadge}>{activeWorkspace?.niche || 'Digital Marketing'}</span>
             </div>
             <p style={styles.headerSub}>
-              Pusat kendali tim digital marketing AI untuk brand ini. Kelola riset SEO, laporan performa iklan, dan pemantauan kompetitor dalam satu tempat.
+              {lang === 'id'
+                ? 'Pusat kendali tim digital marketing AI untuk brand ini. Kelola riset SEO, laporan performa iklan, dan pemantauan kompetitor dalam satu tempat.'
+                : 'Central mission control for your AI Digital Marketing Team. Coordinate SEO publishing, advertising reporting, and competitor creative intelligence.'}
             </p>
           </div>
         </div>
@@ -87,11 +91,12 @@ export default function WorkspaceDashboardPage({ me }) {
           <div style={styles.activeModulesCounter}>
             <Layers size={16} color="var(--accent-cyan)" />
             <span>
-              <strong>{activeWorkspace?.modules?.length || 0}</strong> dari 3 Role Utama Aktif
+              <strong>{activeWorkspace?.modules?.length || 0}</strong>{' '}
+              {lang === 'id' ? 'dari 3 Role Utama Aktif' : 'of 3 Core AI Roles Active'}
             </span>
           </div>
           <Link to="/app/billing" style={styles.headerUpgradeLink}>
-            <span>Kelola Paket Langganan</span>
+            <span>{t('sidebar.billing', 'Subscription & Billing')}</span>
             <ArrowRight size={14} />
           </Link>
         </div>

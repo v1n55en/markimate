@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { X, Bell, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function WaitlistModal({ role, onClose }) {
+  const { t, lang } = useLanguage();
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -10,10 +12,12 @@ export default function WaitlistModal({ role, onClose }) {
 
   if (!role) return null;
 
+  const roleName = lang === 'id' && role.name_id ? role.name_id : role.name;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email) {
-      setError('Harap masukkan alamat email Anda.');
+      setError(lang === 'id' ? 'Harap masukkan alamat email Anda.' : 'Please enter your work email.');
       return;
     }
     setError('');
@@ -24,7 +28,7 @@ export default function WaitlistModal({ role, onClose }) {
       const existing = JSON.parse(localStorage.getItem('supermat_waitlist') || '[]');
       existing.push({
         roleKey: role.key,
-        roleName: role.name,
+        roleName,
         email,
         name,
         submittedAt: new Date().toISOString(),
@@ -35,7 +39,7 @@ export default function WaitlistModal({ role, onClose }) {
       await new Promise((r) => setTimeout(r, 400));
       setSubmitted(true);
     } catch {
-      setError('Terjadi kendala saat menyimpan. Silakan coba lagi.');
+      setError(lang === 'id' ? 'Terjadi kendala saat menyimpan. Silakan coba lagi.' : 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -44,7 +48,7 @@ export default function WaitlistModal({ role, onClose }) {
   return (
     <div style={styles.overlay} onClick={onClose}>
       <div style={styles.modal} className="card" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} style={styles.closeBtn} aria-label="Tutup modal">
+        <button onClick={onClose} style={styles.closeBtn} aria-label="Close modal">
           <X size={18} />
         </button>
 
@@ -54,9 +58,9 @@ export default function WaitlistModal({ role, onClose }) {
               <div style={styles.iconBox}>
                 <Bell size={22} color="var(--accent-yellow)" />
               </div>
-              <h3 style={styles.title}>Kabari Saya Saat Role Ini Rilis</h3>
+              <h3 style={styles.title}>{t('waitlist.modalTitle', 'Join Early Access Waitlist')}</h3>
               <p style={styles.subtitle}>
-                Role <strong>{role.name}</strong> sedang dalam tahap pengembangan akhir. Jadilah yang pertama mencoba dan dapatkan penawaran early bird.
+                <strong>{roleName}</strong> {lang === 'id' ? 'sedang dalam tahap pengembangan akhir. Jadilah yang pertama mencoba dan dapatkan penawaran 50% early bird.' : 'is currently in private beta development. Join early to receive priority access and 50% off your first month.'}
               </p>
             </div>
 
@@ -69,10 +73,10 @@ export default function WaitlistModal({ role, onClose }) {
 
             <form onSubmit={handleSubmit} style={styles.form}>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Nama Anda (Opsional)</label>
+                <label style={styles.label}>{t('waitlist.labelNotes', 'Your Business / Brand Notes (Optional)')}</label>
                 <input
                   type="text"
-                  placeholder="Nama atau brand bisnis"
+                  placeholder={t('waitlist.placeholderNotes', 'e.g. F&B brand selling on Shopee & TikTok')}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   style={styles.input}
@@ -80,10 +84,10 @@ export default function WaitlistModal({ role, onClose }) {
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>Alamat Email Aktif *</label>
+                <label style={styles.label}>{t('waitlist.labelEmail', 'Your Work Email Address')} *</label>
                 <input
                   type="email"
-                  placeholder="nama@email.com"
+                  placeholder={t('waitlist.placeholderEmail', 'founder@yourbrand.com')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   style={styles.input}
@@ -92,11 +96,11 @@ export default function WaitlistModal({ role, onClose }) {
               </div>
 
               <button type="submit" disabled={loading} style={styles.submitBtn}>
-                {loading ? 'Menyimpan…' : 'Daftar Antrean & Dapatkan Notifikasi'}
+                {loading ? t('waitlist.submitting', 'Saving...') : t('waitlist.submitBtn', 'Join VIP Waitlist')}
               </button>
 
               <span style={styles.privacyNote}>
-                Kami menghargai privasi Anda. Tidak ada spam, hanya update penting seputar peluncuran.
+                {lang === 'id' ? 'Kami menghargai privasi Anda. Tidak ada spam, hanya update penting seputar peluncuran.' : 'We respect your inbox. Zero spam, only crucial release notifications.'}
               </span>
             </form>
           </div>
@@ -105,12 +109,16 @@ export default function WaitlistModal({ role, onClose }) {
             <div style={styles.successIconBox}>
               <CheckCircle2 size={36} color="var(--accent-green)" />
             </div>
-            <h3 style={styles.title}>Anda Sudah Terdaftar!</h3>
+            <h3 style={styles.title}>{t('waitlist.successTitle', "You're on the list!")}</h3>
             <p style={styles.subtitle}>
-              Terima kasih! Kami akan mengirimkan notifikasi ke <strong>{email}</strong> segera setelah role <strong>{role.name}</strong> siap digunakan.
+              {lang === 'id' ? (
+                <>Terima kasih! Kami akan mengirimkan notifikasi ke <strong>{email}</strong> segera setelah role <strong>{roleName}</strong> siap digunakan.</>
+              ) : (
+                <>Thank you! We will notify <strong>{email}</strong> as soon as <strong>{roleName}</strong> is ready for deployment.</>
+              )}
             </p>
             <button onClick={onClose} style={styles.closeModalBtn}>
-              Tutup
+              {t('waitlist.closeBtn', 'Close')}
             </button>
           </div>
         )}

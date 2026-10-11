@@ -27,9 +27,12 @@ import WorkspaceSelector from './common/WorkspaceSelector';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { ROLES } from '../config/roles';
 
+import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
+
 export default function Sidebar({ user, onLogout, plan, usage }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t, lang } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [soonExpanded, setSoonExpanded] = useState(false);
   const { activeWorkspace } = useWorkspace();
@@ -50,25 +53,25 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
 
   if (isSeoActive) {
     activeSections.push({
-      group: 'SEO Specialist',
+      group: t('sidebar.sectionSeo', 'AI SEO Specialist'),
       moduleKey: 'seo',
       items: [
         {
           id: 'seo-keywords',
           path: '/app/seo/keywords',
-          label: 'Kontrol Automasi',
+          label: t('sidebar.seoKeywords', 'Keyword & Content Control'),
           icon: Terminal,
         },
         {
           id: 'seo-analytics',
           path: '/app/seo/analytics',
-          label: 'Analitik & Insights',
+          label: t('sidebar.seoAnalytics', 'SEO Analytics'),
           icon: BarChart2,
         },
         {
           id: 'seo-settings',
           path: '/app/seo/settings',
-          label: 'Pengaturan CMS & API',
+          label: t('sidebar.seoSettings', 'CMS & API Settings'),
           icon: Settings,
         },
       ],
@@ -78,26 +81,26 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
 
   if (isAdsActive) {
     activeSections.push({
-      group: 'Ads Specialist (Report)',
+      group: t('sidebar.sectionAds', 'AI Ads Performance Reporter'),
       moduleKey: 'ads_report',
       items: [
         {
           id: 'ads-summary',
           path: '/app/ads',
-          label: 'Ringkasan Ads',
+          label: t('sidebar.adsOverview', 'Executive Summary'),
           icon: LayoutDashboard,
           exact: true,
         },
         {
           id: 'ads-connections',
           path: '/app/ads/connections',
-          label: 'Koneksi Platform',
+          label: t('sidebar.adsConnections', 'Ad Channel Accounts'),
           icon: Link2,
         },
         {
           id: 'ads-reports',
           path: '/app/ads/reports',
-          label: 'Laporan Iklan',
+          label: t('sidebar.adsReports', 'Monthly Reports & Slides'),
           icon: FileText,
           matchPrefix: true,
         },
@@ -107,32 +110,32 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
 
   if (isSpyActive) {
     activeSections.push({
-      group: 'Ads Creative Spy',
+      group: t('sidebar.sectionSpy', 'AI Ads Creative Spy'),
       moduleKey: 'ads_spy',
       items: [
         {
           id: 'spy-summary',
           path: '/app/spy',
-          label: 'Ringkasan Spy',
+          label: t('sidebar.spyOverview', 'Spy Overview'),
           icon: Eye,
           exact: true,
         },
         {
           id: 'spy-competitors',
           path: '/app/spy/competitors',
-          label: 'Kompetitor',
+          label: t('sidebar.spyCompetitors', 'Tracked Competitors'),
           icon: Users,
         },
         {
           id: 'spy-library',
           path: '/app/spy/library',
-          label: 'Galeri Creative',
+          label: t('sidebar.spyLibrary', 'Ad Creative Library'),
           icon: Sparkles,
         },
         {
           id: 'spy-insights',
           path: '/app/spy/insights',
-          label: 'Insight AI',
+          label: t('sidebar.spyInsights', 'Weekly Intelligence'),
           icon: TrendingUp,
         },
       ],
@@ -144,7 +147,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
   if (!isSeoActive) {
     lockedRoles.push({
       key: 'seo',
-      name: 'SEO Specialist',
+      name: t('sidebar.sectionSeo', 'AI SEO Specialist'),
       category: 'Content',
       path: '/app/modules/seo',
       icon: Terminal,
@@ -153,7 +156,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
   if (!isAdsActive) {
     lockedRoles.push({
       key: 'ads_report',
-      name: 'Ads Specialist (Report)',
+      name: t('sidebar.sectionAds', 'AI Ads Performance Reporter'),
       category: 'Ads',
       path: '/app/modules/ads_report',
       icon: LayoutDashboard,
@@ -162,7 +165,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
   if (!isSpyActive) {
     lockedRoles.push({
       key: 'ads_spy',
-      name: 'Ads Creative Spy',
+      name: t('sidebar.sectionSpy', 'AI Ads Creative Spy'),
       category: 'Research',
       path: '/app/modules/ads_spy',
       icon: Eye,
@@ -280,7 +283,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
                       : 'var(--text-secondary)'
                   }
                 />
-                <span>Dashboard Workspace</span>
+                <span>{t('sidebar.hubDashboard', 'Team Overview')}</span>
               </button>
             </div>
           </div>
@@ -325,19 +328,21 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
                       <button
                         onClick={() => handleNavClick('/app/billing')}
                         style={styles.premiumBadge}
-                        title="Kelola langganan"
+                        title={lang === 'id' ? 'Kelola langganan' : 'Manage subscription'}
                       >
                         <span style={{ fontSize: '0.72rem', fontWeight: 'bold' }}>
-                          👑 PAKET PRO
+                          👑 {lang === 'id' ? 'PAKET PRO' : 'PRO PLAN'}
                         </span>
                       </button>
                     ) : (
                       <div style={styles.freeBadgeContainer}>
-                        <span style={styles.freeBadge}>PAKET FREE</span>
+                        <span style={styles.freeBadge}>
+                          {lang === 'id' ? 'PAKET FREE' : 'FREE PLAN'}
+                        </span>
                         <button
                           onClick={() => handleNavClick('/app/billing')}
                           style={styles.upgradeBtn}
-                          title="Upgrade ke Pro untuk membuka semua fitur"
+                          title={lang === 'id' ? 'Upgrade ke Pro untuk membuka semua fitur' : 'Upgrade to Pro'}
                         >
                           👑 Upgrade
                         </button>
@@ -347,10 +352,10 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
                     {limit > 0 && (
                       <div
                         style={styles.usageBox}
-                        title={`${used} dari ${limit} artikel bulan ini`}
+                        title={lang === 'id' ? `${used} dari ${limit} artikel bulan ini` : `${used} of ${limit} articles this month`}
                       >
                         <div style={styles.usageLabel}>
-                          <span>Kuota artikel bulan ini</span>
+                          <span>{lang === 'id' ? 'Kuota artikel' : 'Monthly quota'}</span>
                           <span>{used}/{limit}</span>
                         </div>
                         <div style={styles.usageTrack}>
@@ -375,7 +380,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
           {lockedRoles.length > 0 && (
             <div style={styles.sectionBlock}>
               <div style={styles.sectionHeader}>
-                <span style={styles.sectionGroupTitle}>Modul Tersedia</span>
+                <span style={styles.sectionGroupTitle}>{t('sidebar.sectionLocked', 'Unlock More Roles')}</span>
               </div>
               <div style={styles.itemsList}>
                 {lockedRoles.map((role) => {
@@ -385,13 +390,13 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
                       key={role.key}
                       onClick={() => handleNavClick(role.path)}
                       style={styles.lockedNavLink}
-                      title={`Aktifkan modul ${role.name}`}
+                      title={lang === 'id' ? `Aktifkan modul ${role.name}` : `Activate ${role.name}`}
                     >
                       <Icon size={16} color="var(--text-muted)" />
                       <span style={styles.lockedLabel}>{role.name}</span>
                       <span style={styles.lockedBadge}>
                         <Lock size={10} />
-                        Buka
+                        {t('sidebar.lockedBadge', 'Locked')}
                       </span>
                     </button>
                   );
@@ -408,7 +413,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
               type="button"
             >
               <div style={styles.soonHeaderLeft}>
-                <span style={styles.sectionGroupTitle}>Segera Hadir</span>
+                <span style={styles.sectionGroupTitle}>{t('sidebar.sectionSoon', 'Coming Soon (13 Roles)')}</span>
                 <span style={styles.soonCountBadge}>{soonRoles.length}</span>
               </div>
               {soonExpanded ? (
@@ -420,18 +425,21 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
 
             {soonExpanded && (
               <div style={styles.soonList}>
-                {soonRoles.map((role) => (
-                  <button
-                    key={role.key}
-                    onClick={() => handleNavClick(`/app/modules/${role.key}`)}
-                    style={styles.soonItemBtn}
-                    title={role.description}
-                  >
-                    <Clock size={13} color="var(--text-muted)" style={{ flexShrink: 0 }} />
-                    <span style={styles.soonItemName}>{role.name}</span>
-                    <span style={styles.soonCategoryTag}>{role.category}</span>
-                  </button>
-                ))}
+                {soonRoles.map((role) => {
+                  const roleName = lang === 'id' && role.name_id ? role.name_id : role.name;
+                  return (
+                    <button
+                      key={role.key}
+                      onClick={() => handleNavClick(`/app/modules/${role.key}`)}
+                      style={styles.soonItemBtn}
+                      title={role.description}
+                    >
+                      <Clock size={13} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+                      <span style={styles.soonItemName}>{roleName}</span>
+                      <span style={styles.soonCategoryTag}>{role.category}</span>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -439,7 +447,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
           {/* 4. Pengaturan Akun & Langganan */}
           <div style={styles.sectionBlock}>
             <div style={styles.sectionHeader}>
-              <span style={styles.sectionGroupTitle}>Akun</span>
+              <span style={styles.sectionGroupTitle}>{lang === 'id' ? 'Akun' : 'Account'}</span>
             </div>
             <div style={styles.itemsList}>
               <button
@@ -458,17 +466,20 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
                       : 'var(--text-secondary)'
                   }
                 />
-                <span>Langganan</span>
+                <span>{t('sidebar.billing', 'Subscription & Billing')}</span>
               </button>
             </div>
           </div>
         </nav>
 
-        {/* Footer Logout */}
+        {/* Footer Language Switcher & Logout */}
         <div style={styles.footer}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.65rem' }}>
+            <LanguageSwitcher size="small" />
+          </div>
           <button onClick={onLogout} style={styles.logoutBtn} className="logout-btn">
             <LogOut size={17} />
-            <span>Keluar Akun</span>
+            <span>{t('sidebar.logout', 'Sign Out')}</span>
           </button>
         </div>
       </aside>
