@@ -14,7 +14,7 @@
         "width": 560,
         "height": 1420,
         "color": 7,
-        "content": "## 🚀 3Our Supermat API (SEO Article Automation)\nBackend untuk web app **Supermat** (supermat-three.vercel.app). Semua kunci riset & AI (SerpAPI, RapidAPI/Ahrefs, Gemini) milik 3Our dan tersimpan sebagai credential n8n — user cukup pakai **API key 3Our** (header `X-Supermat-Key`) + kredensial CMS mereka sendiri.\n\n**Endpoint**\n- `POST /webhook/supermat-trigger` — riset + tulis artikel. Body: `{ keyword, Geo, Ln, Client_Name, niche?, tone?, wordCount? }` → `{ status, article:{title, slug, excerpt, bodyMarkdown, keywords, primaryKeyword, searchVolume, difficulty, …}, research }`\n- `POST /webhook/supermat-publish` — kirim artikel ke CMS user. Body: `{ cmsType:'wordpress'|'wix'|'sanity'|'shopify', action:'draft'|'publish', cms:{ wordpress:{url,user,appPassword} | wix:{siteId,apiKey} | sanity:{projectId,dataset,token,…} | shopify:{shop,accessToken|clientId+clientSecret,blogId?} }, article, postId? }` → `{ status, postId, draftEditUrl, publicUrl, message }`\n\n**API key** divalidasi node Webhook (Header Auth, credential *Supermat API Key (Header)*). Backend Supermat menyimpan key yang sama di env Vercel `SUPERMAT_API_KEY`.\n\n**Error** selalu dibalas JSON `{ status:'error', message }` dengan HTTP code yang sesuai (401/400/502)."
+        "content": "## 🚀 3Our Supermat API (SEO Article Automation)\nBackend untuk web app **Supermat** (supermat-three.vercel.app). Semua kunci riset & AI (SerpAPI, RapidAPI/Ahrefs, Gemini) milik 3Our dan tersimpan sebagai credential n8n — user cukup pakai **API key 3Our** (header `X-Supermat-Key`) + kredensial CMS mereka sendiri.\n\n**Endpoint**\n- `POST /webhook/supermat-trigger` — riset + tulis artikel. Body: `{ keyword, Geo, Ln, Client_Name, niche?, tone?, wordCount? }` → `{ status, article:{title, slug, excerpt, bodyMarkdown, keywords, primaryKeyword, searchVolume, difficulty, …}, research }`\n- `POST /webhook/supermat-publish` — kirim artikel ke CMS user. Body: `{ cmsType:'wordpress'|'wix'|'sanity'|'shopify', action:'draft'|'publish', cms:{ wordpress:{url,user,appPassword} | wix:{siteId,apiKey} | sanity:{projectId,dataset,token,…} | shopify:{shop,accessToken|clientId+clientSecret,blogId?} }, article, postId? }` → `{ status, postId, draftEditUrl, publicUrl, message }`\n\n**API key** divalidasi node Webhook (Header Auth, credential *Supermat API Key (Header)*). Backend Supermat menyimpan key yang sama di env Vercel `SUPERMAT_API_KEY`.\n\n**Error** selalu dibalas JSON `{ status:'error', message }` dengan HTTP code yang sesuai (401/400/502).\n\n**Fase 6 (Markimate)**: generate menerima `cmsType, cms, options` → cek duplikat (409 `status:'duplicate'`), internal/external link (Gemini), `imagePrompts`; publish menerima `options.images` → gambar Nano Banana di-upload adapter (Sanity, WordPress); endpoint baru `/webhook/supermat-topics`. Kontrak lengkap: PRD Fase 6."
       }
     },
     {
@@ -24,11 +24,11 @@
       "typeVersion": 1,
       "position": [
         -520,
-        60
+        -120
       ],
       "parameters": {
-        "width": 2980,
-        "height": 560,
+        "width": 3900,
+        "height": 740,
         "color": 6,
         "content": "## ① GENERATE — riset keyword → artikel (Gemini)\n**Auth & Normalize** cek API key + rapikan input → **Riset Google Trends** (SerpAPI, related queries 3 bulan, geo/bahasa user) → **Riset Autocomplete** (SerpAPI Google Autocomplete, cadangan bila Trends kosong) → **Pilih Kandidat** (seed keyword + maks 3 query relevan) → **Riset SVolume** (Ahrefs via RapidAPI, per kandidat) → **Tentukan Target** (volume terbesar; fallback seed) → **AI Agent** (Gemini + tool Google Search SerpAPI untuk fakta, geo/bahasa mengikuti user, CTA ke brand user) → **Susun Artikel** → **Respond Generate**. Semua call eksternal *continue on error* supaya artikel tetap jadi walau riset gagal."
       }
@@ -43,8 +43,8 @@
         700
       ],
       "parameters": {
-        "width": 2980,
-        "height": 780,
+        "width": 2600,
+        "height": 800,
         "color": 4,
         "content": "## ② PUBLISH — kirim artikel ke CMS user\n**Auth & Normalize (Publish)** validasi key, cmsType, kredensial CMS & artikel → **CMS Router** → adapter sub-workflow (**WordPress**, **Wix**, **Sanity**, **Shopify Blog**) → **Respond Publish**. Adapter mengembalikan format standar `{ status, postId, draftEditUrl, publicUrl, postStatus, message }`. `action:'draft'` menyimpan draf; `action:'publish'` menerbitkan (kirim `postId` untuk menerbitkan draf yang sudah ada)."
       }
@@ -83,7 +83,7 @@
         300
       ],
       "parameters": {
-        "jsCode": "// 3Our Supermat API — validasi API key & normalisasi input untuk endpoint GENERATE\n// API key (header X-Supermat-Key) divalidasi oleh node Webhook (Header Auth, credential \"Supermat API Key (Header)\").\n// Request tanpa key yang benar sudah ditolak 403 sebelum sampai ke node ini. Key TIDAK ditulis di kode/repo.\nconst headers = $json.headers || {};\nconst body = $json.body || {};\nconst ok = true;\n\nconst keyword = String(body.keyword || body.query || '').trim();\nlet statusCode = 200, error = '';\nif (!ok) { statusCode = 401; error = 'API key tidak valid. Kirim header X-Supermat-Key.'; }\nelse if (!keyword) { statusCode = 400; error = 'Field \"keyword\" wajib diisi.'; }\n\nreturn [{ json: {\n  ok: statusCode === 200, statusCode, error,\n  keyword,\n  geo: String(body.Geo || body.geo || 'ID').toUpperCase(),\n  ln: String(body.Ln || body.ln || 'id').toLowerCase(),\n  clientName: String(body.Client_Name || body.clientName || body.brandName || 'Brand Anda').trim(),\n  niche: String(body.niche || '').trim(),\n  tone: String(body.tone || '').trim(),\n  wordCount: Math.min(Math.max(Number(body.wordCount) || 800, 400), 1500),\n  requestId: String(body.requestId || ('req_' + Date.now().toString(36))),\n} }];\n"
+        "jsCode": "// 3Our Supermat API — validasi API key & normalisasi input untuk endpoint GENERATE\n// API key (header X-Supermat-Key) divalidasi oleh node Webhook (Header Auth, credential \"Supermat API Key (Header)\").\n// Request tanpa key yang benar sudah ditolak 403 sebelum sampai ke node ini. Key TIDAK ditulis di kode/repo.\nconst headers = $json.headers || {};\nconst body = $json.body || {};\nconst ok = true;\n\nconst keyword = String(body.keyword || body.query || '').trim();\nlet statusCode = 200, error = '';\nif (!ok) { statusCode = 401; error = 'API key tidak valid. Kirim header X-Supermat-Key.'; }\nelse if (!keyword) { statusCode = 400; error = 'Field \"keyword\" wajib diisi.'; }\n\nreturn [{ json: {\n  ok: statusCode === 200, statusCode, error,\n  keyword,\n  geo: String(body.Geo || body.geo || 'ID').toUpperCase(),\n  ln: String(body.Ln || body.ln || 'id').toLowerCase(),\n  clientName: String(body.Client_Name || body.clientName || body.brandName || 'Brand Anda').trim(),\n  niche: String(body.niche || '').trim(),\n  tone: String(body.tone || '').trim(),\n  wordCount: Math.min(Math.max(Number(body.wordCount) || 800, 400), 1500),\n  requestId: String(body.requestId || ('req_' + Date.now().toString(36))),\n  // --- Fase 6: CMS (opsional) untuk cek duplikat & internal link + opsi artikel ---\n  cmsType: ['wordpress', 'wix', 'sanity', 'shopify'].includes(String(body.cmsType || '').toLowerCase()) ? String(body.cmsType).toLowerCase() : '',\n  cms: body.cms && typeof body.cms === 'object' ? body.cms : {},\n  options: normalizeOptions(body.options),\n} }];\n\nfunction normalizeOptions(o) {\n  o = o && typeof o === 'object' ? o : {};\n  const b = (v, d) => (v === undefined || v === null ? d : !!v);\n  const n = (v, d, lo, hi) => { const x = Number(v); return Number.isFinite(x) ? Math.min(Math.max(x, lo), hi) : d; };\n  return {\n    duplicateCheck: b(o.duplicateCheck, true), duplicateThreshold: n(o.duplicateThreshold, 0.7, 0.4, 0.95),\n    internalLinks: b(o.internalLinks, true), maxInternal: n(o.maxInternal, 4, 0, 8), siteBaseUrl: String(o.siteBaseUrl || '').trim(),\n    externalLinks: b(o.externalLinks, true), maxExternal: n(o.maxExternal, 2, 0, 5),\n    excludeDomains: Array.isArray(o.excludeDomains) && o.excludeDomains.length ? o.excludeDomains.map(String) : ['facebook.com', 'instagram.com', 'tiktok.com', 'youtube.com', 'shopee.co.id', 'tokopedia.com', 'x.com', 'twitter.com', 'pinterest.com', 'linkedin.com'],\n    imagePrompts: b(o.imagePrompts, true), imageCount: n(o.imageCount, 3, 1, 3), imageStyle: String(o.imageStyle || 'foto editorial realistis, pencahayaan natural, warna hangat, tanpa teks atau logo di dalam gambar').trim(),\n  };\n}\n"
       }
     },
     {
@@ -134,6 +134,70 @@
         "responseBody": "={{ JSON.stringify({ status: 'error', message: $json.error, requestId: $json.requestId || null }) }}",
         "options": {
           "responseCode": "={{ $json.statusCode || 400 }}"
+        }
+      }
+    },
+    {
+      "id": "n-cek-duplikat",
+      "name": "Cek Duplikat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        140
+      ],
+      "parameters": {
+        "jsCode": "// Fase 6 — Ambil daftar artikel yang sudah ada di CMS user (bila cms dikirim) lalu cek topik duplikat.\n// Output = input (keyword, geo, ln, …) + existingPosts + duplicate flag, supaya node riset berikutnya tetap membaca $json.keyword.\nconst N = $input.first().json;\nconst H = this.helpers;\n\n// ===== Helper CMS bersama (disisipkan oleh build-workflows.mjs) =====\n// listExistingPosts(H, cmsType, cms, opts) -> [{ title, slug, url, publishedAt }]\n// H = this.helpers (Code node). Semua error ditelan → [] supaya alur artikel tidak mati.\nasync function listExistingPosts(H, cmsType, cms, opts) {\n  const o = Object.assign({ limit: 200, siteBaseUrl: '' }, opts || {});\n  const base = String(o.siteBaseUrl || '').trim();\n  const urlOf = (slug, direct) => direct || (base && slug ? base.replace(/\\/+$/, '') + '/' + slug : '');\n  const c = (cms || {})[cmsType] || {};\n  try {\n    if (cmsType === 'sanity') {\n      const q = '*[_type == $t && defined(slug.current)] | order(coalesce(publishedAt, _createdAt) desc) [0...' + o.limit + ']{title, \"slug\": slug.current, publishedAt}';\n      const r = await H.httpRequest({ method: 'POST', url: 'https://' + c.projectId + '.api.sanity.io/v2025-02-19/data/query/' + encodeURIComponent(c.dataset || 'production'),\n        headers: Object.assign({ 'Content-Type': 'application/json' }, c.token ? { Authorization: 'Bearer ' + c.token } : {}), body: { query: q, params: { t: c.docType || 'post' } }, json: true });\n      const pat = String(c.publicUrlPattern || '');\n      return (r.result || []).filter(p => p.title).map(p => ({ title: p.title, slug: p.slug, url: urlOf(p.slug, pat && p.slug ? pat.replace('{slug}', p.slug) : ''), publishedAt: p.publishedAt || '' }));\n    }\n    if (cmsType === 'wordpress') {\n      const auth = 'Basic ' + Buffer.from(String(c.user) + ':' + String(c.appPassword || '').replace(/\\s+/g, '')).toString('base64');\n      const out = [];\n      for (let page = 1; page <= Math.ceil(o.limit / 100); page++) {\n        const r = await H.httpRequest({ method: 'GET', url: c.url + '/wp-json/wp/v2/posts?status=publish&per_page=100&page=' + page + '&_fields=title,slug,link,date', headers: { Authorization: auth, 'User-Agent': 'Markimate/1.0' }, json: true });\n        if (!Array.isArray(r) || !r.length) break;\n        for (const p of r) out.push({ title: (p.title && p.title.rendered) || '', slug: p.slug, url: p.link || urlOf(p.slug), publishedAt: p.date || '' });\n        if (r.length < 100) break;\n      }\n      return out;\n    }\n    if (cmsType === 'wix') {\n      const r = await H.httpRequest({ method: 'GET', url: 'https://www.wixapis.com/blog/v3/posts?paging.limit=100&fieldsets=URL', headers: { Authorization: c.apiKey, 'wix-site-id': c.siteId }, json: true });\n      return (r.posts || []).map(p => ({ title: p.title, slug: p.slug, url: p.url ? (p.url.base || '') + (p.url.path || '') : urlOf(p.slug), publishedAt: p.firstPublishedDate || '' }));\n    }\n    if (cmsType === 'shopify') {\n      const r = await H.httpRequest({ method: 'POST', url: 'https://' + c.shop + '/admin/api/2026-07/graphql.json', headers: { 'X-Shopify-Access-Token': c.accessToken, 'Content-Type': 'application/json' },\n        body: { query: '{ shop { primaryDomain { url } } articles(first: 100, sortKey: PUBLISHED_AT, reverse: true) { nodes { title handle publishedAt blog { handle } } } }' }, json: true });\n      const d = (r.data || {}); const dom = ((d.shop || {}).primaryDomain || {}).url || ('https://' + c.shop);\n      return ((d.articles || {}).nodes || []).map(a => ({ title: a.title, slug: a.handle, url: dom + '/blogs/' + ((a.blog || {}).handle || 'news') + '/' + a.handle, publishedAt: a.publishedAt || '' }));\n    }\n  } catch (e) { /* abaikan: tanpa daftar artikel */ }\n  return [];\n}\n\n// --- kemiripan topik (token Jaccard-ish, dipakai cek duplikat & dedupe kandidat) ---\nconst STOPWORDS = new Set(['apa', 'itu', 'adalah', 'yang', 'dan', 'di', 'ke', 'dari', 'untuk', 'dengan', 'pada', 'cara', 'tips', 'panduan', 'lengkap', 'pengertian', 'arti', 'what', 'is', 'the', 'a', 'an', 'of', 'to', 'for', 'and', 'in', 'how', '2024', '2025', '2026', '2027', 'terbaru', 'contoh', 'jenis', 'manfaat', 'strategi', 'bisnis', 'agar', 'bagi', 'vs', 'atau']);\nconst topicTokens = s => String(s || '').toLowerCase().replace(/[^a-z0-9\\s-]/g, ' ').replace(/-/g, ' ').split(/\\s+/).filter(t => t.length > 1 && !STOPWORDS.has(t));\nfunction topicSimilarity(a, b) {\n  const ta = [...new Set(topicTokens(a))], tb = new Set(topicTokens(b));\n  if (!ta.length || !tb.size) return 0;\n  return ta.filter(t => tb.has(t)).length / ta.length;\n}\nfunction findDuplicate(keyword, posts, threshold) {\n  let best = null;\n  for (const p of posts || []) {\n    const sim = Math.max(topicSimilarity(keyword, p.title), topicSimilarity(keyword, String(p.slug || '').replace(/-/g, ' ')));\n    if (sim >= (threshold || 0.7) && (!best || sim > best.similarity)) best = Object.assign({ similarity: Number(sim.toFixed(2)) }, p);\n  }\n  return best;\n}\n\n\nlet existingPosts = [];\nconst needPosts = N.cmsType && (N.options.duplicateCheck || N.options.internalLinks);\nif (needPosts) existingPosts = await listExistingPosts(H, N.cmsType, N.cms, { limit: 200, siteBaseUrl: N.options.siteBaseUrl });\n\nconst dup = N.options.duplicateCheck ? findDuplicate(N.keyword, existingPosts, N.options.duplicateThreshold) : null;\n\nreturn [{ json: Object.assign({}, N, {\n  existingPosts,\n  existingPostsChecked: existingPosts.length,\n  needEnrich: !!((N.options.internalLinks && existingPosts.length) || N.options.externalLinks || N.options.imagePrompts),\n  duplicate: !!dup,\n  duplicateOf: dup ? { title: dup.title, slug: dup.slug, url: dup.url, similarity: dup.similarity } : null,\n  statusCode: dup ? 409 : 200,\n  error: dup ? 'Topik mirip sudah ada di CMS: ' + dup.title : '',\n}) }];\n"
+      }
+    },
+    {
+      "id": "n-duplikat-",
+      "name": "Duplikat?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        420,
+        140
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.duplicate }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n-respond-duplicate",
+      "name": "Respond Duplicate",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        640,
+        -20
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'duplicate', message: $json.error, duplicateOf: $json.duplicateOf, existingPostsChecked: $json.existingPostsChecked, requestId: $json.requestId }) }}",
+        "options": {
+          "responseCode": "409"
         }
       }
     },
@@ -453,12 +517,151 @@
       }
     },
     {
+      "id": "n-perlu-link-gambar-",
+      "name": "Perlu Link/Gambar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2080,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $('Cek Duplikat').first().json.needEnrich }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n-cari-sumber-eksternal",
+      "name": "Cari Sumber Eksternal",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2300,
+        140
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "url": "https://serpapi.com/search.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "engine",
+              "value": "google"
+            },
+            {
+              "name": "q",
+              "value": "={{ $('Susun Artikel').first().json.article.primaryKeyword || $('Cek Duplikat').first().json.keyword }}"
+            },
+            {
+              "name": "gl",
+              "value": "={{ $('Cek Duplikat').first().json.geo.toLowerCase() }}"
+            },
+            {
+              "name": "hl",
+              "value": "={{ $('Cek Duplikat').first().json.ln }}"
+            },
+            {
+              "name": "num",
+              "value": "10"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "E7NNgmviGDIm3aE3",
+          "name": "SerpAPI (Query Auth)"
+        }
+      }
+    },
+    {
+      "id": "n-siapkan-prompt-link",
+      "name": "Siapkan Prompt Link",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2520,
+        140
+      ],
+      "parameters": {
+        "jsCode": "// Fase 6 — Susun prompt Gemini untuk: internal link (artikel lama di CMS), external link (hasil Google), dan prompt gambar.\n// Input node ini = respons SerpAPI \"Cari Sumber Eksternal\" (boleh error/kosong). Artikel diambil dari \"Susun Artikel\".\nconst R = $('Susun Artikel').first().json;\nconst D = $('Cek Duplikat').first().json;\nconst O = D.options || {};\nconst A = R.article || {};\nconst S = $input.first().json || {};\n\n// ===== Helper CMS bersama (disisipkan oleh build-workflows.mjs) =====\n// listExistingPosts(H, cmsType, cms, opts) -> [{ title, slug, url, publishedAt }]\n// H = this.helpers (Code node). Semua error ditelan → [] supaya alur artikel tidak mati.\nasync function listExistingPosts(H, cmsType, cms, opts) {\n  const o = Object.assign({ limit: 200, siteBaseUrl: '' }, opts || {});\n  const base = String(o.siteBaseUrl || '').trim();\n  const urlOf = (slug, direct) => direct || (base && slug ? base.replace(/\\/+$/, '') + '/' + slug : '');\n  const c = (cms || {})[cmsType] || {};\n  try {\n    if (cmsType === 'sanity') {\n      const q = '*[_type == $t && defined(slug.current)] | order(coalesce(publishedAt, _createdAt) desc) [0...' + o.limit + ']{title, \"slug\": slug.current, publishedAt}';\n      const r = await H.httpRequest({ method: 'POST', url: 'https://' + c.projectId + '.api.sanity.io/v2025-02-19/data/query/' + encodeURIComponent(c.dataset || 'production'),\n        headers: Object.assign({ 'Content-Type': 'application/json' }, c.token ? { Authorization: 'Bearer ' + c.token } : {}), body: { query: q, params: { t: c.docType || 'post' } }, json: true });\n      const pat = String(c.publicUrlPattern || '');\n      return (r.result || []).filter(p => p.title).map(p => ({ title: p.title, slug: p.slug, url: urlOf(p.slug, pat && p.slug ? pat.replace('{slug}', p.slug) : ''), publishedAt: p.publishedAt || '' }));\n    }\n    if (cmsType === 'wordpress') {\n      const auth = 'Basic ' + Buffer.from(String(c.user) + ':' + String(c.appPassword || '').replace(/\\s+/g, '')).toString('base64');\n      const out = [];\n      for (let page = 1; page <= Math.ceil(o.limit / 100); page++) {\n        const r = await H.httpRequest({ method: 'GET', url: c.url + '/wp-json/wp/v2/posts?status=publish&per_page=100&page=' + page + '&_fields=title,slug,link,date', headers: { Authorization: auth, 'User-Agent': 'Markimate/1.0' }, json: true });\n        if (!Array.isArray(r) || !r.length) break;\n        for (const p of r) out.push({ title: (p.title && p.title.rendered) || '', slug: p.slug, url: p.link || urlOf(p.slug), publishedAt: p.date || '' });\n        if (r.length < 100) break;\n      }\n      return out;\n    }\n    if (cmsType === 'wix') {\n      const r = await H.httpRequest({ method: 'GET', url: 'https://www.wixapis.com/blog/v3/posts?paging.limit=100&fieldsets=URL', headers: { Authorization: c.apiKey, 'wix-site-id': c.siteId }, json: true });\n      return (r.posts || []).map(p => ({ title: p.title, slug: p.slug, url: p.url ? (p.url.base || '') + (p.url.path || '') : urlOf(p.slug), publishedAt: p.firstPublishedDate || '' }));\n    }\n    if (cmsType === 'shopify') {\n      const r = await H.httpRequest({ method: 'POST', url: 'https://' + c.shop + '/admin/api/2026-07/graphql.json', headers: { 'X-Shopify-Access-Token': c.accessToken, 'Content-Type': 'application/json' },\n        body: { query: '{ shop { primaryDomain { url } } articles(first: 100, sortKey: PUBLISHED_AT, reverse: true) { nodes { title handle publishedAt blog { handle } } } }' }, json: true });\n      const d = (r.data || {}); const dom = ((d.shop || {}).primaryDomain || {}).url || ('https://' + c.shop);\n      return ((d.articles || {}).nodes || []).map(a => ({ title: a.title, slug: a.handle, url: dom + '/blogs/' + ((a.blog || {}).handle || 'news') + '/' + a.handle, publishedAt: a.publishedAt || '' }));\n    }\n  } catch (e) { /* abaikan: tanpa daftar artikel */ }\n  return [];\n}\n\n// --- kemiripan topik (token Jaccard-ish, dipakai cek duplikat & dedupe kandidat) ---\nconst STOPWORDS = new Set(['apa', 'itu', 'adalah', 'yang', 'dan', 'di', 'ke', 'dari', 'untuk', 'dengan', 'pada', 'cara', 'tips', 'panduan', 'lengkap', 'pengertian', 'arti', 'what', 'is', 'the', 'a', 'an', 'of', 'to', 'for', 'and', 'in', 'how', '2024', '2025', '2026', '2027', 'terbaru', 'contoh', 'jenis', 'manfaat', 'strategi', 'bisnis', 'agar', 'bagi', 'vs', 'atau']);\nconst topicTokens = s => String(s || '').toLowerCase().replace(/[^a-z0-9\\s-]/g, ' ').replace(/-/g, ' ').split(/\\s+/).filter(t => t.length > 1 && !STOPWORDS.has(t));\nfunction topicSimilarity(a, b) {\n  const ta = [...new Set(topicTokens(a))], tb = new Set(topicTokens(b));\n  if (!ta.length || !tb.size) return 0;\n  return ta.filter(t => tb.has(t)).length / ta.length;\n}\nfunction findDuplicate(keyword, posts, threshold) {\n  let best = null;\n  for (const p of posts || []) {\n    const sim = Math.max(topicSimilarity(keyword, p.title), topicSimilarity(keyword, String(p.slug || '').replace(/-/g, ' ')));\n    if (sim >= (threshold || 0.7) && (!best || sim > best.similarity)) best = Object.assign({ similarity: Number(sim.toFixed(2)) }, p);\n  }\n  return best;\n}\n\n\n// --- kandidat internal: artikel lama paling mirip dengan topik (maks 30) ---\nconst existing = (D.existingPosts || []).filter(p => p.url && p.title && String(p.slug || '') !== String(A.slug || ''));\nconst scored = existing.map(p => ({ p, s: topicSimilarity(p.title, A.title + ' ' + (A.keywords || []).join(' ')) })).sort((a, b) => b.s - a.s);\nconst internal = (O.internalLinks ? scored.slice(0, 30) : []).map(({ p }, i) => ({ id: 'I' + (i + 1), title: p.title, url: p.url }));\n\n// --- kandidat eksternal: organic results SerpAPI minus domain yang dikecualikan & domain brand sendiri ---\nconst excl = (O.excludeDomains || []).map(d => String(d).toLowerCase());\nconst own = (() => { try { return new URL(O.siteBaseUrl).hostname.replace(/^www\\./, ''); } catch (e) { return ''; } })();\nconst host = u => { try { return new URL(u).hostname.replace(/^www\\./, '').toLowerCase(); } catch (e) { return ''; } };\nconst external = (O.externalLinks ? (S.organic_results || []) : []).filter(r => r.link && host(r.link) && !excl.some(d => host(r.link).endsWith(d)) && (!own || !host(r.link).endsWith(own)))\n  .slice(0, 8).map((r, i) => ({ id: 'E' + (i + 1), title: r.title, url: r.link, domain: host(r.link), snippet: String(r.snippet || '').slice(0, 160) }));\n\nconst wantImages = O.imagePrompts ? O.imageCount : 0;\nconst body = String(A.bodyMarkdown || '').slice(0, 14000);\nconst lang = (D.ln || 'id') === 'id' ? 'Bahasa Indonesia' : D.ln;\n\nconst prompt = `Kamu editor SEO. Diberikan ARTIKEL (markdown) dan daftar kandidat tautan. Kembalikan HANYA JSON valid dengan bentuk:\n{\"internal\":[{\"anchor\":\"\",\"url\":\"\",\"title\":\"\"}],\"external\":[{\"anchor\":\"\",\"url\":\"\",\"domain\":\"\"}],\"imagePrompts\":[{\"idx\":0,\"placement\":\"hero\",\"prompt\":\"\",\"alt\":\"\"}]}\n\nATURAN TAUTAN\n- \"anchor\" HARUS potongan teks yang muncul PERSIS (huruf sama) di paragraf isi artikel — bukan di judul/heading, bukan di dalam teks yang sudah menjadi link [..](..), 2–6 kata, alami, relevan dengan halaman tujuan.\n- internal: maksimal ${O.maxInternal} tautan, pilih hanya kandidat yang benar-benar relevan secara topik; url & title disalin persis dari kandidat. Satu url hanya sekali. Bila tidak ada yang relevan, kembalikan [].\n- external: maksimal ${O.maxExternal} tautan ke sumber kredibel (lembaga resmi, media besar, riset); url disalin persis dari kandidat; jangan ke kompetitor langsung brand \"${D.clientName}\". Bila tidak ada yang layak, [].\n- Jangan mengubah artikel; hanya kembalikan daftar.\n\nATURAN GAMBAR (buat tepat ${wantImages} item; bila ${wantImages} = 0 kembalikan [])\n- idx 0 = \"hero\" (gambar utama 16:9, mewakili keseluruhan topik). idx 1 = \"after_h2:1\" (ilustrasi sub-bab pertama), idx 2 = \"after_h2:3\" (sub-bab ketiga; bila artikel punya kurang dari 3 H2 pakai \"after_h2:2\").\n- \"prompt\" dalam bahasa Inggris untuk model text-to-image, deskriptif & konkret (subjek, setting, komposisi, mood), gaya: ${O.imageStyle}. Tanpa teks, logo, watermark, atau wajah tokoh nyata. Sesuaikan konteks Indonesia bila relevan.\n- \"alt\" dalam ${lang}, 6–14 kata, deskriptif, mengandung kata kunci bila alami.\n\nARTIKEL\nJudul: ${A.title}\nKeyword utama: ${A.primaryKeyword || D.keyword}\n---\n${body}\n---\n\nKANDIDAT INTERNAL (artikel lama di situs yang sama)\n${internal.length ? internal.map(i => `${i.id} | ${i.title} | ${i.url}`).join('\\n') : '(tidak ada)'}\n\nKANDIDAT EKSTERNAL (hasil pencarian Google)\n${external.length ? external.map(e => `${e.id} | ${e.domain} | ${e.title} | ${e.url} | ${e.snippet}`).join('\\n') : '(tidak ada)'}`;\n\nreturn [{ json: {\n  skip: !internal.length && !external.length && !wantImages,\n  prompt, internalCandidates: internal, externalCandidates: external, wantImages,\n  geminiBody: { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 2048 } },\n} }];\n"
+      }
+    },
+    {
+      "id": "n-gemini-link-gambar",
+      "name": "Gemini Link & Gambar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2740,
+        140
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.geminiBody) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "googlePalmApi": {
+          "id": "X4qY80NDFbDxQZZU",
+          "name": "Google Gemini(PaLM) Api Veri"
+        }
+      }
+    },
+    {
+      "id": "n-terapkan-link-gambar",
+      "name": "Terapkan Link & Gambar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2960,
+        140
+      ],
+      "parameters": {
+        "jsCode": "// Fase 6 — Terapkan hasil Gemini: sisipkan internal/external link ke markdown + placeholder gambar, lalu kembalikan respons generate.\nconst R = JSON.parse(JSON.stringify($('Susun Artikel').first().json));\nconst P = $('Siapkan Prompt Link').first().json;\nconst D = $('Cek Duplikat').first().json;\nconst O = D.options || {};\nconst G = $input.first().json || {};\n\n// --- parse JSON Gemini (toleran) ---\nlet parsed = null;\ntry {\n  const txt = (((G.candidates || [])[0] || {}).content || {}).parts?.map(p => p.text || '').join('') || '';\n  const clean = String(txt).replace(/```json/gi, '').replace(/```/g, '').trim();\n  const a = clean.indexOf('{'), b = clean.lastIndexOf('}');\n  parsed = JSON.parse(a >= 0 && b > a ? clean.slice(a, b + 1) : clean);\n} catch (e) { parsed = null; }\nconst warnings = [];\nif (!parsed) warnings.push('Link & prompt gambar dilewati: ' + (G.error ? String(G.error.message || G.error).slice(0, 140) : 'respons AI tidak valid'));\nparsed = parsed || { internal: [], external: [], imagePrompts: [] };\n\nconst A = R.article;\nlet md = String(A.bodyMarkdown || '');\nconst lines = md.split('\\n');\nconst isHeading = l => /^\\s*#{1,6}\\s/.test(l);\nconst esc = s => s.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\nconst usedUrls = new Set();\nconst applied = { internal: [], external: [] };\n\nfunction applyLink(item, type, allowed, max) {\n  if (applied[type].length >= max) return;\n  const anchor = String(item.anchor || '').trim(); const url = String(item.url || '').trim();\n  if (!anchor || !url || usedUrls.has(url)) return;\n  const cand = allowed.find(c => c.url === url); if (!cand) return; // url harus dari kandidat (anti halusinasi)\n  const re = new RegExp('(^|[^\\\\[\\\\w])(' + esc(anchor) + ')(?![^\\\\[]*\\\\]\\\\()(?!\\\\w)');\n  for (let i = 0; i < lines.length; i++) {\n    if (isHeading(lines[i]) || /^\\s*!\\[/.test(lines[i]) || !re.test(lines[i])) continue;\n    lines[i] = lines[i].replace(re, (m, pre, a) => pre + '[' + a + '](' + url + ')');\n    usedUrls.add(url);\n    applied[type].push(type === 'internal' ? { anchor, url, title: cand.title || item.title || '' } : { anchor, url, domain: cand.domain || '' });\n    return;\n  }\n}\nfor (const it of (Array.isArray(parsed.internal) ? parsed.internal : [])) applyLink(it, 'internal', P.internalCandidates || [], O.maxInternal || 0);\nfor (const it of (Array.isArray(parsed.external) ? parsed.external : [])) applyLink(it, 'external', P.externalCandidates || [], O.maxExternal || 0);\n\n// --- prompt gambar + placeholder di markdown ---\nconst want = P.wantImages || 0;\nlet prompts = (Array.isArray(parsed.imagePrompts) ? parsed.imagePrompts : []).filter(p => p && p.prompt).slice(0, want)\n  .map((p, i) => ({ idx: i, placement: i === 0 ? 'hero' : String(p.placement || ('after_h2:' + (i === 1 ? 1 : 3))), prompt: String(p.prompt).trim(), alt: String(p.alt || A.title).trim(), aspect: i === 0 ? '16:9' : '4:3' }));\nif (want && !prompts.length) warnings.push('AI tidak mengembalikan prompt gambar; artikel tanpa gambar.');\n\nconst h2Idx = lines.map((l, i) => (/^\\s*##\\s/.test(l) ? i : -1)).filter(i => i >= 0);\nconst inserts = []; // [lineIndex, text]\nfor (const p of prompts) {\n  if (p.placement === 'hero') continue;\n  const m = p.placement.match(/after_h2:(\\d+)/); let k = m ? Number(m[1]) : 1;\n  if (k > h2Idx.length) k = h2Idx.length;\n  let at;\n  if (k >= 1) { at = h2Idx[k - 1] + 1; while (at < lines.length && !lines[at].trim()) at++; while (at < lines.length && lines[at].trim() && !isHeading(lines[at])) at++; } // setelah paragraf pertama di bawah H2\n  else { let paras = 0; at = lines.length; for (let i = 0; i < lines.length; i++) { if (lines[i].trim() && !isHeading(lines[i]) && (i + 1 >= lines.length || !lines[i + 1].trim())) { if (++paras === 2) { at = i + 1; break; } } } }\n  inserts.push([at, '\\n![' + p.alt.replace(/[\\[\\]]/g, '') + '](markimate:image:' + p.idx + ')\\n']);\n}\ninserts.sort((a, b) => b[0] - a[0]);\nfor (const [at, text] of inserts) lines.splice(at, 0, text);\nmd = lines.join('\\n').replace(/\\n{3,}/g, '\\n\\n');\n\nA.bodyMarkdown = md;\nA.links = applied;\nA.imagePrompts = prompts;\nA.wordCount = md.replace(/!\\[[^\\]]*\\]\\([^)]*\\)/g, '').split(/\\s+/).filter(Boolean).length;\nR.research = Object.assign({}, R.research, { existingPostsChecked: D.existingPostsChecked || 0, internalCandidates: (P.internalCandidates || []).length, externalCandidates: (P.externalCandidates || []).length });\nR.warnings = warnings;\nreturn [{ json: R }];\n"
+      }
+    },
+    {
       "id": "n-respond-generate",
       "name": "Respond Generate",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        2100,
+        3200,
         300
       ],
       "parameters": {
@@ -472,7 +675,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        2100,
+        2300,
         500
       ],
       "parameters": {
@@ -517,7 +720,7 @@
         900
       ],
       "parameters": {
-        "jsCode": "// 3Our Supermat API — validasi API key & normalisasi input untuk endpoint PUBLISH\n// Body: { cmsType: 'wordpress'|'wix'|'sanity'|'shopify', action: 'draft'|'publish', cms: {...kredensial user...}, article: {...}, postId?: '' }\n// API key (header X-Supermat-Key) divalidasi oleh node Webhook (Header Auth, credential \"Supermat API Key (Header)\").\n// Request tanpa key yang benar sudah ditolak 403 sebelum sampai ke node ini. Key TIDAK ditulis di kode/repo.\nconst headers = $json.headers || {};\nconst body = $json.body || {};\nconst ok = true;\n\nconst cmsType = String(body.cmsType || body.CMS_Type || '').toLowerCase().trim();\nconst action = String(body.action || '').toLowerCase() === 'publish' ? 'publish' : 'draft';\nconst cmsIn = body.cms || {};\nconst str = v => String(v ?? '').trim();\nconst cms = {\n  wordpress: {\n    url: str((cmsIn.wordpress || {}).url || body.wpUrl).replace(/\\/+$/, ''),\n    user: str((cmsIn.wordpress || {}).user || body.wpUser),\n    appPassword: str((cmsIn.wordpress || {}).appPassword || body.wpPass),\n  },\n  wix: {\n    siteId: str((cmsIn.wix || {}).siteId || body.wixSiteId),\n    apiKey: str((cmsIn.wix || {}).apiKey || body.wixKey),\n    memberId: str((cmsIn.wix || {}).memberId || body.wixMemberId),\n  },\n  sanity: {\n    projectId: str((cmsIn.sanity || {}).projectId || body.projectId),\n    dataset: str((cmsIn.sanity || {}).dataset || body.dataset) || 'production',\n    token: str((cmsIn.sanity || {}).token || body.authToken),\n    studioUrl: str((cmsIn.sanity || {}).studioUrl || body.studioUrl),\n    docType: str((cmsIn.sanity || {}).docType) || 'post',\n    bodyField: str((cmsIn.sanity || {}).bodyField) || 'body',\n    publicUrlPattern: str((cmsIn.sanity || {}).publicUrlPattern),\n  },\n  shopify: {\n    shop: str((cmsIn.shopify || {}).shop).toLowerCase().replace(/^https?:\\/\\//, '').replace(/\\/.*$/, ''),\n    accessToken: str((cmsIn.shopify || {}).accessToken),\n    clientId: str((cmsIn.shopify || {}).clientId),\n    clientSecret: str((cmsIn.shopify || {}).clientSecret),\n    blogId: str((cmsIn.shopify || {}).blogId),\n    authorName: str((cmsIn.shopify || {}).authorName),\n  },\n};\nconst article = body.article && typeof body.article === 'object' ? body.article : null;\nconst postId = str(body.postId || body.draftDocId || body.draftPostId);\n\nlet statusCode = 200, error = '';\nif (!ok) { statusCode = 401; error = 'API key tidak valid. Kirim header X-Supermat-Key.'; }\nelse if (!['wordpress', 'wix', 'sanity', 'shopify'].includes(cmsType)) { statusCode = 400; error = 'cmsType harus wordpress, wix, sanity, atau shopify.'; }\nelse if (!article && !postId) { statusCode = 400; error = 'Field \"article\" wajib diisi (atau postId untuk publish draf yang sudah ada).'; }\nelse if (article && (!str(article.title) || !str(article.bodyMarkdown || article.body))) { statusCode = 400; error = 'article.title dan article.bodyMarkdown wajib diisi.'; }\nelse if (cmsType === 'wordpress' && (!cms.wordpress.url || !cms.wordpress.user || !cms.wordpress.appPassword)) { statusCode = 400; error = 'Kredensial WordPress belum lengkap (url, user, appPassword).'; }\nelse if (cmsType === 'wix' && (!cms.wix.siteId || !cms.wix.apiKey)) { statusCode = 400; error = 'Kredensial Wix belum lengkap (siteId, apiKey).'; }\nelse if (cmsType === 'sanity' && (!cms.sanity.projectId || !cms.sanity.token)) { statusCode = 400; error = 'Kredensial Sanity belum lengkap (projectId, token).'; }\nelse if (cmsType === 'sanity' && (!/^[a-z0-9]+$/i.test(cms.sanity.projectId) || !/^[a-z0-9_-]+$/i.test(cms.sanity.dataset) || !/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(cms.sanity.docType) || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(cms.sanity.bodyField))) { statusCode = 400; error = 'Format Sanity tidak valid: Project ID (huruf/angka), dataset (huruf kecil, angka, - _), docType & bodyField (nama field).'; }\nelse if (cmsType === 'shopify' && (!cms.shopify.shop || (!cms.shopify.accessToken && !(cms.shopify.clientId && cms.shopify.clientSecret)))) { statusCode = 400; error = 'Kredensial Shopify belum lengkap (shop + accessToken, atau shop + clientId + clientSecret).'; }\nif (cms.wordpress.url && !/^https?:\\/\\//i.test(cms.wordpress.url)) cms.wordpress.url = 'https://' + cms.wordpress.url;\n\nreturn [{ json: {\n  ok: statusCode === 200, statusCode, error,\n  cmsType, action, cms, postId,\n  article: article ? Object.assign({}, article, { bodyMarkdown: str(article.bodyMarkdown || article.body) }) : null,\n  clientName: str(body.clientName || body.Client_Name || 'Brand Anda'),\n  requestId: str(body.requestId) || ('pub_' + Date.now().toString(36)),\n} }];\n"
+        "jsCode": "// 3Our Supermat API — validasi API key & normalisasi input untuk endpoint PUBLISH\n// Body: { cmsType: 'wordpress'|'wix'|'sanity'|'shopify', action: 'draft'|'publish', cms: {...kredensial user...}, article: {...}, postId?: '' }\n// API key (header X-Supermat-Key) divalidasi oleh node Webhook (Header Auth, credential \"Supermat API Key (Header)\").\n// Request tanpa key yang benar sudah ditolak 403 sebelum sampai ke node ini. Key TIDAK ditulis di kode/repo.\nconst headers = $json.headers || {};\nconst body = $json.body || {};\nconst ok = true;\n\nconst cmsType = String(body.cmsType || body.CMS_Type || '').toLowerCase().trim();\nconst action = String(body.action || '').toLowerCase() === 'publish' ? 'publish' : 'draft';\nconst cmsIn = body.cms || {};\nconst str = v => String(v ?? '').trim();\nconst cms = {\n  wordpress: {\n    url: str((cmsIn.wordpress || {}).url || body.wpUrl).replace(/\\/+$/, ''),\n    user: str((cmsIn.wordpress || {}).user || body.wpUser),\n    appPassword: str((cmsIn.wordpress || {}).appPassword || body.wpPass),\n  },\n  wix: {\n    siteId: str((cmsIn.wix || {}).siteId || body.wixSiteId),\n    apiKey: str((cmsIn.wix || {}).apiKey || body.wixKey),\n    memberId: str((cmsIn.wix || {}).memberId || body.wixMemberId),\n  },\n  sanity: {\n    projectId: str((cmsIn.sanity || {}).projectId || body.projectId),\n    dataset: str((cmsIn.sanity || {}).dataset || body.dataset) || 'production',\n    token: str((cmsIn.sanity || {}).token || body.authToken),\n    studioUrl: str((cmsIn.sanity || {}).studioUrl || body.studioUrl),\n    docType: str((cmsIn.sanity || {}).docType) || 'post',\n    bodyField: str((cmsIn.sanity || {}).bodyField) || 'body',\n    publicUrlPattern: str((cmsIn.sanity || {}).publicUrlPattern),\n    // Fase 6: mapping field dokumen\n    authorId: str((cmsIn.sanity || {}).authorId),\n    autoCreateAuthor: (cmsIn.sanity || {}).autoCreateAuthor !== false,\n    categoryIds: Array.isArray((cmsIn.sanity || {}).categoryIds) ? (cmsIn.sanity || {}).categoryIds.map(str).filter(Boolean) : [],\n    publishedAtField: str((cmsIn.sanity || {}).publishedAtField) || 'publishedAt',\n    mainImageField: str((cmsIn.sanity || {}).mainImageField) || 'mainImage',\n    excerptField: str((cmsIn.sanity || {}).excerptField) || 'excerpt',\n  },\n  shopify: {\n    shop: str((cmsIn.shopify || {}).shop).toLowerCase().replace(/^https?:\\/\\//, '').replace(/\\/.*$/, ''),\n    accessToken: str((cmsIn.shopify || {}).accessToken),\n    clientId: str((cmsIn.shopify || {}).clientId),\n    clientSecret: str((cmsIn.shopify || {}).clientSecret),\n    blogId: str((cmsIn.shopify || {}).blogId),\n    authorName: str((cmsIn.shopify || {}).authorName),\n  },\n};\nif (cmsIn.wordpress) { cms.wordpress.categoryIds = Array.isArray(cmsIn.wordpress.defaultCategoryIds) ? cmsIn.wordpress.defaultCategoryIds.map(Number).filter(Boolean) : []; cms.wordpress.authorId = Number(cmsIn.wordpress.authorId) || 0; }\n\n// --- Fase 6: gambar AI (hanya Sanity & WordPress yang bisa menerima upload) ---\nconst optIn = body.options && typeof body.options === 'object' ? body.options : {};\nconst IMAGE_CMS = ['sanity', 'wordpress'];\nconst warnings = [];\nconst prompts = body.article && Array.isArray(body.article.imagePrompts) ? body.article.imagePrompts.filter(p => p && p.prompt) : [];\nlet makeImages = optIn.images !== false && prompts.length > 0 && !!(body.article && body.article.title);\nif (makeImages && !IMAGE_CMS.includes(cmsType)) { makeImages = false; warnings.push((cmsType === 'wix' ? 'Wix' : cmsType === 'shopify' ? 'Shopify' : cmsType) + ': upload gambar belum didukung, artikel dikirim tanpa gambar.'); }\nconst stripPlaceholders = md => String(md || '').replace(/^\\s*!\\[[^\\]]*\\]\\(markimate:image:\\d+\\)\\s*$/gm, '').replace(/\\n{3,}/g, '\\n\\n');\nconst article = body.article && typeof body.article === 'object' ? body.article : null;\nconst postId = str(body.postId || body.draftDocId || body.draftPostId);\n\nlet statusCode = 200, error = '';\nif (!ok) { statusCode = 401; error = 'API key tidak valid. Kirim header X-Supermat-Key.'; }\nelse if (!['wordpress', 'wix', 'sanity', 'shopify'].includes(cmsType)) { statusCode = 400; error = 'cmsType harus wordpress, wix, sanity, atau shopify.'; }\nelse if (!article && !postId) { statusCode = 400; error = 'Field \"article\" wajib diisi (atau postId untuk publish draf yang sudah ada).'; }\nelse if (article && (!str(article.title) || !str(article.bodyMarkdown || article.body))) { statusCode = 400; error = 'article.title dan article.bodyMarkdown wajib diisi.'; }\nelse if (cmsType === 'wordpress' && (!cms.wordpress.url || !cms.wordpress.user || !cms.wordpress.appPassword)) { statusCode = 400; error = 'Kredensial WordPress belum lengkap (url, user, appPassword).'; }\nelse if (cmsType === 'wix' && (!cms.wix.siteId || !cms.wix.apiKey)) { statusCode = 400; error = 'Kredensial Wix belum lengkap (siteId, apiKey).'; }\nelse if (cmsType === 'sanity' && (!cms.sanity.projectId || !cms.sanity.token)) { statusCode = 400; error = 'Kredensial Sanity belum lengkap (projectId, token).'; }\nelse if (cmsType === 'sanity' && (!/^[a-z0-9]+$/i.test(cms.sanity.projectId) || !/^[a-z0-9_-]+$/i.test(cms.sanity.dataset) || !/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(cms.sanity.docType) || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(cms.sanity.bodyField))) { statusCode = 400; error = 'Format Sanity tidak valid: Project ID (huruf/angka), dataset (huruf kecil, angka, - _), docType & bodyField (nama field).'; }\nelse if (cmsType === 'shopify' && (!cms.shopify.shop || (!cms.shopify.accessToken && !(cms.shopify.clientId && cms.shopify.clientSecret)))) { statusCode = 400; error = 'Kredensial Shopify belum lengkap (shop + accessToken, atau shop + clientId + clientSecret).'; }\nif (cms.wordpress.url && !/^https?:\\/\\//i.test(cms.wordpress.url)) cms.wordpress.url = 'https://' + cms.wordpress.url;\n\nreturn [{ json: {\n  ok: statusCode === 200, statusCode, error,\n  cmsType, action, cms, postId,\n  article: article ? Object.assign({}, article, { bodyMarkdown: makeImages ? str(article.bodyMarkdown || article.body) : stripPlaceholders(article.bodyMarkdown || article.body), imagePrompts: makeImages ? prompts.slice(0, Math.min(Number(optIn.imageCount) || 3, 3)) : [] }) : null,\n  makeImages, images: [], warnings,\n  options: { images: makeImages, imageStyle: str(optIn.imageStyle) },\n  clientName: str(body.clientName || body.Client_Name || 'Brand Anda'),\n  requestId: str(body.requestId) || ('pub_' + Date.now().toString(36)),\n} }];\n"
       }
     },
     {
@@ -572,12 +775,112 @@
       }
     },
     {
+      "id": "n-buat-gambar-",
+      "name": "Buat Gambar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        200,
+        740
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.makeImages }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n-siapkan-prompt-gambar",
+      "name": "Siapkan Prompt Gambar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        580
+      ],
+      "parameters": {
+        "jsCode": "// Fase 6 — Satu item per prompt gambar untuk node \"Nano Banana\" (Gemini image). idx 0 = hero 16:9, lainnya 4:3.\nconst N = $input.first().json;\nconst style = N.options && N.options.imageStyle ? ' Style: ' + N.options.imageStyle + '.' : '';\nreturn (N.article.imagePrompts || []).map((p, i) => ({ json: {\n  idx: Number.isFinite(Number(p.idx)) ? Number(p.idx) : i,\n  placement: p.placement || (i === 0 ? 'hero' : 'after_h2:' + i),\n  alt: String(p.alt || N.article.title || ''),\n  aspect: i === 0 ? '16:9' : '4:3',\n  prompt: String(p.prompt) + style + ' No text, no letters, no watermark, no logo.',\n  slug: String(N.article.slug || 'artikel'),\n} }));\n"
+      }
+    },
+    {
+      "id": "n-nano-banana",
+      "name": "Nano Banana",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        640,
+        580
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-image:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contents: [{ parts: [{ text: $json.prompt }] }], generationConfig: { responseModalities: [\"IMAGE\"], imageConfig: { aspectRatio: $json.aspect, imageSize: \"1K\" } } }) }}",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 6000
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "JF8Od16ebyhu0BUU",
+          "name": "Gemini imagen"
+        }
+      }
+    },
+    {
+      "id": "n-kumpulkan-gambar",
+      "name": "Kumpulkan Gambar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        860,
+        580
+      ],
+      "parameters": {
+        "jsCode": "// Fase 6 — Ambil base64 dari respons Gemini image per item, gabungkan ke payload publish (images[]), lanjut ke CMS Router.\nconst N = JSON.parse(JSON.stringify($('Auth & Normalize (Publish)').first().json));\nconst prompts = $('Siapkan Prompt Gambar').all().map(i => i.json);\nconst resps = $input.all().map(i => i.json || {});\nconst images = []; const failed = [];\nresps.forEach((res, i) => {\n  const meta = prompts[i] || {};\n  const parts = (((res.candidates || [])[0] || {}).content || {}).parts || [];\n  const img = parts.find(p => (p.inlineData && p.inlineData.data) || (p.inline_data && p.inline_data.data));\n  if (!img) { failed.push(meta.idx); return; }\n  const d = img.inlineData || img.inline_data;\n  const mime = d.mimeType || d.mime_type || 'image/png';\n  const ext = mime.includes('jpeg') ? 'jpg' : mime.includes('webp') ? 'webp' : 'png';\n  images.push({ idx: meta.idx, placement: meta.placement, alt: meta.alt, mime, b64: d.data, filename: meta.slug + '-' + (meta.idx === 0 ? 'hero' : 'img-' + meta.idx) + '.' + ext });\n});\nif (failed.length) N.warnings.push('Gambar gagal dibuat untuk idx ' + failed.join(', ') + (resps.find(r => r.error) ? ': ' + String((resps.find(r => r.error).error || {}).message || '').slice(0, 120) : '') + '.');\n// buang placeholder yang gambarnya gagal\nconst ok = new Set(images.map(i => i.idx));\nN.article.bodyMarkdown = String(N.article.bodyMarkdown || '').replace(/^\\s*!\\[([^\\]]*)\\]\\(markimate:image:(\\d+)\\)\\s*$/gm, (m, alt, idx) => (ok.has(Number(idx)) ? m : '')).replace(/\\n{3,}/g, '\\n\\n');\nN.images = images;\nreturn [{ json: N }];\n"
+      }
+    },
+    {
       "id": "n-cms-router",
       "name": "CMS Router",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        200,
+        1080,
         900
       ],
       "parameters": {
@@ -692,7 +995,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        480,
+        1360,
         740
       ],
       "parameters": {
@@ -706,7 +1009,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        480,
+        1360,
         900
       ],
       "parameters": {
@@ -720,7 +1023,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        480,
+        1360,
         1060
       ],
       "parameters": {
@@ -734,7 +1037,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1,
       "position": [
-        480,
+        1360,
         1220
       ],
       "parameters": {
@@ -748,7 +1051,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        480,
+        1360,
         1380
       ],
       "parameters": {
@@ -765,11 +1068,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        740,
+        1620,
         900
       ],
       "parameters": {
-        "jsCode": "// Samakan format hasil adapter + tentukan HTTP code\nconst r = $input.first().json || {};\nconst ok = r.status === 'ok' || r.status === 'success';\nreturn [{ json: {\n  status: ok ? 'ok' : 'error',\n  statusCode: ok ? 200 : (r.httpStatus && r.httpStatus >= 400 && r.httpStatus < 500 ? 400 : 502),\n  cmsType: r.cmsType || $('Auth & Normalize (Publish)').first().json.cmsType,\n  action: r.action || $('Auth & Normalize (Publish)').first().json.action,\n  postId: r.postId || r.draftDocId || '',\n  postStatus: r.postStatus || (ok ? ($('Auth & Normalize (Publish)').first().json.action === 'publish' ? 'publish' : 'draft') : ''),\n  draftEditUrl: r.draftEditUrl || '',\n  publicUrl: r.publicUrl || '',\n  previewUrl: r.previewUrl || '',\n  title: r.title || '',\n  message: r.message || (ok ? 'Berhasil.' : 'Gagal mengirim ke CMS.'),\n  requestId: r.requestId || $('Auth & Normalize (Publish)').first().json.requestId,\n} }];"
+        "jsCode": "// Samakan format hasil adapter + tentukan HTTP code\nconst r = $input.first().json || {};\nconst ok = r.status === 'ok' || r.status === 'success';\nreturn [{ json: {\n  status: ok ? 'ok' : 'error',\n  statusCode: ok ? 200 : (r.httpStatus && r.httpStatus >= 400 && r.httpStatus < 500 ? 400 : 502),\n  cmsType: r.cmsType || $('Auth & Normalize (Publish)').first().json.cmsType,\n  action: r.action || $('Auth & Normalize (Publish)').first().json.action,\n  postId: r.postId || r.draftDocId || '',\n  postStatus: r.postStatus || (ok ? ($('Auth & Normalize (Publish)').first().json.action === 'publish' ? 'publish' : 'draft') : ''),\n  draftEditUrl: r.draftEditUrl || '',\n  publicUrl: r.publicUrl || '',\n  previewUrl: r.previewUrl || '',\n  title: r.title || '',\n  message: r.message || (ok ? 'Berhasil.' : 'Gagal mengirim ke CMS.'),\n  images: Array.isArray(r.images) ? r.images : [],\n  warnings: [...new Set([...($('Auth & Normalize (Publish)').first().json.warnings || []), ...(Array.isArray(r.warnings) ? r.warnings : [])])],\n  requestId: r.requestId || $('Auth & Normalize (Publish)').first().json.requestId,\n} }];"
       }
     },
     {
@@ -778,7 +1081,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        960,
+        1840,
         900
       ],
       "parameters": {
@@ -786,6 +1089,276 @@
         "options": {
           "responseCode": "={{ $json.statusCode }}"
         }
+      }
+    },
+    {
+      "id": "st-sticky-topics",
+      "name": "Sticky Topics",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        1560
+      ],
+      "parameters": {
+        "width": 2980,
+        "height": 520,
+        "color": 5,
+        "content": "## ③ TOPIK OTOMATIS — Google Trends → kandidat → volume → topik siap tulis\n`POST /webhook/supermat-topics` body `{ seedKeywords:[…], Geo, Ln, cmsType?, cms?, limit?, minVolume?, duplicateThreshold?, options:{siteBaseUrl?} }`.\n**Seeds & Artikel CMS** ambil artikel lama (dedupe) + 1 item per seed → **Riset Trends (Topics)** (SerpAPI related queries, rising + top) → **Kumpulkan Kandidat** (cocok seed, bukan duplikat artikel lama/antar kandidat) → **Riset SVolume (Topics)** (Ahrefs via RapidAPI) → **Susun Topik** (≥ minVolume, rising dulu, maks limit) → `{ status, topics:[{keyword, seed, source, searchVolume, difficulty, trafficPotential}], skipped }`. Jadwal mingguan & pembuatan keyword dilakukan backend Markimate (cron)."
+      }
+    },
+    {
+      "id": "n-webhook-topics",
+      "name": "Webhook Topics",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -460,
+        1800
+      ],
+      "webhookId": "7c1d2e3f-4a5b-4c6d-8e9f-0a1b2c3d4e5f",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "supermat-topics",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "yRMoELEk1ya3tXjx",
+          "name": "Supermat API Key (Header)"
+        }
+      }
+    },
+    {
+      "id": "n-auth-normalize-topics-",
+      "name": "Auth & Normalize (Topics)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        1800
+      ],
+      "parameters": {
+        "jsCode": "// Fase 6 — Endpoint TOPIK OTOMATIS: validasi & normalisasi input\n// Body: { seedKeywords:[...], Geo, Ln, cmsType?, cms?, limit?, minVolume?, duplicateThreshold?, requestId? }\nconst body = $json.body || {};\nconst seeds = [...new Set((Array.isArray(body.seedKeywords) ? body.seedKeywords : String(body.seedKeywords || body.keyword || '').split(',')).map(s => String(s || '').trim().toLowerCase()).filter(Boolean))].slice(0, 10);\nlet statusCode = 200, error = '';\nif (!seeds.length) { statusCode = 400; error = 'Field \"seedKeywords\" wajib diisi (array, maks 10).'; }\nconst n = (v, d, lo, hi) => { const x = Number(v); return Number.isFinite(x) ? Math.min(Math.max(x, lo), hi) : d; };\nreturn [{ json: {\n  ok: statusCode === 200, statusCode, error,\n  seeds,\n  geo: String(body.Geo || body.geo || 'ID').toUpperCase(), ln: String(body.Ln || body.ln || 'id').toLowerCase(),\n  cmsType: ['wordpress', 'wix', 'sanity', 'shopify'].includes(String(body.cmsType || '').toLowerCase()) ? String(body.cmsType).toLowerCase() : '',\n  cms: body.cms && typeof body.cms === 'object' ? body.cms : {},\n  limit: n(body.limit, 3, 1, 10), minVolume: n(body.minVolume, 50, 0, 100000), duplicateThreshold: n(body.duplicateThreshold, 0.7, 0.4, 0.95),\n  siteBaseUrl: String((body.options || {}).siteBaseUrl || body.siteBaseUrl || '').trim(),\n  requestId: String(body.requestId || ('top_' + Date.now().toString(36))),\n} }];\n"
+      }
+    },
+    {
+      "id": "n-auth-ok-topics-",
+      "name": "Auth OK (Topics)?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -20,
+        1800
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n-respond-error-topics-",
+      "name": "Respond Error (Topics)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        2000
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'error', message: $json.error, requestId: $json.requestId || null }) }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode || 400 }}"
+        }
+      }
+    },
+    {
+      "id": "n-seeds-artikel-cms",
+      "name": "Seeds & Artikel CMS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        1800
+      ],
+      "parameters": {
+        "jsCode": "// Fase 6 — Ambil artikel yang sudah ada (untuk dedupe) lalu keluarkan satu item per seed keyword untuk riset Trends\nconst N = $input.first().json;\nconst H = this.helpers;\n// ===== Helper CMS bersama (disisipkan oleh build-workflows.mjs) =====\n// listExistingPosts(H, cmsType, cms, opts) -> [{ title, slug, url, publishedAt }]\n// H = this.helpers (Code node). Semua error ditelan → [] supaya alur artikel tidak mati.\nasync function listExistingPosts(H, cmsType, cms, opts) {\n  const o = Object.assign({ limit: 200, siteBaseUrl: '' }, opts || {});\n  const base = String(o.siteBaseUrl || '').trim();\n  const urlOf = (slug, direct) => direct || (base && slug ? base.replace(/\\/+$/, '') + '/' + slug : '');\n  const c = (cms || {})[cmsType] || {};\n  try {\n    if (cmsType === 'sanity') {\n      const q = '*[_type == $t && defined(slug.current)] | order(coalesce(publishedAt, _createdAt) desc) [0...' + o.limit + ']{title, \"slug\": slug.current, publishedAt}';\n      const r = await H.httpRequest({ method: 'POST', url: 'https://' + c.projectId + '.api.sanity.io/v2025-02-19/data/query/' + encodeURIComponent(c.dataset || 'production'),\n        headers: Object.assign({ 'Content-Type': 'application/json' }, c.token ? { Authorization: 'Bearer ' + c.token } : {}), body: { query: q, params: { t: c.docType || 'post' } }, json: true });\n      const pat = String(c.publicUrlPattern || '');\n      return (r.result || []).filter(p => p.title).map(p => ({ title: p.title, slug: p.slug, url: urlOf(p.slug, pat && p.slug ? pat.replace('{slug}', p.slug) : ''), publishedAt: p.publishedAt || '' }));\n    }\n    if (cmsType === 'wordpress') {\n      const auth = 'Basic ' + Buffer.from(String(c.user) + ':' + String(c.appPassword || '').replace(/\\s+/g, '')).toString('base64');\n      const out = [];\n      for (let page = 1; page <= Math.ceil(o.limit / 100); page++) {\n        const r = await H.httpRequest({ method: 'GET', url: c.url + '/wp-json/wp/v2/posts?status=publish&per_page=100&page=' + page + '&_fields=title,slug,link,date', headers: { Authorization: auth, 'User-Agent': 'Markimate/1.0' }, json: true });\n        if (!Array.isArray(r) || !r.length) break;\n        for (const p of r) out.push({ title: (p.title && p.title.rendered) || '', slug: p.slug, url: p.link || urlOf(p.slug), publishedAt: p.date || '' });\n        if (r.length < 100) break;\n      }\n      return out;\n    }\n    if (cmsType === 'wix') {\n      const r = await H.httpRequest({ method: 'GET', url: 'https://www.wixapis.com/blog/v3/posts?paging.limit=100&fieldsets=URL', headers: { Authorization: c.apiKey, 'wix-site-id': c.siteId }, json: true });\n      return (r.posts || []).map(p => ({ title: p.title, slug: p.slug, url: p.url ? (p.url.base || '') + (p.url.path || '') : urlOf(p.slug), publishedAt: p.firstPublishedDate || '' }));\n    }\n    if (cmsType === 'shopify') {\n      const r = await H.httpRequest({ method: 'POST', url: 'https://' + c.shop + '/admin/api/2026-07/graphql.json', headers: { 'X-Shopify-Access-Token': c.accessToken, 'Content-Type': 'application/json' },\n        body: { query: '{ shop { primaryDomain { url } } articles(first: 100, sortKey: PUBLISHED_AT, reverse: true) { nodes { title handle publishedAt blog { handle } } } }' }, json: true });\n      const d = (r.data || {}); const dom = ((d.shop || {}).primaryDomain || {}).url || ('https://' + c.shop);\n      return ((d.articles || {}).nodes || []).map(a => ({ title: a.title, slug: a.handle, url: dom + '/blogs/' + ((a.blog || {}).handle || 'news') + '/' + a.handle, publishedAt: a.publishedAt || '' }));\n    }\n  } catch (e) { /* abaikan: tanpa daftar artikel */ }\n  return [];\n}\n\n// --- kemiripan topik (token Jaccard-ish, dipakai cek duplikat & dedupe kandidat) ---\nconst STOPWORDS = new Set(['apa', 'itu', 'adalah', 'yang', 'dan', 'di', 'ke', 'dari', 'untuk', 'dengan', 'pada', 'cara', 'tips', 'panduan', 'lengkap', 'pengertian', 'arti', 'what', 'is', 'the', 'a', 'an', 'of', 'to', 'for', 'and', 'in', 'how', '2024', '2025', '2026', '2027', 'terbaru', 'contoh', 'jenis', 'manfaat', 'strategi', 'bisnis', 'agar', 'bagi', 'vs', 'atau']);\nconst topicTokens = s => String(s || '').toLowerCase().replace(/[^a-z0-9\\s-]/g, ' ').replace(/-/g, ' ').split(/\\s+/).filter(t => t.length > 1 && !STOPWORDS.has(t));\nfunction topicSimilarity(a, b) {\n  const ta = [...new Set(topicTokens(a))], tb = new Set(topicTokens(b));\n  if (!ta.length || !tb.size) return 0;\n  return ta.filter(t => tb.has(t)).length / ta.length;\n}\nfunction findDuplicate(keyword, posts, threshold) {\n  let best = null;\n  for (const p of posts || []) {\n    const sim = Math.max(topicSimilarity(keyword, p.title), topicSimilarity(keyword, String(p.slug || '').replace(/-/g, ' ')));\n    if (sim >= (threshold || 0.7) && (!best || sim > best.similarity)) best = Object.assign({ similarity: Number(sim.toFixed(2)) }, p);\n  }\n  return best;\n}\n\nconst existingPosts = N.cmsType ? await listExistingPosts(H, N.cmsType, N.cms, { limit: 300, siteBaseUrl: N.siteBaseUrl }) : [];\nreturn N.seeds.map(seed => ({ json: { seed, geo: N.geo, ln: N.ln, existingPosts } }));\n"
+      }
+    },
+    {
+      "id": "n-riset-trends-topics-",
+      "name": "Riset Trends (Topics)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        420,
+        1800
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "url": "https://serpapi.com/search.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "engine",
+              "value": "google_trends"
+            },
+            {
+              "name": "q",
+              "value": "={{ $json.seed }}"
+            },
+            {
+              "name": "geo",
+              "value": "={{ $json.geo }}"
+            },
+            {
+              "name": "hl",
+              "value": "={{ $json.ln }}"
+            },
+            {
+              "name": "date",
+              "value": "today 3-m"
+            },
+            {
+              "name": "data_type",
+              "value": "RELATED_QUERIES"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1000
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "E7NNgmviGDIm3aE3",
+          "name": "SerpAPI (Query Auth)"
+        }
+      }
+    },
+    {
+      "id": "n-kumpulkan-kandidat",
+      "name": "Kumpulkan Kandidat",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        1800
+      ],
+      "parameters": {
+        "jsCode": "// Fase 6 — Kumpulkan kandidat topik dari Trends (rising dulu, lalu top) per seed; saring: cocok dengan seed, tidak duplikat artikel lama, tidak duplikat antar kandidat\nconst N = $('Auth & Normalize (Topics)').first().json;\nconst seeds = $('Seeds & Artikel CMS').all().map(i => i.json);\nconst resps = $input.all().map(i => i.json || {});\nconst existing = (seeds[0] || {}).existingPosts || [];\n// ===== Helper CMS bersama (disisipkan oleh build-workflows.mjs) =====\n// listExistingPosts(H, cmsType, cms, opts) -> [{ title, slug, url, publishedAt }]\n// H = this.helpers (Code node). Semua error ditelan → [] supaya alur artikel tidak mati.\nasync function listExistingPosts(H, cmsType, cms, opts) {\n  const o = Object.assign({ limit: 200, siteBaseUrl: '' }, opts || {});\n  const base = String(o.siteBaseUrl || '').trim();\n  const urlOf = (slug, direct) => direct || (base && slug ? base.replace(/\\/+$/, '') + '/' + slug : '');\n  const c = (cms || {})[cmsType] || {};\n  try {\n    if (cmsType === 'sanity') {\n      const q = '*[_type == $t && defined(slug.current)] | order(coalesce(publishedAt, _createdAt) desc) [0...' + o.limit + ']{title, \"slug\": slug.current, publishedAt}';\n      const r = await H.httpRequest({ method: 'POST', url: 'https://' + c.projectId + '.api.sanity.io/v2025-02-19/data/query/' + encodeURIComponent(c.dataset || 'production'),\n        headers: Object.assign({ 'Content-Type': 'application/json' }, c.token ? { Authorization: 'Bearer ' + c.token } : {}), body: { query: q, params: { t: c.docType || 'post' } }, json: true });\n      const pat = String(c.publicUrlPattern || '');\n      return (r.result || []).filter(p => p.title).map(p => ({ title: p.title, slug: p.slug, url: urlOf(p.slug, pat && p.slug ? pat.replace('{slug}', p.slug) : ''), publishedAt: p.publishedAt || '' }));\n    }\n    if (cmsType === 'wordpress') {\n      const auth = 'Basic ' + Buffer.from(String(c.user) + ':' + String(c.appPassword || '').replace(/\\s+/g, '')).toString('base64');\n      const out = [];\n      for (let page = 1; page <= Math.ceil(o.limit / 100); page++) {\n        const r = await H.httpRequest({ method: 'GET', url: c.url + '/wp-json/wp/v2/posts?status=publish&per_page=100&page=' + page + '&_fields=title,slug,link,date', headers: { Authorization: auth, 'User-Agent': 'Markimate/1.0' }, json: true });\n        if (!Array.isArray(r) || !r.length) break;\n        for (const p of r) out.push({ title: (p.title && p.title.rendered) || '', slug: p.slug, url: p.link || urlOf(p.slug), publishedAt: p.date || '' });\n        if (r.length < 100) break;\n      }\n      return out;\n    }\n    if (cmsType === 'wix') {\n      const r = await H.httpRequest({ method: 'GET', url: 'https://www.wixapis.com/blog/v3/posts?paging.limit=100&fieldsets=URL', headers: { Authorization: c.apiKey, 'wix-site-id': c.siteId }, json: true });\n      return (r.posts || []).map(p => ({ title: p.title, slug: p.slug, url: p.url ? (p.url.base || '') + (p.url.path || '') : urlOf(p.slug), publishedAt: p.firstPublishedDate || '' }));\n    }\n    if (cmsType === 'shopify') {\n      const r = await H.httpRequest({ method: 'POST', url: 'https://' + c.shop + '/admin/api/2026-07/graphql.json', headers: { 'X-Shopify-Access-Token': c.accessToken, 'Content-Type': 'application/json' },\n        body: { query: '{ shop { primaryDomain { url } } articles(first: 100, sortKey: PUBLISHED_AT, reverse: true) { nodes { title handle publishedAt blog { handle } } } }' }, json: true });\n      const d = (r.data || {}); const dom = ((d.shop || {}).primaryDomain || {}).url || ('https://' + c.shop);\n      return ((d.articles || {}).nodes || []).map(a => ({ title: a.title, slug: a.handle, url: dom + '/blogs/' + ((a.blog || {}).handle || 'news') + '/' + a.handle, publishedAt: a.publishedAt || '' }));\n    }\n  } catch (e) { /* abaikan: tanpa daftar artikel */ }\n  return [];\n}\n\n// --- kemiripan topik (token Jaccard-ish, dipakai cek duplikat & dedupe kandidat) ---\nconst STOPWORDS = new Set(['apa', 'itu', 'adalah', 'yang', 'dan', 'di', 'ke', 'dari', 'untuk', 'dengan', 'pada', 'cara', 'tips', 'panduan', 'lengkap', 'pengertian', 'arti', 'what', 'is', 'the', 'a', 'an', 'of', 'to', 'for', 'and', 'in', 'how', '2024', '2025', '2026', '2027', 'terbaru', 'contoh', 'jenis', 'manfaat', 'strategi', 'bisnis', 'agar', 'bagi', 'vs', 'atau']);\nconst topicTokens = s => String(s || '').toLowerCase().replace(/[^a-z0-9\\s-]/g, ' ').replace(/-/g, ' ').split(/\\s+/).filter(t => t.length > 1 && !STOPWORDS.has(t));\nfunction topicSimilarity(a, b) {\n  const ta = [...new Set(topicTokens(a))], tb = new Set(topicTokens(b));\n  if (!ta.length || !tb.size) return 0;\n  return ta.filter(t => tb.has(t)).length / ta.length;\n}\nfunction findDuplicate(keyword, posts, threshold) {\n  let best = null;\n  for (const p of posts || []) {\n    const sim = Math.max(topicSimilarity(keyword, p.title), topicSimilarity(keyword, String(p.slug || '').replace(/-/g, ' ')));\n    if (sim >= (threshold || 0.7) && (!best || sim > best.similarity)) best = Object.assign({ similarity: Number(sim.toFixed(2)) }, p);\n  }\n  return best;\n}\n\nconst stop = new Set(['di', 'ke', 'dari', 'yang', 'dan', 'untuk', 'dengan', 'ada', 'adalah', 'itu', 'ini', 'cara', 'tips', 'info', 'the', 'a', 'an', 'of', 'for', 'in', 'on', 'to']);\nconst esc = s => s.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\nconst skipped = { duplicate: 0, noMatch: 0, trendsError: 0 };\nconst cands = []; const seen = new Set();\nresps.forEach((t, i) => {\n  const seed = (seeds[i] || {}).seed || '';\n  if (t.error) skipped.trendsError++;\n  const rq = t.related_queries || {};\n  const pool = [...(rq.rising || []).map(x => ({ q: x.query, src: 'trends_rising', v: x.extracted_value || 0 })), ...(rq.top || []).map(x => ({ q: x.query, src: 'trends_top', v: x.extracted_value || 0 }))];\n  const terms = [seed, ...seed.split(/\\s+/).map(w => w.replace(/[^a-z0-9]/g, '')).filter(w => w.length > 2 && !stop.has(w))];\n  const matches = q => terms.some(tm => tm.includes(' ') ? q.includes(tm) : new RegExp('\\\\b' + esc(tm) + '\\\\b', 'i').test(q));\n  for (const p of pool) {\n    const q = String(p.q || '').trim().toLowerCase();\n    if (!q || q === seed || seen.has(q)) continue;\n    if (!matches(q)) { skipped.noMatch++; continue; }\n    if (findDuplicate(q, existing, N.duplicateThreshold)) { skipped.duplicate++; continue; }\n    if (cands.some(c => topicSimilarity(q, c.query) >= N.duplicateThreshold)) { skipped.duplicate++; continue; }\n    seen.add(q); cands.push({ query: q, seed, source: p.src, trendValue: Number(p.v) || 0 });\n  }\n});\nconst out = cands.slice(0, Math.max(N.limit * 4, 8)).map(c => ({ json: Object.assign(c, { skipped, geoLower: N.geo.toLowerCase() }) }));\nreturn out.length ? out : [{ json: { query: '', empty: true, skipped, geoLower: N.geo.toLowerCase() } }];\n"
+      }
+    },
+    {
+      "id": "n-riset-svolume-topics-",
+      "name": "Riset SVolume (Topics)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        860,
+        1800
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "url": "https://ahrefs-keyword-research.p.rapidapi.com/keyword-metrics",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "keyword",
+              "value": "={{ $json.query }}"
+            },
+            {
+              "name": "country",
+              "value": "={{ $json.geoLower }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-rapidapi-host",
+              "value": "ahrefs-keyword-research.p.rapidapi.com"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 800
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "DHz0caqWkCEuxqry",
+          "name": "Rapidapi"
+        }
+      }
+    },
+    {
+      "id": "n-susun-topik",
+      "name": "Susun Topik",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        1800
+      ],
+      "parameters": {
+        "jsCode": "// Fase 6 — Gabungkan metrik Ahrefs ke kandidat, saring volume minimum, urutkan, batasi jumlah → respons\nconst N = $('Auth & Normalize (Topics)').first().json;\nconst cands = $('Kumpulkan Kandidat').all().map(i => i.json);\nconst metrics = $input.all().map(i => i.json || {});\nconst num = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };\nconst skipped = Object.assign({ duplicate: 0, noMatch: 0, trendsError: 0 }, (cands[0] || {}).skipped || {}, { lowVolume: 0 });\nconst rows = [];\ncands.forEach((c, i) => {\n  if (c.empty) return;\n  const m = metrics[i] || {}; const d = m.data || m || {};\n  const vol = num(d.globalSearchVolume ?? d.searchVolume ?? d.volume);\n  if (vol < N.minVolume) { skipped.lowVolume++; return; }\n  rows.push({ keyword: c.query, seed: c.seed, source: c.source, searchVolume: vol, difficulty: (d.difficulty === null || d.difficulty === undefined || d.difficulty === '') ? null : num(d.difficulty), trafficPotential: num(d.trafficPotential), trendValue: c.trendValue });\n});\nrows.sort((a, b) => (b.source === 'trends_rising') - (a.source === 'trends_rising') || b.searchVolume - a.searchVolume);\nreturn [{ json: { status: 'ok', statusCode: 200, topics: rows.slice(0, N.limit), candidatesChecked: cands.filter(c => !c.empty).length, skipped, requestId: N.requestId } }];\n"
+      }
+    },
+    {
+      "id": "n-respond-topics",
+      "name": "Respond Topics",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1300,
+        1800
+      ],
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {}
       }
     }
   ],
@@ -816,7 +1389,7 @@
       "main": [
         [
           {
-            "node": "Riset Google Trends",
+            "node": "Cek Duplikat",
             "type": "main",
             "index": 0
           }
@@ -824,6 +1397,35 @@
         [
           {
             "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cek Duplikat": {
+      "main": [
+        [
+          {
+            "node": "Duplikat?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Duplikat?": {
+      "main": [
+        [
+          {
+            "node": "Respond Duplicate",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Riset Google Trends",
             "type": "main",
             "index": 0
           }
@@ -911,7 +1513,7 @@
       "main": [
         [
           {
-            "node": "Respond Generate",
+            "node": "Perlu Link/Gambar?",
             "type": "main",
             "index": 0
           }
@@ -919,6 +1521,68 @@
         [
           {
             "node": "Respond AI Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Perlu Link/Gambar?": {
+      "main": [
+        [
+          {
+            "node": "Cari Sumber Eksternal",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Generate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cari Sumber Eksternal": {
+      "main": [
+        [
+          {
+            "node": "Siapkan Prompt Link",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Siapkan Prompt Link": {
+      "main": [
+        [
+          {
+            "node": "Gemini Link & Gambar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Link & Gambar": {
+      "main": [
+        [
+          {
+            "node": "Terapkan Link & Gambar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Terapkan Link & Gambar": {
+      "main": [
+        [
+          {
+            "node": "Respond Generate",
             "type": "main",
             "index": 0
           }
@@ -951,7 +1615,7 @@
       "main": [
         [
           {
-            "node": "CMS Router",
+            "node": "Buat Gambar?",
             "type": "main",
             "index": 0
           }
@@ -959,6 +1623,57 @@
         [
           {
             "node": "Respond Error (Publish)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buat Gambar?": {
+      "main": [
+        [
+          {
+            "node": "Siapkan Prompt Gambar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "CMS Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Siapkan Prompt Gambar": {
+      "main": [
+        [
+          {
+            "node": "Nano Banana",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nano Banana": {
+      "main": [
+        [
+          {
+            "node": "Kumpulkan Gambar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kumpulkan Gambar": {
+      "main": [
+        [
+          {
+            "node": "CMS Router",
             "type": "main",
             "index": 0
           }
@@ -1053,6 +1768,101 @@
         [
           {
             "node": "Respond Publish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Topics": {
+      "main": [
+        [
+          {
+            "node": "Auth & Normalize (Topics)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auth & Normalize (Topics)": {
+      "main": [
+        [
+          {
+            "node": "Auth OK (Topics)?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auth OK (Topics)?": {
+      "main": [
+        [
+          {
+            "node": "Seeds & Artikel CMS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error (Topics)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Seeds & Artikel CMS": {
+      "main": [
+        [
+          {
+            "node": "Riset Trends (Topics)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Riset Trends (Topics)": {
+      "main": [
+        [
+          {
+            "node": "Kumpulkan Kandidat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kumpulkan Kandidat": {
+      "main": [
+        [
+          {
+            "node": "Riset SVolume (Topics)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Riset SVolume (Topics)": {
+      "main": [
+        [
+          {
+            "node": "Susun Topik",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Susun Topik": {
+      "main": [
+        [
+          {
+            "node": "Respond Topics",
             "type": "main",
             "index": 0
           }

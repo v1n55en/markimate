@@ -1,5 +1,5 @@
 // Adapter Sanity — rapikan respons Sanity jadi format standar Supermat
-const P = $('Siapkan Sanity').first().json;
+const P = $('Susun Mutasi').first().json;
 const R = $input.first().json || {};
 const status = Number(R.statusCode || 0);
 let body = R.body;
@@ -30,5 +30,6 @@ return [{ json: {
   draftEditUrl, publicUrl, previewUrl: '',
   title: P.title,
   message: published ? 'Artikel terbit di Sanity.' : 'Draf tersimpan di Sanity.',
+  images: P.uploadedImages || [], warnings: P.warnings || [],
   requestId: P.requestId,
 } }];

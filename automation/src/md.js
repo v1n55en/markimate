@@ -1,4 +1,5 @@
-// ===== Markdown mini-parser (dipakai adapter WordPress & Wix) =====
+// ===== Markdown mini-parser (dipakai adapter WordPress, Wix, Sanity, Shopify) =====
+// Placeholder gambar Markimate: baris `![alt](markimate:image:N)` → html: <img data-markimate-idx=N>, portable text: {_type:'image', _markimateIdx:N} (diganti asset oleh adapter), ricos: dilewati.
 // parseMarkdown(md) -> [{type:'heading',level,inlines}|{type:'paragraph',inlines}|{type:'list',ordered,items:[inlines]}|{type:'quote',inlines}]
 // inlines: [{text, bold, italic, code, href}]
 function parseInline(s) {
@@ -26,6 +27,7 @@ function parseMarkdown(md) {
     const t = raw.trim();
     if (!t) { flushPara(); flushList(); continue; }
     let m;
+    if ((m = t.match(/^!\[([^\]]*)\]\(([^)\s]+)\)$/))) { flushPara(); flushList(); const pm = m[2].match(/^markimate:image:(\d+)$/); blocks.push({ type: 'image', alt: m[1], src: pm ? '' : m[2], idx: pm ? Number(pm[1]) : null }); continue; }
     if ((m = t.match(/^(#{1,6})\s+(.*)$/))) { flushPara(); flushList(); blocks.push({ type: 'heading', level: Math.min(Math.max(m[1].length, 2), 4), inlines: parseInline(m[2].replace(/\s#+$/, '')) }); continue; }
     if ((m = t.match(/^[-*+]\s+(.*)$/))) { flushPara(); if (!list || list.ordered) { flushList(); list = { type: 'list', ordered: false, items: [] }; } list.items.push(parseInline(m[1])); continue; }
     if ((m = t.match(/^\d+[.)]\s+(.*)$/))) { flushPara(); if (!list || !list.ordered) { flushList(); list = { type: 'list', ordered: true, items: [] }; } list.items.push(parseInline(m[1])); continue; }
@@ -43,6 +45,7 @@ function inlinesToHtml(inl) {
 function markdownToHtml(md) {
   return parseMarkdown(md).map(b => {
     if (b.type === 'heading') return '<h' + b.level + '>' + inlinesToHtml(b.inlines) + '</h' + b.level + '>';
+    if (b.type === 'image') return b.idx !== null ? '<img data-markimate-idx="' + b.idx + '" alt="' + escHtml(b.alt) + '">' : '<figure><img src="' + escHtml(b.src) + '" alt="' + escHtml(b.alt) + '"></figure>';
     if (b.type === 'quote') return '<blockquote><p>' + inlinesToHtml(b.inlines) + '</p></blockquote>';
     if (b.type === 'list') return (b.ordered ? '<ol>' : '<ul>') + b.items.map(it => '<li>' + inlinesToHtml(it) + '</li>').join('') + (b.ordered ? '</ol>' : '</ul>');
     return '<p>' + inlinesToHtml(b.inlines) + '</p>';
@@ -55,6 +58,7 @@ function markdownToRicos(md) {
   const paragraph = inl => ({ type: 'PARAGRAPH', id: nid(), nodes: inl.map(textNode), paragraphData: {} });
   const nodes = [];
   for (const b of parseMarkdown(md)) {
+    if (b.type === 'image') continue; // gambar belum didukung di Wix (lihat warnings)
     if (b.type === 'heading') nodes.push({ type: 'HEADING', id: nid(), nodes: b.inlines.map(textNode), headingData: { level: b.level } });
     else if (b.type === 'quote') nodes.push({ type: 'BLOCKQUOTE', id: nid(), nodes: [paragraph(b.inlines)], blockquoteData: {} });
     else if (b.type === 'list') nodes.push({ type: b.ordered ? 'ORDERED_LIST' : 'BULLETED_LIST', id: nid(), nodes: b.items.map(it => ({ type: 'LIST_ITEM', id: nid(), nodes: [paragraph(it)] })), [b.ordered ? 'orderedListData' : 'bulletedListData']: { indentation: 0 } });
@@ -77,6 +81,7 @@ function markdownToPortableText(md) {
   };
   const out = [];
   for (const b of parseMarkdown(md)) {
+    if (b.type === 'image') { if (b.idx !== null) out.push({ _type: 'image', _key: key(), _markimateIdx: b.idx, alt: b.alt }); continue; }
     if (b.type === 'heading') out.push(block(b.inlines, { style: 'h' + b.level }));
     else if (b.type === 'quote') out.push(block(b.inlines, { style: 'blockquote' }));
     else if (b.type === 'list') for (const it of b.items) out.push(block(it, { listItem: b.ordered ? 'number' : 'bullet', level: 1 }));

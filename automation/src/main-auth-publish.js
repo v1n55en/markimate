@@ -29,6 +29,13 @@ const cms = {
     docType: str((cmsIn.sanity || {}).docType) || 'post',
     bodyField: str((cmsIn.sanity || {}).bodyField) || 'body',
     publicUrlPattern: str((cmsIn.sanity || {}).publicUrlPattern),
+    // Fase 6: mapping field dokumen
+    authorId: str((cmsIn.sanity || {}).authorId),
+    autoCreateAuthor: (cmsIn.sanity || {}).autoCreateAuthor !== false,
+    categoryIds: Array.isArray((cmsIn.sanity || {}).categoryIds) ? (cmsIn.sanity || {}).categoryIds.map(str).filter(Boolean) : [],
+    publishedAtField: str((cmsIn.sanity || {}).publishedAtField) || 'publishedAt',
+    mainImageField: str((cmsIn.sanity || {}).mainImageField) || 'mainImage',
+    excerptField: str((cmsIn.sanity || {}).excerptField) || 'excerpt',
   },
   shopify: {
     shop: str((cmsIn.shopify || {}).shop).toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, ''),
@@ -39,6 +46,16 @@ const cms = {
     authorName: str((cmsIn.shopify || {}).authorName),
   },
 };
+if (cmsIn.wordpress) { cms.wordpress.categoryIds = Array.isArray(cmsIn.wordpress.defaultCategoryIds) ? cmsIn.wordpress.defaultCategoryIds.map(Number).filter(Boolean) : []; cms.wordpress.authorId = Number(cmsIn.wordpress.authorId) || 0; }
+
+// --- Fase 6: gambar AI (hanya Sanity & WordPress yang bisa menerima upload) ---
+const optIn = body.options && typeof body.options === 'object' ? body.options : {};
+const IMAGE_CMS = ['sanity', 'wordpress'];
+const warnings = [];
+const prompts = body.article && Array.isArray(body.article.imagePrompts) ? body.article.imagePrompts.filter(p => p && p.prompt) : [];
+let makeImages = optIn.images !== false && prompts.length > 0 && !!(body.article && body.article.title);
+if (makeImages && !IMAGE_CMS.includes(cmsType)) { makeImages = false; warnings.push((cmsType === 'wix' ? 'Wix' : cmsType === 'shopify' ? 'Shopify' : cmsType) + ': upload gambar belum didukung, artikel dikirim tanpa gambar.'); }
+const stripPlaceholders = md => String(md || '').replace(/^\s*!\[[^\]]*\]\(markimate:image:\d+\)\s*$/gm, '').replace(/\n{3,}/g, '\n\n');
 const article = body.article && typeof body.article === 'object' ? body.article : null;
 const postId = str(body.postId || body.draftDocId || body.draftPostId);
 
@@ -57,7 +74,9 @@ if (cms.wordpress.url && !/^https?:\/\//i.test(cms.wordpress.url)) cms.wordpress
 return [{ json: {
   ok: statusCode === 200, statusCode, error,
   cmsType, action, cms, postId,
-  article: article ? Object.assign({}, article, { bodyMarkdown: str(article.bodyMarkdown || article.body) }) : null,
+  article: article ? Object.assign({}, article, { bodyMarkdown: makeImages ? str(article.bodyMarkdown || article.body) : stripPlaceholders(article.bodyMarkdown || article.body), imagePrompts: makeImages ? prompts.slice(0, Math.min(Number(optIn.imageCount) || 3, 3)) : [] }) : null,
+  makeImages, images: [], warnings,
+  options: { images: makeImages, imageStyle: str(optIn.imageStyle) },
   clientName: str(body.clientName || body.Client_Name || 'Brand Anda'),
   requestId: str(body.requestId) || ('pub_' + Date.now().toString(36)),
 } }];

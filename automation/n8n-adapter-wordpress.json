@@ -8,13 +8,13 @@
       "typeVersion": 1,
       "position": [
         -560,
-        80
+        40
       ],
       "parameters": {
-        "width": 1500,
-        "height": 420,
+        "width": 1800,
+        "height": 460,
         "color": 5,
-        "content": "## 🟦 Adapter WordPress (REST API, kredensial user)\nInput dari Main: `{ cms:{wordpress:{url,user,appPassword}}, article, action:'draft'|'publish', postId? }`.\n**Siapkan WP** membuat header `Authorization: Basic base64(user:appPassword)` (Application Password WP) dan mengubah markdown → HTML. Tanpa `postId` → `POST /wp-json/wp/v2/posts` (buat); dengan `postId` → `POST /wp-json/wp/v2/posts/{id}` (update/terbitkan). **Hasil WP** menerjemahkan respons/err jadi `{ status, postId, draftEditUrl, publicUrl, previewUrl, postStatus, message }`. Tidak ada kredensial 3Our yang dipakai di sini."
+        "content": "## 🟦 Adapter WordPress (REST API, kredensial user)\nInput dari Main: `{ cms:{wordpress:{url,user,appPassword}}, article, action:'draft'|'publish', postId? }`.\n**Siapkan WP** membuat header `Authorization: Basic base64(user:appPassword)` (Application Password WP) dan mengubah markdown → HTML. Tanpa `postId` → `POST /wp-json/wp/v2/posts` (buat); dengan `postId` → `POST /wp-json/wp/v2/posts/{id}` (update/terbitkan). **Hasil WP** menerjemahkan respons/err jadi `{ status, postId, draftEditUrl, publicUrl, previewUrl, postStatus, message }`. Tidak ada kredensial 3Our yang dipakai di sini.\n**Fase 6**: `images[]` dari Main → **Upload Media** (`/wp-json/wp/v2/media`) → **Susun Payload WP**: hero → `featured_media`, inline → `<figure><img>`; kategori/author default dari `cms.wordpress.defaultCategoryIds/authorId`."
       }
     },
     {
@@ -38,7 +38,121 @@
         300
       ],
       "parameters": {
-        "jsCode": "// Adapter WordPress — siapkan request REST API dari kredensial user (Application Password)\nconst IN = $input.first().json;\nconst W = (IN.cms || {}).wordpress || {};\nconst base = String(W.url || '').replace(/\\/+$/, '');\nconst auth = 'Basic ' + Buffer.from(String(W.user) + ':' + String(W.appPassword).replace(/\\s+/g, '')).toString('base64');\nconst A = IN.article || {};\nconst action = IN.action === 'publish' ? 'publish' : 'draft';\nconst postId = String(IN.postId || '').trim();\n\n// ===== Markdown mini-parser (dipakai adapter WordPress & Wix) =====\n// parseMarkdown(md) -> [{type:'heading',level,inlines}|{type:'paragraph',inlines}|{type:'list',ordered,items:[inlines]}|{type:'quote',inlines}]\n// inlines: [{text, bold, italic, code, href}]\nfunction parseInline(s) {\n  const out = []; const src = String(s || '');\n  const push = (t, m) => { if (t) out.push(Object.assign({ text: t }, m || {})); };\n  const re = /(\\*\\*([^*]+)\\*\\*|__([^_]+)__|\\*([^*\\n]+)\\*|_([^_\\n]+)_|`([^`]+)`|\\[([^\\]]+)\\]\\(([^)\\s]+)\\))/g;\n  let m; let last = 0;\n  while ((m = re.exec(src))) {\n    push(src.slice(last, m.index));\n    if (m[2] || m[3]) push(m[2] || m[3], { bold: true });\n    else if (m[4] || m[5]) push(m[4] || m[5], { italic: true });\n    else if (m[6]) push(m[6], { code: true });\n    else if (m[7]) push(m[7], { href: m[8] });\n    last = m.index + m[0].length;\n  }\n  push(src.slice(last));\n  return out;\n}\nfunction parseMarkdown(md) {\n  const lines = String(md || '').replace(/\\r/g, '').split('\\n');\n  const blocks = []; let para = []; let list = null;\n  const flushPara = () => { if (para.length) { blocks.push({ type: 'paragraph', inlines: parseInline(para.join(' ')) }); para = []; } };\n  const flushList = () => { if (list) { blocks.push(list); list = null; } };\n  for (const raw of lines) {\n    const t = raw.trim();\n    if (!t) { flushPara(); flushList(); continue; }\n    let m;\n    if ((m = t.match(/^(#{1,6})\\s+(.*)$/))) { flushPara(); flushList(); blocks.push({ type: 'heading', level: Math.min(Math.max(m[1].length, 2), 4), inlines: parseInline(m[2].replace(/\\s#+$/, '')) }); continue; }\n    if ((m = t.match(/^[-*+]\\s+(.*)$/))) { flushPara(); if (!list || list.ordered) { flushList(); list = { type: 'list', ordered: false, items: [] }; } list.items.push(parseInline(m[1])); continue; }\n    if ((m = t.match(/^\\d+[.)]\\s+(.*)$/))) { flushPara(); if (!list || !list.ordered) { flushList(); list = { type: 'list', ordered: true, items: [] }; } list.items.push(parseInline(m[1])); continue; }\n    if ((m = t.match(/^>\\s?(.*)$/))) { flushPara(); flushList(); blocks.push({ type: 'quote', inlines: parseInline(m[1]) }); continue; }\n    if (/^(-{3,}|\\*{3,})$/.test(t)) { flushPara(); flushList(); continue; }\n    flushList(); para.push(t);\n  }\n  flushPara(); flushList();\n  return blocks;\n}\nconst escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nfunction inlinesToHtml(inl) {\n  return inl.map(x => { let h = escHtml(x.text); if (x.code) h = '<code>' + h + '</code>'; if (x.bold) h = '<strong>' + h + '</strong>'; if (x.italic) h = '<em>' + h + '</em>'; if (x.href) h = '<a href=\"' + escHtml(x.href) + '\" target=\"_blank\" rel=\"noopener\">' + h + '</a>'; return h; }).join('');\n}\nfunction markdownToHtml(md) {\n  return parseMarkdown(md).map(b => {\n    if (b.type === 'heading') return '<h' + b.level + '>' + inlinesToHtml(b.inlines) + '</h' + b.level + '>';\n    if (b.type === 'quote') return '<blockquote><p>' + inlinesToHtml(b.inlines) + '</p></blockquote>';\n    if (b.type === 'list') return (b.ordered ? '<ol>' : '<ul>') + b.items.map(it => '<li>' + inlinesToHtml(it) + '</li>').join('') + (b.ordered ? '</ol>' : '</ul>');\n    return '<p>' + inlinesToHtml(b.inlines) + '</p>';\n  }).join('\\n');\n}\n// Ricos (Wix rich content)\nfunction markdownToRicos(md) {\n  let seq = 0; const nid = () => 'n' + (++seq).toString(36) + Date.now().toString(36).slice(-4);\n  const textNode = x => { const dec = []; if (x.bold) dec.push({ type: 'BOLD', fontWeightValue: 700 }); if (x.italic) dec.push({ type: 'ITALIC', italicData: true }); if (x.href) dec.push({ type: 'LINK', linkData: { link: { url: x.href, target: 'BLANK' } } }); return { type: 'TEXT', id: '', nodes: [], textData: { text: x.text, decorations: dec } }; };\n  const paragraph = inl => ({ type: 'PARAGRAPH', id: nid(), nodes: inl.map(textNode), paragraphData: {} });\n  const nodes = [];\n  for (const b of parseMarkdown(md)) {\n    if (b.type === 'heading') nodes.push({ type: 'HEADING', id: nid(), nodes: b.inlines.map(textNode), headingData: { level: b.level } });\n    else if (b.type === 'quote') nodes.push({ type: 'BLOCKQUOTE', id: nid(), nodes: [paragraph(b.inlines)], blockquoteData: {} });\n    else if (b.type === 'list') nodes.push({ type: b.ordered ? 'ORDERED_LIST' : 'BULLETED_LIST', id: nid(), nodes: b.items.map(it => ({ type: 'LIST_ITEM', id: nid(), nodes: [paragraph(it)] })), [b.ordered ? 'orderedListData' : 'bulletedListData']: { indentation: 0 } });\n    else nodes.push(paragraph(b.inlines));\n  }\n  return { nodes, metadata: { version: 1 } };\n}\n// Portable Text (Sanity block content)\nfunction markdownToPortableText(md) {\n  let seq = 0; const key = () => 'k' + (++seq).toString(36) + Math.random().toString(36).slice(2, 8);\n  const block = (inl, extra) => {\n    const markDefs = [];\n    const children = (inl.length ? inl : [{ text: '' }]).map(x => {\n      const marks = [];\n      if (x.bold) marks.push('strong'); if (x.italic) marks.push('em'); if (x.code) marks.push('code');\n      if (x.href) { const k = key(); markDefs.push({ _key: k, _type: 'link', href: x.href }); marks.push(k); }\n      return { _type: 'span', _key: key(), text: x.text, marks };\n    });\n    return Object.assign({ _type: 'block', _key: key(), style: 'normal', markDefs, children }, extra || {});\n  };\n  const out = [];\n  for (const b of parseMarkdown(md)) {\n    if (b.type === 'heading') out.push(block(b.inlines, { style: 'h' + b.level }));\n    else if (b.type === 'quote') out.push(block(b.inlines, { style: 'blockquote' }));\n    else if (b.type === 'list') for (const it of b.items) out.push(block(it, { listItem: b.ordered ? 'number' : 'bullet', level: 1 }));\n    else out.push(block(b.inlines));\n  }\n  return out;\n}\n\n\nconst payload = {};\nif (A.title) {\n  payload.title = String(A.title);\n  payload.slug = String(A.slug || '').trim() || undefined;\n  payload.excerpt = String(A.excerpt || '');\n  payload.content = markdownToHtml(A.bodyMarkdown || A.body || '');\n}\npayload.status = action;\nif (!A.title && !postId) throw new Error('Tidak ada artikel maupun postId untuk diproses.');\n\nreturn [{ json: {\n  cmsType: 'wordpress', action, postId, base, auth,\n  url: postId ? base + '/wp-json/wp/v2/posts/' + postId : base + '/wp-json/wp/v2/posts',\n  payload,\n  keyword: A.primaryKeyword || '', title: A.title || '',\n  requestId: IN.requestId || '',\n} }];\n"
+        "jsCode": "// Adapter WordPress — siapkan request REST API dari kredensial user (Application Password)\nconst IN = $input.first().json;\nconst W = (IN.cms || {}).wordpress || {};\nconst base = String(W.url || '').replace(/\\/+$/, '');\nconst auth = 'Basic ' + Buffer.from(String(W.user) + ':' + String(W.appPassword).replace(/\\s+/g, '')).toString('base64');\nconst A = IN.article || {};\nconst action = IN.action === 'publish' ? 'publish' : 'draft';\nconst postId = String(IN.postId || '').trim();\n\n// ===== Markdown mini-parser (dipakai adapter WordPress, Wix, Sanity, Shopify) =====\n// Placeholder gambar Markimate: baris `![alt](markimate:image:N)` → html: <img data-markimate-idx=N>, portable text: {_type:'image', _markimateIdx:N} (diganti asset oleh adapter), ricos: dilewati.\n// parseMarkdown(md) -> [{type:'heading',level,inlines}|{type:'paragraph',inlines}|{type:'list',ordered,items:[inlines]}|{type:'quote',inlines}]\n// inlines: [{text, bold, italic, code, href}]\nfunction parseInline(s) {\n  const out = []; const src = String(s || '');\n  const push = (t, m) => { if (t) out.push(Object.assign({ text: t }, m || {})); };\n  const re = /(\\*\\*([^*]+)\\*\\*|__([^_]+)__|\\*([^*\\n]+)\\*|_([^_\\n]+)_|`([^`]+)`|\\[([^\\]]+)\\]\\(([^)\\s]+)\\))/g;\n  let m; let last = 0;\n  while ((m = re.exec(src))) {\n    push(src.slice(last, m.index));\n    if (m[2] || m[3]) push(m[2] || m[3], { bold: true });\n    else if (m[4] || m[5]) push(m[4] || m[5], { italic: true });\n    else if (m[6]) push(m[6], { code: true });\n    else if (m[7]) push(m[7], { href: m[8] });\n    last = m.index + m[0].length;\n  }\n  push(src.slice(last));\n  return out;\n}\nfunction parseMarkdown(md) {\n  const lines = String(md || '').replace(/\\r/g, '').split('\\n');\n  const blocks = []; let para = []; let list = null;\n  const flushPara = () => { if (para.length) { blocks.push({ type: 'paragraph', inlines: parseInline(para.join(' ')) }); para = []; } };\n  const flushList = () => { if (list) { blocks.push(list); list = null; } };\n  for (const raw of lines) {\n    const t = raw.trim();\n    if (!t) { flushPara(); flushList(); continue; }\n    let m;\n    if ((m = t.match(/^!\\[([^\\]]*)\\]\\(([^)\\s]+)\\)$/))) { flushPara(); flushList(); const pm = m[2].match(/^markimate:image:(\\d+)$/); blocks.push({ type: 'image', alt: m[1], src: pm ? '' : m[2], idx: pm ? Number(pm[1]) : null }); continue; }\n    if ((m = t.match(/^(#{1,6})\\s+(.*)$/))) { flushPara(); flushList(); blocks.push({ type: 'heading', level: Math.min(Math.max(m[1].length, 2), 4), inlines: parseInline(m[2].replace(/\\s#+$/, '')) }); continue; }\n    if ((m = t.match(/^[-*+]\\s+(.*)$/))) { flushPara(); if (!list || list.ordered) { flushList(); list = { type: 'list', ordered: false, items: [] }; } list.items.push(parseInline(m[1])); continue; }\n    if ((m = t.match(/^\\d+[.)]\\s+(.*)$/))) { flushPara(); if (!list || !list.ordered) { flushList(); list = { type: 'list', ordered: true, items: [] }; } list.items.push(parseInline(m[1])); continue; }\n    if ((m = t.match(/^>\\s?(.*)$/))) { flushPara(); flushList(); blocks.push({ type: 'quote', inlines: parseInline(m[1]) }); continue; }\n    if (/^(-{3,}|\\*{3,})$/.test(t)) { flushPara(); flushList(); continue; }\n    flushList(); para.push(t);\n  }\n  flushPara(); flushList();\n  return blocks;\n}\nconst escHtml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');\nfunction inlinesToHtml(inl) {\n  return inl.map(x => { let h = escHtml(x.text); if (x.code) h = '<code>' + h + '</code>'; if (x.bold) h = '<strong>' + h + '</strong>'; if (x.italic) h = '<em>' + h + '</em>'; if (x.href) h = '<a href=\"' + escHtml(x.href) + '\" target=\"_blank\" rel=\"noopener\">' + h + '</a>'; return h; }).join('');\n}\nfunction markdownToHtml(md) {\n  return parseMarkdown(md).map(b => {\n    if (b.type === 'heading') return '<h' + b.level + '>' + inlinesToHtml(b.inlines) + '</h' + b.level + '>';\n    if (b.type === 'image') return b.idx !== null ? '<img data-markimate-idx=\"' + b.idx + '\" alt=\"' + escHtml(b.alt) + '\">' : '<figure><img src=\"' + escHtml(b.src) + '\" alt=\"' + escHtml(b.alt) + '\"></figure>';\n    if (b.type === 'quote') return '<blockquote><p>' + inlinesToHtml(b.inlines) + '</p></blockquote>';\n    if (b.type === 'list') return (b.ordered ? '<ol>' : '<ul>') + b.items.map(it => '<li>' + inlinesToHtml(it) + '</li>').join('') + (b.ordered ? '</ol>' : '</ul>');\n    return '<p>' + inlinesToHtml(b.inlines) + '</p>';\n  }).join('\\n');\n}\n// Ricos (Wix rich content)\nfunction markdownToRicos(md) {\n  let seq = 0; const nid = () => 'n' + (++seq).toString(36) + Date.now().toString(36).slice(-4);\n  const textNode = x => { const dec = []; if (x.bold) dec.push({ type: 'BOLD', fontWeightValue: 700 }); if (x.italic) dec.push({ type: 'ITALIC', italicData: true }); if (x.href) dec.push({ type: 'LINK', linkData: { link: { url: x.href, target: 'BLANK' } } }); return { type: 'TEXT', id: '', nodes: [], textData: { text: x.text, decorations: dec } }; };\n  const paragraph = inl => ({ type: 'PARAGRAPH', id: nid(), nodes: inl.map(textNode), paragraphData: {} });\n  const nodes = [];\n  for (const b of parseMarkdown(md)) {\n    if (b.type === 'image') continue; // gambar belum didukung di Wix (lihat warnings)\n    if (b.type === 'heading') nodes.push({ type: 'HEADING', id: nid(), nodes: b.inlines.map(textNode), headingData: { level: b.level } });\n    else if (b.type === 'quote') nodes.push({ type: 'BLOCKQUOTE', id: nid(), nodes: [paragraph(b.inlines)], blockquoteData: {} });\n    else if (b.type === 'list') nodes.push({ type: b.ordered ? 'ORDERED_LIST' : 'BULLETED_LIST', id: nid(), nodes: b.items.map(it => ({ type: 'LIST_ITEM', id: nid(), nodes: [paragraph(it)] })), [b.ordered ? 'orderedListData' : 'bulletedListData']: { indentation: 0 } });\n    else nodes.push(paragraph(b.inlines));\n  }\n  return { nodes, metadata: { version: 1 } };\n}\n// Portable Text (Sanity block content)\nfunction markdownToPortableText(md) {\n  let seq = 0; const key = () => 'k' + (++seq).toString(36) + Math.random().toString(36).slice(2, 8);\n  const block = (inl, extra) => {\n    const markDefs = [];\n    const children = (inl.length ? inl : [{ text: '' }]).map(x => {\n      const marks = [];\n      if (x.bold) marks.push('strong'); if (x.italic) marks.push('em'); if (x.code) marks.push('code');\n      if (x.href) { const k = key(); markDefs.push({ _key: k, _type: 'link', href: x.href }); marks.push(k); }\n      return { _type: 'span', _key: key(), text: x.text, marks };\n    });\n    return Object.assign({ _type: 'block', _key: key(), style: 'normal', markDefs, children }, extra || {});\n  };\n  const out = [];\n  for (const b of parseMarkdown(md)) {\n    if (b.type === 'image') { if (b.idx !== null) out.push({ _type: 'image', _key: key(), _markimateIdx: b.idx, alt: b.alt }); continue; }\n    if (b.type === 'heading') out.push(block(b.inlines, { style: 'h' + b.level }));\n    else if (b.type === 'quote') out.push(block(b.inlines, { style: 'blockquote' }));\n    else if (b.type === 'list') for (const it of b.items) out.push(block(it, { listItem: b.ordered ? 'number' : 'bullet', level: 1 }));\n    else out.push(block(b.inlines));\n  }\n  return out;\n}\n\n\nconst payload = {};\nif (A.title) {\n  payload.title = String(A.title);\n  payload.slug = String(A.slug || '').trim() || undefined;\n  payload.excerpt = String(A.excerpt || '');\n  payload.content = markdownToHtml(A.bodyMarkdown || A.body || '');\n}\npayload.status = action;\nif (A.title && Array.isArray(W.categoryIds) && W.categoryIds.length) payload.categories = W.categoryIds;\nif (A.title && W.authorId) payload.author = W.authorId;\nif (!A.title && !postId) throw new Error('Tidak ada artikel maupun postId untuk diproses.');\n\nreturn [{ json: {\n  cmsType: 'wordpress', action, postId, base, auth,\n  url: postId ? base + '/wp-json/wp/v2/posts/' + postId : base + '/wp-json/wp/v2/posts',\n  payload,\n  images: Array.isArray(IN.images) ? IN.images : [], hasImages: !!A.title && Array.isArray(IN.images) && IN.images.length > 0,\n  mediaUrl: base + '/wp-json/wp/v2/media', warnings: Array.isArray(IN.warnings) ? IN.warnings : [],\n  keyword: A.primaryKeyword || '', title: A.title || '',\n  requestId: IN.requestId || '',\n} }];\n"
+      }
+    },
+    {
+      "id": "n-ada-gambar-wp-",
+      "name": "Ada Gambar WP?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -60,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.hasImages }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n-pecah-gambar-wp",
+      "name": "Pecah Gambar WP",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        140
+      ],
+      "parameters": {
+        "jsCode": "// Adapter WordPress — satu item (binary \"data\") per gambar untuk POST /wp-json/wp/v2/media\nconst P = $input.first().json;\nconst out = [];\nfor (const im of P.images || []) {\n  const buf = Buffer.from(String(im.b64 || ''), 'base64');\n  if (!buf.length) continue;\n  const bin = await this.helpers.prepareBinaryData(buf, im.filename || ('image-' + im.idx + '.png'), im.mime || 'image/png');\n  out.push({ json: { idx: im.idx, placement: im.placement, alt: im.alt, filename: im.filename || ('image-' + im.idx + '.png'), mime: im.mime || 'image/png', mediaUrl: P.mediaUrl, auth: P.auth }, binary: { data: bin } });\n}\nreturn out.length ? out : [{ json: { idx: -1, skip: true, mediaUrl: '', auth: '' } }];\n"
+      }
+    },
+    {
+      "id": "n-wp-upload-media",
+      "name": "WP: Upload Media",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        380,
+        140
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.mediaUrl }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ $json.auth }}"
+            },
+            {
+              "name": "Content-Disposition",
+              "value": "={{ \"attachment; filename=\"\" + $json.filename + \"\"\" }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "={{ $json.mime }}"
+            },
+            {
+              "name": "User-Agent",
+              "value": "Markimate/1.0 (+https://3ourasia.id)"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 500
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          },
+          "timeout": 90000
+        }
+      }
+    },
+    {
+      "id": "n-susun-payload-wp",
+      "name": "Susun Payload WP",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Adapter WordPress — pasang hasil upload media: featured_media (hero) + ganti <img data-markimate-idx> dengan URL asli\nconst P = JSON.parse(JSON.stringify($('Siapkan WP').first().json));\nlet uploads = [];\ntry { uploads = $('Pecah Gambar WP').all().map((it, i) => ({ meta: it.json, res: ($('WP: Upload Media').all()[i] || {}).json || {} })); } catch (e) { uploads = []; }\nconst media = {}; const failed = [];\nfor (const u of uploads) {\n  if (!u.meta || u.meta.skip) continue;\n  let b = u.res.body; if (typeof b === 'string') { try { b = JSON.parse(b); } catch (e) { b = {}; } }\n  if (b && b.id && Number(u.res.statusCode || 200) < 300) media[u.meta.idx] = { mediaId: b.id, url: b.source_url || '', alt: u.meta.alt, placement: u.meta.placement };\n  else failed.push(u.meta.idx);\n}\nif (P.payload && P.payload.content) {\n  P.payload.content = P.payload.content.replace(/<img data-markimate-idx=\"(\\d+)\" alt=\"([^\"]*)\">/g, (m, idx, alt) => {\n    const a = media[Number(idx)]; if (!a) return '';\n    return '<figure class=\"wp-block-image size-large\"><img src=\"' + a.url + '\" alt=\"' + alt + '\" class=\"wp-image-' + a.mediaId + '\"/></figure>';\n  });\n  if (media[0]) P.payload.featured_media = media[0].mediaId;\n}\nconst warnings = [...(P.warnings || [])];\nif (failed.length) warnings.push('Upload gambar ke WordPress gagal untuk idx ' + failed.join(', ') + '.');\nreturn [{ json: Object.assign(P, { images: undefined, uploadedImages: Object.entries(media).map(([idx, a]) => Object.assign({ idx: Number(idx) }, a)), warnings }) }];\n"
       }
     },
     {
@@ -47,7 +161,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -60,
+        820,
         300
       ],
       "onError": "continueRegularOutput",
@@ -94,11 +208,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        160,
+        1040,
         300
       ],
       "parameters": {
-        "jsCode": "// Adapter WordPress — rapikan hasil REST API jadi format standar Supermat\nconst P = $('Siapkan WP').first().json;\nconst R = $input.first().json || {};\nconst status = Number(R.statusCode || R.status || 0);\nconst body = R.body && typeof R.body === 'object' ? R.body : (R.body ? (() => { try { return JSON.parse(R.body); } catch (e) { return { raw: String(R.body).slice(0, 300) }; } })() : R);\nconst okHttp = status >= 200 && status < 300;\n\nif (!okHttp || !body.id) {\n  let msg = body.message || body.code || (body.raw ? 'Respons bukan JSON: ' + body.raw : '') || R.error && (R.error.message || String(R.error)) || ('HTTP ' + status);\n  if (status === 401 || status === 403) msg = 'WordPress menolak akses (' + status + '). Cek username & Application Password, dan pastikan REST API tidak diblokir plugin keamanan. Detail: ' + (body.message || body.code || '-');\n  if (status === 405) msg = 'Situs menolak metode POST ke REST API (405). Kemungkinan bukan situs WordPress, REST API dinonaktifkan, atau diblokir firewall/plugin keamanan.';\n  if (status === 404) msg = 'Endpoint REST WordPress tidak ditemukan (404). Pastikan URL situs benar dan permalink/REST API aktif.';\n  if (!status) msg = 'Tidak bisa menghubungi situs WordPress: ' + msg;\n  return [{ json: { status: 'error', cmsType: 'wordpress', action: P.action, httpStatus: status, message: msg, requestId: P.requestId } }];\n}\n\nconst id = body.id;\nconst link = body.link || '';\nconst postStatus = body.status || P.action;\nreturn [{ json: {\n  status: 'ok', cmsType: 'wordpress', action: P.action,\n  postId: String(id), postStatus,\n  draftEditUrl: P.base + '/wp-admin/post.php?post=' + id + '&action=edit',\n  publicUrl: postStatus === 'publish' ? link : '',\n  previewUrl: link ? link + (link.includes('?') ? '&' : '?') + 'preview=true' : '',\n  title: (body.title && body.title.rendered) || P.title,\n  message: postStatus === 'publish' ? 'Artikel terbit di WordPress.' : 'Draf tersimpan di WordPress.',\n  requestId: P.requestId,\n} }];\n"
+        "jsCode": "// Adapter WordPress — rapikan hasil REST API jadi format standar Supermat\nconst P = $('Susun Payload WP').first().json;\nconst R = $input.first().json || {};\nconst status = Number(R.statusCode || R.status || 0);\nconst body = R.body && typeof R.body === 'object' ? R.body : (R.body ? (() => { try { return JSON.parse(R.body); } catch (e) { return { raw: String(R.body).slice(0, 300) }; } })() : R);\nconst okHttp = status >= 200 && status < 300;\n\nif (!okHttp || !body.id) {\n  let msg = body.message || body.code || (body.raw ? 'Respons bukan JSON: ' + body.raw : '') || R.error && (R.error.message || String(R.error)) || ('HTTP ' + status);\n  if (status === 401 || status === 403) msg = 'WordPress menolak akses (' + status + '). Cek username & Application Password, dan pastikan REST API tidak diblokir plugin keamanan. Detail: ' + (body.message || body.code || '-');\n  if (status === 405) msg = 'Situs menolak metode POST ke REST API (405). Kemungkinan bukan situs WordPress, REST API dinonaktifkan, atau diblokir firewall/plugin keamanan.';\n  if (status === 404) msg = 'Endpoint REST WordPress tidak ditemukan (404). Pastikan URL situs benar dan permalink/REST API aktif.';\n  if (!status) msg = 'Tidak bisa menghubungi situs WordPress: ' + msg;\n  return [{ json: { status: 'error', cmsType: 'wordpress', action: P.action, httpStatus: status, message: msg, requestId: P.requestId } }];\n}\n\nconst id = body.id;\nconst link = body.link || '';\nconst postStatus = body.status || P.action;\nreturn [{ json: {\n  status: 'ok', cmsType: 'wordpress', action: P.action,\n  postId: String(id), postStatus,\n  draftEditUrl: P.base + '/wp-admin/post.php?post=' + id + '&action=edit',\n  publicUrl: postStatus === 'publish' ? link : '',\n  previewUrl: link ? link + (link.includes('?') ? '&' : '?') + 'preview=true' : '',\n  title: (body.title && body.title.rendered) || P.title,\n  message: postStatus === 'publish' ? 'Artikel terbit di WordPress.' : 'Draf tersimpan di WordPress.',\n  images: P.uploadedImages || [], warnings: P.warnings || [],\n  requestId: P.requestId,\n} }];\n"
       }
     }
   ],
@@ -115,6 +229,57 @@
       ]
     },
     "Siapkan WP": {
+      "main": [
+        [
+          {
+            "node": "Ada Gambar WP?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ada Gambar WP?": {
+      "main": [
+        [
+          {
+            "node": "Pecah Gambar WP",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Susun Payload WP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pecah Gambar WP": {
+      "main": [
+        [
+          {
+            "node": "WP: Upload Media",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WP: Upload Media": {
+      "main": [
+        [
+          {
+            "node": "Susun Payload WP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Susun Payload WP": {
       "main": [
         [
           {

@@ -1,5 +1,5 @@
 // Adapter WordPress — rapikan hasil REST API jadi format standar Supermat
-const P = $('Siapkan WP').first().json;
+const P = $('Susun Payload WP').first().json;
 const R = $input.first().json || {};
 const status = Number(R.statusCode || R.status || 0);
 const body = R.body && typeof R.body === 'object' ? R.body : (R.body ? (() => { try { return JSON.parse(R.body); } catch (e) { return { raw: String(R.body).slice(0, 300) }; } })() : R);
@@ -25,5 +25,6 @@ return [{ json: {
   previewUrl: link ? link + (link.includes('?') ? '&' : '?') + 'preview=true' : '',
   title: (body.title && body.title.rendered) || P.title,
   message: postStatus === 'publish' ? 'Artikel terbit di WordPress.' : 'Draf tersimpan di WordPress.',
+  images: P.uploadedImages || [], warnings: P.warnings || [],
   requestId: P.requestId,
 } }];
