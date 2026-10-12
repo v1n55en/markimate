@@ -16,8 +16,7 @@ const WEEKDAYS = [
 ];
 
 export default function AutoTopicsPage({ me, refreshMe, goTo }) {
-  const user = me.user;
-  const isPremium = user.plan === 'premium';
+  const isPremium = user.plan === 'premium' || (me.plan && me.plan.id !== 'free') || ['seo', 'focus3', 'all_in_one'].includes(user.plan);
   const anyCms = useMemo(() => (me.cms || []).map(c => c.cmsType), [me.cms]);
 
   const [loading, setLoading] = useState(true);

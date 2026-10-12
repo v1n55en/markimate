@@ -145,7 +145,7 @@ function MarkdownRenderer({ content, images = [], imagePrompts = [] }) {
 
 export default function KeywordManager({ me, refreshMe, goTo }) {
   const user = me.user;
-  const isPremium = user.plan === 'premium';
+  const isPremium = user.plan === 'premium' || (me.plan && me.plan.id !== 'free') || ['seo', 'focus3', 'all_in_one'].includes(user.plan);
   const webApprover = isPremium && user.webApprover !== false;
   const connectedCms = useMemo(() => (me.cms || []).filter(c => c.verified).map(c => c.cmsType), [me.cms]);
   const anyCms = useMemo(() => (me.cms || []).map(c => c.cmsType), [me.cms]);

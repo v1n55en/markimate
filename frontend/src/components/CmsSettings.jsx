@@ -91,7 +91,8 @@ const DEFAULT_ARTICLE_SETTINGS = {
 
 export default function CmsSettings({ me, refreshMe, goTo }) {
   const user = me.user;
-  const isPremium = user.plan === 'premium';
+  const isPremium = user.plan === 'premium' || (me.plan && me.plan.id !== 'free');
+  const canUseImages = me.plan ? me.plan.images !== false : isPremium;
   const [forms, setForms] = useState({ wordpress: {}, wix: {}, sanity: {}, shopify: {} });
   const [articleSettings, setArticleSettings] = useState({ wordpress: {}, wix: {}, sanity: {}, shopify: {} });
   const [activeTab, setActiveTab] = useState({ wordpress: 'creds', wix: 'creds', sanity: 'creds', shopify: 'creds' });
@@ -309,16 +310,30 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                           </span>
                         </div>
                       </div>
-                      <label className="switch">
-                        <input
-                          type="checkbox"
-                          checked={setg.images?.enabled !== false}
-                          onChange={e => setSettingPath(type, 'images', 'enabled', e.target.checked)}
-                        />
-                        <span className="slider round"></span>
-                      </label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        {!canUseImages && (
+                          <span style={styles.proLockBadge} onClick={() => goTo && goTo('billing')} title="Tersedia di paket Pro / SEO Specialist">
+                            <Lock size={12} /> Pro
+                          </span>
+                        )}
+                        <label className="switch" style={{ opacity: canUseImages ? 1 : 0.6 }}>
+                          <input
+                            type="checkbox"
+                            checked={canUseImages && setg.images?.enabled !== false}
+                            disabled={!canUseImages}
+                            onChange={e => {
+                              if (!canUseImages) {
+                                goTo && goTo('billing');
+                                return;
+                              }
+                              setSettingPath(type, 'images', 'enabled', e.target.checked);
+                            }}
+                          />
+                          <span className="slider round"></span>
+                        </label>
+                      </div>
                     </div>
-                    {setg.images?.enabled !== false && (
+                    {canUseImages && setg.images?.enabled !== false && (
                       <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         <div>
                           <label className="form-label">Jumlah Gambar</label>
@@ -748,4 +763,5 @@ const styles = {
   toggleRow: { display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem', background: 'var(--bg-base)', border: '1px solid var(--border-muted)', borderRadius: 10 },
   hr: { border: 'none', borderTop: '1px solid var(--border-muted)', margin: '1.25rem 0' },
   pre: { fontFamily: 'var(--font-mono)', fontSize: '0.72rem', background: '#000', border: '1px solid var(--border-muted)', borderRadius: 8, padding: '0.75rem', overflowX: 'auto', color: 'var(--accent-cyan)', whiteSpace: 'pre', marginBottom: '0.75rem' },
+  proLockBadge: { display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', padding: '0.2rem 0.5rem', borderRadius: '4px', backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#fcd34d', border: '1px solid rgba(245, 158, 11, 0.3)', cursor: 'pointer' },
 };

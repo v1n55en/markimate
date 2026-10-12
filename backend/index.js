@@ -25,8 +25,56 @@ const CRON_SECRET = process.env.CRON_SECRET || '';
 const FREE_MONTHLY_LIMIT = Number(process.env.FREE_MONTHLY_LIMIT || 3);
 
 export const PLANS = {
-  free: { id: 'free', name: 'Free', price: 0, monthlyArticles: FREE_MONTHLY_LIMIT, features: ['3 artikel / bulan', 'Riset keyword + AI writer', 'Draf langsung ke CMS', '1 koneksi CMS'] },
-  premium: { id: 'premium', name: 'Pro', price: 299000, monthlyArticles: 60, features: ['60 artikel / bulan', 'Web Approver: review & edit sebelum terbit', 'Jadwal otomatis harian/mingguan', 'WordPress + Wix', 'Akses 3Our API (API key)', 'Prioritas dukungan 3Our'] },
+  free: {
+    id: 'free',
+    name: 'Free',
+    price: 0,
+    monthlyArticles: FREE_MONTHLY_LIMIT || 3,
+    images: false,
+    autoTopics: false,
+    webApprover: false,
+    features: ['3 artikel / bulan', 'Riset keyword dasar', 'Draf langsung ke CMS']
+  },
+  seo: {
+    id: 'seo',
+    name: 'SEO Specialist',
+    price: 1500000,
+    monthlyArticles: 20,
+    images: true,
+    autoTopics: true,
+    webApprover: true,
+    features: ['20 artikel SEO / bulan', 'Gambar AI (Hero + Inline)', 'Topik Otomatis (Google Trends)', 'Web Approver: review & edit', 'Semua platform CMS']
+  },
+  premium: {
+    id: 'premium',
+    name: 'Pro (SEO)',
+    price: 1500000,
+    monthlyArticles: 20,
+    images: true,
+    autoTopics: true,
+    webApprover: true,
+    features: ['20 artikel SEO / bulan', 'Gambar AI (Hero + Inline)', 'Topik Otomatis (Google Trends)', 'Web Approver: review & edit', 'Semua platform CMS']
+  },
+  focus3: {
+    id: 'focus3',
+    name: 'Paket Fokus 3',
+    price: 3200000,
+    monthlyArticles: 20,
+    images: true,
+    autoTopics: true,
+    webApprover: true,
+    features: ['20 artikel SEO / bulan', 'Gambar AI + Topik Trends', 'Ads Specialist Report', 'Ads Creative Spy']
+  },
+  all_in_one: {
+    id: 'all_in_one',
+    name: 'All-in-One AI Team',
+    price: 7875000,
+    monthlyArticles: 60,
+    images: true,
+    autoTopics: true,
+    webApprover: true,
+    features: ['60 artikel SEO / bulan', 'Akses penuh seluruh 16 modul AI', 'Prioritas tertinggi 3Our']
+  }
 };
 
 const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
@@ -473,6 +521,10 @@ app.put('/api/cms/:type', auth, wrap(async (req, res) => {
     ? normalizeArticleSettings(req.body.articleSettings)
     : (existing?.article_settings ? normalizeArticleSettings(existing.article_settings) : normalizeArticleSettings({}));
 
+  if (articleSettings.images?.enabled && !planOf(req.user).images) {
+    throw Object.assign(new Error('Fitur gambar AI hanya untuk paket berbayar (Pro). Silakan upgrade paket Anda.'), { status: 402 });
+  }
+
   const row = await db.upsert('cms_connections', { user_id: req.user.id, cms_type: type }, {
     config: {},
     config_enc: enc,
@@ -534,7 +586,7 @@ app.post('/api/keywords', auth, wrap(async (req, res) => {
   const keyword = String(b.keyword || '').trim(); if (!keyword) throw Object.assign(new Error('Keyword wajib diisi.'), { status: 400 });
   const cms = String(b.cmsType || b.cms || 'wordpress').toLowerCase();
   const schedule = ['immediate', 'daily', 'weekly'].includes(b.schedule) ? b.schedule : 'immediate';
-  if (schedule !== 'immediate' && req.user.plan !== 'premium') throw Object.assign(new Error('Jadwal otomatis hanya untuk paket Pro.'), { status: 402 });
+  if (schedule !== 'immediate' && planOf(req.user).id === 'free') throw Object.assign(new Error('Jadwal otomatis hanya untuk paket berbayar (Pro).'), { status: 402 });
   const row = await db.insert('keywords', { user_id: req.user.id, keyword, geo: String(b.geo || 'ID').toUpperCase(), ln: String(b.ln || 'id').toLowerCase(), cms_type: cms, status: 'Pending', schedule, next_run_at: nextRun(schedule) });
   res.json({ keyword: kwPublic(row) });
 }));
@@ -718,7 +770,7 @@ async function publishFor(user, k, action, articleOverride) {
     throw e;
   }
 }
-const webApproverOn = (u) => u.plan === 'premium' && u.web_approver !== false;
+const webApproverOn = (u) => planOf(u).webApprover && u.web_approver !== false;
 
 app.post('/api/keywords/:id/run', auth, wrap(async (req, res) => {
   const k = await db.findOne('keywords', { id: req.params.id, user_id: req.user.id }); if (!k) throw Object.assign(new Error('Tidak ditemukan.'), { status: 404 });
@@ -969,7 +1021,7 @@ app.get('/api/cron/run-scheduled', wrap(async (req, res) => {
   const results = [];
   for (const k of due) {
     const user = await db.findOne('accounts', { id: k.user_id });
-    if (!user || user.plan !== 'premium') { await db.update('keywords', { id: k.id }, { next_run_at: nextRun(k.schedule) }); results.push({ id: k.id, skipped: 'plan' }); continue; }
+    if (!user || planOf(user).id === 'free') { await db.update('keywords', { id: k.id }, { next_run_at: nextRun(k.schedule) }); results.push({ id: k.id, skipped: 'plan' }); continue; }
     try {
       let row = await generateFor(user, k);
       if (row.status !== 'Duplicate' && !webApproverOn(user)) row = await publishFor(user, row, 'draft');
@@ -984,7 +1036,7 @@ app.get('/api/cron/run-scheduled', wrap(async (req, res) => {
     const dueSources = allSources.filter(s => s.active !== false && s.next_run_at && s.next_run_at <= now);
     for (const s of dueSources) {
       const user = await db.findOne('accounts', { id: s.user_id });
-      if (!user || user.plan === 'free') continue;
+      if (!user || !planOf(user).autoTopics) continue;
       try {
         const resTopics = await runTopicSource(user, s);
         results.push({ topicSourceId: s.id, status: 'ok', generated: resTopics.created });
