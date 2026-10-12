@@ -48,11 +48,57 @@ const CMS_META = {
   },
 };
 
+const DEFAULT_ARTICLE_SETTINGS = {
+  images: {
+    enabled: true,
+    count: 3,
+    style: 'foto editorial, warna hangat, tanpa teks di gambar',
+    aspectHero: '16:9',
+    aspectInline: '4:3',
+  },
+  links: {
+    internal: true,
+    maxInternal: 4,
+    external: true,
+    maxExternal: 2,
+    siteBaseUrl: 'https://blog.3ourasia.id/article/',
+    excludeDomains: ['facebook.com', 'instagram.com', 'tiktok.com', 'shopee.co.id', 'tokopedia.com', 'youtube.com'],
+  },
+  duplicateCheck: {
+    enabled: true,
+    threshold: 0.7,
+  },
+  sanity: {
+    authorId: 'author.ai-team',
+    autoCreateAuthor: true,
+    categoryIds: [],
+    categoryMode: 'fixed',
+    publishedAtField: 'publishedAt',
+    mainImageField: 'mainImage',
+    excerptField: 'excerpt',
+  },
+  wordpress: {
+    defaultCategoryIds: [],
+    authorId: null,
+  },
+  wix: {
+    categoryIds: [],
+  },
+  shopify: {
+    tags: [],
+  },
+};
+
 export default function CmsSettings({ me, refreshMe, goTo }) {
   const user = me.user;
   const isPremium = user.plan === 'premium';
   const [forms, setForms] = useState({ wordpress: {}, wix: {}, sanity: {}, shopify: {} });
+  const [articleSettings, setArticleSettings] = useState({ wordpress: {}, wix: {}, sanity: {}, shopify: {} });
+  const [activeTab, setActiveTab] = useState({ wordpress: 'creds', wix: 'creds', sanity: 'creds', shopify: 'creds' });
+  const [cmsOptions, setCmsOptions] = useState({});
+  const [loadingOptions, setLoadingOptions] = useState({});
   const [state, setState] = useState({}); // type -> {busy, result}
+  const [settingsState, setSettingsState] = useState({}); // type -> {busy, success, msg}
   const [saved, setSaved] = useState({});
   const [profile, setProfile] = useState({ brandName: user.brandName || '', niche: user.niche || '' });
   const [profileMsg, setProfileMsg] = useState('');
@@ -60,23 +106,97 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
   const [rotating, setRotating] = useState(false);
 
   useEffect(() => {
-    const next = { wordpress: {}, wix: {}, sanity: {}, shopify: {} }; const sv = {};
-    for (const c of me.cms || []) { next[c.cmsType] = { ...c.config }; sv[c.cmsType] = c; }
-    setForms(next); setSaved(sv);
+    const nextForms = { wordpress: {}, wix: {}, sanity: {}, shopify: {} };
+    const nextSettings = { wordpress: {}, wix: {}, sanity: {}, shopify: {} };
+    const sv = {};
+    for (const c of me.cms || []) {
+      nextForms[c.cmsType] = { ...c.config };
+      nextSettings[c.cmsType] = {
+        ...DEFAULT_ARTICLE_SETTINGS,
+        ...c.articleSettings,
+        images: { ...DEFAULT_ARTICLE_SETTINGS.images, ...(c.articleSettings?.images || {}) },
+        links: { ...DEFAULT_ARTICLE_SETTINGS.links, ...(c.articleSettings?.links || {}) },
+        duplicateCheck: { ...DEFAULT_ARTICLE_SETTINGS.duplicateCheck, ...(c.articleSettings?.duplicateCheck || {}) },
+        sanity: { ...DEFAULT_ARTICLE_SETTINGS.sanity, ...(c.articleSettings?.sanity || {}) },
+        wordpress: { ...DEFAULT_ARTICLE_SETTINGS.wordpress, ...(c.articleSettings?.wordpress || {}) },
+        wix: { ...DEFAULT_ARTICLE_SETTINGS.wix, ...(c.articleSettings?.wix || {}) },
+        shopify: { ...DEFAULT_ARTICLE_SETTINGS.shopify, ...(c.articleSettings?.shopify || {}) },
+      };
+      sv[c.cmsType] = c;
+    }
+    setForms(nextForms);
+    setArticleSettings(nextSettings);
+    setSaved(sv);
   }, [me.cms]);
 
+  const loadOptions = async (type) => {
+    if (cmsOptions[type] || loadingOptions[type]) return;
+    setLoadingOptions(l => ({ ...l, [type]: true }));
+    try {
+      const res = await api(`/api/cms/${type}/options`);
+      setCmsOptions(o => ({ ...o, [type]: res.options || {} }));
+    } catch {
+      // Abaikan bila belum tersambung
+    } finally {
+      setLoadingOptions(l => ({ ...l, [type]: false }));
+    }
+  };
+
+  const handleTabChange = (type, tab) => {
+    setActiveTab(t => ({ ...t, [type]: tab }));
+    if (tab === 'settings') loadOptions(type);
+  };
+
   const setField = (type, key, v) => setForms(f => ({ ...f, [type]: { ...f[type], [key]: v } }));
+
+  const setSettingPath = (type, section, key, v) => {
+    setArticleSettings(prev => ({
+      ...prev,
+      [type]: {
+        ...prev[type],
+        [section]: {
+          ...(prev[type]?.[section] || {}),
+          [key]: v,
+        },
+      },
+    }));
+  };
+
   const save = async (type) => {
     setState(s => ({ ...s, [type]: { busy: true } }));
     try {
-      const d = await api(`/api/cms/${type}`, { method: 'PUT', body: { config: forms[type] } });
+      const d = await api(`/api/cms/${type}`, {
+        method: 'PUT',
+        body: { config: forms[type], articleSettings: articleSettings[type] },
+      });
       setState(s => ({ ...s, [type]: { busy: false, result: d.test } }));
       await refreshMe();
-    } catch (e) { setState(s => ({ ...s, [type]: { busy: false, result: { ok: false, message: e.message } } })); }
+    } catch (e) {
+      setState(s => ({ ...s, [type]: { busy: false, result: { ok: false, message: e.message } } }));
+    }
   };
+
+  const saveSettings = async (type) => {
+    setSettingsState(s => ({ ...s, [type]: { busy: true, msg: '' } }));
+    try {
+      await api(`/api/cms/${type}`, {
+        method: 'PUT',
+        body: { config: forms[type], articleSettings: articleSettings[type], test: false },
+      });
+      setSettingsState(s => ({ ...s, [type]: { busy: false, success: true, msg: 'Pengaturan artikel berhasil disimpan!' } }));
+      setTimeout(() => setSettingsState(s => ({ ...s, [type]: { ...s[type], msg: '' } })), 3000);
+      await refreshMe();
+    } catch (e) {
+      setSettingsState(s => ({ ...s, [type]: { busy: false, success: false, msg: e.message } }));
+    }
+  };
+
   const remove = async (type) => {
     if (!window.confirm(`Putuskan koneksi ${CMS_META[type].label}?`)) return;
-    await api(`/api/cms/${type}`, { method: 'DELETE' }); setForms(f => ({ ...f, [type]: {} })); setState(s => ({ ...s, [type]: {} })); await refreshMe();
+    await api(`/api/cms/${type}`, { method: 'DELETE' });
+    setForms(f => ({ ...f, [type]: {} }));
+    setState(s => ({ ...s, [type]: {} }));
+    await refreshMe();
   };
   const saveProfile = async (e) => {
     e.preventDefault(); setProfileMsg('');
@@ -97,26 +217,469 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
 
       <div className="grid-2" style={{ alignItems: 'start' }}>
         {Object.entries(CMS_META).map(([type, meta]) => {
-          const f = forms[type] || {}; const st = state[type] || {}; const sv = saved[type];
+          const f = forms[type] || {};
+          const st = state[type] || {};
+          const sSt = settingsState[type] || {};
+          const sv = saved[type];
+          const tab = activeTab[type] || 'creds';
+          const setg = articleSettings[type] || DEFAULT_ARTICLE_SETTINGS;
+          const opts = cmsOptions[type] || {};
+
           return (
             <div className="card" key={type}>
               <div style={styles.cardHead}>
-                <div style={{ ...styles.cmsIcon, backgroundColor: meta.color + '22', border: `1px solid ${meta.color}55` }}><Globe size={18} color={meta.color} /></div>
-                <div style={{ flex: 1 }}><h2 style={{ margin: 0, fontSize: '1rem' }}>{meta.label}</h2><span style={styles.sub}>{sv ? (sv.verified ? 'Terhubung & terverifikasi' : 'Tersimpan, belum terverifikasi') : 'Belum terhubung'}</span></div>
-                {sv && <span className={`badge ${sv.verified ? 'badge-success' : 'badge-warning'}`}>{sv.verified ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />} {sv.verified ? 'OK' : 'Cek'}</span>}
-              </div>
-              <p style={{ ...styles.sub, marginBottom: '1rem', lineHeight: 1.5 }}>{meta.help}</p>
-              {meta.fields.map(fl => (
-                <div className="form-group" key={fl.key}>
-                  <label className="form-label">{fl.label}</label>
-                  <input className="form-input" type={fl.secret ? 'password' : 'text'} placeholder={fl.placeholder} value={f[fl.key] || ''} onChange={e => setField(type, fl.key, e.target.value)} autoComplete="off" />
+                <div style={{ ...styles.cmsIcon, backgroundColor: meta.color + '22', border: `1px solid ${meta.color}55` }}>
+                  <Globe size={18} color={meta.color} />
                 </div>
-              ))}
-              {st.result && <div style={st.result.ok ? styles.okBox : styles.errBox}>{st.result.ok ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />} {st.result.message}</div>}
-              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                <button className="btn btn-primary" onClick={() => save(type)} disabled={st.busy}>{st.busy ? <Loader2 size={16} className="spin-icon" /> : <Plug size={16} />} Simpan & Tes koneksi</button>
-                {sv && <button className="btn btn-secondary" onClick={() => remove(type)} title="Putuskan"><Trash2 size={16} /></button>}
+                <div style={{ flex: 1 }}>
+                  <h2 style={{ margin: 0, fontSize: '1rem' }}>{meta.label}</h2>
+                  <span style={styles.sub}>
+                    {sv ? (sv.verified ? 'Terhubung & terverifikasi' : 'Tersimpan, belum terverifikasi') : 'Belum terhubung'}
+                  </span>
+                </div>
+                {sv && (
+                  <span className={`badge ${sv.verified ? 'badge-success' : 'badge-warning'}`}>
+                    {sv.verified ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />} {sv.verified ? 'OK' : 'Cek'}
+                  </span>
+                )}
               </div>
+
+              {/* Sub-tabs untuk koneksi yang sudah tersimpan */}
+              {sv && (
+                <div style={styles.tabBar}>
+                  <button
+                    style={tab === 'creds' ? styles.tabBtnActive : styles.tabBtn}
+                    onClick={() => handleTabChange(type, 'creds')}
+                  >
+                    Kredensial
+                  </button>
+                  <button
+                    style={tab === 'settings' ? styles.tabBtnActive : styles.tabBtn}
+                    onClick={() => handleTabChange(type, 'settings')}
+                  >
+                    Pengaturan Artikel
+                  </button>
+                </div>
+              )}
+
+              {tab === 'creds' ? (
+                <>
+                  <p style={{ ...styles.sub, marginBottom: '1rem', lineHeight: 1.5 }}>{meta.help}</p>
+                  {meta.fields.map(fl => (
+                    <div className="form-group" key={fl.key}>
+                      <label className="form-label">{fl.label}</label>
+                      <input
+                        className="form-input"
+                        type={fl.secret ? 'password' : 'text'}
+                        placeholder={fl.placeholder}
+                        value={f[fl.key] || ''}
+                        onChange={e => setField(type, fl.key, e.target.value)}
+                        autoComplete="off"
+                      />
+                    </div>
+                  ))}
+                  {st.result && (
+                    <div style={st.result.ok ? styles.okBox : styles.errBox}>
+                      {st.result.ok ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />} {st.result.message}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                    <button className="btn btn-primary" onClick={() => save(type)} disabled={st.busy}>
+                      {st.busy ? <Loader2 size={16} className="spin-icon" /> : <Plug size={16} />} Simpan & Tes koneksi
+                    </button>
+                    {sv && (
+                      <button className="btn btn-secondary" onClick={() => remove(type)} title="Putuskan">
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                </>
+              ) : (
+                /* Tab Pengaturan Artikel */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {/* 1. Gambar AI */}
+                  <div style={styles.settingBlock}>
+                    <div style={styles.settingHeader}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>Gambar AI (Hero + Inline)</div>
+                        <div style={styles.sub}>
+                          Didukung: Sanity & WordPress.{' '}
+                          <span style={{ color: 'var(--text-muted)' }}>
+                            {type === 'wix' || type === 'shopify' ? '(Wix & Shopify akan dipublish tanpa gambar)' : ''}
+                          </span>
+                        </div>
+                      </div>
+                      <label className="switch">
+                        <input
+                          type="checkbox"
+                          checked={setg.images?.enabled !== false}
+                          onChange={e => setSettingPath(type, 'images', 'enabled', e.target.checked)}
+                        />
+                        <span className="slider round"></span>
+                      </label>
+                    </div>
+                    {setg.images?.enabled !== false && (
+                      <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <div>
+                          <label className="form-label">Jumlah Gambar</label>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            {[1, 2, 3].map(cnt => (
+                              <button
+                                key={cnt}
+                                type="button"
+                                style={setg.images?.count === cnt ? styles.pillActive : styles.pill}
+                                onClick={() => setSettingPath(type, 'images', 'count', cnt)}
+                              >
+                                {cnt} {cnt === 1 ? 'Gambar (Hero)' : cnt === 2 ? 'Gambar' : 'Gambar (1 Hero + 2 Inline)'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="form-label">Gaya Gambar (Prompt Style)</label>
+                          <input
+                            className="form-input"
+                            value={setg.images?.style || ''}
+                            onChange={e => setSettingPath(type, 'images', 'style', e.target.value)}
+                            placeholder="foto editorial, warna hangat, tanpa teks di gambar"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 2. Internal & External Links */}
+                  <div style={styles.settingBlock}>
+                    <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '0.5rem' }}>Penyisipan Link Otomatis</div>
+                    
+                    {/* Internal link */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <div>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 500 }}>Internal Links</div>
+                        <div style={styles.sub}>Tautkan ke artikel relevan yang ada di CMS</div>
+                      </div>
+                      <label className="switch">
+                        <input
+                          type="checkbox"
+                          checked={setg.links?.internal !== false}
+                          onChange={e => setSettingPath(type, 'links', 'internal', e.target.checked)}
+                        />
+                        <span className="slider round"></span>
+                      </label>
+                    </div>
+                    {setg.links?.internal !== false && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                        <div>
+                          <label className="form-label">Maksimal Link</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="10"
+                            className="form-input"
+                            value={setg.links?.maxInternal || 4}
+                            onChange={e => setSettingPath(type, 'links', 'maxInternal', Number(e.target.value))}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label">Base URL Artikel (Slug)</label>
+                          <input
+                            className="form-input"
+                            value={setg.links?.siteBaseUrl || ''}
+                            onChange={e => setSettingPath(type, 'links', 'siteBaseUrl', e.target.value)}
+                            placeholder="https://blog.3ourasia.id/article/"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* External link */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <div>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 500 }}>External Links</div>
+                        <div style={styles.sub}>Tautkan ke sumber referensi kredibel</div>
+                      </div>
+                      <label className="switch">
+                        <input
+                          type="checkbox"
+                          checked={setg.links?.external !== false}
+                          onChange={e => setSettingPath(type, 'links', 'external', e.target.checked)}
+                        />
+                        <span className="slider round"></span>
+                      </label>
+                    </div>
+                    {setg.links?.external !== false && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <div>
+                          <label className="form-label">Maksimal External Link</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="5"
+                            className="form-input"
+                            style={{ maxWidth: '120px' }}
+                            value={setg.links?.maxExternal || 2}
+                            onChange={e => setSettingPath(type, 'links', 'maxExternal', Number(e.target.value))}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label">Domain yang Dikecualikan (pisahkan koma)</label>
+                          <input
+                            className="form-input"
+                            value={(setg.links?.excludeDomains || []).join(', ')}
+                            onChange={e =>
+                              setSettingPath(
+                                type,
+                                'links',
+                                'excludeDomains',
+                                e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                              )
+                            }
+                            placeholder="facebook.com, instagram.com, tiktok.com"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 3. Cek Topik Duplikat */}
+                  <div style={styles.settingBlock}>
+                    <div style={styles.settingHeader}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>Cek Topik Duplikat</div>
+                        <div style={styles.sub}>Cegah penulisan artikel berulang yang mirip dengan postingan di CMS</div>
+                      </div>
+                      <label className="switch">
+                        <input
+                          type="checkbox"
+                          checked={setg.duplicateCheck?.enabled !== false}
+                          onChange={e => setSettingPath(type, 'duplicateCheck', 'enabled', e.target.checked)}
+                        />
+                        <span className="slider round"></span>
+                      </label>
+                    </div>
+                    {setg.duplicateCheck?.enabled !== false && (
+                      <div style={{ marginTop: '0.75rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                          <label className="form-label" style={{ margin: 0 }}>Ambang Kemiripan (Threshold)</label>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>
+                            {Math.round((setg.duplicateCheck?.threshold || 0.7) * 100)}%
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.5"
+                          max="0.9"
+                          step="0.05"
+                          style={{ width: '100%', accentColor: 'var(--accent-cyan)' }}
+                          value={setg.duplicateCheck?.threshold || 0.7}
+                          onChange={e => setSettingPath(type, 'duplicateCheck', 'threshold', parseFloat(e.target.value))}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 4. Khusus CMS */}
+                  {type === 'sanity' && (
+                    <div style={styles.settingBlock}>
+                      <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '0.5rem' }}>Pengaturan Khusus Sanity</div>
+                      <div className="form-group">
+                        <label className="form-label">Penulis (Author)</label>
+                        <select
+                          className="form-input"
+                          value={setg.sanity?.authorId || 'author.ai-team'}
+                          onChange={e => setSettingPath(type, 'sanity', 'authorId', e.target.value)}
+                        >
+                          <option value="author.ai-team">AI Team (author.ai-team)</option>
+                          {(opts.authors || []).map(a => (
+                            <option key={a.id} value={a.id}>{a.name} ({a.id})</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                        <input
+                          type="checkbox"
+                          id="autoCreateAuthor"
+                          checked={setg.sanity?.autoCreateAuthor !== false}
+                          onChange={e => setSettingPath(type, 'sanity', 'autoCreateAuthor', e.target.checked)}
+                        />
+                        <label htmlFor="autoCreateAuthor" style={{ fontSize: '0.8rem', cursor: 'pointer' }}>
+                          Buat dokumen author AI Team otomatis jika belum ada di Sanity
+                        </label>
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label">Mode Pemilihan Kategori</label>
+                        <select
+                          className="form-input"
+                          value={setg.sanity?.categoryMode || 'fixed'}
+                          onChange={e => setSettingPath(type, 'sanity', 'categoryMode', e.target.value)}
+                        >
+                          <option value="fixed">Fixed (Kategori tetap yang dipilih di bawah)</option>
+                          <option value="ai">AI Auto-pick (AI memilih kategori yang paling sesuai)</option>
+                          <option value="fixed+ai">Fixed + AI (Gabungan kategori tetap & saran AI)</option>
+                        </select>
+                      </div>
+
+                      {opts.categories && opts.categories.length > 0 && (
+                        <div className="form-group">
+                          <label className="form-label">Kategori Sanity</label>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                            {opts.categories.map(c => {
+                              const selected = (setg.sanity?.categoryIds || []).includes(c.id);
+                              return (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  style={selected ? styles.pillActive : styles.pill}
+                                  onClick={() => {
+                                    const curr = setg.sanity?.categoryIds || [];
+                                    const next = selected ? curr.filter(x => x !== c.id) : [...curr, c.id];
+                                    setSettingPath(type, 'sanity', 'categoryIds', next);
+                                  }}
+                                >
+                                  {c.title}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
+                        <div>
+                          <label className="form-label" style={{ fontSize: '0.72rem' }}>Field Published At</label>
+                          <input
+                            className="form-input"
+                            value={setg.sanity?.publishedAtField || 'publishedAt'}
+                            onChange={e => setSettingPath(type, 'sanity', 'publishedAtField', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontSize: '0.72rem' }}>Field Main Image</label>
+                          <input
+                            className="form-input"
+                            value={setg.sanity?.mainImageField || 'mainImage'}
+                            onChange={e => setSettingPath(type, 'sanity', 'mainImageField', e.target.value)}
+                          />
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontSize: '0.72rem' }}>Field Excerpt</label>
+                          <input
+                            className="form-input"
+                            value={setg.sanity?.excerptField || 'excerpt'}
+                            onChange={e => setSettingPath(type, 'sanity', 'excerptField', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {type === 'wordpress' && (
+                    <div style={styles.settingBlock}>
+                      <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '0.5rem' }}>Pengaturan Khusus WordPress</div>
+                      {opts.categories && opts.categories.length > 0 && (
+                        <div className="form-group">
+                          <label className="form-label">Kategori Default</label>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                            {opts.categories.map(c => {
+                              const selected = (setg.wordpress?.defaultCategoryIds || []).includes(c.id);
+                              return (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  style={selected ? styles.pillActive : styles.pill}
+                                  onClick={() => {
+                                    const curr = setg.wordpress?.defaultCategoryIds || [];
+                                    const next = selected ? curr.filter(x => x !== c.id) : [...curr, c.id];
+                                    setSettingPath(type, 'wordpress', 'defaultCategoryIds', next);
+                                  }}
+                                >
+                                  {c.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      {opts.authors && opts.authors.length > 0 && (
+                        <div className="form-group">
+                          <label className="form-label">Penulis Post</label>
+                          <select
+                            className="form-input"
+                            value={setg.wordpress?.authorId || ''}
+                            onChange={e => setSettingPath(type, 'wordpress', 'authorId', e.target.value ? Number(e.target.value) : null)}
+                          >
+                            <option value="">Default (Akun Login)</option>
+                            {opts.authors.map(a => (
+                              <option key={a.id} value={a.id}>{a.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {type === 'wix' && opts.categories && opts.categories.length > 0 && (
+                    <div style={styles.settingBlock}>
+                      <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '0.5rem' }}>Kategori Wix Blog</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                        {opts.categories.map(c => {
+                          const selected = (setg.wix?.categoryIds || []).includes(c.id);
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              style={selected ? styles.pillActive : styles.pill}
+                              onClick={() => {
+                                const curr = setg.wix?.categoryIds || [];
+                                const next = selected ? curr.filter(x => x !== c.id) : [...curr, c.id];
+                                setSettingPath(type, 'wix', 'categoryIds', next);
+                              }}
+                            >
+                              {c.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {type === 'shopify' && (
+                    <div style={styles.settingBlock}>
+                      <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '0.5rem' }}>Tags Shopify Blog</div>
+                      <label className="form-label">Tags Artikel (pisahkan koma)</label>
+                      <input
+                        className="form-input"
+                        value={(setg.shopify?.tags || []).join(', ')}
+                        onChange={e =>
+                          setSettingPath(
+                            type,
+                            'shopify',
+                            'tags',
+                            e.target.value.split(',').map(s => s.trim()).filter(Boolean)
+                          )
+                        }
+                        placeholder="seo, digital-marketing, tips"
+                      />
+                    </div>
+                  )}
+
+                  {sSt.msg && (
+                    <div style={sSt.success ? styles.okBox : styles.errBox}>
+                      {sSt.success ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />} {sSt.msg}
+                    </div>
+                  )}
+
+                  <button
+                    className="btn btn-primary"
+                    style={{ alignSelf: 'flex-start' }}
+                    onClick={() => saveSettings(type)}
+                    disabled={sSt.busy}
+                  >
+                    {sSt.busy ? <Loader2 size={16} className="spin-icon" /> : <CheckCircle2 size={16} />} Simpan Pengaturan Artikel
+                  </button>
+                </div>
+              )}
             </div>
           );
         })}

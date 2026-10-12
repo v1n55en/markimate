@@ -261,23 +261,214 @@ async function testShopify(cfg) {
   if (!chosen) return { ok: false, message: 'Blog "' + cfg.blogId + '" tidak ditemukan. Blog yang ada: ' + blogs.map(b => b.handle).join(', ') };
   return { ok: true, message: `Terhubung ke ${j.data.shop.name} — artikel masuk ke blog "${chosen.title}" (${blogs.length} blog tersedia: ${blogs.map(b => b.handle).join(', ')})`, meta: { blogs } };
 }
+export const DEFAULT_ARTICLE_SETTINGS = {
+  images: {
+    enabled: true,
+    count: 3,
+    style: 'foto editorial, warna hangat, tanpa teks di gambar',
+    aspectHero: '16:9',
+    aspectInline: '4:3',
+  },
+  links: {
+    internal: true,
+    maxInternal: 4,
+    external: true,
+    maxExternal: 2,
+    siteBaseUrl: 'https://blog.3ourasia.id/article/',
+    excludeDomains: ['facebook.com', 'instagram.com', 'tiktok.com', 'shopee.co.id', 'tokopedia.com', 'youtube.com'],
+  },
+  duplicateCheck: {
+    enabled: true,
+    threshold: 0.7,
+  },
+  sanity: {
+    authorId: 'author.ai-team',
+    autoCreateAuthor: true,
+    categoryIds: [],
+    categoryMode: 'fixed',
+    publishedAtField: 'publishedAt',
+    mainImageField: 'mainImage',
+    excerptField: 'excerpt',
+  },
+  wordpress: {
+    defaultCategoryIds: [],
+    authorId: null,
+  },
+  wix: {
+    categoryIds: [],
+  },
+  shopify: {
+    tags: [],
+  },
+};
+
+export function normalizeArticleSettings(input = {}) {
+  const d = DEFAULT_ARTICLE_SETTINGS;
+  const img = input.images || {};
+  const lnk = input.links || {};
+  const dup = input.duplicateCheck || {};
+  const san = input.sanity || {};
+  const wp = input.wordpress || {};
+  const wx = input.wix || {};
+  const sh = input.shopify || {};
+
+  return {
+    images: {
+      enabled: img.enabled !== undefined ? !!img.enabled : d.images.enabled,
+      count: Math.min(Math.max(Number(img.count) || d.images.count, 1), 3),
+      style: typeof img.style === 'string' ? img.style : d.images.style,
+      aspectHero: typeof img.aspectHero === 'string' ? img.aspectHero : d.images.aspectHero,
+      aspectInline: typeof img.aspectInline === 'string' ? img.aspectInline : d.images.aspectInline,
+    },
+    links: {
+      internal: lnk.internal !== undefined ? !!lnk.internal : d.links.internal,
+      maxInternal: Math.min(Math.max(Number(lnk.maxInternal) || d.links.maxInternal, 1), 10),
+      external: lnk.external !== undefined ? !!lnk.external : d.links.external,
+      maxExternal: Math.min(Math.max(Number(lnk.maxExternal) || d.links.maxExternal, 1), 5),
+      siteBaseUrl: typeof lnk.siteBaseUrl === 'string' ? lnk.siteBaseUrl.trim() : d.links.siteBaseUrl,
+      excludeDomains: Array.isArray(lnk.excludeDomains) ? lnk.excludeDomains.map(s => String(s).trim().toLowerCase()).filter(Boolean) : d.links.excludeDomains,
+    },
+    duplicateCheck: {
+      enabled: dup.enabled !== undefined ? !!dup.enabled : d.duplicateCheck.enabled,
+      threshold: typeof dup.threshold === 'number' ? Math.min(Math.max(dup.threshold, 0.1), 1.0) : d.duplicateCheck.threshold,
+    },
+    sanity: {
+      authorId: typeof san.authorId === 'string' ? san.authorId.trim() : d.sanity.authorId,
+      autoCreateAuthor: san.autoCreateAuthor !== undefined ? !!san.autoCreateAuthor : d.sanity.autoCreateAuthor,
+      categoryIds: Array.isArray(san.categoryIds) ? san.categoryIds : d.sanity.categoryIds,
+      categoryMode: ['fixed', 'ai', 'fixed+ai'].includes(san.categoryMode) ? san.categoryMode : d.sanity.categoryMode,
+      publishedAtField: typeof san.publishedAtField === 'string' && san.publishedAtField.trim() ? san.publishedAtField.trim() : d.sanity.publishedAtField,
+      mainImageField: typeof san.mainImageField === 'string' && san.mainImageField.trim() ? san.mainImageField.trim() : d.sanity.mainImageField,
+      excerptField: typeof san.excerptField === 'string' && san.excerptField.trim() ? san.excerptField.trim() : d.sanity.excerptField,
+    },
+    wordpress: {
+      defaultCategoryIds: Array.isArray(wp.defaultCategoryIds) ? wp.defaultCategoryIds : (Array.isArray(wp.categoryIds) ? wp.categoryIds : d.wordpress.defaultCategoryIds),
+      authorId: wp.authorId !== undefined ? wp.authorId : d.wordpress.authorId,
+    },
+    wix: {
+      categoryIds: Array.isArray(wx.categoryIds) ? wx.categoryIds : d.wix.categoryIds,
+    },
+    shopify: {
+      tags: Array.isArray(sh.tags) ? sh.tags : d.shopify.tags,
+    },
+  };
+}
+
+async function fetchCmsOptions(type, cfg) {
+  try {
+    if (type === 'sanity') {
+      if (!cfg.projectId || !cfg.token) return { authors: [], categories: [] };
+      const api = `https://${cfg.projectId}.api.sanity.io/v2025-02-19/data/query/${encodeURIComponent(cfg.dataset || 'production')}`;
+      const query = '*[_type in ["author","category"]]{_id,_type,title,name}';
+      const r = await fetch(`${api}?query=${encodeURIComponent(query)}`, {
+        headers: { Authorization: 'Bearer ' + cfg.token }
+      });
+      if (!r.ok) return { authors: [], categories: [], error: 'HTTP ' + r.status };
+      const j = await r.json().catch(() => ({}));
+      const items = j.result || [];
+      return {
+        authors: items.filter(x => x._type === 'author').map(x => ({ id: x._id, name: x.name || x.title || x._id })),
+        categories: items.filter(x => x._type === 'category').map(x => ({ id: x._id, title: x.title || x.name || x._id }))
+      };
+    }
+    if (type === 'wordpress') {
+      if (!cfg.url || !cfg.user || !cfg.appPassword) return { categories: [], authors: [] };
+      const authHeader = 'Basic ' + Buffer.from(cfg.user + ':' + cfg.appPassword.replace(/\s+/g, '')).toString('base64');
+      const [catsRes, usersRes] = await Promise.all([
+        fetch(`${cfg.url}/wp-json/wp/v2/categories?per_page=100`, { headers: { Authorization: authHeader } }).catch(() => null),
+        fetch(`${cfg.url}/wp-json/wp/v2/users?per_page=100`, { headers: { Authorization: authHeader } }).catch(() => null)
+      ]);
+      const cats = (catsRes && catsRes.ok) ? await catsRes.json().catch(() => []) : [];
+      const users = (usersRes && usersRes.ok) ? await usersRes.json().catch(() => []) : [];
+      return {
+        categories: Array.isArray(cats) ? cats.map(c => ({ id: c.id, name: c.name })) : [],
+        authors: Array.isArray(users) ? users.map(u => ({ id: u.id, name: u.name || u.slug })) : []
+      };
+    }
+    if (type === 'wix') {
+      if (!cfg.siteId || !cfg.apiKey) return { categories: [] };
+      const r = await fetch('https://www.wixapis.com/blog/v3/categories?paging.limit=100', {
+        headers: { Authorization: cfg.apiKey, 'wix-site-id': cfg.siteId }
+      }).catch(() => null);
+      if (!r || !r.ok) return { categories: [] };
+      const j = await r.json().catch(() => ({}));
+      const list = j.categories || [];
+      return {
+        categories: list.map(c => ({ id: c.id, label: c.label || c.name || c.id }))
+      };
+    }
+    if (type === 'shopify') {
+      if (!cfg.shop) return { blogs: [], tags: [] };
+      let token = cfg.accessToken;
+      if (!token && cfg.clientId && cfg.clientSecret) {
+        const t = await fetch(`https://${cfg.shop}/admin/oauth/access_token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ grant_type: 'client_credentials', client_id: cfg.clientId, client_secret: cfg.clientSecret })
+        }).catch(() => null);
+        const tj = t ? await t.json().catch(() => ({})) : {};
+        token = tj.access_token;
+      }
+      if (!token) return { blogs: [], tags: [] };
+      const r = await fetch(`https://${cfg.shop}/admin/api/2026-07/graphql.json`, {
+        method: 'POST',
+        headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: '{ blogs(first: 20) { nodes { id handle title } } articles(first: 25) { nodes { tags } } }' })
+      }).catch(() => null);
+      if (!r || !r.ok) return { blogs: [], tags: [] };
+      const j = await r.json().catch(() => ({}));
+      const blogs = (j.data?.blogs?.nodes || []).map(b => ({ id: b.id, handle: b.handle, title: b.title }));
+      const tagSet = new Set();
+      for (const a of j.data?.articles?.nodes || []) {
+        if (Array.isArray(a.tags)) a.tags.forEach(t => tagSet.add(t));
+      }
+      return { blogs, tags: Array.from(tagSet) };
+    }
+  } catch (err) {
+    console.error(`[CMS Options] Gagal mengambil opsi ${type}:`, err.message);
+  }
+  return {};
+}
+
 app.get('/api/cms', auth, wrap(async (req, res) => res.json({ cms: (await db.findMany('cms_connections', { user_id: req.user.id })).map(maskConn) })));
+app.get('/api/cms/:type/options', auth, wrap(async (req, res) => {
+  const type = String(req.params.type).toLowerCase();
+  const c = await db.findOne('cms_connections', { user_id: req.user.id, cms_type: type });
+  if (!c) return res.json({ options: {} });
+  const cfg = resolveConnConfig(c);
+  const options = await fetchCmsOptions(type, cfg);
+  res.json({ options });
+}));
 app.put('/api/cms/:type', auth, wrap(async (req, res) => {
   const type = String(req.params.type).toLowerCase();
   if (!CMS_TYPES.includes(type)) throw Object.assign(new Error('CMS belum didukung: ' + type), { status: 400 });
   const existing = await db.findOne('cms_connections', { user_id: req.user.id, cms_type: type });
   const existingConfig = existing ? resolveConnConfig(existing) : {};
-  const incoming = normalizeConfig(type, req.body.config || req.body);
-  // field rahasia yang dikirim dalam bentuk mask ("••••") → pertahankan nilai lama
-  if (existing) { for (const k of ['appPassword', 'apiKey', 'token', 'accessToken', 'clientSecret']) if (incoming[k] && incoming[k].includes('••••')) incoming[k] = existingConfig[k]; }
-  const test = req.body.test !== false ? await testConnection(type, incoming) : { ok: false, message: 'Belum dites' };
+  
+  const hasConfig = req.body.config !== undefined || (!req.body.articleSettings && Object.keys(req.body).length > 0);
+  const incoming = hasConfig ? normalizeConfig(type, req.body.config || req.body) : existingConfig;
+  
+  if (existing && hasConfig) {
+    for (const k of ['appPassword', 'apiKey', 'token', 'accessToken', 'clientSecret']) {
+      if (incoming[k] && incoming[k].includes('••••')) incoming[k] = existingConfig[k];
+    }
+  }
+
+  const shouldTest = hasConfig && req.body.test !== false;
+  const test = shouldTest ? await testConnection(type, incoming) : { ok: existing?.verified ?? false, message: existing?.verified ? 'Terhubung' : 'Belum dites' };
   const { enc, iv } = encrypt(incoming);
+  
+  const articleSettings = req.body.articleSettings !== undefined
+    ? normalizeArticleSettings(req.body.articleSettings)
+    : (existing?.article_settings ? normalizeArticleSettings(existing.article_settings) : normalizeArticleSettings({}));
+
   const row = await db.upsert('cms_connections', { user_id: req.user.id, cms_type: type }, {
     config: {},
     config_enc: enc,
     config_iv: iv,
+    article_settings: articleSettings,
     verified: test.ok,
-    verified_at: test.ok ? new Date().toISOString() : null,
+    verified_at: test.ok ? new Date().toISOString() : (existing?.verified_at || null),
   });
   if (test.ok && type === 'wix' && test.meta && test.meta.memberId && !incoming.memberId) {
     const updated = { ...incoming, memberId: test.meta.memberId };
