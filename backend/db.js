@@ -6,7 +6,7 @@ import { randomUUID } from 'crypto';
 import { createClient } from '@supabase/supabase-js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const TABLES = ['accounts', 'cms_connections', 'keywords', 'subscriptions'];
+const TABLES = ['accounts', 'cms_connections', 'keywords', 'subscriptions', 'seo_topic_sources'];
 
 const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
 
@@ -21,7 +21,7 @@ function makeSupabase() {
 class JsonStore {
   constructor() {
     this.file = path.join(__dirname, 'database.json');
-    this.data = { accounts: [], cms_connections: [], keywords: [], subscriptions: [] };
+    this.data = { accounts: [], cms_connections: [], keywords: [], subscriptions: [], seo_topic_sources: [] };
     try { if (fs.existsSync(this.file)) Object.assign(this.data, JSON.parse(fs.readFileSync(this.file, 'utf8'))); } catch (e) { log(`[DB] database.json rusak: ${e.message}`); }
     log('[DB] Mode fallback database.json (tanpa Supabase)');
   }

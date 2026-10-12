@@ -8,6 +8,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import { db, dbMode } from './db.js';
+import { encrypt, decrypt } from './lib/crypto.js';
 
 dotenv.config();
 
@@ -138,8 +139,38 @@ app.post('/api/me/api-key/rotate', auth, wrap(async (req, res) => {
 // ---------- CMS connections ----------
 const CMS_TYPES = ['wordpress', 'wix', 'sanity', 'shopify'];
 const CMS_NAME = { wordpress: 'situs WordPress', wix: 'Wix API', sanity: 'Sanity API', shopify: 'Shopify Admin API' };
+
+export function resolveConnConfig(c) {
+  if (!c) return {};
+  if (c.config_enc && c.config_iv) {
+    try {
+      const dec = decrypt(c.config_enc, c.config_iv);
+      if (dec && typeof dec === 'object') return dec;
+    } catch (e) {
+      console.error(`[CMS] Gagal dekripsi kredensial ${c.id}: ${e.message}`);
+    }
+  }
+  const raw = c.config || {};
+  if (raw && typeof raw === 'object' && Object.keys(raw).length > 0) {
+    try {
+      const { enc, iv } = encrypt(raw);
+      if (enc && iv) {
+        db.update('cms_connections', { id: c.id }, { config_enc: enc, config_iv: iv, config: {} }).catch((err) => {
+          console.error(`[CMS] Lazy encrypt update gagal: ${err.message}`);
+        });
+        c.config_enc = enc;
+        c.config_iv = iv;
+        c.config = {};
+      }
+    } catch (err) {
+      console.error(`[CMS] Lazy encrypt gagal: ${err.message}`);
+    }
+  }
+  return raw;
+}
+
 function maskConn(c) {
-  const cfg = c.config || {};
+  const cfg = resolveConnConfig(c);
   const safe = c.cms_type === 'wordpress'
     ? { url: cfg.url, user: cfg.user, appPassword: mask(cfg.appPassword) }
     : c.cms_type === 'shopify'
@@ -147,7 +178,7 @@ function maskConn(c) {
     : c.cms_type === 'sanity'
       ? { projectId: cfg.projectId, dataset: cfg.dataset, token: mask(cfg.token), studioUrl: cfg.studioUrl || '', docType: cfg.docType || 'post', bodyField: cfg.bodyField || 'body', publicUrlPattern: cfg.publicUrlPattern || '' }
       : { siteId: cfg.siteId, apiKey: mask(cfg.apiKey), memberId: cfg.memberId || '' };
-  return { cmsType: c.cms_type, config: safe, verified: !!c.verified, verifiedAt: c.verified_at, updatedAt: c.updated_at };
+  return { cmsType: c.cms_type, config: safe, verified: !!c.verified, verifiedAt: c.verified_at, updatedAt: c.updated_at, articleSettings: c.article_settings || {} };
 }
 function normalizeConfig(type, input) {
   const s = v => String(v ?? '').trim();
@@ -235,19 +266,32 @@ app.put('/api/cms/:type', auth, wrap(async (req, res) => {
   const type = String(req.params.type).toLowerCase();
   if (!CMS_TYPES.includes(type)) throw Object.assign(new Error('CMS belum didukung: ' + type), { status: 400 });
   const existing = await db.findOne('cms_connections', { user_id: req.user.id, cms_type: type });
+  const existingConfig = existing ? resolveConnConfig(existing) : {};
   const incoming = normalizeConfig(type, req.body.config || req.body);
   // field rahasia yang dikirim dalam bentuk mask ("••••") → pertahankan nilai lama
-  if (existing) { for (const k of ['appPassword', 'apiKey', 'token', 'accessToken', 'clientSecret']) if (incoming[k] && incoming[k].includes('••••')) incoming[k] = existing.config[k]; }
+  if (existing) { for (const k of ['appPassword', 'apiKey', 'token', 'accessToken', 'clientSecret']) if (incoming[k] && incoming[k].includes('••••')) incoming[k] = existingConfig[k]; }
   const test = req.body.test !== false ? await testConnection(type, incoming) : { ok: false, message: 'Belum dites' };
-  const row = await db.upsert('cms_connections', { user_id: req.user.id, cms_type: type }, { config: incoming, verified: test.ok, verified_at: test.ok ? new Date().toISOString() : null });
-  if (test.ok && type === 'wix' && test.meta && test.meta.memberId && !incoming.memberId) await db.update('cms_connections', { id: row.id }, { config: { ...incoming, memberId: test.meta.memberId } });
+  const { enc, iv } = encrypt(incoming);
+  const row = await db.upsert('cms_connections', { user_id: req.user.id, cms_type: type }, {
+    config: {},
+    config_enc: enc,
+    config_iv: iv,
+    verified: test.ok,
+    verified_at: test.ok ? new Date().toISOString() : null,
+  });
+  if (test.ok && type === 'wix' && test.meta && test.meta.memberId && !incoming.memberId) {
+    const updated = { ...incoming, memberId: test.meta.memberId };
+    const e2 = encrypt(updated);
+    await db.update('cms_connections', { id: row.id }, { config_enc: e2.enc, config_iv: e2.iv, config: {} });
+  }
   res.json({ cms: maskConn(await db.findOne('cms_connections', { id: row.id })), test });
 }));
 app.post('/api/cms/:type/test', auth, wrap(async (req, res) => {
   const type = String(req.params.type).toLowerCase();
   const c = await db.findOne('cms_connections', { user_id: req.user.id, cms_type: type });
   if (!c) throw Object.assign(new Error('Kredensial belum disimpan.'), { status: 404 });
-  const test = await testConnection(type, c.config);
+  const cfg = resolveConnConfig(c);
+  const test = await testConnection(type, cfg);
   await db.update('cms_connections', { id: c.id }, { verified: test.ok, verified_at: test.ok ? new Date().toISOString() : null });
   res.json({ test });
 }));
@@ -294,9 +338,10 @@ async function generateFor(user, k) {
 async function publishFor(user, k, action, articleOverride) {
   const conn = await db.findOne('cms_connections', { user_id: user.id, cms_type: k.cms_type });
   if (!conn) throw Object.assign(new Error(`Kredensial ${k.cms_type} belum disimpan di Pengaturan CMS.`), { status: 400 });
+  const connConfig = resolveConnConfig(conn);
   const article = articleOverride ? { ...(k.article || {}), ...articleOverride } : k.article;
   const useExisting = !!k.post_id && !articleOverride; // publish draf yang sudah ada tanpa perubahan konten
-  const body = { cmsType: k.cms_type, action, cms: { [k.cms_type]: conn.config }, article: useExisting ? undefined : article, postId: k.post_id || '', clientName: user.brand_name, requestId: k.id };
+  const body = { cmsType: k.cms_type, action, cms: { [k.cms_type]: connConfig }, article: useExisting ? undefined : article, postId: k.post_id || '', clientName: user.brand_name, requestId: k.id };
   try {
     const out = await callN8n(N8N_URL_PUBLISH, body);
     const status = out.postStatus === 'publish' ? 'Published' : 'Draft Created';
