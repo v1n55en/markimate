@@ -1,5 +1,5 @@
 // Kamus multibahasa: English (Primary / Default) & Bahasa Indonesia
-// Digunakan di seluruh halaman publik dan dalam aplikasi Supermat
+// Digunakan di seluruh halaman publik dan dalam aplikasi Markimate
 
 export const TRANSLATIONS = {
   en: {

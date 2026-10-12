@@ -367,7 +367,7 @@ export const REPORT_DETAILS = {
     topProducts: [
       {
         id: 'prod-1',
-        name: 'Supermat Premium Coffee Beans 250g (Single Origin Arabica)',
+        name: 'Markimate Premium Coffee Beans 250g (Single Origin Arabica)',
         image: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=150&auto=format&fit=crop&q=80',
         spend: 3600000,
         gmv: 25920000,

@@ -1,4 +1,4 @@
-// Klien API Supermat (backend Express). Token sesi disimpan di localStorage.
+// Klien API Markimate (backend Express). Token sesi disimpan di localStorage.
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
 const TOKEN_KEY = 'supermat_token';
 
@@ -17,7 +17,7 @@ export async function api(path, { method = 'GET', body, headers = {} } = {}) {
   try {
     res = await fetch(API_BASE_URL + path, { method, headers: h, body: body !== undefined ? JSON.stringify(body) : undefined });
   } catch {
-    throw new ApiError('Tidak bisa menghubungi server Supermat. Pastikan backend berjalan.', 0, null);
+    throw new ApiError('Tidak bisa menghubungi server Markimate. Pastikan backend berjalan.', 0, null);
   }
   const text = await res.text();
   let data; try { data = text ? JSON.parse(text) : null; } catch { data = { error: text }; }

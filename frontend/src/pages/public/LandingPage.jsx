@@ -266,7 +266,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 4. Perbandingan Biaya (Tim In-House vs Supermat) */}
+        {/* 4. Perbandingan Biaya (Tim In-House vs Markimate) */}
         <section style={styles.section}>
           <div style={styles.sectionHeader}>
             <h2 style={styles.sectionHeading}>{t('benchmark.title', 'Cost Comparison: In-House Team vs Agency vs Markimate')}</h2>
