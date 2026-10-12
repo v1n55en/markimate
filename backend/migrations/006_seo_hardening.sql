@@ -15,6 +15,7 @@ alter table supermat.keywords
   add column if not exists image_prompts jsonb,               -- dari n8n generate
   add column if not exists images jsonb,                      -- hasil publish [{idx, assetId, url}]
   add column if not exists links jsonb,                       -- {internal:[], external:[]}
+  add column if not exists warnings jsonb,
   add column if not exists workspace_id uuid;
 
 -- 3. Topik otomatis (focus keyword + jadwal mingguan)

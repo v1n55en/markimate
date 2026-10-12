@@ -48,6 +48,7 @@ create table if not exists supermat.keywords (
   image_prompts jsonb,
   images jsonb,
   links jsonb,
+  warnings jsonb,
   volume integer,
   difficulty numeric,
   article jsonb,

@@ -52,7 +52,8 @@ const mask = (s) => { s = String(s || ''); return s.length <= 6 ? (s ? '••�
 async function usageOf(userId) {
   const rows = await db.findMany('keywords', { user_id: userId });
   const since = monthStart();
-  return rows.filter(k => k.last_run_at && k.last_run_at >= since).length;
+  const countedStatuses = new Set(['Review Ready', 'Draft Created', 'Published']);
+  return rows.filter(k => k.last_run_at && k.last_run_at >= since && countedStatuses.has(k.status)).length;
 }
 const planOf = (u) => PLANS[u.plan] || PLANS.free;
 
@@ -61,6 +62,7 @@ function friendlyN8nError(status, text) {
   const msg = parsed && (parsed.message || parsed.error);
   if (status === 404 || /not registered/i.test(text)) return 'Endpoint n8n belum aktif (404). Pastikan workflow "Supermat API" sudah dipublish.';
   if (status === 401) return 'Backend ditolak n8n (401): SUPERMAT_API_KEY di server tidak cocok dengan key di n8n.';
+  if (status === 409 || (parsed && parsed.status === 'duplicate')) return (parsed && parsed.message) || 'Topik mirip sudah ada di CMS.';
   if (/Error in workflow/i.test(text)) return 'Terjadi error di workflow n8n. Cek eksekusi terakhir di n8n.';
   return msg || `n8n HTTP ${status}`;
 }
@@ -71,6 +73,14 @@ async function callN8n(url, body) {
   const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
   const text = await res.text();
   let json = null; try { json = JSON.parse(text); } catch (e) {}
+  if (res.status === 409 || (json && json.status === 'duplicate')) {
+    const err = new Error((json && json.message) || 'Topik mirip sudah ada di CMS.');
+    err.status = 409;
+    err.isDuplicate = true;
+    err.duplicateOf = (json && json.duplicateOf) || null;
+    err.n8n = json;
+    throw err;
+  }
   if (!res.ok || !json || json.status === 'error') {
     const err = new Error((json && json.message) || friendlyN8nError(res.status, text));
     err.status = res.status >= 400 && res.status < 500 ? 400 : 502; err.n8n = json; throw err;
@@ -489,7 +499,32 @@ app.post('/api/cms/:type/test', auth, wrap(async (req, res) => {
 app.delete('/api/cms/:type', auth, wrap(async (req, res) => { await db.remove('cms_connections', { user_id: req.user.id, cms_type: String(req.params.type).toLowerCase() }); res.json({ ok: true }); }));
 
 // ---------- Keywords & automation ----------
-const kwPublic = (k) => ({ id: k.id, keyword: k.keyword, geo: k.geo, ln: k.ln, cms: k.cms_type, status: k.status, schedule: k.schedule, volume: k.volume, difficulty: k.difficulty, article: k.article || null, postId: k.post_id || '', draftUrl: k.draft_url || '', publicUrl: k.public_url || '', postStatus: k.post_status || '', error: k.error || '', date: (k.created_at || '').slice(0, 10), lastRunAt: k.last_run_at, nextRunAt: k.next_run_at });
+const kwPublic = (k) => ({
+  id: k.id,
+  keyword: k.keyword,
+  geo: k.geo,
+  ln: k.ln,
+  cms: k.cms_type,
+  status: k.status,
+  schedule: k.schedule,
+  volume: k.volume,
+  difficulty: k.difficulty,
+  article: k.article || null,
+  postId: k.post_id || '',
+  draftUrl: k.draft_url || '',
+  publicUrl: k.public_url || '',
+  postStatus: k.post_status || '',
+  error: k.error || '',
+  date: (k.created_at || '').slice(0, 10),
+  lastRunAt: k.last_run_at,
+  nextRunAt: k.next_run_at,
+  source: k.source || 'manual',
+  duplicateOf: k.duplicate_of || null,
+  imagePrompts: k.image_prompts || (k.article && k.article.imagePrompts) || null,
+  images: k.images || (k.article && k.article.images) || null,
+  links: k.links || (k.article && k.article.links) || null,
+  warnings: k.warnings || (k.article && k.article.warnings) || []
+});
 const nextRun = (schedule) => { if (schedule === 'daily') return new Date(Date.now() + 86400e3).toISOString(); if (schedule === 'weekly') return new Date(Date.now() + 7 * 86400e3).toISOString(); return null; };
 
 app.get('/api/keywords', auth, wrap(async (req, res) => res.json({ keywords: (await db.findMany('keywords', { user_id: req.user.id }, { orderBy: 'created_at' })).map(kwPublic) })));
@@ -505,7 +540,19 @@ app.post('/api/keywords', auth, wrap(async (req, res) => {
 app.patch('/api/keywords/:id', auth, wrap(async (req, res) => {
   const k = await db.findOne('keywords', { id: req.params.id, user_id: req.user.id }); if (!k) throw Object.assign(new Error('Tidak ditemukan.'), { status: 404 });
   const patch = {}; const b = req.body || {};
-  if (b.article) patch.article = { ...(k.article || {}), ...b.article };
+  if (b.article) {
+    patch.article = { ...(k.article || {}), ...b.article };
+    if (b.article.imagePrompts) patch.image_prompts = b.article.imagePrompts;
+    if (b.article.links) patch.links = b.article.links;
+  }
+  if (b.imagePrompts) {
+    patch.image_prompts = b.imagePrompts;
+    patch.article = { ...(patch.article || k.article || {}), imagePrompts: b.imagePrompts };
+  }
+  if (b.links) {
+    patch.links = b.links;
+    patch.article = { ...(patch.article || k.article || {}), links: b.links };
+  }
   if (b.schedule) { patch.schedule = b.schedule; patch.next_run_at = nextRun(b.schedule); }
   if (b.status) patch.status = String(b.status);
   res.json({ keyword: kwPublic(await db.update('keywords', { id: k.id }, patch)) });
@@ -517,28 +564,156 @@ async function generateFor(user, k) {
   const used = await usageOf(user.id);
   if (used >= plan.monthlyArticles) throw Object.assign(new Error(`Kuota ${plan.name} bulan ini habis (${plan.monthlyArticles} artikel). Upgrade ke Pro untuk melanjutkan.`), { status: 402 });
   await db.update('keywords', { id: k.id }, { status: 'AI Writing...', error: '' });
+
+  const conn = k.cms_type ? await db.findOne('cms_connections', { user_id: user.id, cms_type: k.cms_type }) : null;
+  const connConfig = conn ? resolveConnConfig(conn) : null;
+  const artSet = conn ? normalizeArticleSettings(conn.article_settings) : normalizeArticleSettings({});
+
+  const options = {
+    duplicateCheck: artSet.duplicateCheck?.enabled !== false,
+    duplicateThreshold: artSet.duplicateCheck?.threshold ?? 0.7,
+    internalLinks: artSet.links?.internal !== false,
+    maxInternal: artSet.links?.maxInternal ?? 4,
+    siteBaseUrl: artSet.links?.siteBaseUrl || '',
+    externalLinks: artSet.links?.external !== false,
+    maxExternal: artSet.links?.maxExternal ?? 2,
+    excludeDomains: Array.isArray(artSet.links?.excludeDomains) ? artSet.links.excludeDomains : [],
+    imagePrompts: (plan.images !== false) && (artSet.images?.enabled !== false),
+    imageCount: artSet.images?.count ?? 3,
+    imageStyle: artSet.images?.style || ''
+  };
+
+  const payload = {
+    keyword: k.keyword,
+    Geo: k.geo,
+    Ln: k.ln,
+    Client_Name: user.brand_name || 'Brand Anda',
+    niche: user.niche || '',
+    tone: '',
+    wordCount: 900,
+    requestId: k.id,
+    ...(k.cms_type && connConfig ? {
+      cmsType: k.cms_type,
+      cms: { [k.cms_type]: connConfig }
+    } : {}),
+    options
+  };
+
   try {
-    const out = await callN8n(N8N_URL_RUN, { keyword: k.keyword, Geo: k.geo, Ln: k.ln, Client_Name: user.brand_name, niche: user.niche, requestId: k.id });
-    const article = out.article;
-    return await db.update('keywords', { id: k.id }, { article, volume: article.searchVolume || 0, difficulty: article.difficulty, status: 'Review Ready', last_run_at: new Date().toISOString(), next_run_at: nextRun(k.schedule) });
+    const out = await callN8n(N8N_URL_RUN, payload);
+    const article = out.article || {};
+    const links = article.links || null;
+    const imagePrompts = article.imagePrompts || null;
+    return await db.update('keywords', { id: k.id }, {
+      article,
+      links,
+      image_prompts: imagePrompts,
+      volume: article.searchVolume || 0,
+      difficulty: article.difficulty,
+      status: 'Review Ready',
+      error: '',
+      last_run_at: new Date().toISOString(),
+      next_run_at: nextRun(k.schedule)
+    });
   } catch (e) {
-    await db.update('keywords', { id: k.id }, { status: 'Error', error: e.message, last_run_at: new Date().toISOString(), next_run_at: nextRun(k.schedule) });
+    if (e.isDuplicate || e.status === 409) {
+      const dup = e.duplicateOf || (e.n8n && e.n8n.duplicateOf) || null;
+      return await db.update('keywords', { id: k.id }, {
+        status: 'Duplicate',
+        duplicate_of: dup,
+        error: e.message,
+        next_run_at: nextRun(k.schedule)
+      });
+    }
+    await db.update('keywords', { id: k.id }, {
+      status: 'Error',
+      error: e.message,
+      last_run_at: new Date().toISOString(),
+      next_run_at: nextRun(k.schedule)
+    });
     throw e;
   }
 }
+
 async function publishFor(user, k, action, articleOverride) {
   const conn = await db.findOne('cms_connections', { user_id: user.id, cms_type: k.cms_type });
   if (!conn) throw Object.assign(new Error(`Kredensial ${k.cms_type} belum disimpan di Pengaturan CMS.`), { status: 400 });
   const connConfig = resolveConnConfig(conn);
-  const article = articleOverride ? { ...(k.article || {}), ...articleOverride } : k.article;
+  const artSet = normalizeArticleSettings(conn.article_settings);
+  const plan = planOf(user);
+
+  const cmsPayload = { ...connConfig };
+  if (k.cms_type === 'sanity') {
+    const san = artSet.sanity || {};
+    cmsPayload.authorId = san.authorId || '';
+    cmsPayload.autoCreateAuthor = san.autoCreateAuthor !== false;
+    cmsPayload.categoryIds = Array.isArray(san.categoryIds) ? san.categoryIds : [];
+    cmsPayload.publishedAtField = san.publishedAtField || 'publishedAt';
+    cmsPayload.mainImageField = san.mainImageField || 'mainImage';
+    cmsPayload.excerptField = san.excerptField || 'excerpt';
+  } else if (k.cms_type === 'wordpress') {
+    const wp = artSet.wordpress || {};
+    cmsPayload.defaultCategoryIds = Array.isArray(wp.defaultCategoryIds) ? wp.defaultCategoryIds : [];
+    cmsPayload.authorId = wp.authorId || null;
+  } else if (k.cms_type === 'wix') {
+    const wx = artSet.wix || {};
+    cmsPayload.categoryIds = Array.isArray(wx.categoryIds) ? wx.categoryIds : [];
+  } else if (k.cms_type === 'shopify') {
+    const sh = artSet.shopify || {};
+    cmsPayload.tags = Array.isArray(sh.tags) ? sh.tags : [];
+  }
+
+  const baseArticle = articleOverride ? { ...(k.article || {}), ...articleOverride } : (k.article || {});
+  if (!baseArticle.imagePrompts && k.image_prompts) baseArticle.imagePrompts = k.image_prompts;
+  if (!baseArticle.links && k.links) baseArticle.links = k.links;
+
   const useExisting = !!k.post_id && !articleOverride; // publish draf yang sudah ada tanpa perubahan konten
-  const body = { cmsType: k.cms_type, action, cms: { [k.cms_type]: connConfig }, article: useExisting ? undefined : article, postId: k.post_id || '', clientName: user.brand_name, requestId: k.id };
+  const makeImages = !useExisting && (plan.images !== false) && (artSet.images?.enabled !== false);
+  const options = {
+    images: makeImages,
+    imageCount: artSet.images?.count ?? 3,
+    imageStyle: artSet.images?.style || ''
+  };
+
+  const body = {
+    cmsType: k.cms_type,
+    action,
+    cms: { [k.cms_type]: cmsPayload },
+    article: useExisting ? undefined : baseArticle,
+    postId: k.post_id || '',
+    options,
+    clientName: user.brand_name || 'Brand Anda',
+    requestId: k.id
+  };
+
   try {
     const out = await callN8n(N8N_URL_PUBLISH, body);
     const status = out.postStatus === 'publish' ? 'Published' : 'Draft Created';
-    return await db.update('keywords', { id: k.id }, { article, status, post_id: out.postId || k.post_id, draft_url: out.draftEditUrl || k.draft_url, public_url: out.publicUrl || (out.postStatus === 'publish' ? k.public_url : ''), post_status: out.postStatus, error: '' });
+    const newImages = (Array.isArray(out.images) && out.images.length > 0) ? out.images : (k.images || null);
+    const warnings = Array.isArray(out.warnings) ? out.warnings : [];
+    const updatedArticle = useExisting ? k.article : {
+      ...baseArticle,
+      ...(newImages ? { images: newImages } : {}),
+      ...(warnings.length > 0 ? { warnings } : {})
+    };
+
+    return await db.update('keywords', { id: k.id }, {
+      article: updatedArticle,
+      status,
+      post_id: out.postId || k.post_id,
+      draft_url: out.draftEditUrl || k.draft_url,
+      public_url: out.publicUrl || (out.postStatus === 'publish' ? k.public_url : ''),
+      post_status: out.postStatus,
+      images: newImages,
+      warnings,
+      error: ''
+    });
   } catch (e) {
-    await db.update('keywords', { id: k.id }, { article, status: k.article ? 'Review Ready' : k.status, error: e.message });
+    await db.update('keywords', { id: k.id }, {
+      article: k.article,
+      status: k.article ? 'Review Ready' : k.status,
+      error: e.message
+    });
     throw e;
   }
 }
@@ -547,7 +722,7 @@ const webApproverOn = (u) => u.plan === 'premium' && u.web_approver !== false;
 app.post('/api/keywords/:id/run', auth, wrap(async (req, res) => {
   const k = await db.findOne('keywords', { id: req.params.id, user_id: req.user.id }); if (!k) throw Object.assign(new Error('Tidak ditemukan.'), { status: 404 });
   let row = await generateFor(req.user, k);
-  if (!webApproverOn(req.user)) {
+  if (row.status !== 'Duplicate' && !webApproverOn(req.user)) {
     // Free (atau Web Approver mati): langsung simpan sebagai DRAF di CMS, tanpa review
     try { row = await publishFor(req.user, row, 'draft'); } catch (e) { row = await db.findOne('keywords', { id: k.id }); row.error = e.message; }
   }
@@ -587,12 +762,26 @@ app.post('/api/v1/articles/generate', apiKeyAuth, wrap(async (req, res) => {
   if (!keyword) throw Object.assign(new Error('keyword wajib diisi.'), { status: 400 });
   const k = await db.insert('keywords', { user_id: req.user.id, keyword, geo: String(b.geo || 'ID').toUpperCase(), ln: String(b.ln || 'id').toLowerCase(), cms_type: String(b.cmsType || 'wordpress').toLowerCase(), status: 'Pending', schedule: 'immediate', source: 'api' });
   const row = await generateFor(req.user, k);
-  res.json({ status: 'ok', id: row.id, article: row.article });
+  if (row.status === 'Duplicate') {
+    return res.status(409).json({
+      status: 'duplicate',
+      id: row.id,
+      duplicateOf: row.duplicate_of || null,
+      message: row.error || 'Topik duplikat dengan artikel yang sudah ada di CMS.'
+    });
+  }
+  res.json({
+    status: 'ok',
+    id: row.id,
+    article: row.article,
+    links: row.links || (row.article && row.article.links) || null,
+    imagePrompts: row.image_prompts || (row.article && row.article.imagePrompts) || null
+  });
 }));
 app.post('/api/v1/articles/:id/publish', apiKeyAuth, wrap(async (req, res) => {
   const k = await db.findOne('keywords', { id: req.params.id, user_id: req.user.id }); if (!k) throw Object.assign(new Error('Artikel tidak ditemukan.'), { status: 404 });
   const row = await publishFor(req.user, k, req.body.action === 'publish' ? 'publish' : 'draft', req.body.article || null);
-  res.json({ status: 'ok', id: row.id, postId: row.post_id, draftEditUrl: row.draft_url, publicUrl: row.public_url, postStatus: row.post_status });
+  res.json({ status: 'ok', id: row.id, postId: row.post_id, draftEditUrl: row.draft_url, publicUrl: row.public_url, postStatus: row.post_status, warnings: row.warnings || [] });
 }));
 app.get('/api/v1/articles', apiKeyAuth, wrap(async (req, res) => res.json({ status: 'ok', articles: (await db.findMany('keywords', { user_id: req.user.id }, { orderBy: 'created_at' })).map(kwPublic) })));
 
@@ -607,7 +796,11 @@ app.get('/api/cron/run-scheduled', wrap(async (req, res) => {
   for (const k of due) {
     const user = await db.findOne('accounts', { id: k.user_id });
     if (!user || user.plan !== 'premium') { await db.update('keywords', { id: k.id }, { next_run_at: nextRun(k.schedule) }); results.push({ id: k.id, skipped: 'plan' }); continue; }
-    try { let row = await generateFor(user, k); if (!webApproverOn(user)) row = await publishFor(user, row, 'draft'); results.push({ id: k.id, status: row.status }); }
+    try {
+      let row = await generateFor(user, k);
+      if (row.status !== 'Duplicate' && !webApproverOn(user)) row = await publishFor(user, row, 'draft');
+      results.push({ id: k.id, status: row.status });
+    }
     catch (e) { results.push({ id: k.id, error: e.message }); }
   }
   res.json({ ran: results.length, results });
