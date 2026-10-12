@@ -19,6 +19,7 @@ const N8N_BASE_URL = (process.env.N8N_BASE_URL || 'https://n8n.3ourasia.id').rep
 // Override opsional (nama baru, supaya env lama N8N_URL_RUN/N8N_URL_PUBLISH dari versi v1 tidak terpakai)
 const N8N_URL_RUN = process.env.SUPERMAT_N8N_RUN_URL || `${N8N_BASE_URL}/webhook/supermat-trigger`;
 const N8N_URL_PUBLISH = process.env.SUPERMAT_N8N_PUBLISH_URL || `${N8N_BASE_URL}/webhook/supermat-publish`;
+const N8N_URL_TOPICS = process.env.SUPERMAT_N8N_TOPICS_URL || (process.env.N8N_URL_TOPICS?.startsWith('http') ? process.env.N8N_URL_TOPICS : `${N8N_BASE_URL}${process.env.N8N_URL_TOPICS || '/webhook/supermat-topics'}`);
 const SUPERMAT_API_KEY = process.env.SUPERMAT_API_KEY || ''; // key 3Our untuk memanggil n8n (header X-Supermat-Key)
 const CRON_SECRET = process.env.CRON_SECRET || '';
 const FREE_MONTHLY_LIMIT = Number(process.env.FREE_MONTHLY_LIMIT || 3);
@@ -736,6 +737,177 @@ app.post('/api/keywords/:id/publish', auth, wrap(async (req, res) => {
   res.json({ keyword: kwPublic(row) });
 }));
 
+// ---------- Topik Otomatis (SEO Topic Sources) ----------
+function calcNextWeeklyRun(weekday = 6, hour = 0) {
+  const now = new Date();
+  const wibOffsetMs = 7 * 3600 * 1000;
+  const nowWib = new Date(now.getTime() + wibOffsetMs);
+
+  const curDay = nowWib.getUTCDay();
+  const curHour = nowWib.getUTCHours();
+
+  let daysAhead = (Number(weekday) - curDay + 7) % 7;
+  if (daysAhead === 0 && curHour >= Number(hour)) {
+    daysAhead = 7;
+  }
+
+  const nextWib = new Date(nowWib);
+  nextWib.setUTCDate(nextWib.getUTCDate() + daysAhead);
+  nextWib.setUTCHours(Number(hour), 0, 0, 0);
+
+  const nextUtc = new Date(nextWib.getTime() - wibOffsetMs);
+  return nextUtc.toISOString();
+}
+
+async function runTopicSource(user, source) {
+  if (user.plan === 'free') {
+    throw Object.assign(new Error('Topik otomatis hanya untuk paket berbayar (Pro).'), { status: 402 });
+  }
+  const conn = await db.findOne('cms_connections', { user_id: user.id, cms_type: source.cms_type });
+  if (!conn) {
+    throw Object.assign(new Error(`Koneksi CMS ${source.cms_type} belum disimpan.`), { status: 400 });
+  }
+  const connConfig = resolveConnConfig(conn);
+  const artSet = normalizeArticleSettings(conn.article_settings);
+
+  const seedKeywords = Array.isArray(source.seed_keywords)
+    ? source.seed_keywords
+    : (typeof source.seed_keywords === 'string' ? source.seed_keywords.split(',').map(s => s.trim()).filter(Boolean) : []);
+
+  const payload = {
+    seedKeywords,
+    Geo: source.geo || 'ID',
+    Ln: source.ln || 'id',
+    cmsType: source.cms_type,
+    cms: { [source.cms_type]: connConfig },
+    limit: Number(source.topics_per_run) || 3,
+    minVolume: Number(source.min_volume) || 50,
+    duplicateThreshold: artSet.duplicateCheck?.threshold || 0.7,
+    requestId: source.id
+  };
+
+  const out = await callN8n(N8N_URL_TOPICS, payload);
+  const topics = Array.isArray(out.topics) ? out.topics : [];
+  const createdKeywords = [];
+
+  for (const t of topics) {
+    const kwText = String(t.keyword || '').trim();
+    if (!kwText) continue;
+
+    const row = await db.insert('keywords', {
+      user_id: user.id,
+      keyword: kwText,
+      geo: source.geo || 'ID',
+      ln: source.ln || 'id',
+      cms_type: source.cms_type,
+      status: source.auto_generate ? 'Pending' : 'Suggested',
+      schedule: 'immediate',
+      source: 'auto_trends',
+      volume: t.searchVolume || 0,
+      difficulty: t.difficulty ?? null,
+      next_run_at: null
+    });
+
+    if (source.auto_generate) {
+      const plan = planOf(user);
+      const used = await usageOf(user.id);
+      if (used < plan.monthlyArticles) {
+        try {
+          let genRow = await generateFor(user, row);
+          if (!webApproverOn(user) && genRow.status !== 'Duplicate') {
+            await publishFor(user, genRow, 'draft');
+          }
+        } catch (e) {
+          log(`[TOPICS] auto_generate error: ${e.message}`);
+        }
+      }
+    }
+    createdKeywords.push(row);
+  }
+
+  const nextRunAt = calcNextWeeklyRun(source.weekday ?? 6, source.hour ?? 0);
+  await db.update('seo_topic_sources', { id: source.id }, {
+    last_run_at: new Date().toISOString(),
+    next_run_at: nextRunAt,
+    updated_at: new Date().toISOString()
+  });
+
+  return {
+    ok: true,
+    topics,
+    created: createdKeywords.length,
+    skipped: out.skipped || {},
+    nextRunAt
+  };
+}
+
+app.get('/api/seo/topic-sources', auth, wrap(async (req, res) => {
+  const sources = await db.findMany('seo_topic_sources', { user_id: req.user.id }, { orderBy: 'created_at' });
+  res.json({ sources });
+}));
+
+app.put('/api/seo/topic-sources', auth, wrap(async (req, res) => {
+  const b = req.body || {};
+  const cmsType = String(b.cmsType || 'wordpress').toLowerCase();
+  const seedKeywords = Array.isArray(b.seedKeywords)
+    ? b.seedKeywords.map(s => String(s).trim()).filter(Boolean)
+    : String(b.seedKeywords || '').split(',').map(s => s.trim()).filter(Boolean);
+  const geo = String(b.geo || 'ID').toUpperCase();
+  const ln = String(b.ln || 'id').toLowerCase();
+  const weekday = Math.min(Math.max(Number(b.weekday) || 6, 0), 6);
+  const hour = Math.min(Math.max(Number(b.hour) || 0, 0), 23);
+  const topicsPerRun = Math.min(Math.max(Number(b.topicsPerRun) || 3, 1), 10);
+  const minVolume = Math.max(Number(b.minVolume) || 50, 0);
+  const autoGenerate = !!b.autoGenerate;
+  const active = b.active !== false;
+  const nextRunAt = calcNextWeeklyRun(weekday, hour);
+
+  let existing = b.id ? await db.findOne('seo_topic_sources', { id: b.id, user_id: req.user.id }) : null;
+  if (!existing) {
+    existing = await db.findOne('seo_topic_sources', { user_id: req.user.id, cms_type: cmsType });
+  }
+
+  let source;
+  if (existing) {
+    source = await db.update('seo_topic_sources', { id: existing.id }, {
+      cms_type: cmsType,
+      seed_keywords: seedKeywords,
+      geo, ln, weekday, hour,
+      topics_per_run: topicsPerRun,
+      min_volume: minVolume,
+      auto_generate: autoGenerate,
+      active,
+      next_run_at: nextRunAt,
+      updated_at: new Date().toISOString()
+    });
+  } else {
+    source = await db.insert('seo_topic_sources', {
+      user_id: req.user.id,
+      cms_type: cmsType,
+      seed_keywords: seedKeywords,
+      geo, ln, weekday, hour,
+      topics_per_run: topicsPerRun,
+      min_volume: minVolume,
+      auto_generate: autoGenerate,
+      active,
+      next_run_at: nextRunAt
+    });
+  }
+  res.json({ source });
+}));
+
+app.delete('/api/seo/topic-sources/:id', auth, wrap(async (req, res) => {
+  await db.remove('seo_topic_sources', { id: req.params.id, user_id: req.user.id });
+  res.json({ ok: true });
+}));
+
+app.post('/api/seo/topic-sources/:id/run', auth, wrap(async (req, res) => {
+  const source = await db.findOne('seo_topic_sources', { id: req.params.id, user_id: req.user.id });
+  if (!source) throw Object.assign(new Error('Sumber topik tidak ditemukan.'), { status: 404 });
+  const result = await runTopicSource(req.user, source);
+  res.json(result);
+}));
+
 // ---------- Billing (dummy) ----------
 app.get('/api/billing', auth, wrap(async (req, res) => {
   const subs = await db.findMany('subscriptions', { user_id: req.user.id }, { orderBy: 'created_at' });
@@ -790,6 +962,8 @@ app.get('/api/cron/run-scheduled', wrap(async (req, res) => {
   const given = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '') || String(req.query.secret || '');
   if (!CRON_SECRET || given !== CRON_SECRET) return res.status(401).json({ error: 'unauthorized' });
   const now = new Date().toISOString();
+
+  // 1. Scheduled Keywords (daily/weekly)
   const all = await db.findMany('keywords', {});
   const due = all.filter(k => ['daily', 'weekly'].includes(k.schedule) && k.next_run_at && k.next_run_at <= now).slice(0, 20);
   const results = [];
@@ -803,6 +977,25 @@ app.get('/api/cron/run-scheduled', wrap(async (req, res) => {
     }
     catch (e) { results.push({ id: k.id, error: e.message }); }
   }
+
+  // 2. Scheduled Topic Sources (Google Trends mingguan)
+  try {
+    const allSources = await db.findMany('seo_topic_sources', {});
+    const dueSources = allSources.filter(s => s.active !== false && s.next_run_at && s.next_run_at <= now);
+    for (const s of dueSources) {
+      const user = await db.findOne('accounts', { id: s.user_id });
+      if (!user || user.plan === 'free') continue;
+      try {
+        const resTopics = await runTopicSource(user, s);
+        results.push({ topicSourceId: s.id, status: 'ok', generated: resTopics.created });
+      } catch (e) {
+        results.push({ topicSourceId: s.id, error: e.message });
+      }
+    }
+  } catch (err) {
+    log(`[CRON] topic sources check error: ${err.message}`);
+  }
+
   res.json({ ran: results.length, results });
 }));
 

@@ -14,6 +14,7 @@ import KeywordManager from './components/KeywordManager';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import CmsSettings from './components/CmsSettings';
 import BillingPage from './components/BillingPage';
+import AutoTopicsPage from './pages/seo/AutoTopicsPage';
 
 // Halaman Publik
 import LandingPage from './pages/public/LandingPage';
@@ -57,6 +58,7 @@ function ProtectedLayout({ me, onLogout, refreshMe }) {
 
   const goTo = (tab) => {
     if (tab === 'keywords') navigate('/app/seo/keywords');
+    else if (tab === 'topics') navigate('/app/seo/topics');
     else if (tab === 'analytics') navigate('/app/seo/analytics');
     else if (tab === 'settings') navigate('/app/seo/settings');
     else if (tab === 'billing') navigate('/app/billing');
@@ -91,6 +93,14 @@ function ProtectedLayout({ me, onLogout, refreshMe }) {
               element={
                 <ModuleGuard moduleKey="seo">
                   <KeywordManager me={me} refreshMe={refreshMe} goTo={goTo} />
+                </ModuleGuard>
+              }
+            />
+            <Route
+              path="seo/topics"
+              element={
+                <ModuleGuard moduleKey="seo">
+                  <AutoTopicsPage me={me} refreshMe={refreshMe} goTo={goTo} />
                 </ModuleGuard>
               }
             />

@@ -63,6 +63,12 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
           icon: Terminal,
         },
         {
+          id: 'seo-topics',
+          path: '/app/seo/topics',
+          label: t('sidebar.seoTopics', 'Topik Otomatis (Trends)'),
+          icon: TrendingUp,
+        },
+        {
           id: 'seo-analytics',
           path: '/app/seo/analytics',
           label: t('sidebar.seoAnalytics', 'SEO Analytics'),
