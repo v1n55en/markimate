@@ -9,7 +9,7 @@ create table if not exists markimate.schema_migrations (
 );
 
 -- Pastikan extension pgcrypto aktif untuk fungsi digest()
-create extension if not exists pgcrypto;
+create extension if not exists pgcrypto with schema extensions;
 
 -- 1. Penambahan kolom baru di tabel accounts
 alter table markimate.accounts add column if not exists name text;
@@ -118,6 +118,7 @@ create table if not exists markimate.workspace_members (
   joined_at timestamptz default now(),
   primary key (workspace_id, user_id)
 );
+create index if not exists workspace_members_user_idx on markimate.workspace_members(user_id);
 
 create table if not exists markimate.workspace_invites (
   id uuid primary key default gen_random_uuid(),
@@ -137,7 +138,7 @@ create table if not exists markimate.module_entitlements (
   workspace_id uuid not null references markimate.workspaces(id) on delete cascade,
   module text not null check (module in ('seo','ads_report','ads_spy')),
   active boolean not null default true,
-  source text not null check (source in ('trial','subscription','admin')),
+  source text not null check (source in ('free','trial','subscription','admin')),
   starts_at timestamptz default now(),
   ends_at timestamptz,
   primary key (workspace_id, module)
@@ -196,7 +197,7 @@ select
   a.id,
   coalesce(a.created_at, now())
 from markimate.accounts a
-where not exists (select 1 from markimate.workspaces w where w.id = a.id)
+where not exists (select 1 from markimate.workspace_members wm where wm.user_id = a.id)
 on conflict (id) do nothing;
 
 -- 5.2. Owner dimasukkan sebagai member workspace_members
@@ -213,7 +214,7 @@ on conflict (workspace_id, user_id) do nothing;
 update markimate.accounts
 set status = 'active',
     email_verified_at = coalesce(email_verified_at, created_at, now())
-where email_verified_at is null or status is null;
+where email_verified_at is null and status = 'active';
 
 -- 5.4. Isi workspace_id dari user_id jika masih null
 update markimate.cms_connections set workspace_id = user_id where workspace_id is null;
@@ -225,7 +226,7 @@ update markimate.subscriptions set workspace_id = user_id where workspace_id is 
 insert into markimate.workspace_api_keys (workspace_id, key_hash, prefix, label, created_by, created_at)
 select
   a.id,
-  encode(digest(a.api_key, 'sha256'), 'hex'),
+  encode(extensions.digest(a.api_key, 'sha256'), 'hex'),
   substring(a.api_key from 1 for 12),
   'API Key Utama (Legacy)',
   a.id,
@@ -234,13 +235,18 @@ from markimate.accounts a
 where a.api_key is not null and a.api_key <> ''
   and not exists (
     select 1 from markimate.workspace_api_keys wak
-    where wak.key_hash = encode(digest(a.api_key, 'sha256'), 'hex')
+    where wak.key_hash = encode(extensions.digest(a.api_key, 'sha256'), 'hex')
   )
 on conflict (key_hash) do nothing;
 
 -- 5.6. Module Entitlements dari accounts.plan
 insert into markimate.module_entitlements (workspace_id, module, active, source, starts_at)
-select w.id, m.module, true, 'subscription', coalesce(w.created_at, now())
+select
+  w.id,
+  m.module,
+  true,
+  case when a.plan = 'free' then 'free' else 'subscription' end,
+  coalesce(w.created_at, now())
 from markimate.workspaces w
 join markimate.accounts a on a.id = w.owner_user_id
 cross join lateral (
@@ -250,8 +256,7 @@ cross join lateral (
   union all
   select 'ads_spy' as module where a.plan in ('ads_spy', 'focus3', 'all_in_one')
 ) m
-on conflict (workspace_id, module) do update
-set active = true, source = excluded.source;
+on conflict (workspace_id, module) do nothing;
 
 -- Override jika ada trial aktif di credit_wallets
 insert into markimate.module_entitlements (workspace_id, module, active, source, starts_at, ends_at)
@@ -261,8 +266,7 @@ cross join (
   values ('seo'), ('ads_report'), ('ads_spy')
 ) as m(module)
 where cw.trial_expires_at is not null and cw.trial_expires_at > now()
-on conflict (workspace_id, module) do update
-set active = true, source = 'trial', ends_at = excluded.ends_at;
+on conflict (workspace_id, module) do nothing;
 
 -- 6. Hak Akses & RLS
 alter table markimate.schema_migrations enable row level security;
