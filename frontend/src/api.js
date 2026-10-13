@@ -23,10 +23,20 @@ export async function api(path, { method = 'GET', body, headers = {} } = {}) {
   let data; try { data = text ? JSON.parse(text) : null; } catch { data = { error: text }; }
   if (!res.ok) {
     if (res.status === 401 && token && !path.startsWith('/api/auth/')) { setToken(''); window.dispatchEvent(new Event('supermat:logout')); }
+    if (res.status === 402 && data && (data.code === 'INSUFFICIENT_CREDITS' || data.code === 'DAILY_CAP')) {
+      window.dispatchEvent(new CustomEvent('supermat:insufficient_credits', { detail: data }));
+    }
     throw new ApiError((data && (data.error || data.message)) || `HTTP ${res.status}`, res.status, data);
   }
   return data;
 }
+
+export const getCredits = () => api('/api/credits');
+export const estimateCredits = (action, qty = 1, images = 0) => api(`/api/credits/estimate?action=${encodeURIComponent(action)}&qty=${qty}&images=${images}`);
+export const getCreditLedger = (params = {}) => {
+  const q = new URLSearchParams(params).toString();
+  return api(`/api/credits/ledger${q ? `?${q}` : ''}`);
+};
 
 export const GEO_OPTIONS = [
   { value: 'ID', label: 'ID (Indonesia)' }, { value: 'US', label: 'US (United States)' }, { value: 'MY', label: 'MY (Malaysia)' },

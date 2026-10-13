@@ -1,12 +1,27 @@
-// Lapisan data Supermat: Supabase (produksi) atau file JSON lokal (dev tanpa Supabase).
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
+import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 
+dotenv.config();
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const TABLES = ['accounts', 'cms_connections', 'keywords', 'subscriptions', 'seo_topic_sources'];
+const TABLES = [
+  'accounts',
+  'cms_connections',
+  'keywords',
+  'subscriptions',
+  'seo_topic_sources',
+  'credit_prices',
+  'credit_wallets',
+  'credit_ledger',
+  'credit_cost_rates',
+  'credit_trials',
+  'credit_alerts',
+  'credit_orders'
+];
 
 const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
 
@@ -21,18 +36,44 @@ function makeSupabase() {
 class JsonStore {
   constructor() {
     this.file = path.join(__dirname, 'database.json');
-    this.data = { accounts: [], cms_connections: [], keywords: [], subscriptions: [], seo_topic_sources: [] };
-    try { if (fs.existsSync(this.file)) Object.assign(this.data, JSON.parse(fs.readFileSync(this.file, 'utf8'))); } catch (e) { log(`[DB] database.json rusak: ${e.message}`); }
+    this.data = {
+      accounts: [],
+      cms_connections: [],
+      keywords: [],
+      subscriptions: [],
+      seo_topic_sources: [],
+      credit_prices: [],
+      credit_wallets: [],
+      credit_ledger: [],
+      credit_cost_rates: [],
+      credit_trials: [],
+      credit_alerts: [],
+      credit_orders: []
+    };
+    try {
+      if (fs.existsSync(this.file)) {
+        const loaded = JSON.parse(fs.readFileSync(this.file, 'utf8'));
+        Object.assign(this.data, loaded);
+        for (const t of TABLES) {
+          if (!this.data[t]) this.data[t] = [];
+        }
+      }
+    } catch (e) { log(`[DB] database.json rusak: ${e.message}`); }
     log('[DB] Mode fallback database.json (tanpa Supabase)');
   }
   save() { try { fs.writeFileSync(this.file, JSON.stringify(this.data, null, 2)); } catch (e) { log(`[DB] gagal tulis database.json: ${e.message}`); } }
   _match(row, where) { return Object.entries(where).every(([k, v]) => row[k] === v); }
-  async findOne(table, where) { return this.data[table].find(r => this._match(r, where)) || null; }
-  async findMany(table, where = {}, opts = {}) { let rows = this.data[table].filter(r => this._match(r, where)); if (opts.orderBy) rows = rows.sort((a, b) => (a[opts.orderBy] < b[opts.orderBy] ? 1 : -1) * (opts.ascending ? -1 : 1)); return rows; }
-  async insert(table, row) { const r = { id: randomUUID(), created_at: new Date().toISOString(), ...row }; this.data[table].push(r); this.save(); return r; }
-  async update(table, where, patch) { const rows = this.data[table].filter(r => this._match(r, where)); rows.forEach(r => Object.assign(r, patch, { updated_at: new Date().toISOString() })); this.save(); return rows[0] || null; }
+  async findOne(table, where) { return (this.data[table] || []).find(r => this._match(r, where)) || null; }
+  async findMany(table, where = {}, opts = {}) {
+    let rows = (this.data[table] || []).filter(r => this._match(r, where));
+    if (opts.orderBy) rows = rows.sort((a, b) => (a[opts.orderBy] < b[opts.orderBy] ? 1 : -1) * (opts.ascending ? -1 : 1));
+    if (opts.limit && opts.limit > 0) rows = rows.slice(0, opts.limit);
+    return rows;
+  }
+  async insert(table, row) { if (!this.data[table]) this.data[table] = []; const r = { id: row.id || randomUUID(), created_at: new Date().toISOString(), ...row }; this.data[table].push(r); this.save(); return r; }
+  async update(table, where, patch) { const rows = (this.data[table] || []).filter(r => this._match(r, where)); rows.forEach(r => Object.assign(r, patch, { updated_at: new Date().toISOString() })); this.save(); return rows[0] || null; }
   async upsert(table, where, row) { const ex = await this.findOne(table, where); return ex ? this.update(table, where, row) : this.insert(table, { ...where, ...row }); }
-  async remove(table, where) { const before = this.data[table].length; this.data[table] = this.data[table].filter(r => !this._match(r, where)); this.save(); return before - this.data[table].length; }
+  async remove(table, where) { const before = (this.data[table] || []).length; this.data[table] = (this.data[table] || []).filter(r => !this._match(r, where)); this.save(); return before - this.data[table].length; }
 }
 
 // ---------- Supabase ----------

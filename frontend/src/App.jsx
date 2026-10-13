@@ -14,7 +14,9 @@ import KeywordManager from './components/KeywordManager';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import CmsSettings from './components/CmsSettings';
 import BillingPage from './components/BillingPage';
+import CreditWalletPage from './pages/billing/CreditWalletPage';
 import AutoTopicsPage from './pages/seo/AutoTopicsPage';
+import InsufficientCreditsModal from './components/common/InsufficientCreditsModal';
 
 // Halaman Publik
 import LandingPage from './pages/public/LandingPage';
@@ -67,6 +69,7 @@ function ProtectedLayout({ me, onLogout, refreshMe }) {
 
   return (
     <div className="app-container">
+      <InsufficientCreditsModal />
       <Sidebar
         user={user}
         onLogout={onLogout}
@@ -202,6 +205,7 @@ function ProtectedLayout({ me, onLogout, refreshMe }) {
 
             {/* Rute Akun */}
             <Route path="billing" element={<BillingPage me={me} refreshMe={refreshMe} />} />
+            <Route path="billing/credits" element={<CreditWalletPage me={me} />} />
 
             {/* Fallback di dalam /app */}
             <Route path="*" element={<Navigate to="/app/ads" replace />} />

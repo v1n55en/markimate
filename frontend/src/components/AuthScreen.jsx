@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { ShieldCheck, UserPlus, LogIn, ArrowRight, Sparkles } from 'lucide-react';
+import { ShieldCheck, UserPlus, LogIn, ArrowRight, Sparkles, Coins } from 'lucide-react';
 import { api, setToken } from '../api';
 import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
 import SupermatLogo from './common/SupermatLogo';
@@ -144,6 +144,17 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
         </div>
 
         {error && <div style={styles.errorAlert}>{error}</div>}
+
+        {!isLogin && (
+          <div style={styles.trialBox}>
+            <Coins size={16} color="var(--accent-cyan)" />
+            <div style={{ flex: 1, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              {lang === 'id'
+                ? 'Daftar sekarang & dapatkan Free Trial 7 Hari (300 credit) otomatis tanpa perlu kartu kredit.'
+                : 'Register now & instantly get a 7-Day Free Trial (300 credits) with zero credit card required.'}
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} style={styles.form}>
           {!isLogin && (
@@ -473,5 +484,15 @@ const styles = {
   footerText: {
     fontSize: '0.725rem',
     color: 'var(--text-muted)',
+  },
+  trialBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.65rem',
+    padding: '0.65rem 0.85rem',
+    borderRadius: '8px',
+    backgroundColor: 'rgba(6, 182, 212, 0.08)',
+    border: '1px solid rgba(6, 182, 212, 0.3)',
+    marginBottom: '1rem',
   },
 };

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Play, Plus, Trash2, Eye, ExternalLink, Loader2, RefreshCw, Rocket,
   FileText, Lock, AlertTriangle, CheckCircle2, X, Link as LinkIcon, Globe,
-  Image as ImageIcon, Sparkles, TrendingUp, Check, Edit2, Layers, ArrowUpRight
+  Image as ImageIcon, Sparkles, TrendingUp, Check, Edit2, Layers, ArrowUpRight, Coins
 } from 'lucide-react';
 import { api, GEO_OPTIONS, LN_OPTIONS, CMS_LABEL } from '../api';
 
@@ -161,6 +161,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
   const [drawer, setDrawer] = useState(null); // keyword object being reviewed
   const [drawerTab, setDrawerTab] = useState('preview'); // 'preview' | 'edit' | 'images'
   const [draft, setDraft] = useState(null);   // editable article copy
+  const [imagesEnabled, setImagesEnabled] = useState(true);
   const [drawerBusy, setDrawerBusy] = useState('');
   const [drawerError, setDrawerError] = useState('');
 
@@ -187,13 +188,14 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
     try {
       const d = await api(`/api/keywords/${id}/run`, { method: 'POST' });
       upsertRow(d.keyword); refreshMe();
+      window.dispatchEvent(new Event('supermat:credits_updated'));
       if (d.keyword.status === 'Review Ready') flash('Artikel siap ditinjau di Web Approver.');
       else if (d.keyword.status === 'Draft Created') flash('Draf berhasil dibuat di ' + (CMS_LABEL[d.keyword.cms] || d.keyword.cms) + '.');
       else if (d.keyword.status === 'Duplicate') flash('Topik mirip sudah ada di CMS (status Duplicate). Kuota tidak berkurang.');
       else if (d.keyword.error) setError(d.keyword.error);
     } catch (e) {
       setError(e.message); await load();
-      if (e.status === 402 && goTo) setTimeout(() => goTo('billing'), 1500);
+      if (e.status === 402 && goTo) setTimeout(() => goTo('billing/credits'), 1500);
     } finally { setBusyFor(id, null); }
   };
 
@@ -210,7 +212,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
       upsertRow(d.keyword); setForm(f => ({ ...f, keyword: '' }));
       if (form.schedule === 'immediate') runKeyword(d.keyword.id);
       else flash('Keyword dijadwalkan. Artikel pertama dibuat otomatis sesuai jadwal.');
-    } catch (err) { setError(err.message); if (err.status === 402 && goTo) setTimeout(() => goTo('billing'), 1500); }
+    } catch (err) { setError(err.message); if (err.status === 402 && goTo) setTimeout(() => goTo('billing/credits'), 1500); }
   };
 
   const deleteKeyword = async (id) => {
@@ -228,6 +230,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
     try {
       const d = await api(`/api/keywords/${id}/publish`, { method: 'POST', body: { action } });
       upsertRow(d.keyword);
+      window.dispatchEvent(new Event('supermat:credits_updated'));
       flash(action === 'publish' ? 'Artikel diterbitkan.' : 'Draf dibuat di CMS.');
     } catch (e) { setError(e.message); } finally { setBusyFor(id, null); }
   };
@@ -235,6 +238,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
   // ---- Drawer Web Approver ----
   const openDrawer = (kw) => {
     setDrawer(kw);
+    setImagesEnabled(true);
     const art = kw.article || {};
     const prompts = Array.isArray(kw.imagePrompts || art.imagePrompts)
       ? JSON.parse(JSON.stringify(kw.imagePrompts || art.imagePrompts))
@@ -270,11 +274,13 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
     if (!drawer) return;
     setDrawerBusy(action); setDrawerError('');
     try {
+      const articleToPublish = imagesEnabled ? draft : { ...draft, imagePrompts: [] };
       const d = await api(`/api/keywords/${drawer.id}/publish`, {
         method: 'POST',
-        body: { action, article: draft }
+        body: { action, article: articleToPublish }
       });
       upsertRow(d.keyword); closeDrawer();
+      window.dispatchEvent(new Event('supermat:credits_updated'));
       flash(action === 'publish'
         ? 'Artikel berhasil diterbitkan di ' + (CMS_LABEL[d.keyword.cms] || d.keyword.cms) + '.'
         : 'Draf tersimpan di ' + (CMS_LABEL[d.keyword.cms] || d.keyword.cms) + '. Cek di CMS tujuan.');
@@ -388,6 +394,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
           </div>
           <button type="submit" className="btn btn-primary" style={styles.addBtn} disabled={!form.keyword.trim() || !anyCms.length}>
             <Plus size={16} /> Tambah & Jalankan
+            <span style={styles.creditPill}><Coins size={12} /> ≈ 60 cr</span>
           </button>
         </div>
       </form>
@@ -533,6 +540,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                               title="Setujui topik ini untuk langsung dibuatkan artikelnya"
                             >
                               {b === 'run' ? <Loader2 size={13} className="spin-icon" /> : <Check size={13} />} Setujui
+                              <span style={styles.creditPillLight}><Coins size={10} /> ≈ 60 cr</span>
                             </button>
                             <button
                               className="btn btn-secondary"
@@ -550,6 +558,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                         {(kw.status === 'Pending' || kw.status === 'Error' || isDuplicate) && (
                           <button className="btn btn-primary" style={styles.smallBtn} disabled={!!b} onClick={() => runKeyword(kw.id)}>
                             {b === 'run' ? <Loader2 size={14} className="spin-icon" /> : <Play size={14} />} Jalankan
+                            <span style={styles.creditPillLight}><Coins size={10} /> ≈ 60 cr</span>
                           </button>
                         )}
 
@@ -782,6 +791,29 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
               {/* TAB 3: GAMBAR AI */}
               {drawerTab === 'images' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div className="card" style={{ padding: '1rem 1.25rem', backgroundColor: 'var(--bg-base)', border: '1px solid var(--border-muted)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Coins size={16} color="var(--accent-cyan)" />
+                        Biaya Pembuatan Gambar: {imagesEnabled ? `${draft.imagePrompts?.length || 0} gambar × 5 = ${(draft.imagePrompts?.length || 0) * 5} credit` : '0 credit (dimatikan)'}
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                        {imagesEnabled
+                          ? 'Gambar akan di-generate via Gemini Imagen dan diunggah ke CMS saat publikasi.'
+                          : 'Gambar AI dimatikan untuk publikasi ini. Placeholder gambar akan dilewati dan tidak ada credit gambar yang dipotong.'}
+                      </div>
+                    </div>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>
+                      <input
+                        type="checkbox"
+                        checked={imagesEnabled}
+                        onChange={e => setImagesEnabled(e.target.checked)}
+                        style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
+                      />
+                      Sertakan Gambar AI
+                    </label>
+                  </div>
+
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                     Prompt gambar dibuat oleh AI saat perancangan artikel. Gambar asli akan di-generate dan diunggah ke CMS saat publikasi.
                   </div>
@@ -868,6 +900,9 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
               </button>
               <button className="btn btn-primary" onClick={() => submitDrawer('publish')} disabled={!!drawerBusy || !draft.title.trim()}>
                 {drawerBusy === 'publish' ? <Loader2 size={15} className="spin-icon" /> : <Rocket size={15} />} Publikasikan ke {CMS_LABEL[drawer.cms] || drawer.cms}
+                <span style={styles.creditPillLight}>
+                  <Coins size={12} /> {imagesEnabled && draft.imagePrompts?.length ? `≈ ${draft.imagePrompts.length * 5} cr` : '0 cr'}
+                </span>
               </button>
             </div>
           </div>
@@ -1028,5 +1063,15 @@ const styles = {
   drawerFooter: {
     padding: '1.1rem 1.5rem', borderTop: '1px solid var(--border-muted)',
     display: 'flex', gap: '0.6rem', backgroundColor: 'var(--bg-base)', flexWrap: 'wrap'
+  },
+  creditPill: {
+    display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)', padding: '0.15rem 0.45rem',
+    borderRadius: '999px', fontSize: '0.72rem', fontWeight: 600, marginLeft: '0.35rem'
+  },
+  creditPillLight: {
+    display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
+    backgroundColor: 'rgba(255, 255, 255, 0.22)', padding: '0.12rem 0.4rem',
+    borderRadius: '999px', fontSize: '0.68rem', fontWeight: 600, marginLeft: '0.25rem'
   },
 };

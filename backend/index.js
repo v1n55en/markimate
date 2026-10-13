@@ -9,6 +9,25 @@ import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 import { db, dbMode } from './db.js';
 import { encrypt, decrypt } from './lib/crypto.js';
+import {
+  getWallet,
+  getPrices,
+  getDailyUsage,
+  estimate,
+  assertAffordable,
+  charge,
+  recordFailedUsage,
+  grant,
+  expireBuckets,
+  grantTrialIfEligible,
+  invalidateCreditCaches
+} from './lib/credits.js';
+import { PLANS, FREE_MONTHLY_LIMIT } from './lib/plans.js';
+import { processDailyCreditAlerts } from './lib/notifications.js';
+import { createSnapTransaction, handleMidtransWebhook } from './lib/midtrans.js';
+import { calculateUsageAndMargin, checkMarginSentinel } from './lib/margin.js';
+
+export { PLANS };
 
 dotenv.config();
 
@@ -22,60 +41,6 @@ const N8N_URL_PUBLISH = process.env.SUPERMAT_N8N_PUBLISH_URL || `${N8N_BASE_URL}
 const N8N_URL_TOPICS = process.env.SUPERMAT_N8N_TOPICS_URL || (process.env.N8N_URL_TOPICS?.startsWith('http') ? process.env.N8N_URL_TOPICS : `${N8N_BASE_URL}${process.env.N8N_URL_TOPICS || '/webhook/supermat-topics'}`);
 const SUPERMAT_API_KEY = process.env.SUPERMAT_API_KEY || ''; // key 3Our untuk memanggil n8n (header X-Supermat-Key)
 const CRON_SECRET = process.env.CRON_SECRET || '';
-const FREE_MONTHLY_LIMIT = Number(process.env.FREE_MONTHLY_LIMIT || 3);
-
-export const PLANS = {
-  free: {
-    id: 'free',
-    name: 'Free',
-    price: 0,
-    monthlyArticles: FREE_MONTHLY_LIMIT || 3,
-    images: false,
-    autoTopics: false,
-    webApprover: false,
-    features: ['3 artikel / bulan', 'Riset keyword dasar', 'Draf langsung ke CMS']
-  },
-  seo: {
-    id: 'seo',
-    name: 'SEO Specialist',
-    price: 1500000,
-    monthlyArticles: 20,
-    images: true,
-    autoTopics: true,
-    webApprover: true,
-    features: ['20 artikel SEO / bulan', 'Gambar AI (Hero + Inline)', 'Topik Otomatis (Google Trends)', 'Web Approver: review & edit', 'Semua platform CMS']
-  },
-  premium: {
-    id: 'premium',
-    name: 'Pro (SEO)',
-    price: 1500000,
-    monthlyArticles: 20,
-    images: true,
-    autoTopics: true,
-    webApprover: true,
-    features: ['20 artikel SEO / bulan', 'Gambar AI (Hero + Inline)', 'Topik Otomatis (Google Trends)', 'Web Approver: review & edit', 'Semua platform CMS']
-  },
-  focus3: {
-    id: 'focus3',
-    name: 'Paket Fokus 3',
-    price: 3200000,
-    monthlyArticles: 20,
-    images: true,
-    autoTopics: true,
-    webApprover: true,
-    features: ['20 artikel SEO / bulan', 'Gambar AI + Topik Trends', 'Ads Specialist Report', 'Ads Creative Spy']
-  },
-  all_in_one: {
-    id: 'all_in_one',
-    name: 'All-in-One AI Team',
-    price: 7875000,
-    monthlyArticles: 60,
-    images: true,
-    autoTopics: true,
-    webApprover: true,
-    features: ['60 artikel SEO / bulan', 'Akses penuh seluruh 16 modul AI', 'Prioritas tertinggi 3Our']
-  }
-};
 
 const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
 
@@ -156,7 +121,20 @@ async function apiKeyAuth(req, res, next) {
   if (!user) return res.status(401).json({ status: 'error', message: 'API key tidak valid.' });
   req.user = user; next();
 }
-const wrap = (fn) => (req, res) => fn(req, res).catch(e => { log(`[ERR] ${req.method} ${req.path}: ${e.message}`); res.status(e.status || 500).json({ error: e.message, n8n: e.n8n || undefined }); });
+const wrap = (fn) => (req, res) => fn(req, res).catch(e => {
+  log(`[ERR] ${req.method} ${req.path}: ${e.message}`);
+  const status = e.status || 500;
+  res.status(status).json({
+    error: e.message,
+    n8n: e.n8n || undefined,
+    ...(e.code ? { code: e.code } : {}),
+    ...(e.need !== undefined ? { need: e.need } : {}),
+    ...(e.have !== undefined ? { have: e.have } : {}),
+    ...(e.topupUrl ? { topupUrl: e.topupUrl } : {}),
+    ...(e.dailyUsed !== undefined ? { dailyUsed: e.dailyUsed } : {}),
+    ...(e.dailyCap !== undefined ? { dailyCap: e.dailyCap } : {})
+  });
+});
 
 // ---------- Health ----------
 app.get('/api/health', (req, res) => res.json({ status: 'ok', db: dbMode, n8n: N8N_BASE_URL, time: new Date().toISOString() }));
@@ -168,19 +146,178 @@ app.post('/api/auth/register', wrap(async (req, res) => {
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) throw Object.assign(new Error('Email tidak valid.'), { status: 400 });
   if (String(password || '').length < 6) throw Object.assign(new Error('Kata sandi minimal 6 karakter.'), { status: 400 });
   if (await db.findOne('accounts', { email: em })) throw Object.assign(new Error('Email sudah terdaftar, silakan masuk.'), { status: 409 });
-  const user = await db.insert('accounts', { email: em, password_hash: await bcrypt.hash(password, 10), brand_name: String(brandName || '').trim() || em.split('@')[0], niche: String(niche || 'Other'), plan: 'free', api_key: genApiKey(), web_approver: true });
+  const user = await db.insert('accounts', {
+    email: em,
+    password_hash: await bcrypt.hash(password, 10),
+    brand_name: String(brandName || '').trim() || em.split('@')[0],
+    niche: String(niche || 'Other'),
+    plan: 'free',
+    api_key: genApiKey(),
+    web_approver: true,
+    email_verified_at: new Date().toISOString()
+  });
+
+  // Berikan 300 trial credit (7 hari) untuk email terverifikasi baru (PRD §4.3)
+  await grantTrialIfEligible(user.id, em);
+
   res.json({ token: signToken(user), user: publicUser(user) });
 }));
 app.post('/api/auth/login', wrap(async (req, res) => {
   const em = String((req.body || {}).email || '').trim().toLowerCase();
   const user = await db.findOne('accounts', { email: em });
   if (!user || !(await bcrypt.compare(String((req.body || {}).password || ''), user.password_hash))) throw Object.assign(new Error('Email atau kata sandi salah.'), { status: 401 });
+  // Klaim trial jika eligible dan belum pernah klaim
+  await grantTrialIfEligible(user.id, user.email);
   res.json({ token: signToken(user), user: publicUser(user) });
 }));
 app.get('/api/me', auth, wrap(async (req, res) => {
   const conns = await db.findMany('cms_connections', { user_id: req.user.id });
   const runs = await usageOf(req.user.id);
   res.json({ user: publicUser(req.user), plan: planOf(req.user), usage: { runsThisMonth: runs, limit: planOf(req.user).monthlyArticles }, cms: conns.map(maskConn) });
+}));
+
+// ---------- Credits & Dompet Workspace ----------
+app.get('/api/credits', auth, wrap(async (req, res) => {
+  const workspaceId = req.user.id;
+  // Otomatis grant trial jika user berhak dan belum pernah klaim
+  await grantTrialIfEligible(workspaceId, req.user.email);
+
+  const { wallet, totalBalance, activeBuckets } = await getWallet(workspaceId);
+  const dailyUsed = await getDailyUsage(workspaceId);
+  const prices = await getPrices();
+
+  const now = Date.now();
+  const trialEnds = wallet.trial_expires_at ? new Date(wallet.trial_expires_at) : null;
+  const isTrialActive = Boolean(
+    activeBuckets.trial > 0 && trialEnds && trialEnds.getTime() > now
+  );
+  const daysLeft = trialEnds && isTrialActive
+    ? Math.max(0, Math.ceil((trialEnds.getTime() - now) / (24 * 3600 * 1000)))
+    : 0;
+
+  res.json({
+    balance: {
+      trial: activeBuckets.trial,
+      sub: activeBuckets.sub,
+      topup: activeBuckets.topup,
+      total: totalBalance,
+    },
+    expires: {
+      trial: wallet.trial_expires_at || null,
+      sub: wallet.sub_expires_at || null,
+      topup: wallet.topup_expires_at || null,
+    },
+    dailyUsed,
+    dailyCap: Number(wallet.daily_cap || 500),
+    prices,
+    trial: {
+      active: isTrialActive,
+      endsAt: wallet.trial_expires_at || null,
+      daysLeft,
+    },
+  });
+}));
+
+app.get('/api/credits/estimate', auth, wrap(async (req, res) => {
+  const { action, qty, images } = req.query;
+  const est = await estimate(action || 'seo.article', Number(qty || 1), { images: Number(images || 0) });
+  res.json(est);
+}));
+
+app.get('/api/credits/ledger', auth, wrap(async (req, res) => {
+  const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+  const rows = await db.findMany('credit_ledger', { workspace_id: req.user.id }, {
+    orderBy: 'created_at',
+    ascending: false
+  });
+  let filtered = rows || [];
+  if (req.query.kind) {
+    filtered = filtered.filter(r => r.kind === req.query.kind);
+  }
+  if (req.query.module) {
+    filtered = filtered.filter(r => r.action_key && r.action_key.startsWith(req.query.module));
+  }
+  const paginated = filtered.slice(0, limit);
+  res.json({ ledger: paginated, entries: paginated, total: filtered.length });
+}));
+
+// Midtrans Snap Top-up (PRD §4.3 & §4.4)
+app.post('/api/credits/topup', auth, wrap(async (req, res) => {
+  const { packageId } = req.body || {};
+  const tx = await createSnapTransaction(req.user, packageId || 'starter');
+  res.json(tx);
+}));
+
+// Webhook notifikasi Midtrans (PRD §4.3 & §4.4)
+app.post('/api/webhooks/midtrans', wrap(async (req, res) => {
+  const result = await handleMidtransWebhook(req.body);
+  res.json(result);
+}));
+
+// ---------- Admin Auth & Endpoints (PRD §2b & §4.4) ----------
+const adminAuth = (req, res, next) => {
+  const adminKey = process.env.ADMIN_KEY || 'default-admin-secret-key';
+  const given = req.headers['x-admin-key'];
+  if (!given || given !== adminKey) {
+    return res.status(401).json({ error: 'Unauthorized: Invalid Admin Key' });
+  }
+  next();
+};
+
+app.get('/api/admin/credits/usage', adminAuth, wrap(async (req, res) => {
+  const result = await calculateUsageAndMargin(req.query.month);
+  res.json(result);
+}));
+
+app.get('/api/admin/credits/margin', adminAuth, wrap(async (req, res) => {
+  const result = await calculateUsageAndMargin(req.query.month);
+  res.json(result);
+}));
+
+app.put('/api/admin/credit-prices', adminAuth, wrap(async (req, res) => {
+  const { actionKey, credits, label, needsReview, active } = req.body || {};
+  if (!actionKey) throw Object.assign(new Error('actionKey is required'), { status: 400 });
+
+  const patch = { updated_at: new Date().toISOString() };
+  if (credits !== undefined) patch.credits = Number(credits);
+  if (label !== undefined) patch.label = String(label);
+  if (needsReview !== undefined) patch.needs_review = Boolean(needsReview);
+  if (active !== undefined) patch.active = Boolean(active);
+
+  const existing = await db.findOne('credit_prices', { action_key: actionKey });
+  if (existing) {
+    await db.update('credit_prices', { action_key: actionKey }, patch);
+  } else {
+    await db.insert('credit_prices', { action_key: actionKey, credits: Number(credits || 0), label: label || actionKey, needs_review: false, active: true, ...patch });
+  }
+
+  invalidateCreditCaches();
+  const updated = await db.findOne('credit_prices', { action_key: actionKey });
+  res.json({ status: 'ok', updated });
+}));
+
+app.get('/api/admin/credit-cost-rates', adminAuth, wrap(async (req, res) => {
+  const rows = await db.findMany('credit_cost_rates', {});
+  res.json({ rates: rows || [] });
+}));
+
+app.put('/api/admin/credit-cost-rates', adminAuth, wrap(async (req, res) => {
+  const { rateKey, idr, note } = req.body || {};
+  if (!rateKey || idr === undefined) throw Object.assign(new Error('rateKey and idr are required'), { status: 400 });
+
+  const patch = { idr: Number(idr), updated_at: new Date().toISOString() };
+  if (note !== undefined) patch.note = String(note);
+
+  const existing = await db.findOne('credit_cost_rates', { rate_key: rateKey });
+  if (existing) {
+    await db.update('credit_cost_rates', { rate_key: rateKey }, patch);
+  } else {
+    await db.insert('credit_cost_rates', { rate_key: rateKey, ...patch });
+  }
+
+  invalidateCreditCaches();
+  const updated = await db.findOne('credit_cost_rates', { rate_key: rateKey });
+  res.json({ status: 'ok', updated });
 }));
 app.patch('/api/me', auth, wrap(async (req, res) => {
   const patch = {};
@@ -521,7 +658,8 @@ app.put('/api/cms/:type', auth, wrap(async (req, res) => {
     ? normalizeArticleSettings(req.body.articleSettings)
     : (existing?.article_settings ? normalizeArticleSettings(existing.article_settings) : normalizeArticleSettings({}));
 
-  if (articleSettings.images?.enabled && !planOf(req.user).images) {
+  const creditsEnabled = process.env.CREDITS_ENABLED !== 'false';
+  if (!creditsEnabled && articleSettings.images?.enabled && !planOf(req.user).images) {
     throw Object.assign(new Error('Fitur gambar AI hanya untuk paket berbayar (Pro). Silakan upgrade paket Anda.'), { status: 402 });
   }
 
@@ -613,9 +751,16 @@ app.patch('/api/keywords/:id', auth, wrap(async (req, res) => {
 app.delete('/api/keywords/:id', auth, wrap(async (req, res) => { await db.remove('keywords', { id: req.params.id, user_id: req.user.id }); res.json({ ok: true }); }));
 
 async function generateFor(user, k) {
-  const plan = planOf(user);
-  const used = await usageOf(user.id);
-  if (used >= plan.monthlyArticles) throw Object.assign(new Error(`Kuota ${plan.name} bulan ini habis (${plan.monthlyArticles} artikel). Upgrade ke Pro untuk melanjutkan.`), { status: 402 });
+  const creditsEnabled = process.env.CREDITS_ENABLED !== 'false';
+  if (creditsEnabled) {
+    // Assert credit sebelum aksi (PRD §4.2: seo.article)
+    await assertAffordable(user.id, 'seo.article', 1);
+  } else {
+    const plan = planOf(user);
+    const used = await usageOf(user.id);
+    if (used >= plan.monthlyArticles) throw Object.assign(new Error(`Kuota ${plan.name} bulan ini habis (${plan.monthlyArticles} artikel). Upgrade ke Pro untuk melanjutkan.`), { status: 402 });
+  }
+
   await db.update('keywords', { id: k.id }, { status: 'AI Writing...', error: '' });
 
   const conn = k.cms_type ? await db.findOne('cms_connections', { user_id: user.id, cms_type: k.cms_type }) : null;
@@ -631,7 +776,7 @@ async function generateFor(user, k) {
     externalLinks: artSet.links?.external !== false,
     maxExternal: artSet.links?.maxExternal ?? 2,
     excludeDomains: Array.isArray(artSet.links?.excludeDomains) ? artSet.links.excludeDomains : [],
-    imagePrompts: (plan.images !== false) && (artSet.images?.enabled !== false),
+    imagePrompts: (planOf(user).images !== false) && (artSet.images?.enabled !== false),
     imageCount: artSet.images?.count ?? 3,
     imageStyle: artSet.images?.style || ''
   };
@@ -657,7 +802,9 @@ async function generateFor(user, k) {
     const article = out.article || {};
     const links = article.links || null;
     const imagePrompts = article.imagePrompts || null;
-    return await db.update('keywords', { id: k.id }, {
+    const usage = out.usage || null;
+
+    const updated = await db.update('keywords', { id: k.id }, {
       article,
       links,
       image_prompts: imagePrompts,
@@ -668,7 +815,27 @@ async function generateFor(user, k) {
       last_run_at: new Date().toISOString(),
       next_run_at: nextRun(k.schedule)
     });
+
+    // Charge credit setelah sukses status Review Ready (PRD §4.2)
+    if (creditsEnabled) {
+      await charge(user.id, 'seo.article', 1, {
+        type: 'keyword',
+        id: k.id,
+        note: `Generate artikel: ${k.keyword}`
+      }, usage);
+    }
+
+    return updated;
   } catch (e) {
+    const usage = e.usage || (e.n8n && e.n8n.usage) || null;
+    if (creditsEnabled && usage) {
+      await recordFailedUsage(user.id, 'seo.article', usage, {
+        type: 'keyword',
+        id: k.id,
+        note: e.message
+      });
+    }
+
     if (e.isDuplicate || e.status === 409) {
       const dup = e.duplicateOf || (e.n8n && e.n8n.duplicateOf) || null;
       return await db.update('keywords', { id: k.id }, {
@@ -728,6 +895,12 @@ async function publishFor(user, k, action, articleOverride) {
     imageStyle: artSet.images?.style || ''
   };
 
+  const creditsEnabled = process.env.CREDITS_ENABLED !== 'false';
+  if (creditsEnabled && makeImages && options.imageCount > 0) {
+    // Assert saldo gambar sebelum publish (PRD §4.2: seo.image × jumlah imagePrompts/count)
+    await assertAffordable(user.id, 'seo.image', options.imageCount);
+  }
+
   const body = {
     cmsType: k.cms_type,
     action,
@@ -750,7 +923,7 @@ async function publishFor(user, k, action, articleOverride) {
       ...(warnings.length > 0 ? { warnings } : {})
     };
 
-    return await db.update('keywords', { id: k.id }, {
+    const updated = await db.update('keywords', { id: k.id }, {
       article: updatedArticle,
       status,
       post_id: out.postId || k.post_id,
@@ -761,7 +934,26 @@ async function publishFor(user, k, action, articleOverride) {
       warnings,
       error: ''
     });
+
+    // Charge credit gambar yang benar-benar ter-upload (PRD §4.2: seo.image × out.images.length)
+    if (creditsEnabled && Array.isArray(out.images) && out.images.length > 0) {
+      await charge(user.id, 'seo.image', out.images.length, {
+        type: 'keyword_images',
+        id: `${k.id}_${out.postId || k.post_id || 'post'}`,
+        note: `Upload ${out.images.length} gambar artikel ${k.keyword}`
+      }, out.usage || null);
+    }
+
+    return updated;
   } catch (e) {
+    const usage = e.usage || (e.n8n && e.n8n.usage) || null;
+    if (creditsEnabled && usage) {
+      await recordFailedUsage(user.id, 'seo.image', usage, {
+        type: 'keyword_images',
+        id: `${k.id}_failed`,
+        note: e.message
+      });
+    }
     await db.update('keywords', { id: k.id }, {
       article: k.article,
       status: k.article ? 'Review Ready' : k.status,
@@ -770,7 +962,7 @@ async function publishFor(user, k, action, articleOverride) {
     throw e;
   }
 }
-const webApproverOn = (u) => planOf(u).webApprover && u.web_approver !== false;
+const webApproverOn = (u) => (process.env.CREDITS_ENABLED !== 'false' ? u.web_approver !== false : (planOf(u).webApprover && u.web_approver !== false));
 
 app.post('/api/keywords/:id/run', auth, wrap(async (req, res) => {
   const k = await db.findOne('keywords', { id: req.params.id, user_id: req.user.id }); if (!k) throw Object.assign(new Error('Tidak ditemukan.'), { status: 404 });
@@ -812,9 +1004,14 @@ function calcNextWeeklyRun(weekday = 6, hour = 0) {
 }
 
 async function runTopicSource(user, source) {
-  if (user.plan === 'free') {
+  const creditsEnabled = process.env.CREDITS_ENABLED !== 'false';
+  if (creditsEnabled) {
+    // Assert saldo seo.topics_run (10 credit, PRD §4.2)
+    await assertAffordable(user.id, 'seo.topics_run', 1);
+  } else if (user.plan === 'free') {
     throw Object.assign(new Error('Topik otomatis hanya untuk paket berbayar (Pro).'), { status: 402 });
   }
+
   const conn = await db.findOne('cms_connections', { user_id: user.id, cms_type: source.cms_type });
   if (!conn) {
     throw Object.assign(new Error(`Koneksi CMS ${source.cms_type} belum disimpan.`), { status: 400 });
@@ -838,7 +1035,30 @@ async function runTopicSource(user, source) {
     requestId: source.id
   };
 
-  const out = await callN8n(N8N_URL_TOPICS, payload);
+  let out;
+  try {
+    out = await callN8n(N8N_URL_TOPICS, payload);
+  } catch (e) {
+    const usage = e.usage || (e.n8n && e.n8n.usage) || null;
+    if (creditsEnabled && usage) {
+      await recordFailedUsage(user.id, 'seo.topics_run', usage, {
+        type: 'topic_source',
+        id: source.id,
+        note: e.message
+      });
+    }
+    throw e;
+  }
+
+  // Charge credit setelah n8n 200 (PRD §4.2)
+  if (creditsEnabled) {
+    await charge(user.id, 'seo.topics_run', 1, {
+      type: 'topic_source',
+      id: `${source.id}_${Date.now()}`,
+      note: 'Riset topik otomatis (Trends)'
+    }, out.usage || null);
+  }
+
   const topics = Array.isArray(out.topics) ? out.topics : [];
   const createdKeywords = [];
 
@@ -861,17 +1081,13 @@ async function runTopicSource(user, source) {
     });
 
     if (source.auto_generate) {
-      const plan = planOf(user);
-      const used = await usageOf(user.id);
-      if (used < plan.monthlyArticles) {
-        try {
-          let genRow = await generateFor(user, row);
-          if (!webApproverOn(user) && genRow.status !== 'Duplicate') {
-            await publishFor(user, genRow, 'draft');
-          }
-        } catch (e) {
-          log(`[TOPICS] auto_generate error: ${e.message}`);
+      try {
+        let genRow = await generateFor(user, row);
+        if (!webApproverOn(user) && genRow.status !== 'Duplicate') {
+          await publishFor(user, genRow, 'draft');
         }
+      } catch (e) {
+        log(`[TOPICS] auto_generate error: ${e.message}`);
       }
     }
     createdKeywords.push(row);
@@ -966,12 +1182,43 @@ app.get('/api/billing', auth, wrap(async (req, res) => {
   res.json({ plans: Object.values(PLANS), current: planOf(req.user), subscription: subs[0] || null, history: subs.slice(0, 10) });
 }));
 app.post('/api/billing/checkout', auth, wrap(async (req, res) => {
-  const plan = PLANS[req.body.plan] ? req.body.plan : 'premium';
+  const planKey = req.body.plan;
+  const plan = PLANS[planKey] ? planKey : 'premium';
   if (plan === 'free') throw Object.assign(new Error('Pilih paket berbayar.'), { status: 400 });
   const method = String(req.body.method || 'qris');
-  const sub = await db.insert('subscriptions', { user_id: req.user.id, plan, status: 'active', method, amount: PLANS[plan].price, invoice_no: 'INV-' + Date.now().toString(36).toUpperCase(), started_at: new Date().toISOString(), ends_at: new Date(Date.now() + 30 * 86400e3).toISOString(), dummy: true });
+  const planData = PLANS[plan];
+  const endsAt = new Date(Date.now() + 30 * 86400e3);
+  const sub = await db.insert('subscriptions', {
+    user_id: req.user.id,
+    plan,
+    status: 'active',
+    method,
+    amount: planData.price,
+    invoice_no: 'INV-' + Date.now().toString(36).toUpperCase(),
+    started_at: new Date().toISOString(),
+    ends_at: endsAt.toISOString(),
+    dummy: true
+  });
   const u = await db.update('accounts', { id: req.user.id }, { plan });
-  res.json({ user: publicUser(u), subscription: sub, message: 'Pembayaran simulasi berhasil. Paket Pro aktif 30 hari.' });
+
+  // PRD §4.3: balance_sub = credit paket (reset, bukan tambah), sub_expires_at = period_end
+  if (process.env.CREDITS_ENABLED !== 'false' && planData.credits > 0) {
+    await grant(
+      req.user.id,
+      'sub',
+      planData.credits,
+      endsAt,
+      'grant_sub',
+      `Langganan ${planData.name} (${planData.credits} credit)`,
+      { actionKey: 'billing.sub', refType: 'subscription', refId: sub.id }
+    );
+  }
+
+  res.json({
+    user: publicUser(u),
+    subscription: sub,
+    message: `Pembayaran simulasi berhasil. Paket ${planData.name} aktif 30 hari (${planData.credits || 0} credit).`
+  });
 }));
 app.post('/api/billing/cancel', auth, wrap(async (req, res) => {
   const subs = await db.findMany('subscriptions', { user_id: req.user.id, status: 'active' });
@@ -1014,6 +1261,16 @@ app.get('/api/cron/run-scheduled', wrap(async (req, res) => {
   const given = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '') || String(req.query.secret || '');
   if (!CRON_SECRET || given !== CRON_SECRET) return res.status(401).json({ error: 'unauthorized' });
   const now = new Date().toISOString();
+  const creditsEnabled = process.env.CREDITS_ENABLED !== 'false';
+
+  // 0. Bersihkan saldo bucket yang kadaluarsa & kirim peringatan harian & margin sentinel (PRD §2b & §4.3)
+  let alertSummary = null;
+  let marginSentinelSummary = null;
+  if (creditsEnabled) {
+    try { await expireBuckets(); } catch (err) { log(`[CRON] expireBuckets error: ${err.message}`); }
+    try { alertSummary = await processDailyCreditAlerts(); } catch (err) { log(`[CRON] processDailyCreditAlerts error: ${err.message}`); }
+    try { marginSentinelSummary = await checkMarginSentinel(); } catch (err) { log(`[CRON] checkMarginSentinel error: ${err.message}`); }
+  }
 
   // 1. Scheduled Keywords (daily/weekly)
   const all = await db.findMany('keywords', {});
@@ -1021,13 +1278,24 @@ app.get('/api/cron/run-scheduled', wrap(async (req, res) => {
   const results = [];
   for (const k of due) {
     const user = await db.findOne('accounts', { id: k.user_id });
-    if (!user || planOf(user).id === 'free') { await db.update('keywords', { id: k.id }, { next_run_at: nextRun(k.schedule) }); results.push({ id: k.id, skipped: 'plan' }); continue; }
+    if (!user) { results.push({ id: k.id, skipped: 'no_user' }); continue; }
+    if (!creditsEnabled && planOf(user).id === 'free') {
+      await db.update('keywords', { id: k.id }, { next_run_at: nextRun(k.schedule) });
+      results.push({ id: k.id, skipped: 'plan' });
+      continue;
+    }
     try {
       let row = await generateFor(user, k);
       if (row.status !== 'Duplicate' && !webApproverOn(user)) row = await publishFor(user, row, 'draft');
       results.push({ id: k.id, status: row.status });
     }
-    catch (e) { results.push({ id: k.id, error: e.message }); }
+    catch (e) {
+      if (e.status === 402 || e.code === 'INSUFFICIENT_CREDITS' || e.code === 'DAILY_CAP') {
+        results.push({ id: k.id, skipped: 'credit_exhausted', code: e.code });
+      } else {
+        results.push({ id: k.id, error: e.message });
+      }
+    }
   }
 
   // 2. Scheduled Topic Sources (Google Trends mingguan)
@@ -1036,7 +1304,8 @@ app.get('/api/cron/run-scheduled', wrap(async (req, res) => {
     const dueSources = allSources.filter(s => s.active !== false && s.next_run_at && s.next_run_at <= now);
     for (const s of dueSources) {
       const user = await db.findOne('accounts', { id: s.user_id });
-      if (!user || !planOf(user).autoTopics) continue;
+      if (!user) continue;
+      if (!creditsEnabled && !planOf(user).autoTopics) continue;
       try {
         const resTopics = await runTopicSource(user, s);
         results.push({ topicSourceId: s.id, status: 'ok', generated: resTopics.created });
@@ -1048,7 +1317,7 @@ app.get('/api/cron/run-scheduled', wrap(async (req, res) => {
     log(`[CRON] topic sources check error: ${err.message}`);
   }
 
-  res.json({ ran: results.length, results });
+  res.json({ ran: results.length, results, alerts: alertSummary, marginSentinel: marginSentinelSummary });
 }));
 
 app.use((req, res) => res.status(404).json({ error: 'Route tidak ditemukan.' }));

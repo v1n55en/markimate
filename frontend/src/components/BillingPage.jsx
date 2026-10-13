@@ -21,6 +21,7 @@ import {
   calculatePricing,
 } from '../config/pricing';
 import { ROLES } from '../config/roles';
+import { api } from '../api';
 
 const PAYMENT_METHODS = [
   { id: 'qris', label: 'QRIS Instant', icon: QrCode, note: 'GoPay, OVO, DANA, ShopeePay, BCA' },
@@ -77,12 +78,25 @@ export default function BillingPage({ refreshMe }) {
     setSelectedModules(['seo', 'ads_report', 'ads_spy']);
   };
 
-  const handleCheckoutSubmit = (e) => {
+  const handleCheckoutSubmit = async (e) => {
     e.preventDefault();
     setBusy(true);
     setNotice(null);
 
-    setTimeout(() => {
+    try {
+      const planToSubmit = pricing.appliedBundle || (selectedModules.includes('seo') ? 'seo' : selectedModules[0]) || 'premium';
+
+      // Call backend checkout endpoint to persist subscription and grant credits
+      try {
+        await api('/api/billing/checkout', {
+          method: 'POST',
+          body: { plan: planToSubmit, method: selectedMethod }
+        });
+        window.dispatchEvent(new Event('supermat:credits_updated'));
+      } catch (err) {
+        console.warn('Backend billing checkout:', err.message);
+      }
+
       // Simpan perubahan ke activeWorkspace
       updateWorkspace(activeWorkspace.id, {
         modules: selectedModules,
@@ -113,12 +127,15 @@ export default function BillingPage({ refreshMe }) {
         ok: true,
         text: `Langganan berhasil diperbarui! Seluruh ${selectedModules.length} modul aktif di ${activeWorkspace.name}.`,
       });
-      setBusy(false);
 
       if (refreshMe) {
         refreshMe();
       }
-    }, 600);
+    } catch (err) {
+      setNotice({ ok: false, text: err.message });
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleCancelModule = (modKey) => {

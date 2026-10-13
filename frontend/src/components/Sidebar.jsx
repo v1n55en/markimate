@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Terminal,
@@ -21,11 +21,13 @@ import {
   ChevronDown,
   ChevronRight,
   LayoutGrid,
+  Coins,
 } from 'lucide-react';
 import WorkspaceSelector from './common/WorkspaceSelector';
 import SupermatLogo from './common/SupermatLogo';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { ROLES } from '../config/roles';
+import { getCredits } from '../api';
 
 import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
 
@@ -36,6 +38,47 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [soonExpanded, setSoonExpanded] = useState(false);
   const { activeWorkspace } = useWorkspace();
+  const [creditsData, setCreditsData] = useState(null);
+
+  useEffect(() => {
+    let unmounted = false;
+    const fetchCredits = async () => {
+      try {
+        if (user?.isDemo) {
+          setCreditsData({
+            balance: { total: 300, trial: 300, sub: 0, topup: 0 },
+            trial: { active: true, daysLeft: 7 },
+            dailyUsed: 0,
+            dailyCap: 500,
+          });
+          return;
+        }
+        const data = await getCredits();
+        if (!unmounted && data) setCreditsData(data);
+      } catch {
+        // Fallback default
+      }
+    };
+    fetchCredits();
+    window.addEventListener('supermat:credits_updated', fetchCredits);
+    return () => {
+      unmounted = true;
+      window.removeEventListener('supermat:credits_updated', fetchCredits);
+    };
+  }, [user]);
+
+  const totalCredits = creditsData?.balance?.total ?? 0;
+  const isTrialActive = Boolean(creditsData?.trial?.active);
+  const trialDaysLeft = creditsData?.trial?.daysLeft ?? 0;
+  const maxBaseline = isTrialActive ? 300 : (creditsData?.dailyCap || 500);
+  const creditPct = maxBaseline > 0 ? Math.min(100, Math.round((totalCredits / maxBaseline) * 100)) : 0;
+
+  let barColor = 'var(--accent-cyan)';
+  if (totalCredits === 0) {
+    barColor = 'var(--accent-red)';
+  } else if (creditPct <= 20) {
+    barColor = 'var(--accent-yellow)';
+  }
 
   const used = usage?.runsThisMonth ?? 0;
   const limit = usage?.limit ?? 0;
@@ -201,13 +244,25 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
           <span style={styles.mobileTitle}>Markimate</span>
           {isDemo && <span style={styles.demoBadge}>DEMO</span>}
         </div>
-        <button
-          onClick={() => setMobileOpen(!mobileOpen)}
-          style={styles.hamburgerBtn}
-          aria-label="Toggle navigation"
-        >
-          {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-        </button>
+        <div style={styles.mobileBarRight}>
+          <button
+            onClick={() => handleNavClick('/app/billing/credits')}
+            style={styles.mobileCreditChip}
+            title={lang === 'id' ? 'Lihat dompet credit' : 'View credit wallet'}
+          >
+            <Coins size={13} color={barColor} />
+            <span style={{ ...styles.mobileCreditNum, color: totalCredits === 0 ? 'var(--accent-red)' : 'var(--text-primary)' }}>
+              {totalCredits}
+            </span>
+          </button>
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            style={styles.hamburgerBtn}
+            aria-label="Toggle navigation"
+          >
+            {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
       </div>
 
       {/* Overlay Backdrop pada Mobile */}
@@ -266,6 +321,58 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
               {user?.role === 'admin' ? '🛡️ Admin 3Our' : user?.email}
             </span>
           </div>
+        </div>
+
+        {/* Chip Saldo Credit & Progress Bar (PRD §5) */}
+        <div
+          onClick={() => handleNavClick('/app/billing/credits')}
+          style={styles.creditChip}
+          className="credit-wallet-chip"
+          title={lang === 'id' ? 'Klik untuk melihat dompet credit & top-up' : 'Click to view credit wallet & top-up'}
+          role="button"
+          tabIndex={0}
+        >
+          <div style={styles.creditChipTop}>
+            <div style={styles.creditChipLeft}>
+              <div style={styles.coinIconBox}>
+                <Coins size={14} color={barColor} />
+              </div>
+              <span style={styles.creditChipLabel}>
+                {t('sidebar.creditsLabel', 'Saldo Credit')}
+              </span>
+            </div>
+            <div style={styles.creditChipRight}>
+              <span
+                style={{
+                  ...styles.creditChipAmount,
+                  color: totalCredits === 0 ? 'var(--accent-red)' : 'var(--text-primary)',
+                }}
+              >
+                {totalCredits.toLocaleString('id-ID')}
+              </span>
+              <span style={styles.creditChipUnit}>cr</span>
+            </div>
+          </div>
+
+          {/* Progress Bar Saldo */}
+          <div style={styles.creditProgressTrack}>
+            <div
+              style={{
+                ...styles.creditProgressFill,
+                width: `${creditPct}%`,
+                backgroundColor: barColor,
+              }}
+            />
+          </div>
+
+          {/* Badge Trial jika masih aktif */}
+          {isTrialActive && (
+            <div style={styles.trialBadgeRow}>
+              <span style={styles.trialBadge}>
+                ⚡ {t('sidebar.creditTrialBadge', 'Trial · sisa {days} hari').replace('{days}', trialDaysLeft)}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Navigation Sections */}
@@ -456,6 +563,24 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
               <span style={styles.sectionGroupTitle}>{lang === 'id' ? 'Akun' : 'Account'}</span>
             </div>
             <div style={styles.itemsList}>
+              <button
+                onClick={() => handleNavClick('/app/billing/credits')}
+                style={{
+                  ...styles.navLink,
+                  ...(location.pathname === '/app/billing/credits' ? styles.navLinkActive : {}),
+                }}
+              >
+                {location.pathname === '/app/billing/credits' && <div style={styles.activeBar} />}
+                <Coins
+                  size={17}
+                  color={
+                    location.pathname === '/app/billing/credits'
+                      ? 'var(--accent-cyan)'
+                      : 'var(--text-secondary)'
+                  }
+                />
+                <span>{t('sidebar.credits', 'Dompet Credit')}</span>
+              </button>
               <button
                 onClick={() => handleNavClick('/app/billing')}
                 style={{
@@ -890,5 +1015,108 @@ const styles = {
     backgroundColor: 'rgba(255, 255, 255, 0.04)',
     padding: '0.1rem 0.3rem',
     borderRadius: '4px',
+  },
+  mobileBarRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.6rem',
+  },
+  mobileCreditChip: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.35rem',
+    padding: '0.3rem 0.6rem',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    borderRadius: '20px',
+    cursor: 'pointer',
+    color: 'var(--text-primary)',
+    fontSize: '0.75rem',
+    fontWeight: '600',
+  },
+  mobileCreditNum: {
+    fontSize: '0.75rem',
+    fontWeight: '700',
+  },
+  creditChip: {
+    margin: '0.5rem 0 0.8rem 0',
+    padding: '0.65rem 0.8rem',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    borderRadius: '10px',
+    cursor: 'pointer',
+    transition: 'all var(--transition-fast)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.45rem',
+  },
+  creditChipTop: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  creditChipLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.45rem',
+  },
+  coinIconBox: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '24px',
+    height: '24px',
+    borderRadius: '6px',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  creditChipLabel: {
+    fontSize: '0.78rem',
+    fontWeight: '600',
+    color: 'var(--text-secondary)',
+  },
+  creditChipRight: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: '0.2rem',
+  },
+  creditChipAmount: {
+    fontSize: '0.95rem',
+    fontWeight: '800',
+    letterSpacing: '-0.02em',
+  },
+  creditChipUnit: {
+    fontSize: '0.65rem',
+    fontWeight: '600',
+    color: 'var(--text-muted)',
+    textTransform: 'uppercase',
+  },
+  creditProgressTrack: {
+    width: '100%',
+    height: '4px',
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: '999px',
+    overflow: 'hidden',
+  },
+  creditProgressFill: {
+    height: '100%',
+    borderRadius: '999px',
+    transition: 'width 0.4s ease, background-color 0.3s ease',
+  },
+  trialBadgeRow: {
+    display: 'flex',
+    alignItems: 'center',
+    marginTop: '0.1rem',
+  },
+  trialBadge: {
+    fontSize: '0.68rem',
+    fontWeight: '600',
+    color: 'var(--accent-yellow)',
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    border: '1px solid rgba(245, 158, 11, 0.3)',
+    borderRadius: '4px',
+    padding: '0.15rem 0.45rem',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.2rem',
   },
 };

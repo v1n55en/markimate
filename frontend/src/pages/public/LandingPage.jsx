@@ -23,6 +23,7 @@ import {
   Zap,
   HelpCircle,
   ExternalLink,
+  Coins,
 } from 'lucide-react';
 import {
   getLocalizedRoles,
@@ -110,6 +111,18 @@ export default function LandingPage() {
             <a href="#pricing" style={styles.secondaryCta}>
               {t('hero.ctaSecondary', 'View Plans & Pricing')}
             </a>
+          </div>
+
+          <div style={styles.trialHighlightCard}>
+            <Coins size={16} color="var(--accent-cyan)" />
+            <span>
+              {lang === 'id'
+                ? 'Coba gratis 7 hari — 300 credit, semua modul terbuka, tanpa kartu kredit'
+                : '7-Day Free Trial — 300 credits, all modules unlocked, zero credit card required'}
+            </span>
+            <Link to="/register" style={styles.trialLink}>
+              {lang === 'id' ? 'Klaim Sekarang →' : 'Claim Now →'}
+            </Link>
           </div>
 
           <div style={styles.heroProof}>
@@ -443,6 +456,27 @@ export default function LandingPage() {
             </p>
           </div>
 
+          <div style={styles.pricingTrialBanner} className="card">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <div style={styles.trialBadgeIcon}>
+                <Coins size={22} color="var(--accent-cyan)" />
+              </div>
+              <div style={{ flex: 1, minWidth: '220px' }}>
+                <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                  {lang === 'id' ? 'Coba Gratis 7 Hari — 300 Credit Tanpa Kartu Kredit' : '7-Day Free Trial — 300 Credits, Zero Credit Card Required'}
+                </div>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                  {lang === 'id'
+                    ? '1 credit = Rp1.000. Dapatkan 300 credit langsung untuk mencoba pembuatan artikel SEO bergambar dan seluruh modul secara bebas.'
+                    : '1 credit = IDR 1,000. Get 300 free credits instantly to test AI SEO articles with images and all modules freely.'}
+                </div>
+              </div>
+              <Link to="/register" style={styles.trialCtaBtn}>
+                {lang === 'id' ? 'Mulai Free Trial' : 'Start Free Trial'}
+              </Link>
+            </div>
+          </div>
+
           <div style={styles.pricingCardsGrid}>
             {/* Paket 1: Beli Satuan */}
             <div style={styles.planCard} className="card">
@@ -458,10 +492,10 @@ export default function LandingPage() {
                 <span style={styles.planPeriod}>{t('bundles.perMonth', '/ month')}</span>
               </div>
               <ul style={styles.planFeatures}>
-                <li>{lang === 'id' ? 'AI SEO Specialist: Rp 1.5jt (20 artikel)' : 'AI SEO Specialist: $99 (20 articles)'}</li>
-                <li>{lang === 'id' ? 'AI Ads Report: Rp 1.5jt (3 akun iklan)' : 'AI Ads Report: $99 (3 ad accounts)'}</li>
-                <li>{lang === 'id' ? 'AI Ads Creative Spy: Rp 1.0jt (5 kompetitor)' : 'AI Ads Creative Spy: $69 (5 competitors)'}</li>
-                <li>{lang === 'id' ? 'Aktifkan & batalkan kapan saja' : 'Activate & pause anytime'}</li>
+                <li>{lang === 'id' ? 'AI SEO: 1.500 cr / bln (≈20 artikel bergambar)' : 'AI SEO: 1,500 cr / mo (≈20 rich articles)'}</li>
+                <li>{lang === 'id' ? 'AI Ads Report: 1.500 cr / bln (3 akun iklan)' : 'AI Ads Report: 1,500 cr / mo (3 ad accounts)'}</li>
+                <li>{lang === 'id' ? 'AI Ads Spy: 1.000 cr / bln (5 kompetitor)' : 'AI Ads Creative Spy: 1,000 cr / mo (5 competitors)'}</li>
+                <li>{lang === 'id' ? 'Credit berlaku lintas modul aktif' : 'Credits usable across all active modules'}</li>
               </ul>
               <Link to="/register" style={styles.planBtnSecondary}>
                 {t('bundles.ctaSelect', 'Select Plan')}
@@ -613,6 +647,26 @@ export default function LandingPage() {
               </h4>
               <p style={styles.faqAnswer}>
                 {t('faq.a4')}
+              </p>
+            </div>
+
+            <div style={styles.faqItem} className="card">
+              <h4 style={styles.faqQuestion}>
+                <HelpCircle size={17} color="var(--accent-cyan)" />
+                {t('faq.q5')}
+              </h4>
+              <p style={styles.faqAnswer}>
+                {t('faq.a5')}
+              </p>
+            </div>
+
+            <div style={styles.faqItem} className="card">
+              <h4 style={styles.faqQuestion}>
+                <HelpCircle size={17} color="var(--accent-cyan)" />
+                {t('faq.q6')}
+              </h4>
+              <p style={styles.faqAnswer}>
+                {t('faq.a6')}
               </p>
             </div>
           </div>
@@ -1358,5 +1412,55 @@ const styles = {
     justifyContent: 'center',
     gap: '0.85rem',
     flexWrap: 'wrap',
+  },
+  trialHighlightCard: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.65rem',
+    padding: '0.6rem 1.1rem',
+    borderRadius: '999px',
+    backgroundColor: 'rgba(6, 182, 212, 0.08)',
+    border: '1px solid rgba(6, 182, 212, 0.35)',
+    color: '#67e8f9',
+    fontSize: '0.85rem',
+    fontWeight: 600,
+    marginTop: '0.5rem',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+  },
+  trialLink: {
+    color: 'var(--accent-cyan)',
+    fontWeight: 700,
+    textDecoration: 'underline',
+    marginLeft: '0.35rem',
+  },
+  pricingTrialBanner: {
+    marginBottom: '2rem',
+    padding: '1.25rem 1.5rem',
+    backgroundColor: 'rgba(6, 182, 212, 0.06)',
+    border: '1px solid rgba(6, 182, 212, 0.35)',
+    borderRadius: '12px',
+  },
+  trialBadgeIcon: {
+    width: '42px',
+    height: '42px',
+    borderRadius: '8px',
+    backgroundColor: 'rgba(6, 182, 212, 0.12)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  trialCtaBtn: {
+    padding: '0.6rem 1.25rem',
+    borderRadius: '6px',
+    backgroundColor: 'var(--accent-cyan)',
+    color: '#09090b',
+    fontWeight: 700,
+    fontSize: '0.85rem',
+    textDecoration: 'none',
+    display: 'inline-flex',
+    alignItems: 'center',
+    whiteSpace: 'nowrap',
   },
 };

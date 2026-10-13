@@ -1,6 +1,26 @@
 // Konfigurasi harga, kuota, bundle, dan benchmark biaya tim marketing in-house
 // Mengikuti data kalkulator Supermat v3 (Supermat-v3-Kalkulator-Paket-Biaya-Development.xlsx)
 
+export const TRIAL = {
+  days: 7,
+  credits: 300,
+  noCardRequired: true,
+};
+
+export const MODULE_CREDITS = {
+  seo: 1500, // 1.500 credit / bulan (≈ 20 artikel bergambar)
+  ads_report: 1500, // 1.500 credit / bulan
+  ads_spy: 1000, // 1.000 credit / bulan
+  focus3: 3200, // 3.200 credit / bulan
+  all_in_one: 7875, // 7.875 credit / bulan
+};
+
+export const TOPUP_PACKS = [
+  { id: 'starter', name: 'Starter Pack', price: 500000, credits: 500, bonus: 0, tag: 'Dasar' },
+  { id: 'growth', name: 'Growth Pack', price: 1000000, credits: 1050, bonus: 50, popular: true, tag: 'Paling Populer' },
+  { id: 'scale', name: 'Scale Pack', price: 2500000, credits: 2750, bonus: 250, tag: 'Terbaik (Bonus 10%)' },
+];
+
 export const MODULE_PRICES = {
   seo: 1500000, // Rp 1.500.000 / bulan
   ads_report: 1500000, // Rp 1.500.000 / bulan
@@ -8,25 +28,27 @@ export const MODULE_PRICES = {
 };
 
 export const MODULE_QUOTA = {
-  seo: '20 artikel SEO / bulan + verifikasi CMS',
-  ads_report: '3 akun iklan / toko marketplace terhubung',
-  ads_spy: '5 kompetitor dipantau, pemindaian otomatis mingguan',
+  seo: '1.500 credit / bulan (≈ 20 artikel SEO + gambar AI)',
+  ads_report: '1.500 credit / bulan (Laporan akun iklan Meta & Google)',
+  ads_spy: '1.000 credit / bulan (Scan kompetitor Ad Library mingguan)',
 };
 
 export const BUNDLES = [
   {
     key: 'focus3',
     name: 'Paket Fokus 3',
-    description: 'Kombinasi 3 pilar pertumbuhan utama: SEO Specialist + Ads Specialist (Report) + Ads Creative Spy.',
+    description: 'Kombinasi 3 pilar pertumbuhan utama: SEO Specialist + Ads Specialist (Report) + Ads Creative Spy (3.200 credit/bulan).',
     modules: ['seo', 'ads_report', 'ads_spy'],
+    credits: 3200,
     discount: 0.2, // Diskon 20% dari total satuan (Rp 4.000.000 -> Rp 3.200.000 / bln)
     badge: 'Paling Populer',
   },
   {
     key: 'all_in_one',
     name: 'All-in-One AI Team',
-    description: 'Akses penuh ke seluruh 16 role tim marketing AI Markimate. Modul baru langsung aktif otomatis saat diluncurkan.',
+    description: 'Akses penuh ke seluruh 16 role tim marketing AI Markimate (7.875 credit/bulan). Modul baru langsung aktif otomatis.',
     modules: 'all',
+    credits: 7875,
     price: 7875000, // Rp 7.875.000 / bln
     preorder: true,
     badge: 'Pre-Order Eksklusif',
