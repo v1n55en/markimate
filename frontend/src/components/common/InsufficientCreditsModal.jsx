@@ -13,8 +13,10 @@ export default function InsufficientCreditsModal() {
       const detail = e.detail || {};
       setModalData(detail);
     };
+    window.addEventListener('markimate:insufficient_credits', handleInsufficient);
     window.addEventListener('supermat:insufficient_credits', handleInsufficient);
     return () => {
+      window.removeEventListener('markimate:insufficient_credits', handleInsufficient);
       window.removeEventListener('supermat:insufficient_credits', handleInsufficient);
     };
   }, []);

@@ -64,8 +64,12 @@ export default function SpyLibraryPage() {
   useEffect(() => {
     loadData();
     const onWsChange = () => loadData();
+    window.addEventListener('markimate:workspace-changed', onWsChange);
     window.addEventListener('supermat:workspace-changed', onWsChange);
-    return () => window.removeEventListener('supermat:workspace-changed', onWsChange);
+    return () => {
+      window.removeEventListener('markimate:workspace-changed', onWsChange);
+      window.removeEventListener('supermat:workspace-changed', onWsChange);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [competitorFilter, formatFilter, winningFilter, newFilter, swipeOnly]);
 

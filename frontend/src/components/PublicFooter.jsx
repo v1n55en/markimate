@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Mail, MapPin, Phone, ShieldCheck } from 'lucide-react';
 import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
-import SupermatLogo from './common/SupermatLogo';
+import MarkimateLogo from './common/MarkimateLogo';
 
 export default function PublicFooter() {
   const { t } = useLanguage();
@@ -13,7 +13,7 @@ export default function PublicFooter() {
           {/* Company info */}
           <div style={styles.companyCol}>
             <div style={styles.legalName}>
-              <SupermatLogo size={20} />
+              <MarkimateLogo size={20} />
               <strong>Markimate</strong>
               <span style={styles.brandTag}>powered by 3our</span>
             </div>

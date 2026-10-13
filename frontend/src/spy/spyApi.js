@@ -1,10 +1,11 @@
-// Klien API Modul Ads Creative Spy Supermat (PRD Bagian 7.4)
+// Klien API Modul Ads Creative Spy Markimate (PRD Bagian 7.4)
 import { api } from '../api';
 import {
   INITIAL_COMPETITORS,
   INITIAL_CREATIVES,
   INITIAL_SPY_INSIGHTS,
 } from './mockData';
+import { storage } from '../lib/storage';
 
 export const isSpyMock = () => {
   const envVal = import.meta.env.VITE_SPY_MOCK;
@@ -14,16 +15,16 @@ export const isSpyMock = () => {
 
 export function getActiveWsId() {
   try {
-    return localStorage.getItem('supermat_workspace') || 'ws-3our-official';
+    return storage.getItem('workspace') || 'ws-3our-official';
   } catch {
     return 'ws-3our-official';
   }
 }
 
 const STORAGE_KEYS = {
-  COMPETITORS: 'supermat_spy_competitors_v1',
-  CREATIVES: 'supermat_spy_creatives_v1',
-  INSIGHTS: 'supermat_spy_insights_v1',
+  COMPETITORS: 'spy_competitors_v1',
+  CREATIVES: 'spy_creatives_v1',
+  INSIGHTS: 'spy_insights_v1',
 };
 
 function getWsStorageKey(baseKey, wsId = getActiveWsId()) {
@@ -32,7 +33,7 @@ function getWsStorageKey(baseKey, wsId = getActiveWsId()) {
 
 function getStoredJson(key, fallback) {
   try {
-    const raw = localStorage.getItem(key);
+    const raw = storage.getItem(key);
     if (!raw) return fallback;
     return JSON.parse(raw);
   } catch {
@@ -42,7 +43,7 @@ function getStoredJson(key, fallback) {
 
 function setStoredJson(key, val) {
   try {
-    localStorage.setItem(key, JSON.stringify(val));
+    storage.setItem(key, JSON.stringify(val));
   } catch {
     // abaikan jika kuota storage penuh
   }

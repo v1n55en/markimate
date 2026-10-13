@@ -22,6 +22,7 @@ import {
 } from '../config/pricing';
 import { ROLES } from '../config/roles';
 import { api } from '../api';
+import { storage } from '../lib/storage';
 
 const PAYMENT_METHODS = [
   { id: 'qris', label: 'QRIS Instant', icon: QrCode, note: 'GoPay, OVO, DANA, ShopeePay, BCA' },
@@ -92,6 +93,7 @@ export default function BillingPage({ refreshMe }) {
           method: 'POST',
           body: { plan: planToSubmit, method: selectedMethod }
         });
+        window.dispatchEvent(new Event('markimate:credits_updated'));
         window.dispatchEvent(new Event('supermat:credits_updated'));
       } catch (err) {
         console.warn('Backend billing checkout:', err.message);
@@ -116,9 +118,9 @@ export default function BillingPage({ refreshMe }) {
       };
 
       try {
-        const historyKey = `supermat_billing_history_${activeWorkspace.id}`;
-        const existing = JSON.parse(localStorage.getItem(historyKey) || '[]');
-        localStorage.setItem(historyKey, JSON.stringify([newInvoice, ...existing]));
+        const historyKey = `billing_history_${activeWorkspace.id}`;
+        const existing = JSON.parse(storage.getItem(historyKey) || '[]');
+        storage.setItem(historyKey, JSON.stringify([newInvoice, ...existing]));
       } catch {
         // abaikan
       }
@@ -153,10 +155,10 @@ export default function BillingPage({ refreshMe }) {
   };
 
   // Riwayat tagihan
-  const historyKey = `supermat_billing_history_${activeWorkspace?.id}`;
+  const historyKey = `billing_history_${activeWorkspace?.id}`;
   const historyList = (() => {
     try {
-      const stored = localStorage.getItem(historyKey);
+      const stored = storage.getItem(historyKey);
       if (stored) return JSON.parse(stored);
     } catch {
       // abaikan

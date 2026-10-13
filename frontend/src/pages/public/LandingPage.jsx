@@ -345,7 +345,7 @@ export default function LandingPage() {
                           </td>
                           <td style={{ ...styles.td, textAlign: 'right' }}>
                             <strong style={{ color: 'var(--accent-cyan)' }}>
-                              {formatIDR(row.supermatMonthly, lang)}
+                              {formatIDR(row.markimateMonthly || row.supermatMonthly, lang)}
                             </strong>
                           </td>
                         </tr>
@@ -397,7 +397,7 @@ export default function LandingPage() {
                           {t('benchmark.thMarkimate', 'Markimate')}
                         </span>
                         <span style={styles.mobileCompMarkimateVal}>
-                          {formatIDR(row.supermatMonthly, lang)} <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}>/ mo</span>
+                          {formatIDR(row.markimateMonthly || row.supermatMonthly, lang)} <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}>/ mo</span>
                         </span>
                       </div>
                     </div>

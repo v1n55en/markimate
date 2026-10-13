@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, LogIn, Menu, X } from 'lucide-react';
 import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
-import SupermatLogo from './common/SupermatLogo';
+import MarkimateLogo from './common/MarkimateLogo';
 
 export default function PublicNavbar() {
   const { t } = useLanguage();
@@ -13,7 +13,7 @@ export default function PublicNavbar() {
       <div style={styles.container}>
         <Link to="/" style={styles.brand} onClick={() => setMobileMenuOpen(false)}>
           <div style={styles.logoBox}>
-            <SupermatLogo size={24} />
+            <MarkimateLogo size={24} />
           </div>
           <div>
             <span style={styles.brandTitle}>Markimate</span>

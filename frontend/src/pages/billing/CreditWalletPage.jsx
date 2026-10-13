@@ -138,6 +138,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
         window.snap.pay(res.token, {
           onSuccess: () => {
             fetchWalletData();
+            window.dispatchEvent(new Event('markimate:credits_updated'));
             window.dispatchEvent(new Event('supermat:credits_updated'));
             setTopupNotice({ ok: true, text: `Pembayaran berhasil! +${pack.credits} credit telah ditambahkan ke wallet.` });
           },
@@ -165,6 +166,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
             }
           });
           await fetchWalletData();
+          window.dispatchEvent(new Event('markimate:credits_updated'));
           window.dispatchEvent(new Event('supermat:credits_updated'));
           setTopupNotice({
             ok: true,
@@ -184,8 +186,12 @@ export default function CreditWalletPage({ me, onTopupClick }) {
   useEffect(() => {
     fetchWalletData();
     const handleUpdate = () => fetchWalletData();
+    window.addEventListener('markimate:credits_updated', handleUpdate);
     window.addEventListener('supermat:credits_updated', handleUpdate);
-    return () => window.removeEventListener('supermat:credits_updated', handleUpdate);
+    return () => {
+      window.removeEventListener('markimate:credits_updated', handleUpdate);
+      window.removeEventListener('supermat:credits_updated', handleUpdate);
+    };
   }, []);
 
   const totalBalance = credits?.balance?.total ?? 0;

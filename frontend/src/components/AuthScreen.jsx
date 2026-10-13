@@ -3,7 +3,8 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { ShieldCheck, UserPlus, LogIn, ArrowRight, Sparkles, Coins } from 'lucide-react';
 import { api, setToken } from '../api';
 import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
-import SupermatLogo from './common/SupermatLogo';
+import MarkimateLogo from './common/MarkimateLogo';
+import { storage } from '../lib/storage';
 
 export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
   const [searchParams] = useSearchParams();
@@ -32,10 +33,10 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
         role: 'admin',
         plan: 'premium',
       },
-      token: 'supermat_demo_token_' + Date.now(),
+      token: 'markimate_demo_token_' + Date.now(),
     };
     try {
-      localStorage.setItem('supermat_demo_session', JSON.stringify(demoPayload));
+      storage.setItem('demo_session', JSON.stringify(demoPayload));
       setToken(demoPayload.token);
       await onLoginSuccess(demoPayload.user);
       navigate(nextParam);
@@ -87,7 +88,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
         <div style={styles.header}>
           <Link to="/" style={styles.logoLink}>
             <div style={styles.logoContainer}>
-              <SupermatLogo size={32} />
+              <MarkimateLogo size={32} />
             </div>
           </Link>
           <h1 style={styles.title}>Markimate</h1>

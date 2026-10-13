@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Bell, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
+import { storage } from '../../lib/storage';
 
 export default function WaitlistModal({ role, onClose }) {
   const { t, lang } = useLanguage();
@@ -24,8 +25,8 @@ export default function WaitlistModal({ role, onClose }) {
     setLoading(true);
 
     try {
-      // Simpan ke local storage untuk mode mock
-      const existing = JSON.parse(localStorage.getItem('supermat_waitlist') || '[]');
+      // Simpan ke storage untuk mode mock
+      const existing = JSON.parse(storage.getItem('waitlist') || '[]');
       existing.push({
         roleKey: role.key,
         roleName,
@@ -33,7 +34,7 @@ export default function WaitlistModal({ role, onClose }) {
         name,
         submittedAt: new Date().toISOString(),
       });
-      localStorage.setItem('supermat_waitlist', JSON.stringify(existing));
+      storage.setItem('waitlist', JSON.stringify(existing));
 
       // Simulasi delay request
       await new Promise((r) => setTimeout(r, 400));

@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { Globe } from 'lucide-react';
 import { TRANSLATIONS } from '../i18n/translations';
+import { storage } from '../lib/storage';
 
 const LanguageContext = createContext({
   lang: 'en',
@@ -9,12 +10,12 @@ const LanguageContext = createContext({
   t: (path, fallback = '') => fallback,
 });
 
-const STORAGE_KEY = 'supermat_lang';
+const STORAGE_KEY = 'lang';
 
 export function LanguageProvider({ children }) {
   const [lang, setLangState] = useState(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = storage.getItem(STORAGE_KEY);
       if (saved === 'en' || saved === 'id') return saved;
     } catch {
       // Fallback
@@ -25,7 +26,7 @@ export function LanguageProvider({ children }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, lang);
+      storage.setItem(STORAGE_KEY, lang);
       document.documentElement.lang = lang;
     } catch {
       // Ignore

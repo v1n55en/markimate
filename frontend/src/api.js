@@ -1,9 +1,10 @@
-// Klien API Markimate (backend Express). Token sesi disimpan di localStorage.
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
-const TOKEN_KEY = 'supermat_token';
+import { storage } from './lib/storage';
 
-export const getToken = () => { try { return localStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; } };
-export const setToken = (t) => { try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch { /* abaikan */ } };
+// Klien API Markimate (backend Express). Token sesi disimpan di localStorage via storage helper.
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001';
+
+export const getToken = () => { try { return storage.getItem('token') || ''; } catch { return ''; } };
+export const setToken = (t) => { try { t ? storage.setItem('token', t) : storage.removeItem('token'); } catch { /* abaikan */ } };
 
 export class ApiError extends Error {
   constructor(message, status, data) { super(message); this.status = status; this.data = data; }
@@ -22,8 +23,13 @@ export async function api(path, { method = 'GET', body, headers = {} } = {}) {
   const text = await res.text();
   let data; try { data = text ? JSON.parse(text) : null; } catch { data = { error: text }; }
   if (!res.ok) {
-    if (res.status === 401 && token && !path.startsWith('/api/auth/')) { setToken(''); window.dispatchEvent(new Event('supermat:logout')); }
+    if (res.status === 401 && token && !path.startsWith('/api/auth/')) {
+      setToken('');
+      window.dispatchEvent(new Event('markimate:logout'));
+      window.dispatchEvent(new Event('supermat:logout'));
+    }
     if (res.status === 402 && data && (data.code === 'INSUFFICIENT_CREDITS' || data.code === 'DAILY_CAP')) {
+      window.dispatchEvent(new CustomEvent('markimate:insufficient_credits', { detail: data }));
       window.dispatchEvent(new CustomEvent('supermat:insufficient_credits', { detail: data }));
     }
     throw new ApiError((data && (data.error || data.message)) || `HTTP ${res.status}`, res.status, data);

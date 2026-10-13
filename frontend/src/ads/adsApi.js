@@ -4,6 +4,7 @@ import {
   REPORT_DETAILS,
   getInitialMockDataForWorkspace,
 } from './mockData';
+import { storage } from '../lib/storage';
 
 // Mode Mock default aktif kecuali VITE_ADS_MOCK disetel secara eksplisit ke 'false'
 export const isAdsMock = () => {
@@ -15,7 +16,7 @@ export const isAdsMock = () => {
 // Ambil ID workspace aktif saat ini
 export function getActiveWsId() {
   try {
-    return localStorage.getItem('supermat_workspace') || 'ws-3our-official';
+    return storage.getItem('workspace') || 'ws-3our-official';
   } catch {
     return 'ws-3our-official';
   }
@@ -23,10 +24,10 @@ export function getActiveWsId() {
 
 // Key storage untuk persistensi sesi mock demo
 const STORAGE_KEYS = {
-  CONNECTIONS: 'supermat_ads_mock_connections_v2',
-  REPORTS: 'supermat_ads_mock_reports_v2',
-  SUMMARY: 'supermat_ads_mock_summary_v2',
-  DETAILS: 'supermat_ads_mock_details_v2',
+  CONNECTIONS: 'ads_mock_connections_v2',
+  REPORTS: 'ads_mock_reports_v2',
+  SUMMARY: 'ads_mock_summary_v2',
+  DETAILS: 'ads_mock_details_v2',
 };
 
 function getWsStorageKey(baseKey, wsId = getActiveWsId()) {
@@ -36,7 +37,7 @@ function getWsStorageKey(baseKey, wsId = getActiveWsId()) {
 // Helper state storage mock
 function getStoredJson(key, fallback) {
   try {
-    const raw = localStorage.getItem(key);
+    const raw = storage.getItem(key);
     if (!raw) return fallback;
     return JSON.parse(raw);
   } catch {
@@ -46,7 +47,7 @@ function getStoredJson(key, fallback) {
 
 function setStoredJson(key, val) {
   try {
-    localStorage.setItem(key, JSON.stringify(val));
+    storage.setItem(key, JSON.stringify(val));
   } catch {
     // abaikan jika kuota storage penuh
   }
@@ -119,9 +120,9 @@ export async function listConnections() {
 export async function startConnect(platform) {
   if (isAdsMock()) {
     await new Promise((r) => setTimeout(r, 80));
-    // Simulasi: redirect langsung ke halaman callback mock Supermat dengan kode demo
+    // Simulasi: redirect langsung ke halaman callback mock Markimate dengan kode demo
     return {
-      authUrl: `/app/ads/connect/${platform}/callback?code=demo_token_${platform}_${Date.now()}&state=supermat_demo_state`,
+      authUrl: `/app/ads/connect/${platform}/callback?code=demo_token_${platform}_${Date.now()}&state=markimate_demo_state`,
     };
   }
   return api(`/api/ads/connect/${platform}/start`, { method: 'POST' });

@@ -188,6 +188,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
     try {
       const d = await api(`/api/keywords/${id}/run`, { method: 'POST' });
       upsertRow(d.keyword); refreshMe();
+      window.dispatchEvent(new Event('markimate:credits_updated'));
       window.dispatchEvent(new Event('supermat:credits_updated'));
       if (d.keyword.status === 'Review Ready') flash('Artikel siap ditinjau di Web Approver.');
       else if (d.keyword.status === 'Draft Created') flash('Draf berhasil dibuat di ' + (CMS_LABEL[d.keyword.cms] || d.keyword.cms) + '.');
@@ -230,6 +231,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
     try {
       const d = await api(`/api/keywords/${id}/publish`, { method: 'POST', body: { action } });
       upsertRow(d.keyword);
+      window.dispatchEvent(new Event('markimate:credits_updated'));
       window.dispatchEvent(new Event('supermat:credits_updated'));
       flash(action === 'publish' ? 'Artikel diterbitkan.' : 'Draf dibuat di CMS.');
     } catch (e) { setError(e.message); } finally { setBusyFor(id, null); }
@@ -280,6 +282,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
         body: { action, article: articleToPublish }
       });
       upsertRow(d.keyword); closeDrawer();
+      window.dispatchEvent(new Event('markimate:credits_updated'));
       window.dispatchEvent(new Event('supermat:credits_updated'));
       flash(action === 'publish'
         ? 'Artikel berhasil diterbitkan di ' + (CMS_LABEL[d.keyword.cms] || d.keyword.cms) + '.'

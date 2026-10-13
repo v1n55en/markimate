@@ -24,7 +24,7 @@ import {
   Coins,
 } from 'lucide-react';
 import WorkspaceSelector from './common/WorkspaceSelector';
-import SupermatLogo from './common/SupermatLogo';
+import MarkimateLogo from './common/MarkimateLogo';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { ROLES } from '../config/roles';
 import { getCredits } from '../api';
@@ -60,9 +60,11 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
       }
     };
     fetchCredits();
+    window.addEventListener('markimate:credits_updated', fetchCredits);
     window.addEventListener('supermat:credits_updated', fetchCredits);
     return () => {
       unmounted = true;
+      window.removeEventListener('markimate:credits_updated', fetchCredits);
       window.removeEventListener('supermat:credits_updated', fetchCredits);
     };
   }, [user]);
@@ -240,7 +242,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
       {/* Mobile Hamburger Button */}
       <div style={styles.mobileBar} className="mobile-top-bar">
         <div style={styles.mobileBrand}>
-          <SupermatLogo size={20} />
+          <MarkimateLogo size={20} />
           <span style={styles.mobileTitle}>Markimate</span>
           {isDemo && <span style={styles.demoBadge}>DEMO</span>}
         </div>
@@ -285,7 +287,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
         <div style={styles.brand}>
           <div style={styles.brandLeft}>
             <div style={styles.logoBox}>
-              <SupermatLogo size={24} />
+              <MarkimateLogo size={24} />
             </div>
             <div>
               <div style={styles.brandTitleRow}>

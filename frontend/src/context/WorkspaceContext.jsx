@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { storage } from '../lib/storage';
 
-const WORKSPACES_STORAGE_KEY = 'supermat_workspaces_v1';
-const ACTIVE_WORKSPACE_KEY = 'supermat_workspace';
+const WORKSPACES_STORAGE_KEY = 'workspaces_v1';
+const ACTIVE_WORKSPACE_KEY = 'workspace';
 
 // Data awal workspace contoh untuk demonstrasi multi-brand
 const INITIAL_WORKSPACES = [
@@ -39,7 +40,7 @@ const WorkspaceContext = createContext(null);
 export function WorkspaceProvider({ children }) {
   const [workspaces, setWorkspaces] = useState(() => {
     try {
-      const stored = localStorage.getItem(WORKSPACES_STORAGE_KEY);
+      const stored = storage.getItem(WORKSPACES_STORAGE_KEY);
       if (stored) return JSON.parse(stored);
     } catch {
       // abaikan
@@ -49,7 +50,7 @@ export function WorkspaceProvider({ children }) {
 
   const [activeWorkspaceId, setActiveWorkspaceId] = useState(() => {
     try {
-      const storedActive = localStorage.getItem(ACTIVE_WORKSPACE_KEY);
+      const storedActive = storage.getItem(ACTIVE_WORKSPACE_KEY);
       if (storedActive && INITIAL_WORKSPACES.some((w) => w.id === storedActive)) {
         return storedActive;
       }
@@ -59,10 +60,10 @@ export function WorkspaceProvider({ children }) {
     return INITIAL_WORKSPACES[0].id;
   });
 
-  // Sinkronisasi ke localStorage setiap kali ada perubahan workspaces
+  // Sinkronisasi ke storage setiap kali ada perubahan workspaces
   useEffect(() => {
     try {
-      localStorage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(workspaces));
+      storage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(workspaces));
     } catch {
       // abaikan
     }
@@ -71,7 +72,7 @@ export function WorkspaceProvider({ children }) {
   // Sinkronisasi active workspace ID
   useEffect(() => {
     try {
-      localStorage.setItem(ACTIVE_WORKSPACE_KEY, activeWorkspaceId);
+      storage.setItem(ACTIVE_WORKSPACE_KEY, activeWorkspaceId);
     } catch {
       // abaikan
     }
@@ -83,7 +84,8 @@ export function WorkspaceProvider({ children }) {
   const switchWorkspace = useCallback((id) => {
     setActiveWorkspaceId(id);
     try {
-      localStorage.setItem(ACTIVE_WORKSPACE_KEY, id);
+      storage.setItem(ACTIVE_WORKSPACE_KEY, id);
+      window.dispatchEvent(new CustomEvent('markimate:workspace-changed', { detail: { id } }));
       window.dispatchEvent(new CustomEvent('supermat:workspace-changed', { detail: { id } }));
     } catch {
       // abaikan
@@ -104,7 +106,8 @@ export function WorkspaceProvider({ children }) {
       setWorkspaces((prev) => [newWs, ...prev]);
       setActiveWorkspaceId(newWs.id);
       try {
-        localStorage.setItem(ACTIVE_WORKSPACE_KEY, newWs.id);
+        storage.setItem(ACTIVE_WORKSPACE_KEY, newWs.id);
+        window.dispatchEvent(new CustomEvent('markimate:workspace-changed', { detail: { id: newWs.id } }));
         window.dispatchEvent(new CustomEvent('supermat:workspace-changed', { detail: { id: newWs.id } }));
       } catch {
         // abaikan

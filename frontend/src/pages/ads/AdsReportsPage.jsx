@@ -43,8 +43,12 @@ export default function AdsReportsPage({ user }) {
   useEffect(() => {
     loadData();
     const onWsChange = () => loadData();
+    window.addEventListener('markimate:workspace-changed', onWsChange);
     window.addEventListener('supermat:workspace-changed', onWsChange);
-    return () => window.removeEventListener('supermat:workspace-changed', onWsChange);
+    return () => {
+      window.removeEventListener('markimate:workspace-changed', onWsChange);
+      window.removeEventListener('supermat:workspace-changed', onWsChange);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [platformFilter, yearFilter]);
 

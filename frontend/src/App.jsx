@@ -17,6 +17,7 @@ import BillingPage from './components/BillingPage';
 import CreditWalletPage from './pages/billing/CreditWalletPage';
 import AutoTopicsPage from './pages/seo/AutoTopicsPage';
 import InsufficientCreditsModal from './components/common/InsufficientCreditsModal';
+import { storage } from './lib/storage';
 
 // Halaman Publik
 import LandingPage from './pages/public/LandingPage';
@@ -224,7 +225,7 @@ export default function App() {
   const refreshMe = useCallback(async () => {
     // Cek apakah ada sesi mock demo yang tersimpan
     try {
-      const demoRaw = localStorage.getItem('supermat_demo_session');
+      const demoRaw = storage.getItem('demo_session');
       if (demoRaw) {
         const demoData = JSON.parse(demoRaw);
         if (demoData?.user) {
@@ -260,20 +261,24 @@ export default function App() {
 
   useEffect(() => {
     // Bersihkan sesi mock legacy lama kecuali demo session baru
-    ['supermat_user', 'supermat_plan', 'supermat_keywords', 'supermat_credentials', 'supermat_run_count'].forEach((k) => {
-      try { localStorage.removeItem(k); } catch { /* abaikan */ }
+    ['user', 'plan', 'keywords', 'credentials', 'run_count'].forEach((k) => {
+      try { storage.removeItem(k); } catch { /* abaikan */ }
     });
 
     refreshMe().finally(() => setBooting(false));
 
     const onLogout = () => {
       setToken('');
-      localStorage.removeItem('supermat_demo_session');
+      storage.removeItem('demo_session');
       setMe(null);
     };
 
+    window.addEventListener('markimate:logout', onLogout);
     window.addEventListener('supermat:logout', onLogout);
-    return () => window.removeEventListener('supermat:logout', onLogout);
+    return () => {
+      window.removeEventListener('markimate:logout', onLogout);
+      window.removeEventListener('supermat:logout', onLogout);
+    };
   }, [refreshMe]);
 
   const handleLoginSuccess = async (user) => {
@@ -294,8 +299,9 @@ export default function App() {
 
   const handleLogout = () => {
     setToken('');
-    try { localStorage.removeItem('supermat_demo_session'); } catch { /* abaikan */ }
+    try { storage.removeItem('demo_session'); } catch { /* abaikan */ }
     setMe(null);
+    window.dispatchEvent(new Event('markimate:logout'));
     window.dispatchEvent(new Event('supermat:logout'));
   };
 
