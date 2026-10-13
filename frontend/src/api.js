@@ -66,7 +66,9 @@ export async function refreshSession() {
 
 export const getActiveWorkspaceId = () => {
   try {
-    return storage.getItem('workspace') || '';
+    const id = storage.getItem('workspace') || '';
+    // Abaikan ID mock/legacy (mis. "ws-3our-official"); backend hanya menerima UUID
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id) ? id : '';
   } catch {
     return '';
   }

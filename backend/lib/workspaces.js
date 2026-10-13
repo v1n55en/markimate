@@ -13,7 +13,12 @@ export const ROLE_LEVELS = {
 /**
  * Mendapatkan atau menyelesaikan workspace yang aktif untuk user
  */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const isUuid = (v) => typeof v === 'string' && UUID_RE.test(v);
+
 export async function resolveWorkspaceForUser(userId, requestedWsId) {
+  // ID workspace legacy/mock (mis. "ws-3our-official") bukan UUID: abaikan & pakai workspace default
+  if (requestedWsId && !isUuid(requestedWsId)) requestedWsId = null;
   if (requestedWsId) {
     const member = await db.findOne('workspace_members', {
       workspace_id: requestedWsId,

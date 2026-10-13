@@ -101,7 +101,8 @@ export async function isModuleActive(workspaceId, moduleName) {
 export function requireModule(moduleName) {
   return async (req, res, next) => {
     try {
-      const wsId = req.workspace?.id || req.headers['x-workspace-id'] || req.user?.id;
+      const hdrWs = req.headers['x-workspace-id'];
+      const wsId = req.workspace?.id || (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(hdrWs || '') ? hdrWs : null) || req.user?.id;
       if (!wsId) {
         return res.status(403).json({
           error: 'Workspace tidak ditemukan.',
