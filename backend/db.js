@@ -29,6 +29,9 @@ function makeSupabase() {
   const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
   if (!url || !key || url.includes('placeholder') || key.includes('placeholder')) return null;
   const schema = process.env.SUPABASE_SCHEMA || 'public';
+  if (schema === 'supermat') {
+    log('[DB] PERINGATAN: SUPABASE_SCHEMA masih "supermat". Harap migrasikan ke "markimate"!');
+  }
   try { const c = createClient(url, key, { auth: { persistSession: false }, db: { schema } }); log(`[DB] Supabase: ${url} (schema ${schema})`); return c; } catch (e) { log(`[DB] Supabase gagal init: ${e.message}`); return null; }
 }
 

@@ -1,10 +1,10 @@
--- Skema Supabase untuk Supermat backend v2 (jalankan di SQL Editor)
--- Semua tabel ada di schema terpisah "supermat" supaya bisa menumpang di project Supabase yang sudah ada.
--- Setelah menjalankan ini: Project Settings → Data API → Exposed schemas → tambahkan "supermat".
+-- Skema Supabase untuk Markimate backend v2 (jalankan di SQL Editor)
+-- Semua tabel ada di schema terpisah "markimate" supaya bisa menumpang di project Supabase yang sudah ada.
+-- Setelah menjalankan ini: Project Settings → Data API → Exposed schemas → tambahkan "markimate".
 create extension if not exists pgcrypto;
-create schema if not exists supermat;
+create schema if not exists markimate;
 
-create table if not exists supermat.accounts (
+create table if not exists markimate.accounts (
   id uuid primary key default gen_random_uuid(),
   email text unique not null,
   password_hash text not null,
@@ -17,9 +17,9 @@ create table if not exists supermat.accounts (
   updated_at timestamptz
 );
 
-create table if not exists supermat.cms_connections (
+create table if not exists markimate.cms_connections (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references supermat.accounts(id) on delete cascade,
+  user_id uuid not null references markimate.accounts(id) on delete cascade,
   workspace_id uuid,
   cms_type text not null,
   config jsonb not null default '{}'::jsonb,
@@ -33,9 +33,9 @@ create table if not exists supermat.cms_connections (
   unique (user_id, cms_type)
 );
 
-create table if not exists supermat.keywords (
+create table if not exists markimate.keywords (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references supermat.accounts(id) on delete cascade,
+  user_id uuid not null references markimate.accounts(id) on delete cascade,
   workspace_id uuid,
   keyword text not null,
   geo text default 'ID',
@@ -62,12 +62,12 @@ create table if not exists supermat.keywords (
   created_at timestamptz not null default now(),
   updated_at timestamptz
 );
-create index if not exists keywords_user_idx on supermat.keywords(user_id, created_at desc);
-create index if not exists keywords_next_run_idx on supermat.keywords(next_run_at) where schedule in ('daily','weekly');
+create index if not exists keywords_user_idx on markimate.keywords(user_id, created_at desc);
+create index if not exists keywords_next_run_idx on markimate.keywords(next_run_at) where schedule in ('daily','weekly');
 
-create table if not exists supermat.seo_topic_sources (
+create table if not exists markimate.seo_topic_sources (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references supermat.accounts(id) on delete cascade,
+  user_id uuid not null references markimate.accounts(id) on delete cascade,
   workspace_id uuid,
   cms_type text not null,
   seed_keywords text[] not null default '{}',
@@ -84,11 +84,11 @@ create table if not exists supermat.seo_topic_sources (
   created_at timestamptz default now(),
   updated_at timestamptz
 );
-create index if not exists seo_topic_sources_next_idx on supermat.seo_topic_sources(next_run_at) where active;
+create index if not exists seo_topic_sources_next_idx on markimate.seo_topic_sources(next_run_at) where active;
 
-create table if not exists supermat.subscriptions (
+create table if not exists markimate.subscriptions (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references supermat.accounts(id) on delete cascade,
+  user_id uuid not null references markimate.accounts(id) on delete cascade,
   plan text not null,
   status text not null default 'active',
   method text,
@@ -102,13 +102,13 @@ create table if not exists supermat.subscriptions (
 );
 
 -- Hanya backend (service_role) yang boleh mengakses; anon/authenticated ditutup lewat RLS tanpa policy.
-alter table supermat.accounts enable row level security;
-alter table supermat.cms_connections enable row level security;
-alter table supermat.keywords enable row level security;
-alter table supermat.seo_topic_sources enable row level security;
-alter table supermat.subscriptions enable row level security;
-grant usage on schema supermat to service_role;
-grant all on all tables in schema supermat to service_role;
-alter default privileges in schema supermat grant all on tables to service_role;
-revoke all on schema supermat from anon, authenticated;
+alter table markimate.accounts enable row level security;
+alter table markimate.cms_connections enable row level security;
+alter table markimate.keywords enable row level security;
+alter table markimate.seo_topic_sources enable row level security;
+alter table markimate.subscriptions enable row level security;
+grant usage on schema markimate to service_role;
+grant all on all tables in schema markimate to service_role;
+alter default privileges in schema markimate grant all on tables to service_role;
+revoke all on schema markimate from anon, authenticated;
 

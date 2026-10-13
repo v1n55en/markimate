@@ -1,4 +1,4 @@
-// Supermat Backend — API web app + "3Our API" publik untuk klien.
+// Markimate Backend — API web app + "3Our API" publik untuk klien.
 // Alur: user daftar → simpan kredensial CMS (WordPress/Wix) → jalankan keyword → n8n (3Our) riset + tulis artikel
 // → (Premium) review di web → publish ke CMS user lewat n8n adapter. Billing masih dummy.
 import express from 'express';
@@ -35,11 +35,11 @@ const app = express();
 const PORT = process.env.PORT || 5001;
 const JWT_SECRET = process.env.JWT_SECRET || 'ganti-di-env-JWT_SECRET';
 const N8N_BASE_URL = (process.env.N8N_BASE_URL || 'https://n8n.3ourasia.id').replace(/\/+$/, '');
-// Override opsional (nama baru, supaya env lama N8N_URL_RUN/N8N_URL_PUBLISH dari versi v1 tidak terpakai)
-const N8N_URL_RUN = process.env.SUPERMAT_N8N_RUN_URL || `${N8N_BASE_URL}/webhook/supermat-trigger`;
-const N8N_URL_PUBLISH = process.env.SUPERMAT_N8N_PUBLISH_URL || `${N8N_BASE_URL}/webhook/supermat-publish`;
-const N8N_URL_TOPICS = process.env.SUPERMAT_N8N_TOPICS_URL || (process.env.N8N_URL_TOPICS?.startsWith('http') ? process.env.N8N_URL_TOPICS : `${N8N_BASE_URL}${process.env.N8N_URL_TOPICS || '/webhook/supermat-topics'}`);
-const SUPERMAT_API_KEY = process.env.SUPERMAT_API_KEY || ''; // key 3Our untuk memanggil n8n (header X-Supermat-Key)
+// Override opsional (nama baru MARKIMATE_N8N_*, dengan fallback ke SUPERMAT_N8N_* supaya backward compatible)
+const N8N_URL_RUN = process.env.MARKIMATE_N8N_RUN_URL || process.env.SUPERMAT_N8N_RUN_URL || `${N8N_BASE_URL}/webhook/supermat-trigger`;
+const N8N_URL_PUBLISH = process.env.MARKIMATE_N8N_PUBLISH_URL || process.env.SUPERMAT_N8N_PUBLISH_URL || `${N8N_BASE_URL}/webhook/supermat-publish`;
+const N8N_URL_TOPICS = process.env.MARKIMATE_N8N_TOPICS_URL || process.env.SUPERMAT_N8N_TOPICS_URL || (process.env.N8N_URL_TOPICS?.startsWith('http') ? process.env.N8N_URL_TOPICS : `${N8N_BASE_URL}${process.env.N8N_URL_TOPICS || '/webhook/supermat-topics'}`);
+const MARKIMATE_API_KEY = process.env.MARKIMATE_API_KEY || process.env.SUPERMAT_API_KEY || ''; // key 3Our untuk memanggil n8n (header X-Supermat-Key)
 const CRON_SECRET = process.env.CRON_SECRET || '';
 
 const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
@@ -74,8 +74,8 @@ const planOf = (u) => PLANS[u.plan] || PLANS.free;
 function friendlyN8nError(status, text) {
   let parsed = null; try { parsed = JSON.parse(text); } catch (e) {}
   const msg = parsed && (parsed.message || parsed.error);
-  if (status === 404 || /not registered/i.test(text)) return 'Endpoint n8n belum aktif (404). Pastikan workflow "Supermat API" sudah dipublish.';
-  if (status === 401) return 'Backend ditolak n8n (401): SUPERMAT_API_KEY di server tidak cocok dengan key di n8n.';
+  if (status === 404 || /not registered/i.test(text)) return 'Endpoint n8n belum aktif (404). Pastikan workflow n8n sudah dipublish.';
+  if (status === 401) return 'Backend ditolak n8n (401): MARKIMATE_API_KEY / SUPERMAT_API_KEY di server tidak cocok dengan key di n8n.';
   if (status === 409 || (parsed && parsed.status === 'duplicate')) return (parsed && parsed.message) || 'Topik mirip sudah ada di CMS.';
   if (/Error in workflow/i.test(text)) return 'Terjadi error di workflow n8n. Cek eksekusi terakhir di n8n.';
   return msg || `n8n HTTP ${status}`;
@@ -83,7 +83,7 @@ function friendlyN8nError(status, text) {
 
 async function callN8n(url, body) {
   const headers = { 'Content-Type': 'application/json' };
-  if (SUPERMAT_API_KEY) headers['X-Supermat-Key'] = SUPERMAT_API_KEY;
+  if (MARKIMATE_API_KEY) headers['X-Supermat-Key'] = MARKIMATE_API_KEY;
   const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
   const text = await res.text();
   let json = null; try { json = JSON.parse(text); } catch (e) {}
@@ -399,7 +399,7 @@ async function testConnection(type, cfg) {
 async function testConnectionInner(type, cfg) {
   if (type === 'wordpress') {
     if (!cfg.url || !cfg.user || !cfg.appPassword) return { ok: false, message: 'Isi URL situs, username, dan Application Password.' };
-    const r = await fetch(cfg.url + '/wp-json/wp/v2/users/me?context=edit', { headers: { Authorization: 'Basic ' + Buffer.from(cfg.user + ':' + cfg.appPassword.replace(/\s+/g, '')).toString('base64'), 'User-Agent': 'Supermat/1.0' } });
+    const r = await fetch(cfg.url + '/wp-json/wp/v2/users/me?context=edit', { headers: { Authorization: 'Basic ' + Buffer.from(cfg.user + ':' + cfg.appPassword.replace(/\s+/g, '')).toString('base64'), 'User-Agent': 'Markimate/1.0' } });
     const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch (e) {}
     if (r.ok && j && j.id) { const caps = j.capabilities || {}; const canWrite = caps.edit_posts !== false; return { ok: true, message: `Terhubung sebagai ${j.name || j.slug}${canWrite ? '' : ' (tidak punya izin menulis post)'}`, meta: { userId: j.id, name: j.name } }; }
     if (r.status === 401 || r.status === 403) return { ok: false, message: 'WordPress menolak login (' + r.status + '). Pastikan Application Password benar (Users → Profile → Application Passwords).' };
@@ -427,7 +427,7 @@ async function testSanity(cfg) {
   if (q.status === 401) return { ok: false, message: 'Token Sanity tidak valid (401). Buat token di sanity.io/manage → API → Tokens.' };
   if (q.status === 404) return { ok: false, message: 'Project ID atau dataset tidak ditemukan (404).' };
   if (!q.ok) return { ok: false, message: 'Gagal membaca Sanity: HTTP ' + q.status + ' ' + ((qj.error && (qj.error.description || qj.error)) || '') };
-  const m = await fetch(`${api}/mutate/${encodeURIComponent(cfg.dataset)}?dryRun=true`, { method: 'POST', headers, body: JSON.stringify({ mutations: [{ createOrReplace: { _id: 'drafts.supermat-connection-test', _type: cfg.docType, title: 'Supermat connection test' } }] }) });
+  const m = await fetch(`${api}/mutate/${encodeURIComponent(cfg.dataset)}?dryRun=true`, { method: 'POST', headers, body: JSON.stringify({ mutations: [{ createOrReplace: { _id: 'drafts.markimate-connection-test', _type: cfg.docType, title: 'Markimate connection test' } }] }) });
   if (m.status === 401 || m.status === 403) return { ok: false, message: 'Token Sanity hanya bisa membaca (' + m.status + '). Buat token dengan izin Editor.' };
   if (!m.ok) { const mj = await m.json().catch(() => ({})); return { ok: false, message: 'Tes tulis Sanity gagal: HTTP ' + m.status + ' ' + ((mj.error && (mj.error.description || mj.error)) || '') }; }
   return { ok: true, message: `Terhubung ke Sanity (${cfg.projectId}/${cfg.dataset}) — ${qj.result ?? 0} dokumen "${cfg.docType}", izin tulis OK` };
@@ -1322,5 +1322,5 @@ app.get('/api/cron/run-scheduled', wrap(async (req, res) => {
 
 app.use((req, res) => res.status(404).json({ error: 'Route tidak ditemukan.' }));
 
-if (!process.env.VERCEL) app.listen(PORT, () => log(`Supermat backend di http://localhost:${PORT} (db: ${dbMode}, n8n: ${N8N_BASE_URL})`));
+if (!process.env.VERCEL) app.listen(PORT, () => log(`Markimate backend di http://localhost:${PORT} (db: ${dbMode}, n8n: ${N8N_BASE_URL})`));
 export default app;

@@ -99,7 +99,7 @@ Supermat dirancang dengan model modular berbasis peran spesialis:
 | Variable | Deskripsi |
 |---|---|
 | `SUPABASE_URL` | URL project Supabase |
-| `SUPABASE_SCHEMA` | Schema database (`supermat`) |
+| `SUPABASE_SCHEMA` | Schema database (`markimate`) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase Service Role Key |
 | `JWT_SECRET` | Secret key untuk penandatanganan JWT |
 | `SUPERMAT_API_KEY` | API Key penghubung backend ↔ n8n |

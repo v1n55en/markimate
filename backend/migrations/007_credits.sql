@@ -1,8 +1,8 @@
 -- Migrasi 007: Sistem Credit & Free Trial 7 Hari
--- Skema Supermat
+-- Skema Markimate
 
 -- 1. Harga credit per aksi (seed dari tabel PRD §2)
-create table if not exists supermat.credit_prices (
+create table if not exists markimate.credit_prices (
   action_key text primary key,          -- seo.article, seo.image, seo.topics_run, ...
   credits integer not null,
   label text,
@@ -12,7 +12,7 @@ create table if not exists supermat.credit_prices (
 );
 
 -- 2. Dompet credit per workspace (1 workspace = 1 user_id)
-create table if not exists supermat.credit_wallets (
+create table if not exists markimate.credit_wallets (
   workspace_id uuid primary key,        -- = user_id selama tabel workspaces belum ada
   balance_trial integer not null default 0,
   trial_expires_at timestamptz,
@@ -25,7 +25,7 @@ create table if not exists supermat.credit_wallets (
 );
 
 -- 3. Buku besar mutasi credit & biaya API nyata
-create table if not exists supermat.credit_ledger (
+create table if not exists markimate.credit_ledger (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null,
   delta integer not null,               -- negatif = pemakaian, positif = top-up/grant, 0 = usage_failed
@@ -40,12 +40,12 @@ create table if not exists supermat.credit_ledger (
   note text,
   created_at timestamptz default now()
 );
-create index if not exists credit_ledger_workspace_created_idx on supermat.credit_ledger(workspace_id, created_at desc);
-create unique index if not exists credit_ledger_idempotent_idx on supermat.credit_ledger(workspace_id, action_key, ref_type, ref_id, bucket)
+create index if not exists credit_ledger_workspace_created_idx on markimate.credit_ledger(workspace_id, created_at desc);
+create unique index if not exists credit_ledger_idempotent_idx on markimate.credit_ledger(workspace_id, action_key, ref_type, ref_id, bucket)
   where kind = 'usage' and ref_type is not null and ref_id is not null;
 
 -- 4. Tarif biaya API nyata vendor (PRD §2b)
-create table if not exists supermat.credit_cost_rates (
+create table if not exists markimate.credit_cost_rates (
   rate_key text primary key,            -- gemini_in_per_1k, gemini_out_per_1k, image, serp_call, rapid_call
   idr numeric not null,
   note text,
@@ -53,7 +53,7 @@ create table if not exists supermat.credit_cost_rates (
 );
 
 -- 5. Catatan klaim trial (1 trial per email terverifikasi)
-create table if not exists supermat.credit_trials (
+create table if not exists markimate.credit_trials (
   email text primary key,
   workspace_id uuid,
   granted_at timestamptz default now(),
@@ -61,7 +61,7 @@ create table if not exists supermat.credit_trials (
 );
 
 -- 6. Log notifikasi & peringatan saldo credit
-create table if not exists supermat.credit_alerts (
+create table if not exists markimate.credit_alerts (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null,
   alert_type text not null,       -- balance_low_20 | trial_h2 | trial_h0 | margin_low | cost_high
@@ -70,10 +70,10 @@ create table if not exists supermat.credit_alerts (
   metadata jsonb,
   created_at timestamptz default now()
 );
-create index if not exists credit_alerts_workspace_type_idx on supermat.credit_alerts(workspace_id, alert_type, period_key);
+create index if not exists credit_alerts_workspace_type_idx on markimate.credit_alerts(workspace_id, alert_type, period_key);
 
 -- 7. Transaksi pesanan top-up credit (Midtrans)
-create table if not exists supermat.credit_orders (
+create table if not exists markimate.credit_orders (
   id uuid primary key default gen_random_uuid(),
   order_id text unique not null,
   workspace_id uuid not null,
@@ -87,12 +87,12 @@ create table if not exists supermat.credit_orders (
   paid_at timestamptz,
   created_at timestamptz default now()
 );
-create index if not exists credit_orders_workspace_idx on supermat.credit_orders(workspace_id, created_at desc);
+create index if not exists credit_orders_workspace_idx on markimate.credit_orders(workspace_id, created_at desc);
 
 -- 8. Penanda verifikasi email di tabel accounts
-alter table supermat.accounts add column if not exists email_verified_at timestamptz;
+alter table markimate.accounts add column if not exists email_verified_at timestamptz;
 
 -- 9. Izin akses service role
-grant usage on schema supermat to service_role;
-grant all on all tables in schema supermat to service_role;
-alter default privileges in schema supermat grant all on tables to service_role;
+grant usage on schema markimate to service_role;
+grant all on all tables in schema markimate to service_role;
+alter default privileges in schema markimate grant all on tables to service_role;
