@@ -6,11 +6,10 @@ import {
 } from './mockData';
 import { storage } from '../lib/storage';
 
-// Mode Mock default aktif kecuali VITE_ADS_MOCK disetel secara eksplisit ke 'false'
+// Mode Mock default false kecuali VITE_ADS_MOCK disetel ke 'true' (PRD Hapus Mode Demo)
 export const isAdsMock = () => {
   const envVal = import.meta.env.VITE_ADS_MOCK;
-  if (envVal === 'false') return false;
-  return true; // default true untuk dev & reviewer preview
+  return envVal === 'true';
 };
 
 // Ambil ID workspace aktif saat ini

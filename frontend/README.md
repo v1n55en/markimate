@@ -21,11 +21,13 @@ Server pengembangan Vite akan berjalan di `http://localhost:5173`.
 Lihat `.env.example`:
 ```env
 VITE_API_BASE_URL=http://localhost:5001
-VITE_ADS_MOCK=true
+VITE_ADS_MOCK=false
+VITE_SPY_MOCK=false
 ```
 
 - `VITE_API_BASE_URL`: URL backend Express Markimate.
-- `VITE_ADS_MOCK`: Setel ke `'true'` (default) untuk menjalankan modul Ads Report dalam **Mode Demo / Mock Offline** dengan data contoh lengkap dan alur simulasi OAuth tanpa ketergantungan backend. Setel ke `'false'` ketika backend telah mengimplementasikan endpoint Ads Report.
+- `VITE_ADS_MOCK`: Setel ke `'true'` untuk mengaktifkan mock data modul Ads Report saat pengujian lokal/development. Secara default bernilai `'false'` (menampilkan kartu "Segera Hadir di Produksi").
+- `VITE_SPY_MOCK`: Setel ke `'true'` untuk mengaktifkan mock data modul Ads Creative Spy saat pengujian lokal/development. Secara default bernilai `'false'` (menampilkan kartu "Segera Hadir di Produksi").
 
 ---
 
@@ -37,8 +39,8 @@ VITE_ADS_MOCK=true
 | `/roles/:key` | Publik | Detail spesifikasi per role, deliverable, dan waitlist |
 | `/privacy` | Publik | Kebijakan Privasi Markimate Powered by 3Our Indonesia (sebelumnya bernama Supermat) |
 | `/terms` | Publik | Syarat & Ketentuan Layanan |
-| `/login` | Publik | Layar masuk akun pengguna & tombol jalan pintas akun Demo Reviewer |
-| `/register` | Publik | Layar pendaftaran brand baru |
+| `/login` | Publik | Layar masuk akun pengguna |
+| `/register` | Publik | Layar pendaftaran brand baru (Trial 7 Hari — 300 credit) |
 | `/app/ads` | Terproteksi | **Ringkasan Ads Report** (KPI gabungan, spend, ROAS, kartu platform) |
 | `/app/ads/connections` | Terproteksi | **Koneksi Platform Iklan** (Meta, Google, TikTok, GMV Max, Shopee) |
 | `/app/ads/reports` | Terproteksi | **Daftar Laporan Bulanan** (filter platform, tahun, pencarian klien) |
@@ -47,17 +49,19 @@ VITE_ADS_MOCK=true
 | `/app/seo/keywords` | Terproteksi | Kontrol Automasi SEO |
 | `/app/seo/analytics` | Terproteksi | Analitik & Insights SEO |
 | `/app/seo/settings` | Terproteksi | Pengaturan CMS & API Key |
-| `/app/billing` | Terproteksi | Langganan & Kuota Artikel |
+| `/app/billing` | Terproteksi | Langganan, Top-Up & Riwayat Penggunaan Credit |
 
 ---
 
-## 🧑‍💻 Akun Demo Reviewer (Shopee & TikTok)
+## 🧑‍💻 Akun Reviewer Platform (Meta, Google, TikTok, Shopee)
 
-Untuk kemudahan evaluasi oleh tim review platform (Shopee Open Platform & TikTok Marketing API):
-1. Buka `/login` atau klik **Masuk sebagai Akun Demo (Reviewer)**.
-2. Reviewer langsung login dengan status admin demo (`isDemo: true`).
-3. Pada halaman **Koneksi Platform**, status Shopee dapat diuji dengan menekan tombol **Hubungkan Shopee** → diarahkan ke halaman callback → status berubah menjadi **Terhubung**.
-4. Buka **Laporan Iklan** → pilih **Laporan Shopee Ads & TikTok Shop GMV Max** untuk melihat detail KPI, produk terlaris, dan insight AI.
+Untuk evaluasi oleh tim review platform:
+1. Tidak ada akun demo atau mode mock palsu di produksi. Seluruh pengguna baru berhak atas **Trial 7 Hari (300 credit)**.
+2. Daftarkan akun reviewer nyata melalui halaman `/register` (nama brand, email, dan password).
+3. Jika reviewer membutuhkan credit tambahan atau aktivasi paket khusus selama masa audit, admin dapat mengalokasikan credit via endpoint admin berotentikasi:
+   - `POST /api/admin/credits/grant` dengan header `X-Admin-Key` untuk menambah credit.
+   - Atau aktifkan paket manual via `POST /api/admin/subscriptions` dengan header `X-Admin-Key`.
+4. Cantumkan kredensial akun reviewer yang telah dibuat pada formulir peninjauan submission masing-masing platform.
 
 ---
 

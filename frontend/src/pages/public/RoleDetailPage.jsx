@@ -163,8 +163,8 @@ export default function RoleDetailPage() {
                     <span>{t('bundles.ctaSelect', 'Start Subscription')}</span>
                     <ArrowRight size={15} />
                   </Link>
-                  <Link to="/login" style={styles.secondaryActionBtn}>
-                    {t('finalCta.btnDemo', 'Explore Demo Account')}
+                  <Link to="/register" style={styles.secondaryActionBtn}>
+                    {t('finalCta.btnTrial', 'Start 7-Day Free Trial')}
                   </Link>
                 </div>
                 <div style={styles.guaranteeText}>

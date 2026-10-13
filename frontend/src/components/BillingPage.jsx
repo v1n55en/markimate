@@ -12,6 +12,7 @@ import {
   ExternalLink,
   Crown,
   FileText,
+  MessageCircle,
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
 import {
@@ -47,6 +48,15 @@ export default function BillingPage({ refreshMe }) {
   const [selectedMethod, setSelectedMethod] = useState('qris');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null); // { ok: boolean, text: string }
+  const [billingDisabled, setBillingDisabled] = useState(false);
+
+  useEffect(() => {
+    api('/api/billing')
+      .then((data) => {
+        if (data?.billingDisabled) setBillingDisabled(true);
+      })
+      .catch(() => {});
+  }, []);
 
   // Sinkronisasi saat activeWorkspace berganti
   useEffect(() => {
@@ -96,7 +106,15 @@ export default function BillingPage({ refreshMe }) {
         window.dispatchEvent(new Event('markimate:credits_updated'));
         window.dispatchEvent(new Event('supermat:credits_updated'));
       } catch (err) {
-        console.warn('Backend billing checkout:', err.message);
+        if (err.code === 'BILLING_DISABLED' || err.status === 403) {
+          setBillingDisabled(true);
+          setNotice({
+            ok: false,
+            text: err.message || 'Pembayaran langsung belum tersedia. Hubungi 3Our untuk aktivasi paket.',
+          });
+          return;
+        }
+        throw err;
       }
 
       // Simpan perubahan ke activeWorkspace
@@ -564,7 +582,7 @@ export default function BillingPage({ refreshMe }) {
 
             {/* Pemilihan Metode Pembayaran */}
             <div style={styles.paymentMethodsBlock}>
-              <label style={styles.paymentMethodLabel}>Metode Pembayaran Simulasi</label>
+              <label style={styles.paymentMethodLabel}>Metode Pembayaran</label>
               <div style={styles.methodsList}>
                 {PAYMENT_METHODS.map((m) => {
                   const Icon = m.icon;
@@ -594,30 +612,51 @@ export default function BillingPage({ refreshMe }) {
               </div>
             </div>
 
-            {/* Tombol Eksekusi Checkout */}
-            <button
-              type="submit"
-              disabled={busy || selectedModules.length === 0}
-              style={styles.checkoutSubmitBtn}
-            >
-              {busy ? (
-                <span>Memproses Checkout…</span>
-              ) : (
-                <>
-                  <Crown size={16} />
-                  <span>
-                    Bayar & Aktifkan {selectedModules.length} Modul ({formatIDR(pricing.totalToPay)})
-                  </span>
-                </>
-              )}
-            </button>
+            {/* Tombol Eksekusi Checkout atau Kontak Aktivasi */}
+            {billingDisabled ? (
+              <a
+                href={`https://wa.me/6285179642520?text=${encodeURIComponent(
+                  `Halo 3Our, saya ingin aktivasi paket ${pricing.appliedBundle || 'Markimate'} (${selectedModules.length} modul) untuk workspace ${activeWorkspace?.name || ''}.`
+                )}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  ...styles.checkoutSubmitBtn,
+                  backgroundColor: '#25D366',
+                  color: '#ffffff',
+                  textDecoration: 'none',
+                }}
+              >
+                <MessageCircle size={16} />
+                <span>Hubungi kami untuk aktivasi (WhatsApp)</span>
+              </a>
+            ) : (
+              <button
+                type="submit"
+                disabled={busy || selectedModules.length === 0}
+                style={styles.checkoutSubmitBtn}
+              >
+                {busy ? (
+                  <span>Memproses Checkout…</span>
+                ) : (
+                  <>
+                    <Crown size={16} />
+                    <span>
+                      Bayar & Aktifkan {selectedModules.length} Modul ({formatIDR(pricing.totalToPay)})
+                    </span>
+                  </>
+                )}
+              </button>
+            )}
 
-            <div style={styles.dummyNotice}>
-              <ShieldCheck size={14} color="var(--text-muted)" />
-              <span>
-                Mode simulasi demo: klik langsung mengaktifkan modul tanpa tagihan kartu nyata.
-              </span>
-            </div>
+            {billingDisabled && (
+              <div style={styles.dummyNotice}>
+                <ShieldCheck size={14} color="var(--accent-cyan)" />
+                <span>
+                  Aktivasi paket saat ini dilakukan melalui kontak resmi 3Our Indonesia (+62 851-7964-2520 / info@3ourasia.id).
+                </span>
+              </div>
+            )}
           </form>
         </div>
       </div>

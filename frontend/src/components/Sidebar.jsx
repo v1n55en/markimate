@@ -28,6 +28,8 @@ import MarkimateLogo from './common/MarkimateLogo';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { ROLES } from '../config/roles';
 import { getCredits } from '../api';
+import { isAdsMock } from '../ads/adsApi';
+import { isSpyMock } from '../spy/spyApi';
 
 import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
 
@@ -44,15 +46,6 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
     let unmounted = false;
     const fetchCredits = async () => {
       try {
-        if (user?.isDemo) {
-          setCreditsData({
-            balance: { total: 300, trial: 300, sub: 0, topup: 0 },
-            trial: { active: true, daysLeft: 7 },
-            dailyUsed: 0,
-            dailyCap: 500,
-          });
-          return;
-        }
         const data = await getCredits();
         if (!unmounted && data) setCreditsData(data);
       } catch {
@@ -86,7 +79,6 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
   const limit = usage?.limit ?? 0;
   const pct = limit ? Math.min(100, Math.round((used / limit) * 100)) : 0;
 
-  const isDemo = Boolean(user?.isDemo);
   const activeModules = activeWorkspace?.modules || ['seo', 'ads_report', 'ads_spy'];
 
   const isSeoActive = activeModules.includes('seo');
@@ -131,9 +123,11 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
   }
 
   if (isAdsActive) {
+    const adsSoon = !isAdsMock();
     activeSections.push({
       group: t('sidebar.sectionAds', 'AI Ads Performance Reporter'),
       moduleKey: 'ads_report',
+      badge: adsSoon ? (lang === 'id' ? 'Segera' : 'Soon') : null,
       items: [
         {
           id: 'ads-summary',
@@ -160,9 +154,11 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
   }
 
   if (isSpyActive) {
+    const spySoon = !isSpyMock();
     activeSections.push({
       group: t('sidebar.sectionSpy', 'AI Ads Creative Spy'),
       moduleKey: 'ads_spy',
+      badge: spySoon ? (lang === 'id' ? 'Segera' : 'Soon') : null,
       items: [
         {
           id: 'spy-summary',
@@ -244,7 +240,6 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
         <div style={styles.mobileBrand}>
           <MarkimateLogo size={20} />
           <span style={styles.mobileTitle}>Markimate</span>
-          {isDemo && <span style={styles.demoBadge}>DEMO</span>}
         </div>
         <div style={styles.mobileBarRight}>
           <button
@@ -292,7 +287,6 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
             <div>
               <div style={styles.brandTitleRow}>
                 <h2 style={styles.brandTitle}>Markimate</h2>
-                {isDemo && <span style={styles.demoBadge}>DEMO</span>}
               </div>
               <span style={styles.brandVersion}>powered by 3our</span>
             </div>
@@ -408,6 +402,9 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
             <div key={sIdx} style={styles.sectionBlock}>
               <div style={styles.sectionHeader}>
                 <span style={styles.sectionGroupTitle}>{section.group}</span>
+                {section.badge && (
+                  <span style={styles.soonSectionBadge}>{section.badge}</span>
+                )}
               </div>
 
               <div style={styles.itemsList}>
@@ -717,18 +714,6 @@ const styles = {
     margin: 0,
     lineHeight: 1.1,
   },
-  demoBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    padding: '0.1rem 0.35rem',
-    borderRadius: '4px',
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-    border: '1px solid rgba(245, 158, 11, 0.3)',
-    color: 'var(--accent-yellow)',
-    fontSize: '0.65rem',
-    fontWeight: '800',
-    letterSpacing: '0.04em',
-  },
   brandVersion: {
     fontSize: '0.72rem',
     color: 'var(--text-muted)',
@@ -795,7 +780,23 @@ const styles = {
     gap: '0.25rem',
   },
   sectionHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     padding: '0 0.5rem 0.25rem 0.5rem',
+  },
+  soonSectionBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '0.1rem 0.35rem',
+    borderRadius: '4px',
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    border: '1px solid rgba(245, 158, 11, 0.3)',
+    color: 'var(--accent-yellow)',
+    fontSize: '0.62rem',
+    fontWeight: '800',
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
   },
   sectionGroupTitle: {
     fontSize: '0.68rem',

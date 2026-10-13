@@ -13,9 +13,13 @@ import {
   X,
   Clock,
 } from 'lucide-react';
-import { listCompetitors, addCompetitor, removeCompetitor, scanNow } from '../../spy/spyApi';
+import { listCompetitors, addCompetitor, removeCompetitor, scanNow, isSpyMock } from '../../spy/spyApi';
+import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
 
 export default function SpyCompetitorsPage() {
+  if (!isSpyMock()) {
+    return <ModuleComingSoonCard roleKey="ads_spy" />;
+  }
   const [competitors, setCompetitors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [scanningId, setScanningId] = useState(null);

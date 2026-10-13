@@ -37,7 +37,7 @@ export default function PublicNavbar() {
             <span>{t('nav.login', 'Sign In')}</span>
           </Link>
           <Link to="/register" style={styles.registerBtn}>
-            <span>{t('nav.register', 'Start Free Demo')}</span>
+            <span>{t('nav.register', 'Start 7-Day Free Trial')}</span>
             <ArrowRight size={15} />
           </Link>
         </div>
@@ -104,7 +104,7 @@ export default function PublicNavbar() {
               style={styles.mobileRegisterBtn}
               onClick={() => setMobileMenuOpen(false)}
             >
-              <span>{t('nav.register', 'Start Free Demo')}</span>
+              <span>{t('nav.register', 'Start 7-Day Free Trial')}</span>
               <ArrowRight size={16} />
             </Link>
           </div>

@@ -67,47 +67,6 @@ export default function CreditWalletPage({ me, onTopupClick }) {
   const fetchWalletData = async () => {
     try {
       setLoading(true);
-      if (me?.user?.isDemo) {
-        setCredits({
-          balance: { total: 300, trial: 300, sub: 0, topup: 0 },
-          expires: { trial: new Date(Date.now() + 7 * 86400e3).toISOString() },
-          trial: { active: true, daysLeft: 7, endsAt: new Date(Date.now() + 7 * 86400e3).toISOString() },
-          dailyUsed: 60,
-          dailyCap: 500,
-          prices: {
-            'seo.article': { credits: 60, label: 'Generate artikel SEO' },
-            'seo.image': { credits: 5, label: 'Upload gambar artikel' },
-            'seo.topics_run': { credits: 10, label: 'Riset topik otomatis' },
-            'ads.report': { credits: 400, label: 'Laporan akun iklan' },
-            'spy.scan': { credits: 40, label: 'Scan kompetitor' },
-          },
-        });
-        setLedger([
-          {
-            id: 'mock-1',
-            created_at: new Date().toISOString(),
-            delta: -60,
-            bucket: 'trial',
-            kind: 'usage',
-            action_key: 'seo.article',
-            ref_type: 'keyword',
-            ref_id: 'kw-demo',
-            balance_after: 240,
-            note: 'Generate artikel SEO contoh',
-          },
-          {
-            id: 'mock-0',
-            created_at: new Date(Date.now() - 3600e3).toISOString(),
-            delta: 300,
-            bucket: 'trial',
-            kind: 'grant_trial',
-            balance_after: 300,
-            note: 'Free trial 7 hari (300 credit)',
-          },
-        ]);
-        return;
-      }
-
       const [cData, lData] = await Promise.all([
         getCredits().catch(() => null),
         getCreditLedger({ limit: 100 }).catch(() => ({ ledger: [] })),
@@ -153,7 +112,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
           }
         });
       } else {
-        // Mode sandbox / demo simulation: simulasi settlement
+        // Mode sandbox / dev simulation: simulasi settlement
         try {
           await api('/api/webhooks/midtrans', {
             method: 'POST',

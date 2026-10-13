@@ -7,7 +7,6 @@ import {
   useLocation,
   useNavigate,
 } from 'react-router-dom';
-import { Sparkles } from 'lucide-react';
 import AuthScreen from './components/AuthScreen';
 import Sidebar from './components/Sidebar';
 import KeywordManager from './components/KeywordManager';
@@ -57,7 +56,6 @@ function ProtectedLayout({ me, onLogout, refreshMe }) {
 
   const user = me.user;
   const plan = user.plan || 'free';
-  const isDemo = Boolean(user.isDemo);
 
   const goTo = (tab) => {
     if (tab === 'keywords') navigate('/app/seo/keywords');
@@ -79,14 +77,6 @@ function ProtectedLayout({ me, onLogout, refreshMe }) {
       />
 
       <div style={styles.contentWrapper}>
-        {/* Banner Akun Demo */}
-        {isDemo && (
-          <div style={styles.demoBanner}>
-            <Sparkles size={14} color="var(--accent-yellow)" />
-            <span>Akun demo — data contoh</span>
-          </div>
-        )}
-
         <main className="main-content">
           <Routes>
             <Route index element={<WorkspaceDashboardPage me={me} />} />
@@ -223,27 +213,9 @@ export default function App() {
   const [booting, setBooting] = useState(true);
 
   const refreshMe = useCallback(async () => {
-    // Cek apakah ada sesi mock demo yang tersimpan
-    try {
-      const demoRaw = storage.getItem('demo_session');
-      if (demoRaw) {
-        const demoData = JSON.parse(demoRaw);
-        if (demoData?.user) {
-          const fullMe = {
-            user: demoData.user,
-            plan: demoData.user.plan || 'premium',
-            usage: { runsThisMonth: 12, limit: 100 },
-            cms: { wordpress: null, wix: null, sanity: null, shopify: null },
-          };
-          setMe(fullMe);
-          return fullMe;
-        }
-      }
-    } catch {
-      // abaikan jika parsing demo gagal
-    }
-
-    if (!getToken()) {
+    const token = getToken();
+    if (!token || token.includes('demo_token')) {
+      if (token?.includes('demo_token')) setToken('');
       setMe(null);
       return null;
     }
@@ -260,16 +232,45 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Bersihkan sesi mock legacy lama kecuali demo session baru
-    ['user', 'plan', 'keywords', 'credentials', 'run_count'].forEach((k) => {
+    // Bersihkan sesi mock legacy & sisa key demo saat boot (PRD Hapus Mode Demo)
+    [
+      'user',
+      'plan',
+      'keywords',
+      'credentials',
+      'run_count',
+      'demo_session',
+      'demo_state',
+      'markimate_demo_session',
+      'markimate_demo_state',
+      'supermat_demo_session',
+      'supermat_demo_state',
+    ].forEach((k) => {
       try { storage.removeItem(k); } catch { /* abaikan */ }
     });
+
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const toRemove = [];
+        for (let i = 0; i < window.localStorage.length; i++) {
+          const k = window.localStorage.key(i);
+          if (k && (k.includes('demo_session') || k.includes('demo_token') || k.includes('demo_state'))) {
+            toRemove.push(k);
+          }
+        }
+        toRemove.forEach((k) => window.localStorage.removeItem(k));
+      }
+      const curToken = storage.getItem('token');
+      if (curToken && (curToken.includes('demo_token') || curToken.includes('demo_session'))) {
+        storage.removeItem('token');
+        setToken('');
+      }
+    } catch { /* abaikan */ }
 
     refreshMe().finally(() => setBooting(false));
 
     const onLogout = () => {
       setToken('');
-      storage.removeItem('demo_session');
       setMe(null);
     };
 
@@ -281,25 +282,14 @@ export default function App() {
     };
   }, [refreshMe]);
 
-  const handleLoginSuccess = async (user) => {
+  const handleLoginSuccess = async () => {
     setBooting(true);
-    if (user?.isDemo) {
-      setMe({
-        user,
-        plan: user.plan || 'premium',
-        usage: { runsThisMonth: 12, limit: 100 },
-        cms: { wordpress: null, wix: null, sanity: null, shopify: null },
-      });
-      setBooting(false);
-      return;
-    }
     await refreshMe();
     setBooting(false);
   };
 
   const handleLogout = () => {
     setToken('');
-    try { storage.removeItem('demo_session'); } catch { /* abaikan */ }
     setMe(null);
     window.dispatchEvent(new Event('markimate:logout'));
     window.dispatchEvent(new Event('supermat:logout'));
@@ -383,20 +373,5 @@ const styles = {
     height: '100vh',
     overflow: 'hidden',
     backgroundColor: 'var(--bg-base)',
-  },
-  demoBanner: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.45rem',
-    padding: '0.35rem 1rem',
-    backgroundColor: 'rgba(245, 158, 11, 0.12)',
-    borderBottom: '1px solid rgba(245, 158, 11, 0.25)',
-    color: 'var(--accent-yellow)',
-    fontSize: '0.75rem',
-    fontWeight: '600',
-    letterSpacing: '0.02em',
-    zIndex: 40,
-    flexShrink: 0,
   },
 };

@@ -13,7 +13,7 @@ import {
   Users,
   Award,
 } from 'lucide-react';
-import { getReport, approveReport } from '../../ads/adsApi';
+import { getReport, approveReport, isAdsMock } from '../../ads/adsApi';
 import { PLATFORMS_META } from '../../ads/mockData';
 import {
   formatIDR,
@@ -27,8 +27,12 @@ import StatusChip from '../../components/ads/StatusChip';
 import KpiCard from '../../components/ads/KpiCard';
 import TrendChart from '../../components/ads/TrendChart';
 import DataTable from '../../components/ads/DataTable';
+import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
 
 export default function AdsReportDetailPage({ user }) {
+  if (!isAdsMock()) {
+    return <ModuleComingSoonCard roleKey="ads_report" />;
+  }
   const { reportId } = useParams();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';

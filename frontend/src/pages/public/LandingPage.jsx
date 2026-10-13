@@ -104,8 +104,8 @@ export default function LandingPage() {
           </p>
 
           <div style={styles.heroCtas}>
-            <Link to="/login" style={styles.primaryCta}>
-              <span>{t('hero.ctaPrimary', 'Explore Live Demo')}</span>
+            <Link to="/register" style={styles.primaryCta}>
+              <span>{t('hero.ctaPrimary', 'Start Free — 300 credits, 7 days')}</span>
               <ArrowRight size={16} />
             </Link>
             <a href="#pricing" style={styles.secondaryCta}>
@@ -678,11 +678,11 @@ export default function LandingPage() {
             <Zap size={32} color="var(--accent-cyan)" style={{ marginBottom: '1rem' }} />
             <h2 style={styles.ctaBannerTitle}>{t('finalCta.title', 'Ready to Scale Your Marketing with AI?')}</h2>
             <p style={styles.ctaBannerSub}>
-              {t('finalCta.subtitle', 'Experience the future of digital marketing today. Test all live features on our interactive demo account with zero credit card required.')}
+              {t('finalCta.subtitle', 'Try all features with your own real data and website for 7 days. 300 free credits, zero credit card required.')}
             </p>
             <div style={styles.ctaBannerBtns}>
-              <Link to="/login" style={styles.primaryCta}>
-                <span>{t('finalCta.btnDemo', 'Try Interactive Demo')}</span>
+              <Link to="/register" style={styles.primaryCta}>
+                <span>{t('finalCta.btnTrial', 'Start 7-Day Free Trial')}</span>
                 <ArrowRight size={16} />
               </Link>
               <a href="#roles" style={styles.secondaryCta}>

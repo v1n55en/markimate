@@ -8,13 +8,17 @@ import {
   Presentation,
   Table as TableIcon,
 } from 'lucide-react';
-import { listReports } from '../../ads/adsApi';
+import { listReports, isAdsMock } from '../../ads/adsApi';
 import { PLATFORMS_META } from '../../ads/mockData';
 import { formatIDR, formatNumber, formatRoas } from '../../ads/format';
 import StatusChip from '../../components/ads/StatusChip';
 import DataTable from '../../components/ads/DataTable';
+import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
 
 export default function AdsReportsPage({ user }) {
+  if (!isAdsMock()) {
+    return <ModuleComingSoonCard roleKey="ads_report" />;
+  }
   const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
 

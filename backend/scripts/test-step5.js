@@ -25,6 +25,7 @@ async function runStep5Tests() {
   process.env.JWT_SECRET = 'test-secret-key-for-step5';
   process.env.PORT = '5005';
   process.env.CREDITS_ENABLED = 'true';
+  process.env.BILLING_DUMMY = 'true';
   process.env.CRON_SECRET = 'cron-secret-step5';
 
   await seedCreditPricesAndRates();

@@ -15,10 +15,14 @@ import {
   Copy,
   Zap,
 } from 'lucide-react';
-import { listCreatives, getCreative, saveToSwipe, listCompetitors } from '../../spy/spyApi';
+import { listCreatives, getCreative, saveToSwipe, listCompetitors, isSpyMock } from '../../spy/spyApi';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
 
 export default function SpyLibraryPage() {
+  if (!isSpyMock()) {
+    return <ModuleComingSoonCard roleKey="ads_spy" />;
+  }
   const { activeWorkspace } = useWorkspace();
   const [searchParams] = useSearchParams();
 

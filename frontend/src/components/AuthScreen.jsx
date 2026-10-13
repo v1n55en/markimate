@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { ShieldCheck, UserPlus, LogIn, ArrowRight, Sparkles, Coins } from 'lucide-react';
+import { ShieldCheck, UserPlus, LogIn, ArrowRight, Coins } from 'lucide-react';
 import { api, setToken } from '../api';
 import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
 import MarkimateLogo from './common/MarkimateLogo';
@@ -19,33 +19,6 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
   const [brandName, setBrandName] = useState('');
   const [niche, setNiche] = useState('F&B');
   const [error, setError] = useState('');
-
-  const handleDemoLogin = async () => {
-    setLoading(true);
-    setError('');
-    // Simulasi sesi demo reviewer
-    const demoPayload = {
-      user: {
-        id: 'demo-reviewer-1',
-        email: 'reviewer@shopee-tiktok.demo',
-        brandName: '3Our Official Demo Brand',
-        isDemo: true,
-        role: 'admin',
-        plan: 'premium',
-      },
-      token: 'markimate_demo_token_' + Date.now(),
-    };
-    try {
-      storage.setItem('demo_session', JSON.stringify(demoPayload));
-      setToken(demoPayload.token);
-      await onLoginSuccess(demoPayload.user);
-      navigate(nextParam);
-    } catch (err) {
-      setError(err.message || (lang === 'id' ? 'Gagal masuk ke akun demo.' : 'Failed to launch demo account.'));
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -67,7 +40,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
       await onLoginSuccess(data.user);
       navigate(nextParam);
     } catch (err) {
-      setError(err.message || (lang === 'id' ? 'Gagal masuk. Pastikan backend aktif atau gunakan Akun Demo Reviewer.' : 'Sign in failed. Make sure backend is running or use Instant Demo Workspace.'));
+      setError(err.message || (lang === 'id' ? 'Gagal masuk. Periksa email dan kata sandi Anda.' : 'Sign in failed. Please check your email and password.'));
     } finally {
       setLoading(false);
     }
@@ -97,33 +70,19 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
           </p>
         </div>
 
-        {/* Demo Reviewer Shortcut Button */}
-        <div style={styles.demoBox}>
-          <div style={styles.demoTopRow}>
-            <Sparkles size={16} color="var(--accent-yellow)" />
-            <span style={styles.demoTitle}>
-              {lang === 'id' ? 'Untuk Reviewer Shopee & TikTok' : 'Instant Reviewer Demo Access'}
-            </span>
+        {/* Baris ajakan coba gratis 7 hari saat mode login */}
+        {isLogin && (
+          <div style={styles.trialPrompt}>
+            <span>{lang === 'id' ? 'Belum punya akun?' : "Don't have an account?"}</span>
+            <button
+              type="button"
+              onClick={() => { setIsLogin(false); setError(''); }}
+              style={styles.trialPromptBtn}
+            >
+              <span>{lang === 'id' ? 'Coba gratis 7 hari (300 credit) →' : 'Start 7-day free trial (300 credits) →'}</span>
+            </button>
           </div>
-          <p style={styles.demoDesc}>
-            {lang === 'id'
-              ? 'Gunakan akun demo untuk menguji langsung alur otorisasi toko/iklan dan melihat sampel laporan lengkap tanpa konfigurasi backend.'
-              : 'Launch the interactive demo workspace to inspect multi-channel reporting, creative spy intelligence, and approval workflows without backend configuration.'}
-          </p>
-          <button
-            type="button"
-            onClick={handleDemoLogin}
-            disabled={loading}
-            style={styles.demoBtn}
-          >
-            <span>{t('auth.btnDemo', 'Launch Instant Demo Workspace')}</span>
-            <ArrowRight size={14} />
-          </button>
-        </div>
-
-        <div style={styles.divider}>
-          <span>{lang === 'id' ? 'atau masuk dengan akun Anda' : 'or continue with your credentials'}</span>
-        </div>
+        )}
 
         <div style={styles.tabContainer}>
           <button 
@@ -326,53 +285,29 @@ const styles = {
     color: 'var(--text-secondary)',
     lineHeight: 1.45,
   },
-  demoBox: {
-    backgroundColor: 'rgba(245, 158, 11, 0.06)',
-    border: '1px solid rgba(245, 158, 11, 0.25)',
-    borderRadius: '10px',
-    padding: '0.85rem 1rem',
-    marginBottom: '1.25rem',
-  },
-  demoTopRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.45rem',
-    marginBottom: '0.3rem',
-  },
-  demoTitle: {
-    fontSize: '0.78rem',
-    fontWeight: '700',
-    color: 'var(--accent-yellow)',
-  },
-  demoDesc: {
-    fontSize: '0.725rem',
-    color: 'var(--text-secondary)',
-    lineHeight: 1.35,
-    margin: '0 0 0.65rem 0',
-  },
-  demoBtn: {
-    width: '100%',
+  trialPrompt: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    flexWrap: 'wrap',
     gap: '0.4rem',
-    padding: '0.5rem 0.85rem',
-    borderRadius: '6px',
-    backgroundColor: 'var(--accent-yellow)',
-    border: 'none',
-    color: '#000000',
-    fontSize: '0.78rem',
-    fontWeight: '700',
-    cursor: 'pointer',
-    transition: 'opacity var(--transition-fast)',
-  },
-  divider: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: 'var(--text-muted)',
-    fontSize: '0.725rem',
+    backgroundColor: 'rgba(6, 182, 212, 0.08)',
+    border: '1px solid rgba(6, 182, 212, 0.25)',
+    borderRadius: '8px',
+    padding: '0.6rem 0.85rem',
     marginBottom: '1rem',
+    fontSize: '0.78rem',
+    color: 'var(--text-secondary)',
+  },
+  trialPromptBtn: {
+    background: 'none',
+    border: 'none',
+    padding: 0,
+    color: 'var(--accent-cyan)',
+    fontSize: '0.78rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    textDecoration: 'underline',
   },
   tabContainer: {
     display: 'flex',

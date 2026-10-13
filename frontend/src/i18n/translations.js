@@ -11,7 +11,7 @@ export const TRANSLATIONS = {
       privacy: 'Privacy',
       terms: 'Terms',
       login: 'Sign In',
-      register: 'Start Free Demo',
+      register: 'Start 7-Day Free Trial',
       logout: 'Sign Out',
       dashboard: 'Dashboard',
     },
@@ -27,7 +27,7 @@ export const TRANSLATIONS = {
       title: 'Full Digital Marketing Team in One Platform',
       subtitle:
         'Hire specialized AI marketing roles or deploy an entire full-stack digital marketing team — at a fraction of in-house team costs, with 100% human-in-the-loop review and approval before anything goes live.',
-      ctaPrimary: 'Explore Live Demo',
+      ctaPrimary: 'Start Free — 300 credits, 7 days',
       ctaSecondary: 'View Plans & Pricing',
       proof1: '3 Active Roles Ready to Deploy',
       proof2: '13 Specialized Roles in Pipeline',
@@ -170,8 +170,8 @@ export const TRANSLATIONS = {
     finalCta: {
       title: 'Ready to Scale Your Marketing with AI?',
       subtitle:
-        'Experience the future of digital marketing today. Test all live features on our interactive demo account with zero credit card required.',
-      btnDemo: 'Try Interactive Demo',
+        'Try all features with your own real data and website for 7 days. 300 free credits, zero credit card required.',
+      btnTrial: 'Start 7-Day Free Trial',
       btnRoles: 'Browse 16 Roles',
     },
 
@@ -252,7 +252,6 @@ export const TRANSLATIONS = {
       creditTrialBadge: 'Trial · {days}d left',
       creditsLabel: 'Credits',
       logout: 'Sign Out',
-      demoBadge: 'Demo Mode',
       lockedBadge: 'Locked',
       soonBadge: 'Soon',
     },
@@ -347,8 +346,6 @@ export const TRANSLATIONS = {
       btnSignUp: 'Create Free Account',
       switchSignUp: "Don't have an account? Sign up free",
       switchSignIn: 'Already have an account? Sign in here',
-      demoLoginNotice: 'Looking to explore without signing up? Click below for instant demo access.',
-      btnDemo: 'Launch Instant Demo Workspace',
     },
 
     // Footer
@@ -387,7 +384,7 @@ export const TRANSLATIONS = {
       privacy: 'Privasi',
       terms: 'Syarat & Ketentuan',
       login: 'Masuk',
-      register: 'Daftar Demo Gratis',
+      register: 'Coba Gratis 7 Hari',
       logout: 'Keluar',
       dashboard: 'Dashboard',
     },
@@ -403,7 +400,7 @@ export const TRANSLATIONS = {
       title: 'Semua Tim Digital Marketing dalam satu platform',
       subtitle:
         'Pilih role spesialis yang kamu butuhkan atau rekrut seluruh tim digital marketing AI — mulai dari sebagian kecil biaya tim in-house, dengan hasil kerja yang tetap kamu review dan setujui sebelum tayang.',
-      ctaPrimary: 'Coba Demo Sekarang',
+      ctaPrimary: 'Coba Gratis 7 Hari — 300 credit',
       ctaSecondary: 'Lihat Paket & Harga',
       proof1: '3 Role Aktif Siap Digunakan',
       proof2: '13 Role Dalam Pengembangan',
@@ -546,8 +543,8 @@ export const TRANSLATIONS = {
     finalCta: {
       title: 'Siap Tingkatkan Pemasaran dengan Tim AI?',
       subtitle:
-        'Rasakan langsung pengalaman bekerja bersama tim digital marketing AI masa depan. Coba akun demo interaktif kami tanpa perlu kartu kredit.',
-      btnDemo: 'Coba Akun Demo Sekarang',
+        'Coba semua fitur dengan data dan website kamu sendiri selama 7 hari. 300 credit gratis, tanpa kartu kredit.',
+      btnTrial: 'Coba Gratis 7 Hari',
       btnRoles: 'Lihat 16 Role Tim',
     },
 
@@ -628,7 +625,6 @@ export const TRANSLATIONS = {
       creditTrialBadge: 'Trial · sisa {days} hari',
       creditsLabel: 'Saldo Credit',
       logout: 'Keluar',
-      demoBadge: 'Mode Demo',
       lockedBadge: 'Terkunci',
       soonBadge: 'Soon',
     },
@@ -723,8 +719,6 @@ export const TRANSLATIONS = {
       btnSignUp: 'Daftar Akun Gratis',
       switchSignUp: 'Belum punya akun? Daftar gratis sekarang',
       switchSignIn: 'Sudah punya akun? Masuk di sini',
-      demoLoginNotice: 'Ingin mencoba langsung tanpa mendaftar? Akses akun demo interaktif kami.',
-      btnDemo: 'Buka Akun Demo Interaktif',
     },
 
     // Footer

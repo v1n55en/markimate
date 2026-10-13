@@ -7,10 +7,10 @@ import {
 } from './mockData';
 import { storage } from '../lib/storage';
 
+// Mode Mock default false kecuali VITE_SPY_MOCK disetel ke 'true' (PRD Hapus Mode Demo)
 export const isSpyMock = () => {
   const envVal = import.meta.env.VITE_SPY_MOCK;
-  if (envVal === 'false') return false;
-  return true; // Default aktif untuk preview reviewer & mode demo
+  return envVal === 'true';
 };
 
 export function getActiveWsId() {

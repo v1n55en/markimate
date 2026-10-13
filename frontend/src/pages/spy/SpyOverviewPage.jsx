@@ -10,10 +10,14 @@ import {
   Flame,
   RefreshCw,
 } from 'lucide-react';
-import { listCompetitors, listCreatives, getInsights } from '../../spy/spyApi';
+import { listCompetitors, listCreatives, getInsights, isSpyMock } from '../../spy/spyApi';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
 
 export default function SpyOverviewPage() {
+  if (!isSpyMock()) {
+    return <ModuleComingSoonCard roleKey="ads_spy" />;
+  }
   const { activeWorkspace } = useWorkspace();
   const [loading, setLoading] = useState(true);
   const [competitors, setCompetitors] = useState([]);

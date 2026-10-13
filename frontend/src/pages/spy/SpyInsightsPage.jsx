@@ -14,10 +14,14 @@ import {
   Lightbulb,
   RefreshCw,
 } from 'lucide-react';
-import { getInsights } from '../../spy/spyApi';
+import { getInsights, isSpyMock } from '../../spy/spyApi';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
 
 export default function SpyInsightsPage() {
+  if (!isSpyMock()) {
+    return <ModuleComingSoonCard roleKey="ads_spy" />;
+  }
   const { activeWorkspace } = useWorkspace();
   const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(true);

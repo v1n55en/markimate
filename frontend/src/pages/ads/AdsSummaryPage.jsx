@@ -14,13 +14,17 @@ import {
   AlertCircle,
   Plus,
 } from 'lucide-react';
-import { getAdsSummary, listConnections } from '../../ads/adsApi';
+import { getAdsSummary, listConnections, isAdsMock } from '../../ads/adsApi';
 import { PLATFORMS_META } from '../../ads/mockData';
 import { formatCompactIDR } from '../../ads/format';
 import KpiCard from '../../components/ads/KpiCard';
 import StatusChip from '../../components/ads/StatusChip';
+import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
 
 export default function AdsSummaryPage() {
+  if (!isAdsMock()) {
+    return <ModuleComingSoonCard roleKey="ads_report" />;
+  }
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

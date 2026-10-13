@@ -319,6 +319,106 @@ app.put('/api/admin/credit-cost-rates', adminAuth, wrap(async (req, res) => {
   const updated = await db.findOne('credit_cost_rates', { rate_key: rateKey });
   res.json({ status: 'ok', updated });
 }));
+
+// Admin manual subscription activation (PRD §3.2)
+app.post('/api/admin/subscriptions', adminAuth, wrap(async (req, res) => {
+  const { email, plan, months } = req.body || {};
+  const em = String(email || '').trim().toLowerCase();
+  if (!em) throw Object.assign(new Error('Email wajib diisi.'), { status: 400 });
+
+  const user = await db.findOne('accounts', { email: em });
+  if (!user) throw Object.assign(new Error('User tidak ditemukan.'), { status: 404 });
+
+  const planKey = String(plan || '').trim().toLowerCase();
+  const planData = PLANS[planKey];
+  if (!planData || planKey === 'free') {
+    throw Object.assign(new Error('Plan tidak valid atau tidak berbayar. Pilih salah satu paket berbayar yang tersedia.'), { status: 400 });
+  }
+
+  const numMonths = Math.max(1, parseInt(months, 10) || 1);
+  const endsAt = new Date(Date.now() + numMonths * 30 * 86400e3);
+  const sub = await db.insert('subscriptions', {
+    user_id: user.id,
+    plan: planKey,
+    status: 'active',
+    method: 'manual',
+    amount: planData.price * numMonths,
+    invoice_no: 'INV-MANUAL-' + Date.now().toString(36).toUpperCase(),
+    started_at: new Date().toISOString(),
+    ends_at: endsAt.toISOString(),
+    dummy: false
+  });
+
+  const updatedUser = await db.update('accounts', { id: user.id }, { plan: planKey });
+
+  const credits = (planData.credits || 0) * numMonths;
+  if (process.env.CREDITS_ENABLED !== 'false' && credits > 0) {
+    await grant(
+      user.id,
+      'sub',
+      credits,
+      endsAt,
+      'grant_sub',
+      'Aktivasi manual oleh admin',
+      { actionKey: 'billing.sub', refType: 'subscription', refId: sub.id, note: 'Aktivasi manual oleh admin' }
+    );
+  }
+
+  res.json({
+    status: 'ok',
+    user: publicUser(updatedUser),
+    subscription: sub,
+    creditsGranted: credits
+  });
+}));
+
+// Admin manual credits grant (PRD §3.4)
+app.post('/api/admin/credits/grant', adminAuth, wrap(async (req, res) => {
+  const { email, bucket = 'topup', amount, days, note } = req.body || {};
+  const em = String(email || '').trim().toLowerCase();
+  if (!em) throw Object.assign(new Error('Email wajib diisi.'), { status: 400 });
+
+  const user = await db.findOne('accounts', { email: em });
+  if (!user) throw Object.assign(new Error('User tidak ditemukan.'), { status: 404 });
+
+  const targetBucket = String(bucket || 'topup').trim().toLowerCase();
+  if (!['topup', 'sub'].includes(targetBucket)) {
+    throw Object.assign(new Error("Bucket tidak valid. Harus 'topup' atau 'sub'."), { status: 400 });
+  }
+
+  const amt = Number(amount || 0);
+  if (!amt || amt <= 0) {
+    throw Object.assign(new Error('Jumlah credit (amount) harus berupa angka positif.'), { status: 400 });
+  }
+
+  const numDays = days !== undefined && days !== null && !isNaN(Number(days)) ? Number(days) : (targetBucket === 'sub' ? 30 : 365);
+  const expiresAt = new Date(Date.now() + numDays * 86400e3);
+  const grantNote = String(note || '').trim() || 'Grant kredit manual oleh admin';
+
+  const grantResult = await grant(
+    user.id,
+    targetBucket,
+    amt,
+    expiresAt,
+    'admin',
+    grantNote,
+    { actionKey: 'admin.grant', refType: 'admin_grant' }
+  );
+
+  res.json({
+    status: 'ok',
+    email: user.email,
+    workspaceId: user.id,
+    granted: {
+      bucket: targetBucket,
+      amount: amt,
+      expiresAt: expiresAt.toISOString(),
+      kind: 'admin',
+      note: grantNote
+    },
+    balance: grantResult.totalBalance
+  });
+}));
 app.patch('/api/me', auth, wrap(async (req, res) => {
   const patch = {};
   if (req.body.brandName !== undefined) patch.brand_name = String(req.body.brandName).trim();
@@ -1179,9 +1279,21 @@ app.post('/api/seo/topic-sources/:id/run', auth, wrap(async (req, res) => {
 // ---------- Billing (dummy) ----------
 app.get('/api/billing', auth, wrap(async (req, res) => {
   const subs = await db.findMany('subscriptions', { user_id: req.user.id }, { orderBy: 'created_at' });
-  res.json({ plans: Object.values(PLANS), current: planOf(req.user), subscription: subs[0] || null, history: subs.slice(0, 10) });
+  res.json({
+    plans: Object.values(PLANS),
+    current: planOf(req.user),
+    subscription: subs[0] || null,
+    history: subs.slice(0, 10),
+    billingDisabled: process.env.BILLING_DUMMY !== 'true'
+  });
 }));
 app.post('/api/billing/checkout', auth, wrap(async (req, res) => {
+  if (process.env.BILLING_DUMMY !== 'true') {
+    return res.status(403).json({
+      error: 'Pembayaran langsung belum tersedia. Hubungi 3Our untuk aktivasi paket.',
+      code: 'BILLING_DISABLED'
+    });
+  }
   const planKey = req.body.plan;
   const plan = PLANS[planKey] ? planKey : 'premium';
   if (plan === 'free') throw Object.assign(new Error('Pilih paket berbayar.'), { status: 400 });

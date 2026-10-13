@@ -92,19 +92,32 @@ Markimate dirancang dengan model modular berbasis peran spesialis:
 | Variable | Deskripsi | Default / Contoh |
 |---|---|---|
 | `VITE_API_BASE_URL` | Base URL backend API Markimate | `https://markimate-api.vercel.app` (prod) / `http://localhost:5001` (dev) |
-| `VITE_ADS_MOCK` | Aktifkan mock data untuk modul Ads Report | `true` (jika tidak terhubung API iklan live) |
-| `VITE_SPY_MOCK` | Aktifkan mock data untuk modul Ads Creative Spy | `true` (default dev & demo mode) |
+| `VITE_ADS_MOCK` | Aktifkan mock data untuk modul Ads Report | `false` (prod: menampilkan Coming Soon card) / `true` (hanya untuk dev testing) |
+| `VITE_SPY_MOCK` | Aktifkan mock data untuk modul Ads Creative Spy | `false` (prod: menampilkan Coming Soon card) / `true` (hanya untuk dev testing) |
 
 ### Backend (`backend/.env`)
-| Variable | Deskripsi |
-|---|---|
-| `SUPABASE_URL` | URL project Supabase |
-| `SUPABASE_SCHEMA` | Schema database (`markimate`) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Service Role Key |
-| `JWT_SECRET` | Secret key untuk penandatanganan JWT |
-| `MARKIMATE_API_KEY` | API Key penghubung backend ↔ n8n (fallback: `SUPERMAT_API_KEY`) |
-| `N8N_BASE_URL` | URL instance n8n |
-| `CRON_SECRET` | Bearer token untuk trigger jadwal Vercel cron |
+| Variable | Deskripsi | Default / Catatan |
+|---|---|---|
+| `SUPABASE_URL` | URL project Supabase | |
+| `SUPABASE_SCHEMA` | Schema database (`markimate`) | |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Service Role Key | |
+| `JWT_SECRET` | Secret key untuk penandatanganan JWT | |
+| `ADMIN_KEY` | Kunci rahasia header `X-Admin-Key` untuk endpoint admin & reviewer | Wajib diisi di produksi |
+| `BILLING_DUMMY` | Izinkan checkout simulasi/dummy tanpa payment gateway | `false` (wajib `false` di prod agar pembayaran aman) |
+| `MARKIMATE_API_KEY` | API Key penghubung backend ↔ n8n (fallback: `SUPERMAT_API_KEY`) | |
+| `N8N_BASE_URL` | URL instance n8n | |
+| `CRON_SECRET` | Bearer token untuk trigger jadwal cron | |
+
+---
+
+## 🧑‍💻 Akun Reviewer Platform & Pengujian
+Tidak ada mode demo palsu di Markimate. Seluruh akun baru mendapatkan **Trial 7 Hari (300 credit)** langsung saat registrasi.
+Untuk keperluan peninjauan aplikasi oleh tim auditor platform (Meta, Google, TikTok, Shopee):
+1. Daftarkan akun nyata melalui `/register` menggunakan email reviewer.
+2. Admin dapat mengalokasikan credit tambahan atau mengaktifkan paket manual jika masa audit membutuhkan kuota ekstra:
+   - **Grant Credit**: `POST /api/admin/credits/grant` dengan header `X-Admin-Key: <ADMIN_KEY>` dan body `{ "email": "reviewer@...", "credits": 500, "bucket": "sub" }`.
+   - **Aktivasi Paket**: `POST /api/admin/subscriptions` dengan header `X-Admin-Key: <ADMIN_KEY>` dan body `{ "email": "reviewer@...", "plan": "growth", "billingCycle": "monthly" }`.
+3. Cantumkan kredensial akun reviewer tersebut di formulir pengajuan platform.
 
 ---
 

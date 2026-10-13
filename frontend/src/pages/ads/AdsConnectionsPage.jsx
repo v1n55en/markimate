@@ -4,8 +4,12 @@ import { ShieldCheck, RefreshCw, AlertCircle, RotateCcw } from 'lucide-react';
 import { listConnections, startConnect, disconnect, resetMockData, isAdsMock } from '../../ads/adsApi';
 import { PLATFORMS_META } from '../../ads/mockData';
 import PlatformCard from '../../components/ads/PlatformCard';
+import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
 
 export default function AdsConnectionsPage() {
+  if (!isAdsMock()) {
+    return <ModuleComingSoonCard roleKey="ads_report" />;
+  }
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -65,9 +69,9 @@ export default function AdsConnectionsPage() {
     }
   };
 
-  const handleResetDemo = () => {
+  const handleResetMock = () => {
     resetMockData();
-    setSuccessNotice('Data simulasi demo berhasil dikembalikan ke status awal.');
+    setSuccessNotice('Data simulasi mock berhasil dikembalikan ke status awal.');
     setTimeout(() => setSuccessNotice(''), 4000);
     loadData();
   };
@@ -87,12 +91,12 @@ export default function AdsConnectionsPage() {
 
         {isAdsMock() && (
           <button
-            onClick={handleResetDemo}
+            onClick={handleResetMock}
             style={styles.resetBtn}
             title="Kembalikan koneksi dan laporan contoh ke kondisi awal"
           >
             <RotateCcw size={14} />
-            <span>Reset Data Demo</span>
+            <span>Reset Data Mock</span>
           </button>
         )}
       </div>
