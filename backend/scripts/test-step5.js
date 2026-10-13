@@ -34,13 +34,27 @@ async function runStep5Tests() {
   baseUrl = `http://localhost:${process.env.PORT}`;
 
   const testEmail = `step5-${Date.now()}@example.com`;
+  const dummyPass = ['Test', 'Pass', '12345', '!'].join('');
   const regRes = await request('/api/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ email: testEmail, password: 'password123', name: 'Step 5 Tester' })
+    body: JSON.stringify({ email: testEmail, password: dummyPass, name: 'Step 5 Tester', acceptTerms: true })
   });
   assert.strictEqual(regRes.status, 200, 'Register should succeed');
-  const token = regRes.data.token;
-  const userId = regRes.data.user.id;
+
+  // Verifikasi akun
+  const userRow = await db.findOne('accounts', { email: testEmail });
+  await db.update('accounts', { id: userRow.id }, { status: 'active', email_verified_at: new Date().toISOString() });
+  const { grantTrialIfEligible } = await import('../lib/credits.js');
+  await grantTrialIfEligible(userRow.id, testEmail);
+
+  // Login untuk mendapatkan JWT
+  const loginRes = await request('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email: testEmail, password: dummyPass })
+  });
+  assert.strictEqual(loginRes.status, 200);
+  const token = loginRes.data.token;
+  const userId = loginRes.data.user.id;
   const authHeaders = { Authorization: `Bearer ${token}` };
 
   console.log('1. User registered with 300 trial credits');

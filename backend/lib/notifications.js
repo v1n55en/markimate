@@ -2,50 +2,15 @@ import { randomUUID } from 'crypto';
 import { db } from '../db.js';
 import { PLANS } from './plans.js';
 
+import { sendMail } from './mailer.js';
+
 const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
 
 /**
- * Mengirim email notifikasi (via Resend jika API key tersedia, atau fallback logger)
+ * Mengirim email notifikasi (menggunakan modul mailer bersama)
  */
 export async function sendEmail({ to, subject, text, html, tag = 'general', metadata = {} }) {
-  if (!to) return { success: false, error: 'Recipient email required' };
-
-  const resendApiKey = process.env.RESEND_API_KEY;
-  const fromEmail = process.env.EMAIL_FROM || 'Markimate <no-reply@markimate.com>';
-
-  if (resendApiKey) {
-    try {
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${resendApiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          from: fromEmail,
-          to: [to],
-          subject,
-          text,
-          html: html || `<p>${text.replace(/\n/g, '<br/>')}</p>`,
-          tags: [{ name: 'category', value: tag }]
-        })
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok) {
-        log(`[EMAIL-ERR] Resend gagal: ${JSON.stringify(data)}`);
-        return { success: false, error: data?.message || 'Resend error' };
-      }
-      log(`[EMAIL] Terkirim via Resend ke ${to} (id: ${data?.id})`);
-      return { success: true, id: data?.id };
-    } catch (err) {
-      log(`[EMAIL-ERR] Network error Resend: ${err.message}`);
-      return { success: false, error: err.message };
-    }
-  }
-
-  // Fallback dev & testing
-  log(`[EMAIL-SIMULATION] To: ${to} | Subject: "${subject}" | Tag: ${tag}`);
-  return { success: true, simulated: true };
+  return await sendMail({ to, subject, text, html, tag });
 }
 
 export async function hasAlertBeenSent(workspaceId, alertType, periodKey = null) {

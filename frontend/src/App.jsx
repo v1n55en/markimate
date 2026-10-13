@@ -23,6 +23,10 @@ import LandingPage from './pages/public/LandingPage';
 import PrivacyPage from './pages/public/PrivacyPage';
 import TermsPage from './pages/public/TermsPage';
 import RoleDetailPage from './pages/public/RoleDetailPage';
+import VerifyPage from './pages/public/VerifyPage';
+import ForgotPasswordPage from './pages/public/ForgotPasswordPage';
+import ResetPasswordPage from './pages/public/ResetPasswordPage';
+import DataDeletionPage from './pages/public/DataDeletionPage';
 
 // Halaman Ads Report
 import AdsSummaryPage from './pages/ads/AdsSummaryPage';
@@ -31,12 +35,16 @@ import AdsReportsPage from './pages/ads/AdsReportsPage';
 import AdsReportDetailPage from './pages/ads/AdsReportDetailPage';
 import AdsCallbackPage from './pages/ads/AdsCallbackPage';
 
-import { api, getToken, setToken } from './api';
+import { api, getToken, setToken, refreshSession, API_BASE_URL } from './api';
 import { WorkspaceProvider } from './context/WorkspaceContext';
 import { LanguageProvider } from './context/LanguageContext';
 import ModuleGuard from './components/common/ModuleGuard';
 import ModuleActivatePage from './pages/app/ModuleActivatePage';
 import WorkspaceDashboardPage from './pages/app/WorkspaceDashboardPage';
+import SecuritySettingsPage from './pages/app/SecuritySettingsPage';
+import AccountSettingsPage from './pages/app/AccountSettingsPage';
+import MembersSettingsPage from './pages/app/MembersSettingsPage';
+import InvitePage from './pages/public/InvitePage';
 
 // Halaman Ads Creative Spy
 import SpyOverviewPage from './pages/spy/SpyOverviewPage';
@@ -194,9 +202,12 @@ function ProtectedLayout({ me, onLogout, refreshMe }) {
             {/* Halaman Aktivasi Modul & Waitlist */}
             <Route path="modules/:key" element={<ModuleActivatePage />} />
 
-            {/* Rute Akun */}
+            {/* Rute Akun & Keamanan */}
             <Route path="billing" element={<BillingPage me={me} refreshMe={refreshMe} />} />
             <Route path="billing/credits" element={<CreditWalletPage me={me} />} />
+            <Route path="settings/account" element={<AccountSettingsPage me={me} refreshMe={refreshMe} />} />
+            <Route path="settings/security" element={<SecuritySettingsPage />} />
+            <Route path="settings/members" element={<MembersSettingsPage me={me} refreshMe={refreshMe} />} />
 
             {/* Fallback di dalam /app */}
             <Route path="*" element={<Navigate to="/app/ads" replace />} />
@@ -213,14 +224,40 @@ export default function App() {
   const [booting, setBooting] = useState(true);
 
   const refreshMe = useCallback(async () => {
-    const token = getToken();
-    if (!token || token.includes('demo_token')) {
-      if (token?.includes('demo_token')) setToken('');
-      setMe(null);
-      return null;
-    }
-
     try {
+      // 1. Periksa apakah ada token legacy 30 hari di storage untuk migrasi transisi tanpa logout paksa
+      const legacyToken = storage.getItem('token');
+      if (legacyToken && !legacyToken.includes('demo_token') && !getToken()) {
+        try {
+          const upgRes = await fetch(`${API_BASE_URL}/api/auth/upgrade-session`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${legacyToken}`,
+            },
+            credentials: 'include',
+          });
+          const upgData = await upgRes.json().catch(() => null);
+          if (upgRes.ok && upgData?.accessToken) {
+            setToken(upgData.accessToken);
+            storage.removeItem('token');
+          }
+        } catch {
+          // Abaikan error jaringan saat upgrade, coba fallback ke refreshSession
+        }
+      }
+
+      // 2. Jika belum ada token di memory, coba refresh session via cookie httpOnly mk_rt
+      if (!getToken()) {
+        try {
+          await refreshSession();
+        } catch {
+          setToken('');
+          setMe(null);
+          return null;
+        }
+      }
+
       const data = await api('/api/me');
       setMe(data);
       return data;
@@ -288,7 +325,12 @@ export default function App() {
     setBooting(false);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await api('/api/auth/logout', { method: 'POST', retryOn401: false });
+    } catch {
+      // Abaikan jika jaringan error saat logout
+    }
     setToken('');
     setMe(null);
     window.dispatchEvent(new Event('markimate:logout'));
@@ -313,6 +355,11 @@ export default function App() {
             <Route path="/roles/:key" element={<RoleDetailPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/terms" element={<TermsPage />} />
+            <Route path="/verify" element={<VerifyPage onLoginSuccess={handleLoginSuccess} />} />
+            <Route path="/forgot" element={<ForgotPasswordPage />} />
+            <Route path="/reset" element={<ResetPasswordPage />} />
+            <Route path="/invite" element={<InvitePage />} />
+            <Route path="/data-deletion" element={<DataDeletionPage />} />
 
             <Route
               path="/login"

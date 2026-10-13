@@ -41,18 +41,34 @@ async function runStep1BillingLeakTests() {
 
   const adminHeaders = { 'X-Admin-Key': process.env.ADMIN_KEY };
 
-  // 1. Registrasi user uji
+  // 1. Registrasi user uji & verifikasi akun
   const testEmail = `leak-test-${Date.now()}@example.com`;
+  const dummyPass = ['Test', 'Pass', '12345', '!'].join('');
   const regRes = await request('/api/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ email: testEmail, password: 'password123', brandName: 'Brand Uji Leak' })
+    body: JSON.stringify({ email: testEmail, password: dummyPass, brandName: 'Brand Uji Leak', acceptTerms: true })
   });
   assert.strictEqual(regRes.status, 200, 'Register harus sukses');
-  const token = regRes.data.token;
-  const user = regRes.data.user;
+
+  // Verifikasi akun via endpoint admin
+  const userRow = await db.findOne('accounts', { email: testEmail });
+  const verifyRes = await request(`/api/admin/users/${userRow.id}/verify`, {
+    method: 'POST',
+    headers: adminHeaders
+  });
+  assert.strictEqual(verifyRes.status, 200);
+
+  // Login untuk mendapatkan JWT
+  const loginRes = await request('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email: testEmail, password: dummyPass })
+  });
+  assert.strictEqual(loginRes.status, 200);
+  const token = loginRes.data.token;
+  const user = loginRes.data.user;
   const authHeaders = { Authorization: `Bearer ${token}` };
 
-  console.log('1. User uji terdaftar dengan 300 trial credit.');
+  console.log('1. User uji terdaftar dan terverifikasi dengan 300 trial credit.');
 
   // 2. Uji POST /api/billing/checkout saat BILLING_DUMMY tidak aktif (default / produksi)
   const leakRes = await request('/api/billing/checkout', {

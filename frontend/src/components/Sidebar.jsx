@@ -22,6 +22,7 @@ import {
   ChevronRight,
   LayoutGrid,
   Coins,
+  Shield,
 } from 'lucide-react';
 import WorkspaceSelector from './common/WorkspaceSelector';
 import MarkimateLogo from './common/MarkimateLogo';
@@ -597,6 +598,60 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
                   }
                 />
                 <span>{t('sidebar.billing', 'Subscription & Billing')}</span>
+              </button>
+              <button
+                onClick={() => handleNavClick('/app/settings/account')}
+                style={{
+                  ...styles.navLink,
+                  ...(location.pathname === '/app/settings/account' ? styles.navLinkActive : {}),
+                }}
+              >
+                {location.pathname === '/app/settings/account' && <div style={styles.activeBar} />}
+                <User
+                  size={17}
+                  color={
+                    location.pathname === '/app/settings/account'
+                      ? 'var(--accent-cyan)'
+                      : 'var(--text-secondary)'
+                  }
+                />
+                <span>{t('sidebar.account', 'Profil & Akun')}</span>
+              </button>
+              <button
+                onClick={() => handleNavClick('/app/settings/members')}
+                style={{
+                  ...styles.navLink,
+                  ...(location.pathname === '/app/settings/members' ? styles.navLinkActive : {}),
+                }}
+              >
+                {location.pathname === '/app/settings/members' && <div style={styles.activeBar} />}
+                <Users
+                  size={17}
+                  color={
+                    location.pathname === '/app/settings/members'
+                      ? 'var(--accent-cyan)'
+                      : 'var(--text-secondary)'
+                  }
+                />
+                <span>{t('sidebar.members', 'Anggota & Tim')}</span>
+              </button>
+              <button
+                onClick={() => handleNavClick('/app/settings/security')}
+                style={{
+                  ...styles.navLink,
+                  ...(location.pathname === '/app/settings/security' ? styles.navLinkActive : {}),
+                }}
+              >
+                {location.pathname === '/app/settings/security' && <div style={styles.activeBar} />}
+                <Shield
+                  size={17}
+                  color={
+                    location.pathname === '/app/settings/security'
+                      ? 'var(--accent-cyan)'
+                      : 'var(--text-secondary)'
+                  }
+                />
+                <span>{t('sidebar.security', 'Keamanan & Sesi')}</span>
               </button>
             </div>
           </div>

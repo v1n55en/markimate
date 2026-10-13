@@ -20,7 +20,20 @@ const TABLES = [
   'credit_cost_rates',
   'credit_trials',
   'credit_alerts',
-  'credit_orders'
+  'credit_orders',
+  // Tabel baru untuk F1 & F2 (Auth, Sesi, Workspace & Entitlement)
+  'schema_migrations',
+  'email_verifications',
+  'password_resets',
+  'refresh_tokens',
+  'rate_limits',
+  'workspaces',
+  'workspace_members',
+  'workspace_invites',
+  'module_entitlements',
+  'workspace_api_keys',
+  'audit_logs',
+  'webhook_events'
 ];
 
 const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
@@ -51,7 +64,19 @@ class JsonStore {
       credit_cost_rates: [],
       credit_trials: [],
       credit_alerts: [],
-      credit_orders: []
+      credit_orders: [],
+      schema_migrations: [],
+      email_verifications: [],
+      password_resets: [],
+      refresh_tokens: [],
+      rate_limits: [],
+      workspaces: [],
+      workspace_members: [],
+      workspace_invites: [],
+      module_entitlements: [],
+      workspace_api_keys: [],
+      audit_logs: [],
+      webhook_events: []
     };
     try {
       if (fs.existsSync(this.file)) {
@@ -77,6 +102,33 @@ class JsonStore {
   async update(table, where, patch) { const rows = (this.data[table] || []).filter(r => this._match(r, where)); rows.forEach(r => Object.assign(r, patch, { updated_at: new Date().toISOString() })); this.save(); return rows[0] || null; }
   async upsert(table, where, row) { const ex = await this.findOne(table, where); return ex ? this.update(table, where, row) : this.insert(table, { ...where, ...row }); }
   async remove(table, where) { const before = (this.data[table] || []).length; this.data[table] = (this.data[table] || []).filter(r => !this._match(r, where)); this.save(); return before - this.data[table].length; }
+  async rpc(name, params = {}) {
+    if (name === 'hit_rate_limit') {
+      const key = params.p_key;
+      const windowSec = params.p_window_seconds || 60;
+      const max = params.p_max || 10;
+      const now = Date.now();
+      if (!this.data.rate_limits) this.data.rate_limits = [];
+      let record = this.data.rate_limits.find(r => r.key === key);
+      if (!record) {
+        record = { key, window_start: new Date(now).toISOString(), count: 1 };
+        this.data.rate_limits.push(record);
+        this.save();
+        return true;
+      }
+      const startMs = new Date(record.window_start).getTime();
+      if (now - startMs > windowSec * 1000) {
+        record.window_start = new Date(now).toISOString();
+        record.count = 1;
+        this.save();
+        return true;
+      }
+      record.count += 1;
+      this.save();
+      return record.count <= max;
+    }
+    return true;
+  }
 }
 
 // ---------- Supabase ----------
@@ -89,6 +141,11 @@ class SupabaseStore {
   async update(table, where, patch) { let q = this.c.from(table).update({ ...patch, updated_at: new Date().toISOString() }); for (const [k, v] of Object.entries(where)) q = q.eq(k, v); const { data, error } = await q.select(); if (error) throw new Error(`${table}: ${error.message}`); return data[0] || null; }
   async upsert(table, where, row) { const ex = await this.findOne(table, where); return ex ? this.update(table, where, row) : this.insert(table, { ...where, ...row }); }
   async remove(table, where) { let q = this.c.from(table).delete(); for (const [k, v] of Object.entries(where)) q = q.eq(k, v); const { error, count } = await q; if (error) throw new Error(`${table}: ${error.message}`); return count ?? 1; }
+  async rpc(name, params = {}) {
+    const { data, error } = await this.c.rpc(name, params);
+    if (error) throw new Error(`rpc ${name}: ${error.message}`);
+    return data;
+  }
 }
 
 const sb = makeSupabase();

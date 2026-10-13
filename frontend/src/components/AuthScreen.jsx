@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { ShieldCheck, UserPlus, LogIn, ArrowRight, Coins } from 'lucide-react';
+import { ShieldCheck, UserPlus, LogIn, ArrowRight, Coins, Mail } from 'lucide-react';
 import { api, setToken } from '../api';
 import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
 import MarkimateLogo from './common/MarkimateLogo';
@@ -17,42 +17,224 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [brandName, setBrandName] = useState('');
+  const [name, setName] = useState('');
   const [niche, setNiche] = useState('F&B');
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [error, setError] = useState('');
+  const [errorCode, setErrorCode] = useState('');
+
+  // State untuk verifikasi email
+  const [verificationSentEmail, setVerificationSentEmail] = useState('');
+  const [unverifiedEmail, setUnverifiedEmail] = useState('');
+  const [resending, setResending] = useState(false);
+  const [resendNotice, setResendNotice] = useState('');
+  const [cancellingDeletion, setCancellingDeletion] = useState(false);
+
+  const handleCancelDeletion = async () => {
+    try {
+      setCancellingDeletion(true);
+      setError('');
+      setErrorCode('');
+      const res = await api('/api/account/delete/cancel', {
+        method: 'POST',
+        body: { email, password }
+      });
+      if (res && res.accessToken) {
+        setToken(res.accessToken);
+        if (onLoginSuccess) onLoginSuccess(res);
+      }
+    } catch (err) {
+      setError(err.message || 'Gagal membatalkan penghapusan akun.');
+    } finally {
+      setCancellingDeletion(false);
+    }
+  };
+
+  const handleResendVerification = async (targetEmail) => {
+    const em = targetEmail || unverifiedEmail || email;
+    if (!em) return;
+    setResending(true);
+    setResendNotice('');
+    try {
+      await api('/api/auth/resend-verification', {
+        method: 'POST',
+        body: { email: em }
+      });
+      setResendNotice(lang === 'id'
+        ? 'Tautan verifikasi baru telah dikirim. Silakan periksa inbox email atau folder spam Anda.'
+        : 'A new verification link has been sent. Please check your inbox or spam folder.');
+    } catch (err) {
+      setResendNotice(err.message || 'Gagal mengirim ulang email verifikasi.');
+    } finally {
+      setResending(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setErrorCode('');
+    setResendNotice('');
+    setUnverifiedEmail('');
+
     if (!email || !password) {
       setError(lang === 'id' ? 'Harap isi semua field wajib.' : 'Please fill in all required fields.');
       return;
     }
-    if (!isLogin && !brandName) {
-      setError(lang === 'id' ? 'Harap isi nama brand bisnis Anda.' : 'Please enter your brand / workspace name.');
-      return;
+    if (!isLogin) {
+      if (!brandName) {
+        setError(lang === 'id' ? 'Harap isi nama brand bisnis Anda.' : 'Please enter your brand / workspace name.');
+        return;
+      }
+      if (password.length < 10) {
+        setError(lang === 'id' ? 'Kata sandi minimal 10 karakter untuk keamanan akun Anda.' : 'Password must be at least 10 characters.');
+        return;
+      }
+      if (!acceptTerms) {
+        setError(lang === 'id' ? 'Anda harus menyetujui Syarat & Ketentuan serta Kebijakan Privasi.' : 'You must accept the Terms of Service and Privacy Policy.');
+        return;
+      }
     }
+
     setLoading(true);
     try {
-      const data = isLogin
-        ? await api('/api/auth/login', { method: 'POST', body: { email, password } })
-        : await api('/api/auth/register', { method: 'POST', body: { email, password, brandName, niche } });
-      setToken(data.token);
-      await onLoginSuccess(data.user);
-      navigate(nextParam);
+      if (isLogin) {
+        const data = await api('/api/auth/login', { method: 'POST', body: { email, password } });
+        setToken(data.token);
+        await onLoginSuccess(data.user);
+        navigate(nextParam);
+      } else {
+        const data = await api('/api/auth/register', {
+          method: 'POST',
+          body: { email, password, brandName, niche, name, acceptTerms: true }
+        });
+        if (data.status === 'verification_sent') {
+          setVerificationSentEmail(data.email || email);
+        }
+      }
     } catch (err) {
       setError(err.message || (lang === 'id' ? 'Gagal masuk. Periksa email dan kata sandi Anda.' : 'Sign in failed. Please check your email and password.'));
+      if (err.code === 'EMAIL_NOT_VERIFIED') {
+        setErrorCode('EMAIL_NOT_VERIFIED');
+        setUnverifiedEmail(err.email || email);
+      } else if (err.code === 'ACCOUNT_PENDING_DELETION') {
+        setErrorCode('ACCOUNT_PENDING_DELETION');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div style={styles.container}>
-      {/* Decorative Glow */}
-      <div style={styles.glowCyan}></div>
-      <div style={styles.glowPurple}></div>
+  // Layar "Cek Email Kamu" setelah registrasi berhasil
+  if (verificationSentEmail) {
+    return (
+      <div className="auth-page-container">
+        <div className="auth-card-box">
+          <div className="auth-header">
+            <Link to="/" style={styles.logoLink}>
+              <div style={styles.logoContainer}>
+                <MarkimateLogo size={36} />
+              </div>
+            </Link>
+            <h1 style={styles.title}>Markimate</h1>
+          </div>
 
-      <div style={styles.authCard} className="card">
+          <div style={{ textAlign: 'center', padding: '12px 0 24px 0' }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              backgroundColor: '#eff6ff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px auto'
+            }}>
+              <Mail size={32} color="#2563eb" />
+            </div>
+
+            <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: '0 0 10px 0' }}>
+              {lang === 'id' ? 'Cek Inbox Email Anda' : 'Check Your Email'}
+            </h2>
+
+            <p style={{ fontSize: '14px', lineHeight: 1.6, color: '#475569', margin: '0 0 20px 0' }}>
+              {lang === 'id' ? (
+                <>Kami telah mengirimkan tautan verifikasi ke <strong>{verificationSentEmail}</strong>. Buka email Anda dan klik tombol verifikasi untuk mengaktifkan akun serta mengklaim <strong>Free Trial 7 Hari (300 credit)</strong>.</>
+              ) : (
+                <>We sent a verification link to <strong>{verificationSentEmail}</strong>. Click the button in the email to activate your account and claim your <strong>7-Day Free Trial (300 credits)</strong>.</>
+              )}
+            </p>
+
+            {resendNotice && (
+              <div style={{
+                backgroundColor: '#f0fdf4',
+                border: '1px solid #bbf7d0',
+                color: '#15803d',
+                padding: '10px 14px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                marginBottom: '16px'
+              }}>
+                {resendNotice}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => handleResendVerification(verificationSentEmail)}
+              disabled={resending}
+              style={{
+                width: '100%',
+                padding: '12px 18px',
+                backgroundColor: '#0f172a',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '8px',
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                marginBottom: '16px'
+              }}
+            >
+              {resending
+                ? (lang === 'id' ? 'Mengirimkan…' : 'Sending…')
+                : (lang === 'id' ? 'Kirim Ulang Email Verifikasi' : 'Resend Verification Email')}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setVerificationSentEmail('');
+                setIsLogin(true);
+                setError('');
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#3b82f6',
+                fontSize: '14px',
+                fontWeight: 500,
+                cursor: 'pointer'
+              }}
+            >
+              ← {lang === 'id' ? 'Kembali ke Halaman Masuk' : 'Back to Sign In'}
+            </button>
+          </div>
+
+          <div style={styles.footer}>
+            <ShieldCheck size={14} color="var(--accent-green)" />
+            <span style={styles.footerText}>
+              Markimate · powered by 3our · Verifikasi Email Wajib
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="auth-page-container">
+      <div className="auth-card-box">
         {/* Top bar with language switcher */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
           <LanguageSwitcher size="small" />
@@ -76,7 +258,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
             <span>{lang === 'id' ? 'Belum punya akun?' : "Don't have an account?"}</span>
             <button
               type="button"
-              onClick={() => { setIsLogin(false); setError(''); }}
+              onClick={() => { setIsLogin(false); setError(''); setErrorCode(''); }}
               style={styles.trialPromptBtn}
             >
               <span>{lang === 'id' ? 'Coba gratis 7 hari (300 credit) →' : 'Start 7-day free trial (300 credits) →'}</span>
@@ -88,7 +270,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
           <button 
             type="button"
             style={{...styles.tab, ...(isLogin ? styles.tabActive : {})}} 
-            onClick={() => { setIsLogin(true); setError(''); }}
+            onClick={() => { setIsLogin(true); setError(''); setErrorCode(''); }}
           >
             <LogIn size={15} />
             {t('nav.login', 'Sign In')}
@@ -96,22 +278,72 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
           <button 
             type="button"
             style={{...styles.tab, ...(!isLogin ? styles.tabActive : {})}} 
-            onClick={() => { setIsLogin(false); setError(''); }}
+            onClick={() => { setIsLogin(false); setError(''); setErrorCode(''); }}
           >
             <UserPlus size={15} />
             {lang === 'id' ? 'Daftar Baru' : 'Register'}
           </button>
         </div>
 
-        {error && <div style={styles.errorAlert}>{error}</div>}
+        {error && (
+          <div style={styles.errorAlert}>
+            <div>{error}</div>
+            {errorCode === 'EMAIL_NOT_VERIFIED' && (
+              <div style={{ marginTop: '10px' }}>
+                {resendNotice ? (
+                  <div style={{ fontSize: '12px', color: '#15803d', fontWeight: 500 }}>{resendNotice}</div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleResendVerification(unverifiedEmail)}
+                    disabled={resending}
+                    style={{
+                      padding: '6px 12px',
+                      backgroundColor: '#2563eb',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {resending ? 'Mengirimkan…' : 'Kirim Ulang Email Verifikasi'}
+                  </button>
+                )}
+              </div>
+            )}
+            {errorCode === 'ACCOUNT_PENDING_DELETION' && (
+              <div style={{ marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={handleCancelDeletion}
+                  disabled={cancellingDeletion}
+                  style={{
+                    padding: '6px 14px',
+                    backgroundColor: '#16a34a',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {cancellingDeletion ? 'Membatalkan…' : 'Batalkan Penghapusan & Masuk ke Akun'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {!isLogin && (
           <div style={styles.trialBox}>
             <Coins size={16} color="var(--accent-cyan)" />
             <div style={{ flex: 1, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
               {lang === 'id'
-                ? 'Daftar sekarang & dapatkan Free Trial 7 Hari (300 credit) otomatis tanpa perlu kartu kredit.'
-                : 'Register now & instantly get a 7-Day Free Trial (300 credits) with zero credit card required.'}
+                ? 'Daftar sekarang & dapatkan Free Trial 7 Hari (300 credit) otomatis setelah verifikasi email, tanpa perlu kartu kredit.'
+                : 'Register now & instantly get a 7-Day Free Trial (300 credits) upon email verification, zero credit card required.'}
             </div>
           </div>
         )}
@@ -119,6 +351,19 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
         <form onSubmit={handleSubmit} style={styles.form}>
           {!isLogin && (
             <>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label" style={styles.label}>Nama Anda / PIC</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  placeholder="Contoh: Budi Pratama" 
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  style={styles.input}
+                  required 
+                />
+              </div>
+
               <div className="form-group" style={{ marginBottom: '1rem' }}>
                 <label className="form-label" style={styles.label}>Nama Brand Bisnis</label>
                 <input 
@@ -164,18 +409,62 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
             />
           </div>
 
-          <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-            <label className="form-label" style={styles.label}>Kata Sandi</label>
+          <div className="form-group" style={{ marginBottom: !isLogin ? '0.5rem' : '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+              <label className="form-label" style={{ ...styles.label, marginBottom: 0 }}>Kata Sandi</label>
+              {isLogin && (
+                <Link to="/forgot" style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)', textDecoration: 'none' }}>
+                  {lang === 'id' ? 'Lupa kata sandi?' : 'Forgot password?'}
+                </Link>
+              )}
+            </div>
             <input 
               type="password" 
               className="form-input" 
-              placeholder="••••••••" 
+              placeholder={!isLogin ? 'Minimal 10 karakter' : '••••••••'} 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={styles.input}
               required 
             />
+            {!isLogin && (
+              <div style={{
+                fontSize: '11px',
+                color: password.length >= 10 ? '#10b981' : '#64748b',
+                marginTop: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}>
+                {password.length >= 10 ? '✓ Panjang kata sandi memenuhi syarat (≥10 karakter)' : '• Minimal 10 karakter untuk standar keamanan akun'}
+              </div>
+            )}
           </div>
+
+          {!isLogin && (
+            <div style={{ marginBottom: '1.25rem', marginTop: '0.75rem' }}>
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#475569' }}>
+                <input
+                  type="checkbox"
+                  checked={acceptTerms}
+                  onChange={(e) => setAcceptTerms(e.target.checked)}
+                  style={{ marginTop: '2px', accentColor: '#2563eb' }}
+                  required
+                />
+                <span>
+                  Saya menyetujui{' '}
+                  <Link to="/terms" target="_blank" style={{ color: '#2563eb', textDecoration: 'underline' }}>
+                    Syarat & Ketentuan
+                  </Link>{' '}
+                  dan{' '}
+                  <Link to="/privacy" target="_blank" style={{ color: '#2563eb', textDecoration: 'underline' }}>
+                    Kebijakan Privasi
+                  </Link>{' '}
+                  Markimate.
+                </span>
+              </label>
+            </div>
+          )}
 
           <button 
             type="submit" 
@@ -192,7 +481,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
               </>
             ) : (
               <>
-                <span>Daftar Akun Baru</span>
+                <span>Daftar & Kirim Verifikasi</span>
                 <ArrowRight size={16} />
               </>
             )}
@@ -203,6 +492,8 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
           <Link to="/privacy" style={styles.footerLink}>Kebijakan Privasi</Link>
           <span>·</span>
           <Link to="/terms" style={styles.footerLink}>Syarat & Ketentuan</Link>
+          <span>·</span>
+          <Link to="/data-deletion" style={styles.footerLink}>Penghapusan Data</Link>
           <span>·</span>
           <Link to="/" style={styles.footerLink}>Beranda</Link>
         </div>

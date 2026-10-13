@@ -1,39 +1,9 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { storage } from '../lib/storage';
+import { api, getToken, setActiveWorkspaceId as persistActiveWsId } from '../api';
 
 const WORKSPACES_STORAGE_KEY = 'workspaces_v1';
 const ACTIVE_WORKSPACE_KEY = 'workspace';
-
-// Data awal workspace contoh untuk demonstrasi multi-brand
-const INITIAL_WORKSPACES = [
-  {
-    id: 'ws-3our-official',
-    name: '3Our Brand Official',
-    niche: 'Creative Agency & SaaS',
-    modules: ['seo', 'ads_report', 'ads_spy'], // Fokus 3 lengkap aktif
-    plan: 'focus3',
-    billingCycle: 'monthly',
-    createdAt: '2026-08-01T00:00:00Z',
-  },
-  {
-    id: 'ws-kopi-makmur',
-    name: 'Kopi Makmur F&B',
-    niche: 'F&B (Kuliner & Kafe)',
-    modules: ['seo'], // Hanya SEO aktif; Ads Report & Spy terkunci
-    plan: 'seo_only',
-    billingCycle: 'monthly',
-    createdAt: '2026-09-01T00:00:00Z',
-  },
-  {
-    id: 'ws-hijab-store',
-    name: 'Hijab Store Indonesia',
-    niche: 'Retail & Fashion',
-    modules: ['ads_report', 'ads_spy'], // Ads & Spy aktif; SEO terkunci
-    plan: 'custom',
-    billingCycle: 'yearly',
-    createdAt: '2026-09-15T00:00:00Z',
-  },
-];
 
 const WorkspaceContext = createContext(null);
 
@@ -45,36 +15,83 @@ export function WorkspaceProvider({ children }) {
     } catch {
       // abaikan
     }
-    return INITIAL_WORKSPACES;
+    return [];
   });
 
   const [activeWorkspaceId, setActiveWorkspaceId] = useState(() => {
     try {
       const storedActive = storage.getItem(ACTIVE_WORKSPACE_KEY);
-      if (storedActive && INITIAL_WORKSPACES.some((w) => w.id === storedActive)) {
-        return storedActive;
-      }
+      if (storedActive) return storedActive;
     } catch {
       // abaikan
     }
-    return INITIAL_WORKSPACES[0].id;
+    return '';
   });
 
-  // Sinkronisasi ke storage setiap kali ada perubahan workspaces
-  useEffect(() => {
-    try {
-      storage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(workspaces));
-    } catch {
-      // abaikan
-    }
-  }, [workspaces]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Sinkronisasi active workspace ID
-  useEffect(() => {
+  // Fungsi untuk memuat workspaces dari backend
+  const refreshWorkspaces = useCallback(async () => {
+    if (!getToken()) return;
     try {
-      storage.setItem(ACTIVE_WORKSPACE_KEY, activeWorkspaceId);
-    } catch {
-      // abaikan
+      setIsLoading(true);
+      const res = await api('/api/workspaces');
+      if (res && Array.isArray(res.workspaces)) {
+        setWorkspaces(res.workspaces);
+        try {
+          storage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(res.workspaces));
+        } catch {}
+
+        // Tetapkan activeWorkspaceId jika belum ada atau tidak valid
+        const currentActive = storage.getItem(ACTIVE_WORKSPACE_KEY);
+        const validCurrent = res.workspaces.some((w) => w.id === currentActive);
+        const nextActive = validCurrent
+          ? currentActive
+          : (res.activeWorkspaceId || res.workspaces[0]?.id || '');
+
+        if (nextActive) {
+          setActiveWorkspaceId(nextActive);
+          persistActiveWsId(nextActive);
+        }
+      }
+    } catch (err) {
+      console.warn('[WorkspaceContext] Gagal memuat workspaces:', err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Muat data saat token berubah atau event login terdeteksi
+  useEffect(() => {
+    refreshWorkspaces();
+
+    const handleLogin = () => refreshWorkspaces();
+    const handleLogout = () => {
+      setWorkspaces([]);
+      setActiveWorkspaceId('');
+      try {
+        storage.removeItem(WORKSPACES_STORAGE_KEY);
+        storage.removeItem(ACTIVE_WORKSPACE_KEY);
+      } catch {}
+    };
+
+    window.addEventListener('markimate:login', handleLogin);
+    window.addEventListener('supermat:login', handleLogin);
+    window.addEventListener('markimate:logout', handleLogout);
+    window.addEventListener('supermat:logout', handleLogout);
+
+    return () => {
+      window.removeEventListener('markimate:login', handleLogin);
+      window.removeEventListener('supermat:login', handleLogin);
+      window.removeEventListener('markimate:logout', handleLogout);
+      window.removeEventListener('supermat:logout', handleLogout);
+    };
+  }, [refreshWorkspaces]);
+
+  // Sinkronisasi active workspace ID ke storage dan api helper
+  useEffect(() => {
+    if (activeWorkspaceId) {
+      persistActiveWsId(activeWorkspaceId);
     }
   }, [activeWorkspaceId]);
 
@@ -83,8 +100,8 @@ export function WorkspaceProvider({ children }) {
 
   const switchWorkspace = useCallback((id) => {
     setActiveWorkspaceId(id);
+    persistActiveWsId(id);
     try {
-      storage.setItem(ACTIVE_WORKSPACE_KEY, id);
       window.dispatchEvent(new CustomEvent('markimate:workspace-changed', { detail: { id } }));
       window.dispatchEvent(new CustomEvent('supermat:workspace-changed', { detail: { id } }));
     } catch {
@@ -93,40 +110,68 @@ export function WorkspaceProvider({ children }) {
   }, []);
 
   const createWorkspace = useCallback(
-    ({ name, niche = 'Other', initialModules = ['seo'] }) => {
-      const newWs = {
-        id: `ws-${Date.now()}`,
-        name: name.trim() || 'Brand Baru',
-        niche,
-        modules: initialModules,
-        plan: 'custom',
-        billingCycle: 'monthly',
-        createdAt: new Date().toISOString(),
-      };
-      setWorkspaces((prev) => [newWs, ...prev]);
-      setActiveWorkspaceId(newWs.id);
-      try {
-        storage.setItem(ACTIVE_WORKSPACE_KEY, newWs.id);
-        window.dispatchEvent(new CustomEvent('markimate:workspace-changed', { detail: { id: newWs.id } }));
-        window.dispatchEvent(new CustomEvent('supermat:workspace-changed', { detail: { id: newWs.id } }));
-      } catch {
-        // abaikan
+    async ({ name, niche = 'Other', website = '' }) => {
+      const res = await api('/api/workspaces', {
+        method: 'POST',
+        body: { name: name.trim() || 'Workspace Baru', niche, website },
+      });
+
+      if (res && res.workspace) {
+        const newWs = res.workspace;
+        setWorkspaces((prev) => [newWs, ...prev]);
+        setActiveWorkspaceId(newWs.id);
+        persistActiveWsId(newWs.id);
+        try {
+          window.dispatchEvent(new CustomEvent('markimate:workspace-changed', { detail: { id: newWs.id } }));
+          window.dispatchEvent(new CustomEvent('supermat:workspace-changed', { detail: { id: newWs.id } }));
+        } catch {}
+        return newWs;
       }
-      return newWs;
+      return null;
     },
     []
   );
 
-  const updateWorkspace = useCallback((id, updates) => {
-    setWorkspaces((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, ...updates } : w))
-    );
+  const updateWorkspace = useCallback(async (id, updates) => {
+    try {
+      const res = await api(`/api/workspaces/${id}`, {
+        method: 'PATCH',
+        body: updates,
+      });
+      const updated = res.workspace || { id, ...updates };
+      setWorkspaces((prev) =>
+        prev.map((w) => (w.id === id ? { ...w, ...updated } : w))
+      );
+      return updated;
+    } catch (err) {
+      console.error('[WorkspaceContext] updateWorkspace error:', err);
+      throw err;
+    }
   }, []);
+
+  const deleteWorkspace = useCallback(async (id) => {
+    await api(`/api/workspaces/${id}`, { method: 'DELETE' });
+    setWorkspaces((prev) => {
+      const remaining = prev.filter((w) => w.id !== id);
+      if (activeWorkspaceId === id && remaining.length > 0) {
+        setActiveWorkspaceId(remaining[0].id);
+        persistActiveWsId(remaining[0].id);
+      }
+      return remaining;
+    });
+  }, [activeWorkspaceId]);
 
   const isModuleActive = useCallback(
     (moduleKey) => {
-      if (!activeWorkspace) return false;
-      return (activeWorkspace.modules || []).includes(moduleKey);
+      if (!activeWorkspace) return true; // Default true jika belum termuat
+      if (Array.isArray(activeWorkspace.modules)) {
+        return activeWorkspace.modules.includes(moduleKey);
+      }
+      if (activeWorkspace.entitlements && typeof activeWorkspace.entitlements === 'object') {
+        const ent = activeWorkspace.entitlements[moduleKey];
+        return ent ? !!ent.active : false;
+      }
+      return false;
     },
     [activeWorkspace]
   );
@@ -153,28 +198,19 @@ export function WorkspaceProvider({ children }) {
     [activeWorkspace, updateWorkspace]
   );
 
-  const resetAllWorkspaces = useCallback(() => {
-    setWorkspaces(INITIAL_WORKSPACES);
-    setActiveWorkspaceId(INITIAL_WORKSPACES[0].id);
-    try {
-      localStorage.setItem(WORKSPACES_STORAGE_KEY, JSON.stringify(INITIAL_WORKSPACES));
-      localStorage.setItem(ACTIVE_WORKSPACE_KEY, INITIAL_WORKSPACES[0].id);
-    } catch {
-      // abaikan
-    }
-  }, []);
-
   const value = {
     workspaces,
     activeWorkspace,
     activeWorkspaceId,
+    isLoading,
+    refreshWorkspaces,
     switchWorkspace,
     createWorkspace,
     updateWorkspace,
+    deleteWorkspace,
     isModuleActive,
     activateModule,
     deactivateModule,
-    resetAllWorkspaces,
   };
 
   return (

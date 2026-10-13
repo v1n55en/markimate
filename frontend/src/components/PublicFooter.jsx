@@ -45,6 +45,9 @@ export default function PublicFooter() {
               <Link to="/terms" style={styles.link}>
                 <span>{t('footer.terms', 'Terms of Service')}</span>
               </Link>
+              <Link to="/data-deletion" style={styles.link}>
+                <span>{t('footer.dataDeletion', 'Data Deletion')}</span>
+              </Link>
               <Link to="/login" style={styles.link}>
                 <span>{t('footer.loginPortal', 'Client Portal Login')}</span>
               </Link>

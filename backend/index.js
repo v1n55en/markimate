@@ -26,6 +26,43 @@ import { PLANS, FREE_MONTHLY_LIMIT } from './lib/plans.js';
 import { processDailyCreditAlerts } from './lib/notifications.js';
 import { createSnapTransaction, handleMidtransWebhook } from './lib/midtrans.js';
 import { calculateUsageAndMargin, checkMarginSentinel } from './lib/margin.js';
+import {
+  sendMail,
+  sendPasswordResetEmail,
+  sendPasswordChangedNotice,
+  sendEmailChangeVerification,
+  sendEmailChangeNoticeToOldEmail,
+  sendWorkspaceInviteEmail
+} from './lib/mailer.js';
+import { newToken, hashToken } from './lib/tokens.js';
+import { enforceRateLimit, getClientIp } from './lib/ratelimit.js';
+import {
+  issueSession,
+  getRefreshTokenFromReq,
+  clearRefreshTokenCookie,
+  signAccessToken
+} from './lib/session.js';
+import {
+  requireWorkspace,
+  resolveWorkspaceForUser,
+  getUserWorkspaces,
+  createWorkspaceApiKey
+} from './lib/workspaces.js';
+import {
+  getModules,
+  requireModule,
+  expireEntitlements
+} from './lib/entitlements.js';
+import {
+  logAuditEvent,
+  getWorkspaceAuditLogs,
+  requestAccountDeletion,
+  cancelAccountDeletion,
+  exportAccountData,
+  purgeDeletedAccounts,
+  handleMetaDataDeletion,
+  getMetaDataDeletionStatus
+} from './lib/account-lifecycle.js';
 
 export { PLANS };
 
@@ -58,16 +95,30 @@ app.use(express.json({ limit: '2mb' }));
 
 // ---------- Helpers ----------
 const genApiKey = () => 'spm_live_' + randomBytes(18).toString('base64url');
-const publicUser = (u) => u && ({ id: u.id, email: u.email, brandName: u.brand_name, niche: u.niche, plan: u.plan || 'free', apiKey: u.api_key, webApprover: u.web_approver !== false, createdAt: u.created_at });
+const publicUser = (u) => u && ({
+  id: u.id,
+  email: u.email,
+  name: u.name,
+  brandName: u.brand_name,
+  niche: u.niche,
+  plan: u.plan || 'free',
+  webApprover: u.web_approver !== false,
+  status: u.status || 'active',
+  emailVerifiedAt: u.email_verified_at,
+  createdAt: u.created_at
+});
 const signToken = (u) => jwt.sign({ sub: u.id, email: u.email }, JWT_SECRET, { expiresIn: '30d' });
 const monthStart = () => { const d = new Date(); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString(); };
 const mask = (s) => { s = String(s || ''); return s.length <= 6 ? (s ? '••••' : '') : s.slice(0, 3) + '••••' + s.slice(-3); };
 
-async function usageOf(userId) {
-  const rows = await db.findMany('keywords', { user_id: userId });
+async function usageOf(workspaceId) {
+  let rows = await db.findMany('keywords', { workspace_id: workspaceId });
+  if (!rows || rows.length === 0) {
+    rows = await db.findMany('keywords', { user_id: workspaceId });
+  }
   const since = monthStart();
   const countedStatuses = new Set(['Review Ready', 'Draft Created', 'Published']);
-  return rows.filter(k => k.last_run_at && k.last_run_at >= since && countedStatuses.has(k.status)).length;
+  return (rows || []).filter(k => k.last_run_at && k.last_run_at >= since && countedStatuses.has(k.status)).length;
 }
 const planOf = (u) => PLANS[u.plan] || PLANS.free;
 
@@ -102,24 +153,76 @@ async function callN8n(url, body) {
   return json;
 }
 
-// ---------- Auth middleware ----------
+// ---------- Auth middleware (F1 & F2) ----------
 async function auth(req, res, next) {
   try {
     const h = String(req.headers.authorization || '');
     const token = h.startsWith('Bearer ') ? h.slice(7) : '';
-    if (!token) return res.status(401).json({ error: 'Belum login.' });
-    const payload = jwt.verify(token, JWT_SECRET);
-    const user = await db.findOne('accounts', { id: payload.sub });
-    if (!user) return res.status(401).json({ error: 'Akun tidak ditemukan.' });
-    req.user = user; next();
-  } catch (e) { return res.status(401).json({ error: 'Sesi tidak valid, silakan login ulang.' }); }
+    if (!token) return res.status(401).json({ error: 'Belum login.', code: 'UNAUTHORIZED' });
+
+    let payload;
+    try {
+      payload = jwt.verify(token, JWT_SECRET);
+    } catch (jwtErr) {
+      return res.status(401).json({ error: 'Sesi tidak valid atau telah kadaluarsa.', code: 'TOKEN_EXPIRED' });
+    }
+
+    // Jika token baru (typ: 'access'), izinkan.
+    // Jika token legacy 30 hari (tanpa typ), izinkan sampai LEGACY_JWT_ACCEPT_UNTIL (transisi).
+    if (!payload.typ || payload.typ !== 'access') {
+      const defaultUntil = new Date(Date.now() + 14 * 86400 * 1000).toISOString();
+      const legacyUntil = new Date(process.env.LEGACY_JWT_ACCEPT_UNTIL || defaultUntil);
+      if (new Date() > legacyUntil) {
+        return res.status(401).json({
+          error: 'Format sesi sudah usang. Silakan masuk kembali.',
+          code: 'LEGACY_SESSION_EXPIRED'
+        });
+      }
+      req.isLegacySession = true;
+    }
+
+    const userId = payload.sub || payload.userId || payload.id;
+    const user = await db.findOne('accounts', { id: userId });
+    if (!user || user.status === 'pending_deletion') {
+      return res.status(401).json({ error: 'Akun tidak ditemukan atau tidak aktif.', code: 'ACCOUNT_INACTIVE' });
+    }
+
+    req.user = user;
+    next();
+  } catch (e) {
+    return res.status(401).json({ error: 'Sesi tidak valid, silakan login ulang.', code: 'UNAUTHORIZED' });
+  }
 }
 async function apiKeyAuth(req, res, next) {
   const key = String(req.headers['x-api-key'] || '').trim() || String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
   if (!key) return res.status(401).json({ status: 'error', message: 'Kirim header X-API-Key.' });
+
+  // 1. Coba cari di workspace_api_keys (SHA-256 hash)
+  const keyHash = hashToken(key);
+  const apiKeyRecord = await db.findOne('workspace_api_keys', { key_hash: keyHash });
+
+  if (apiKeyRecord && !apiKeyRecord.revoked_at) {
+    const ws = await db.findOne('workspaces', { id: apiKeyRecord.workspace_id });
+    if (!ws || ws.deleted_at) {
+      return res.status(401).json({ status: 'error', message: 'Workspace API key tidak aktif.' });
+    }
+    const owner = await db.findOne('accounts', { id: ws.owner_user_id });
+    req.user = owner || { id: ws.owner_user_id, plan: 'free' };
+    req.workspace = ws;
+    req.apiKey = apiKeyRecord;
+    // Update last_used_at secara asynchronous
+    db.update('workspace_api_keys', { id: apiKeyRecord.id }, { last_used_at: new Date().toISOString() }).catch(() => {});
+    return next();
+  }
+
+  // 2. Fallback backward compatibility: cari di accounts.api_key lama
   const user = await db.findOne('accounts', { api_key: key });
   if (!user) return res.status(401).json({ status: 'error', message: 'API key tidak valid.' });
-  req.user = user; next();
+
+  req.user = user;
+  const resolved = await resolveWorkspaceForUser(user.id);
+  req.workspace = resolved?.workspace || { id: user.id };
+  next();
 }
 const wrap = (fn) => (req, res) => fn(req, res).catch(e => {
   log(`[ERR] ${req.method} ${req.path}: ${e.message}`);
@@ -128,6 +231,8 @@ const wrap = (fn) => (req, res) => fn(req, res).catch(e => {
     error: e.message,
     n8n: e.n8n || undefined,
     ...(e.code ? { code: e.code } : {}),
+    ...(e.workspaces ? { workspaces: e.workspaces } : {}),
+    ...(e.module ? { module: e.module } : {}),
     ...(e.need !== undefined ? { need: e.need } : {}),
     ...(e.have !== undefined ? { have: e.have } : {}),
     ...(e.topupUrl ? { topupUrl: e.topupUrl } : {}),
@@ -139,46 +244,1525 @@ const wrap = (fn) => (req, res) => fn(req, res).catch(e => {
 // ---------- Health ----------
 app.get('/api/health', (req, res) => res.json({ status: 'ok', db: dbMode, n8n: N8N_BASE_URL, time: new Date().toISOString() }));
 
-// ---------- Auth ----------
+// ---------- Auth (F1 & F2) ----------
 app.post('/api/auth/register', wrap(async (req, res) => {
-  const { email, password, brandName, niche } = req.body || {};
+  const { email, password, brandName, niche, name, acceptTerms } = req.body || {};
   const em = String(email || '').trim().toLowerCase();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) throw Object.assign(new Error('Email tidak valid.'), { status: 400 });
-  if (String(password || '').length < 6) throw Object.assign(new Error('Kata sandi minimal 6 karakter.'), { status: 400 });
-  if (await db.findOne('accounts', { email: em })) throw Object.assign(new Error('Email sudah terdaftar, silakan masuk.'), { status: 409 });
+  const clientIp = getClientIp(req);
+
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) {
+    throw Object.assign(new Error('Format alamat email tidak valid.'), { status: 400 });
+  }
+  if (String(password || '').length < 10) {
+    throw Object.assign(new Error('Kata sandi minimal 10 karakter.'), { status: 400 });
+  }
+  if (acceptTerms !== true) {
+    throw Object.assign(new Error('Anda harus menyetujui Syarat & Ketentuan serta Kebijakan Privasi.'), { status: 400 });
+  }
+
+  // Rate limit: 5 registrasi per 15 menit per IP
+  if (await enforceRateLimit(res, `register:ip:${clientIp}`, 900, 5, 'Terlalu banyak pendaftaran dari alamat IP ini. Silakan coba lagi dalam 15 menit.')) {
+    return;
+  }
+
+  // Jika email sudah terdaftar, kembalikan respons sukses yang identik tanpa membocorkan eksistensi akun
+  const existing = await db.findOne('accounts', { email: em });
+  if (existing) {
+    // Jika belum diverifikasi, kirimkan email verifikasi baru
+    if (existing.status === 'unverified' || !existing.email_verified_at) {
+      const verifyToken = newToken();
+      const tokenHash = hashToken(verifyToken);
+      const expiresAt = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+      await db.insert('email_verifications', {
+        user_id: existing.id,
+        token_hash: tokenHash,
+        expires_at: expiresAt
+      });
+      const appUrl = (process.env.APP_URL || 'https://markimate-three.vercel.app').replace(/\/+$/, '');
+      const verifyUrl = `${appUrl}/verify?token=${verifyToken}`;
+      await sendMail({
+        to: em,
+        subject: 'Verifikasi Alamat Email Anda — Markimate',
+        text: `Halo,\n\nTerima kasih telah mendaftar di Markimate. Buka tautan berikut untuk memverifikasi email Anda:\n${verifyUrl}\n\nTautan ini berlaku 24 jam.`,
+        actionUrl: verifyUrl,
+        actionText: 'Verifikasi Email Saya',
+        tag: 'email_verification'
+      });
+    }
+    return res.json({ status: 'verification_sent', email: em });
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  const brand = String(brandName || '').trim() || em.split('@')[0];
+  const userName = String(name || '').trim() || brand;
+
+  // 1. Akun baru dengan status unverified
   const user = await db.insert('accounts', {
     email: em,
-    password_hash: await bcrypt.hash(password, 10),
-    brand_name: String(brandName || '').trim() || em.split('@')[0],
+    name: userName,
+    password_hash: passwordHash,
+    brand_name: brand,
     niche: String(niche || 'Other'),
     plan: 'free',
     api_key: genApiKey(),
     web_approver: true,
-    email_verified_at: new Date().toISOString()
+    status: 'unverified',
+    email_verified_at: null,
+    failed_login_count: 0
   });
 
-  // Berikan 300 trial credit (7 hari) untuk email terverifikasi baru (PRD §4.3)
-  await grantTrialIfEligible(user.id, em);
+  // 2. Buat workspace default dengan id = user.id
+  await db.insert('workspaces', {
+    id: user.id,
+    name: brand,
+    niche: user.niche,
+    owner_user_id: user.id
+  });
 
-  res.json({ token: signToken(user), user: publicUser(user) });
+  // 3. Masukkan owner ke workspace_members
+  await db.insert('workspace_members', {
+    workspace_id: user.id,
+    user_id: user.id,
+    role: 'owner'
+  });
+
+  // 4. Entitlements trial 7 hari untuk 3 modul utama
+  const trialEnds = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+  for (const mod of ['seo', 'ads_report', 'ads_spy']) {
+    await db.insert('module_entitlements', {
+      workspace_id: user.id,
+      module: mod,
+      active: true,
+      source: 'trial',
+      starts_at: new Date().toISOString(),
+      ends_at: trialEnds
+    });
+  }
+
+  // 5. Buat token verifikasi email (32 byte base64url, disimpan hash SHA-256)
+  const verifyToken = newToken();
+  const tokenHash = hashToken(verifyToken);
+  const expiresAt = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+  await db.insert('email_verifications', {
+    user_id: user.id,
+    token_hash: tokenHash,
+    expires_at: expiresAt
+  });
+
+  // 6. Kirim email verifikasi
+  const appUrl = (process.env.APP_URL || 'https://markimate-three.vercel.app').replace(/\/+$/, '');
+  const verifyUrl = `${appUrl}/verify?token=${verifyToken}`;
+  await sendMail({
+    to: em,
+    subject: 'Verifikasi Alamat Email Anda — Markimate',
+    text: `Halo,\n\nTerima kasih telah mendaftar di Markimate. Buka tautan berikut untuk memverifikasi akun Anda:\n${verifyUrl}\n\nTautan berlaku selama 24 jam.`,
+    actionUrl: verifyUrl,
+    actionText: 'Verifikasi Email Saya',
+    tag: 'email_verification'
+  });
+
+  // Catat audit log pendaftaran
+  await db.insert('audit_logs', {
+    user_id: user.id,
+    workspace_id: user.id,
+    action: 'account_registered',
+    ip: clientIp,
+    meta: { email: em }
+  });
+
+  // TIDAK ada token sesi dan TIDAK ada trial credit di langkah ini
+  res.json({ status: 'verification_sent', email: em });
 }));
+
+app.post('/api/auth/verify', wrap(async (req, res) => {
+  const { token } = req.body || {};
+  const clientIp = getClientIp(req);
+  if (!token) {
+    throw Object.assign(new Error('Token verifikasi diperlukan.'), { status: 400 });
+  }
+
+  const tokenHash = hashToken(token);
+  const record = await db.findOne('email_verifications', { token_hash: tokenHash });
+
+  if (!record || record.used_at || new Date(record.expires_at) < new Date()) {
+    throw Object.assign(new Error('Tautan verifikasi tidak valid atau sudah kadaluarsa.'), {
+      status: 400,
+      code: 'INVALID_TOKEN'
+    });
+  }
+
+  // Tandai token sudah digunakan
+  const now = new Date().toISOString();
+  await db.update('email_verifications', { id: record.id }, { used_at: now });
+
+  const user = await db.findOne('accounts', { id: record.user_id });
+  if (!user) throw Object.assign(new Error('Akun pengguna tidak ditemukan.'), { status: 404 });
+
+  // 1. Kasus Perubahan Alamat Email Akun
+  if (record.new_email) {
+    const newEmail = record.new_email.toLowerCase();
+    const existingOther = await db.findOne('accounts', { email: newEmail });
+    if (existingOther && existingOther.id !== user.id) {
+      throw Object.assign(new Error('Alamat email baru telah digunakan oleh akun lain.'), { status: 400 });
+    }
+
+    await db.update('accounts', { id: user.id }, {
+      email: newEmail,
+      email_verified_at: now
+    });
+    user.email = newEmail;
+    user.email_verified_at = now;
+
+    // Cabut sesi lain milik user demi keamanan
+    const userSessions = await db.findMany('refresh_tokens', { user_id: user.id });
+    for (const s of (userSessions || [])) {
+      if (!s.revoked_at) {
+        await db.update('refresh_tokens', { id: s.id }, { revoked_at: now });
+      }
+    }
+
+    await db.insert('audit_logs', {
+      user_id: user.id,
+      workspace_id: user.id,
+      action: 'email_changed',
+      ip: clientIp,
+      meta: { newEmail }
+    });
+
+    const session = await issueSession(res, user, req);
+    return res.json({
+      status: 'verified',
+      emailChanged: true,
+      token: session.accessToken,
+      accessToken: session.accessToken,
+      expiresIn: session.expiresIn,
+      user: publicUser(user)
+    });
+  }
+
+  // 2. Kasus Verifikasi Akun Baru
+  // Update status akun menjadi aktif dan terverifikasi
+  await db.update('accounts', { id: user.id }, {
+    email_verified_at: now,
+    status: 'active'
+  });
+  user.email_verified_at = now;
+  user.status = 'active';
+
+  // Alokasikan 300 free trial credits (7 hari) HANYA setelah email terverifikasi
+  await grantTrialIfEligible(user.id, user.email);
+
+  // Catat audit log
+  await db.insert('audit_logs', {
+    user_id: user.id,
+    workspace_id: user.id,
+    action: 'email_verified',
+    ip: clientIp,
+    meta: { email: user.email }
+  });
+
+  // Terbitkan sesi baru (refresh token di cookie httpOnly + access token di memori)
+  const session = await issueSession(res, user, req);
+
+  res.json({
+    status: 'verified',
+    token: session.accessToken,
+    accessToken: session.accessToken,
+    expiresIn: session.expiresIn,
+    user: publicUser(user)
+  });
+}));
+
+app.post('/api/auth/resend-verification', wrap(async (req, res) => {
+  const em = String((req.body || {}).email || '').trim().toLowerCase();
+  const clientIp = getClientIp(req);
+  if (!em) throw Object.assign(new Error('Alamat email wajib diisi.'), { status: 400 });
+
+  // Rate limit: maks 3 per jam per email
+  if (await enforceRateLimit(res, `resend_verify:${em}`, 3600, 3, 'Batas pengiriman ulang tercapai. Silakan coba lagi dalam 1 jam.')) {
+    return;
+  }
+
+  const user = await db.findOne('accounts', { email: em });
+  if (user && (user.status === 'unverified' || !user.email_verified_at)) {
+    const verifyToken = newToken();
+    const tokenHash = hashToken(verifyToken);
+    const expiresAt = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
+    await db.insert('email_verifications', {
+      user_id: user.id,
+      token_hash: tokenHash,
+      expires_at: expiresAt
+    });
+    const appUrl = (process.env.APP_URL || 'https://markimate-three.vercel.app').replace(/\/+$/, '');
+    const verifyUrl = `${appUrl}/verify?token=${verifyToken}`;
+    await sendMail({
+      to: em,
+      subject: 'Verifikasi Alamat Email Anda — Markimate',
+      text: `Halo,\n\nBerikut tautan verifikasi baru untuk akun Markimate Anda:\n${verifyUrl}\n\nTautan berlaku 24 jam.`,
+      actionUrl: verifyUrl,
+      actionText: 'Verifikasi Email Saya',
+      tag: 'email_verification'
+    });
+  }
+
+  // Respons konsisten untuk mencegah enumeration
+  res.json({
+    message: 'Jika email terdaftar dan belum diverifikasi, tautan verifikasi telah dikirim.',
+    status: 'sent'
+  });
+}));
+
 app.post('/api/auth/login', wrap(async (req, res) => {
   const em = String((req.body || {}).email || '').trim().toLowerCase();
+  const password = String((req.body || {}).password || '');
+  const clientIp = getClientIp(req);
+
   const user = await db.findOne('accounts', { email: em });
-  if (!user || !(await bcrypt.compare(String((req.body || {}).password || ''), user.password_hash))) throw Object.assign(new Error('Email atau kata sandi salah.'), { status: 401 });
-  // Klaim trial jika eligible dan belum pernah klaim
-  await grantTrialIfEligible(user.id, user.email);
-  res.json({ token: signToken(user), user: publicUser(user) });
+
+  // Periksa apakah akun terkunci sementara (prioritas respon 423 sebelum 429)
+  if (user && user.locked_until && new Date(user.locked_until) > new Date()) {
+    const remainingMin = Math.ceil((new Date(user.locked_until).getTime() - Date.now()) / 60000);
+    return res.status(423).json({
+      error: `Akun terkunci sementara karena terlalu banyak percobaan masuk gagal. Coba lagi dalam ${remainingMin} menit.`,
+      code: 'ACCOUNT_LOCKED'
+    });
+  }
+
+  // Rate limit: 10 per 15 menit per IP + email
+  if (await enforceRateLimit(res, `login:${clientIp}:${em}`, 900, 10, 'Terlalu banyak percobaan masuk yang gagal. Silakan coba lagi dalam 15 menit.')) {
+    return;
+  }
+
+  const passwordValid = user && (await bcrypt.compare(password, user.password_hash));
+
+  if (!passwordValid) {
+    if (user) {
+      const failed = (user.failed_login_count || 0) + 1;
+      const patch = { failed_login_count: failed };
+      if (failed >= 10) {
+        patch.locked_until = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+      }
+      await db.update('accounts', { id: user.id }, patch);
+      await db.insert('audit_logs', {
+        user_id: user.id,
+        action: 'login_failed',
+        ip: clientIp,
+        meta: { email: em, reason: 'wrong_password', attempts: failed }
+      });
+    }
+    throw Object.assign(new Error('Email atau kata sandi salah.'), { status: 401 });
+  }
+
+  // Password benar: reset percobaan gagal & perbarui last_login_at
+  await db.update('accounts', { id: user.id }, {
+    failed_login_count: 0,
+    locked_until: null,
+    last_login_at: new Date().toISOString()
+  });
+
+  // Periksa apakah akun sedang dijadwalkan untuk dihapus (PRD F1+F2 Langkah 8)
+  if (user.status === 'pending_deletion') {
+    return res.status(403).json({
+      error: 'Akun Anda sedang dijadwalkan untuk dihapus. Silakan batalkan penghapusan terlebih dahulu untuk masuk kembali.',
+      code: 'ACCOUNT_PENDING_DELETION',
+      email: user.email,
+      deletedRequestedAt: user.deleted_requested_at
+    });
+  }
+
+  // Periksa status email verified
+  if (user.status === 'unverified' || !user.email_verified_at) {
+    return res.status(403).json({
+      error: 'Email Anda belum diverifikasi. Silakan periksa inbox email Anda atau klik tombol kirim ulang.',
+      code: 'EMAIL_NOT_VERIFIED',
+      email: user.email
+    });
+  }
+
+  // Rehash otomatis dari cost 10 ke cost 12 jika akun lama
+  if (user.password_hash && (user.password_hash.startsWith('$2a$10$') || user.password_hash.startsWith('$2b$10$'))) {
+    try {
+      const newHash = await bcrypt.hash(password, 12);
+      await db.update('accounts', { id: user.id }, { password_hash: newHash });
+    } catch (err) {
+      console.error('[AUTH] Gagal merehash password:', err.message);
+    }
+  }
+
+  // Catat audit log login sukses
+  await db.insert('audit_logs', {
+    user_id: user.id,
+    action: 'login_success',
+    ip: clientIp,
+    meta: { email: user.email }
+  });
+
+  // Terbitkan sesi baru (refresh token di cookie httpOnly + access token di memori)
+  const session = await issueSession(res, user, req);
+
+  res.json({
+    token: session.accessToken,
+    accessToken: session.accessToken,
+    expiresIn: session.expiresIn,
+    user: publicUser(user)
+  });
 }));
+
+// Refresh Sesi & Rotasi Token (PRD F1 + F2 Langkah 3)
+app.post('/api/auth/refresh', wrap(async (req, res) => {
+  const rawToken = getRefreshTokenFromReq(req);
+  const clientIp = getClientIp(req);
+  if (!rawToken) {
+    return res.status(401).json({
+      error: 'Sesi tidak ditemukan atau cookie telah dihapus.',
+      code: 'NO_REFRESH_TOKEN'
+    });
+  }
+
+  const tokenHash = hashToken(rawToken);
+  const record = await db.findOne('refresh_tokens', { token_hash: tokenHash });
+
+  if (!record) {
+    clearRefreshTokenCookie(res);
+    return res.status(401).json({
+      error: 'Sesi tidak valid atau telah berakhir.',
+      code: 'INVALID_REFRESH_TOKEN'
+    });
+  }
+
+  // Reuse Detection: Token yang sudah direvoke dicoba dipakai lagi (indikasi pencurian sesi)
+  if (record.revoked_at) {
+    const familyRecords = await db.findMany('refresh_tokens', { family_id: record.family_id });
+    for (const r of familyRecords) {
+      if (!r.revoked_at) {
+        await db.update('refresh_tokens', { id: r.id }, { revoked_at: new Date().toISOString() });
+      }
+    }
+    clearRefreshTokenCookie(res);
+    await db.insert('audit_logs', {
+      user_id: record.user_id,
+      action: 'refresh_reuse',
+      ip: clientIp,
+      meta: { familyId: record.family_id, attemptedTokenHash: tokenHash }
+    });
+    return res.status(401).json({
+      error: 'Terdeteksi penggunaan token yang tidak sah. Semua sesi telah dicabut demi keamanan.',
+      code: 'TOKEN_REUSE_DETECTED'
+    });
+  }
+
+  // Periksa apakah token kadaluarsa
+  if (new Date(record.expires_at) < new Date()) {
+    clearRefreshTokenCookie(res);
+    return res.status(401).json({
+      error: 'Sesi telah kadaluarsa. Silakan masuk kembali.',
+      code: 'SESSION_EXPIRED'
+    });
+  }
+
+  const user = await db.findOne('accounts', { id: record.user_id });
+  if (!user || user.status !== 'active') {
+    clearRefreshTokenCookie(res);
+    return res.status(401).json({
+      error: 'Akun tidak ditemukan atau tidak aktif.',
+      code: 'ACCOUNT_INACTIVE'
+    });
+  }
+
+  // Rotasi Token: Terbitkan token baru dalam family yang sama
+  const newSession = await issueSession(res, user, req, record.family_id);
+
+  // Tandai token lama sebagai revoked & replaced_by
+  const now = new Date().toISOString();
+  await db.update('refresh_tokens', { id: record.id }, {
+    revoked_at: now,
+    replaced_by: newSession.sessionId,
+    last_used_at: now
+  });
+
+  res.json({
+    token: newSession.accessToken,
+    accessToken: newSession.accessToken,
+    expiresIn: newSession.expiresIn,
+    user: publicUser(user)
+  });
+}));
+
+// Logout Sesi Tunggal
+app.post('/api/auth/logout', wrap(async (req, res) => {
+  const rawToken = getRefreshTokenFromReq(req);
+  if (rawToken) {
+    const tokenHash = hashToken(rawToken);
+    const record = await db.findOne('refresh_tokens', { token_hash: tokenHash });
+    if (record && !record.revoked_at) {
+      await db.update('refresh_tokens', { id: record.id }, { revoked_at: new Date().toISOString() });
+    }
+  }
+  clearRefreshTokenCookie(res);
+  res.json({ success: true, message: 'Berhasil keluar.' });
+}));
+
+// Logout Semua Perangkat (Revoke Semua Sesi User)
+app.post('/api/auth/logout-all', auth, wrap(async (req, res) => {
+  const userSessions = await db.findMany('refresh_tokens', { user_id: req.user.id });
+  const now = new Date().toISOString();
+  for (const s of userSessions) {
+    if (!s.revoked_at) {
+      await db.update('refresh_tokens', { id: s.id }, { revoked_at: now });
+    }
+  }
+  clearRefreshTokenCookie(res);
+  await db.insert('audit_logs', {
+    user_id: req.user.id,
+    action: 'logout_all',
+    ip: getClientIp(req)
+  });
+  res.json({ success: true, message: 'Semua sesi perangkat berhasil dicabut.' });
+}));
+
+// Upgrade Sesi Legacy (Bearer JWT 30 hari -> Access Token 15m + Cookie Refresh Token)
+app.post('/api/auth/upgrade-session', wrap(async (req, res) => {
+  const h = String(req.headers.authorization || '');
+  const token = h.startsWith('Bearer ') ? h.slice(7) : '';
+  if (!token) return res.status(401).json({ error: 'Token sesi lama tidak ditemukan.' });
+
+  let payload;
+  try {
+    payload = jwt.verify(token, JWT_SECRET);
+  } catch (err) {
+    return res.status(401).json({ error: 'Token sesi lama tidak valid atau kadaluarsa.' });
+  }
+
+  const userId = payload.sub || payload.userId || payload.id;
+  const user = await db.findOne('accounts', { id: userId });
+  if (!user || user.status !== 'active') {
+    return res.status(401).json({ error: 'Akun tidak aktif atau tidak ditemukan.' });
+  }
+
+  const session = await issueSession(res, user, req);
+  res.json({
+    success: true,
+    token: session.accessToken,
+    accessToken: session.accessToken,
+    expiresIn: session.expiresIn,
+    user: publicUser(user)
+  });
+}));
+
+// Daftar Sesi Perangkat Aktif
+app.get('/api/sessions', auth, wrap(async (req, res) => {
+  const rawToken = getRefreshTokenFromReq(req);
+  const currentHash = rawToken ? hashToken(rawToken) : null;
+  const records = await db.findMany('refresh_tokens', { user_id: req.user.id }, {
+    orderBy: 'created_at',
+    ascending: false
+  });
+
+  const now = new Date();
+  const activeSessions = (records || [])
+    .filter(r => !r.revoked_at && new Date(r.expires_at) > now)
+    .map(r => ({
+      id: r.id,
+      ip: r.ip || '127.0.0.1',
+      userAgent: r.user_agent || 'Perangkat Tidak Dikenal',
+      createdAt: r.created_at,
+      lastUsedAt: r.last_used_at,
+      current: Boolean(currentHash && r.token_hash === currentHash)
+    }));
+
+  res.json({ sessions: activeSessions });
+}));
+
+// Cabut Sesi Perangkat Tertentu
+app.delete('/api/sessions/:id', auth, wrap(async (req, res) => {
+  const record = await db.findOne('refresh_tokens', { id: req.params.id, user_id: req.user.id });
+  if (!record) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+
+  await db.update('refresh_tokens', { id: record.id }, { revoked_at: new Date().toISOString() });
+
+  const rawToken = getRefreshTokenFromReq(req);
+  if (rawToken && hashToken(rawToken) === record.token_hash) {
+    clearRefreshTokenCookie(res);
+  }
+
+  await db.insert('audit_logs', {
+    user_id: req.user.id,
+    action: 'session_revoked',
+    ip: getClientIp(req),
+    meta: { sessionId: record.id }
+  });
+
+  res.json({ success: true, message: 'Sesi berhasil dicabut.' });
+}));
+
+// ==========================================
+// Siklus Akun: Lupa & Reset Password (PRD F1 + F2 Langkah 4)
+// ==========================================
+app.post('/api/auth/forgot', wrap(async (req, res) => {
+  const em = String((req.body || {}).email || '').trim().toLowerCase();
+  const clientIp = getClientIp(req);
+  if (!em) {
+    return res.status(400).json({ error: 'Alamat email wajib diisi.', code: 'EMAIL_REQUIRED' });
+  }
+
+  // Rate limit: 3/jam per email & 10/jam per IP
+  if (await enforceRateLimit(res, `forgot_ip:${clientIp}`, 3600, 10, 'Terlalu banyak permintaan reset kata sandi dari jaringan Anda. Silakan coba lagi 1 jam lagi.')) return;
+  if (await enforceRateLimit(res, `forgot_email:${em}`, 3600, 3, 'Terlalu banyak permintaan untuk email ini. Silakan tunggu 1 jam lagi.')) return;
+
+  const user = await db.findOne('accounts', { email: em });
+  if (user && user.status === 'active') {
+    const rawToken = newToken();
+    const tokenHash = hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 menit
+
+    await db.insert('password_resets', {
+      user_id: user.id,
+      token_hash: tokenHash,
+      expires_at: expiresAt,
+      ip: clientIp
+    });
+
+    await sendPasswordResetEmail({ to: user.email, token: rawToken });
+
+    await db.insert('audit_logs', {
+      user_id: user.id,
+      action: 'password_reset_requested',
+      ip: clientIp,
+      meta: { email: user.email }
+    });
+  }
+
+  // Respons konsisten untuk mencegah email enumeration
+  res.json({
+    success: true,
+    message: 'Jika alamat email terdaftar di Markimate, kami telah mengirimkan tautan pemulihan kata sandi.'
+  });
+}));
+
+app.post('/api/auth/reset', wrap(async (req, res) => {
+  const { token, password } = req.body || {};
+  const rawToken = String(token || '').trim();
+  const newPassword = String(password || '').trim();
+  const clientIp = getClientIp(req);
+
+  if (!rawToken) {
+    return res.status(400).json({ error: 'Tautan reset tidak valid.', code: 'INVALID_TOKEN' });
+  }
+  if (!newPassword || newPassword.length < 10) {
+    return res.status(400).json({ error: 'Kata sandi minimal 10 karakter.', code: 'PASSWORD_TOO_SHORT' });
+  }
+
+  const tokenHash = hashToken(rawToken);
+  const resetRecord = await db.findOne('password_resets', { token_hash: tokenHash });
+
+  if (!resetRecord || resetRecord.used_at || new Date(resetRecord.expires_at) < new Date()) {
+    return res.status(400).json({
+      error: 'Tautan reset kata sandi tidak valid atau telah kadaluarsa.',
+      code: 'INVALID_OR_EXPIRED_TOKEN'
+    });
+  }
+
+  const user = await db.findOne('accounts', { id: resetRecord.user_id });
+  if (!user || user.status !== 'active') {
+    return res.status(400).json({ error: 'Akun tidak ditemukan atau tidak aktif.', code: 'ACCOUNT_INACTIVE' });
+  }
+
+  const now = new Date().toISOString();
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+
+  // Update hash kata sandi & password_changed_at
+  await db.update('accounts', { id: user.id }, {
+    password_hash: passwordHash,
+    password_changed_at: now,
+    failed_login_count: 0,
+    locked_until: null
+  });
+
+  // Tandai token reset telah digunakan
+  await db.update('password_resets', { id: resetRecord.id }, { used_at: now });
+
+  // Cabut SEMUA refresh token user demi keamanan
+  const allSessions = await db.findMany('refresh_tokens', { user_id: user.id });
+  for (const s of (allSessions || [])) {
+    if (!s.revoked_at) {
+      await db.update('refresh_tokens', { id: s.id }, { revoked_at: now });
+    }
+  }
+  clearRefreshTokenCookie(res);
+
+  // Kirim email konfirmasi ke user (tanpa link)
+  await sendPasswordChangedNotice({ to: user.email });
+
+  // Catat audit log
+  await db.insert('audit_logs', {
+    user_id: user.id,
+    action: 'password_reset_success',
+    ip: clientIp,
+    meta: { email: user.email }
+  });
+
+  res.json({
+    success: true,
+    message: 'Kata sandi berhasil diatur ulang. Silakan masuk kembali dengan kata sandi baru Anda.'
+  });
+}));
+
+// ==========================================
+// Pengaturan Akun: Ganti Password, Ganti Email, Edit Profil (PRD F1 + F2 Langkah 4)
+// ==========================================
+app.post('/api/account/password', auth, wrap(async (req, res) => {
+  const { currentPassword, newPassword } = req.body || {};
+  const curPass = String(currentPassword || '');
+  const newPass = String(newPassword || '');
+  const clientIp = getClientIp(req);
+
+  if (!curPass || !newPass) {
+    return res.status(400).json({ error: 'Kata sandi saat ini dan kata sandi baru wajib diisi.' });
+  }
+  if (newPass.length < 10) {
+    return res.status(400).json({ error: 'Kata sandi baru minimal 10 karakter.' });
+  }
+
+  const ok = await bcrypt.compare(curPass, req.user.password_hash || '');
+  if (!ok) {
+    return res.status(400).json({ error: 'Kata sandi saat ini salah.' });
+  }
+
+  const now = new Date().toISOString();
+  const passwordHash = await bcrypt.hash(newPass, 12);
+
+  await db.update('accounts', { id: req.user.id }, {
+    password_hash: passwordHash,
+    password_changed_at: now
+  });
+
+  // Cabut semua sesi lain KECUALI sesi saat ini
+  const rawToken = getRefreshTokenFromReq(req);
+  const currentHash = rawToken ? hashToken(rawToken) : null;
+  const allSessions = await db.findMany('refresh_tokens', { user_id: req.user.id });
+  for (const s of (allSessions || [])) {
+    if (!s.revoked_at && (!currentHash || s.token_hash !== currentHash)) {
+      await db.update('refresh_tokens', { id: s.id }, { revoked_at: now });
+    }
+  }
+
+  await sendPasswordChangedNotice({ to: req.user.email });
+
+  await db.insert('audit_logs', {
+    user_id: req.user.id,
+    action: 'password_change',
+    ip: clientIp,
+    meta: { email: req.user.email }
+  });
+
+  res.json({ success: true, message: 'Kata sandi berhasil diperbarui.' });
+}));
+
+app.post('/api/account/email', auth, wrap(async (req, res) => {
+  const { newEmail, password } = req.body || {};
+  const newEm = String(newEmail || '').trim().toLowerCase();
+  const pass = String(password || '');
+  const clientIp = getClientIp(req);
+
+  if (!newEm || !newEm.includes('@') || !newEm.includes('.')) {
+    return res.status(400).json({ error: 'Format alamat email baru tidak valid.' });
+  }
+  if (newEm === req.user.email.toLowerCase()) {
+    return res.status(400).json({ error: 'Alamat email baru sama dengan alamat email saat ini.' });
+  }
+  if (!pass) {
+    return res.status(400).json({ error: 'Kata sandi akun wajib diisi untuk verifikasi keamanan.' });
+  }
+
+  const ok = await bcrypt.compare(pass, req.user.password_hash || '');
+  if (!ok) {
+    return res.status(400).json({ error: 'Kata sandi tidak sesuai.' });
+  }
+
+  // Rate limit: maks 3 permintaan ubah email per jam
+  if (await enforceRateLimit(res, `email_change:${req.user.id}`, 3600, 3, 'Terlalu banyak permintaan ubah email. Silakan coba lagi 1 jam lagi.')) return;
+
+  // Cek apakah email baru sudah terdaftar
+  const existing = await db.findOne('accounts', { email: newEm });
+  if (existing) {
+    return res.status(400).json({ error: 'Alamat email tidak dapat digunakan.' });
+  }
+
+  const rawToken = newToken();
+  const tokenHash = hashToken(rawToken);
+  const expiresAt = new Date(Date.now() + 24 * 3600 * 1000).toISOString(); // 24 jam
+
+  await db.insert('email_verifications', {
+    user_id: req.user.id,
+    new_email: newEm,
+    token_hash: tokenHash,
+    expires_at: expiresAt
+  });
+
+  // Kirim email verifikasi ke alamat baru & kirim notifikasi ke alamat lama
+  await sendEmailChangeVerification({ to: newEm, token: rawToken });
+  await sendEmailChangeNoticeToOldEmail({ to: req.user.email, newEmail: newEm });
+
+  await db.insert('audit_logs', {
+    user_id: req.user.id,
+    action: 'email_change_requested',
+    ip: clientIp,
+    meta: { oldEmail: req.user.email, newEmail: newEm }
+  });
+
+  res.json({
+    success: true,
+    message: 'Tautan konfirmasi telah dikirimkan ke alamat email baru Anda. Silakan periksa inbox untuk menyelesaikan perubahan.'
+  });
+}));
+
+// ==========================================
+// Account Deletion, Cancel & Export (PRD F1 + F2 Langkah 8)
+// ==========================================
+app.post('/api/account/delete', auth, wrap(async (req, res) => {
+  const { password, confirm } = req.body || {};
+  const clientIp = getClientIp(req);
+  const userAgent = req.headers['user-agent'] || '';
+
+  const result = await requestAccountDeletion({
+    userId: req.user.id,
+    password,
+    confirm,
+    ip: clientIp,
+    userAgent
+  });
+
+  clearRefreshTokenCookie(res);
+  res.json({
+    success: true,
+    message: `Akun Anda dijadwalkan untuk dihapus permanen pada ${result.scheduledDateFormatted}. Anda dapat membatalkannya kapan saja dengan login kembali dalam 30 hari.`,
+    scheduledAt: result.scheduledAt
+  });
+}));
+
+app.post('/api/account/delete/cancel', wrap(async (req, res) => {
+  const clientIp = getClientIp(req);
+  const userAgent = req.headers['user-agent'] || '';
+
+  let userId = null;
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const decoded = jwt.verify(authHeader.slice(7), JWT_SECRET);
+      userId = decoded.id;
+    } catch {}
+  }
+
+  const { email, password } = req.body || {};
+  const result = await cancelAccountDeletion({
+    userId,
+    email,
+    password,
+    ip: clientIp,
+    userAgent
+  });
+
+  const session = await issueSession(res, result.user, req);
+  res.json({
+    success: true,
+    message: 'Jadwal penghapusan akun berhasil dibatalkan. Akun Anda kini aktif kembali.',
+    token: session.accessToken,
+    accessToken: session.accessToken,
+    user: publicUser(result.user)
+  });
+}));
+
+app.get('/api/account/export', auth, wrap(async (req, res) => {
+  const exportData = await exportAccountData(req.user.id);
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename="markimate-account-export-${Date.now()}.json"`);
+  res.send(JSON.stringify(exportData, null, 2));
+}));
+
+// ==========================================
+// Meta Data Deletion Callback (PRD F1 + F2 Langkah 8)
+// ==========================================
+app.post('/api/data-deletion/meta', wrap(async (req, res) => {
+  const signedRequest = req.body?.signed_request || req.body?.signedRequest;
+  if (!signedRequest) {
+    return res.status(400).json({ error: 'signed_request is required', code: 'SIGNED_REQUEST_REQUIRED' });
+  }
+
+  const result = await handleMetaDataDeletion(signedRequest, process.env.APP_URL);
+  res.json(result);
+}));
+
+app.get('/api/data-deletion/status', wrap(async (req, res) => {
+  const code = String(req.query.code || '').trim();
+  if (!code) {
+    return res.status(400).json({ error: 'Kode konfirmasi wajib diisi.', code: 'CODE_REQUIRED' });
+  }
+
+  const status = await getMetaDataDeletionStatus(code);
+  if (!status) {
+    return res.status(404).json({ error: 'Kode konfirmasi penghapusan tidak ditemukan.', code: 'NOT_FOUND' });
+  }
+
+  res.json(status);
+}));
+
+app.patch('/api/me', auth, wrap(async (req, res) => {
+  const { name, brandName, niche } = req.body || {};
+  const patch = {};
+  if (name !== undefined) patch.name = String(name || '').trim();
+  if (brandName !== undefined) patch.brand_name = String(brandName || '').trim();
+  if (niche !== undefined) patch.niche = String(niche || '').trim();
+
+  if (Object.keys(patch).length === 0) {
+    return res.json({ success: true, user: publicUser(req.user) });
+  }
+
+  const updated = await db.update('accounts', { id: req.user.id }, patch);
+  req.user = updated || { ...req.user, ...patch };
+
+  res.json({
+    success: true,
+    user: publicUser(req.user)
+  });
+}));
+
 app.get('/api/me', auth, wrap(async (req, res) => {
-  const conns = await db.findMany('cms_connections', { user_id: req.user.id });
-  const runs = await usageOf(req.user.id);
-  res.json({ user: publicUser(req.user), plan: planOf(req.user), usage: { runsThisMonth: runs, limit: planOf(req.user).monthlyArticles }, cms: conns.map(maskConn) });
+  const workspaces = await getUserWorkspaces(req.user.id);
+  const resolved = await resolveWorkspaceForUser(req.user.id, req.headers['x-workspace-id']);
+  const activeWorkspace = resolved?.workspace || (workspaces[0] ? { id: workspaces[0].id } : { id: req.user.id });
+  const activeWsId = activeWorkspace.id;
+
+  let conns = await db.findMany('cms_connections', { workspace_id: activeWsId });
+  if (!conns || conns.length === 0) {
+    conns = await db.findMany('cms_connections', { user_id: activeWsId });
+  }
+
+  const runs = await usageOf(activeWsId);
+  const currentWs = workspaces.find(w => w.id === activeWsId) || workspaces[0] || null;
+  res.json({
+    user: publicUser(req.user),
+    workspaces,
+    activeWorkspaceId: activeWsId,
+    activeWorkspace: currentWs,
+    modules: currentWs ? currentWs.modules : ['seo'],
+    entitlements: currentWs ? currentWs.entitlements : { seo: { active: true, source: 'free' } },
+    plan: planOf(req.user),
+    usage: { runsThisMonth: runs, limit: planOf(req.user).monthlyArticles },
+    cms: (conns || []).map(maskConn)
+  });
+}));
+
+// ==========================================
+// Workspace Management & API Keys (PRD F1 + F2 Langkah 5)
+// ==========================================
+app.get('/api/workspaces', auth, wrap(async (req, res) => {
+  const list = await getUserWorkspaces(req.user.id);
+  res.json({ workspaces: list });
+}));
+
+app.post('/api/workspaces', auth, wrap(async (req, res) => {
+  const { name, niche, website } = req.body || {};
+  const wsName = String(name || '').trim();
+  if (!wsName) {
+    return res.status(400).json({ error: 'Nama workspace wajib diisi.', code: 'NAME_REQUIRED' });
+  }
+
+  // Cek batas maksimal 5 workspace untuk paket Free
+  const currentWorkspaces = await getUserWorkspaces(req.user.id);
+  const isPaid = req.user.plan && req.user.plan !== 'free';
+  if (!isPaid && currentWorkspaces.length >= 5) {
+    return res.status(403).json({
+      error: 'Batas maksimal 5 workspace untuk paket Free telah tercapai. Upgrade ke paket berbayar untuk menambah workspace.',
+      code: 'WORKSPACE_LIMIT_REACHED'
+    });
+  }
+
+  const newId = crypto.randomUUID();
+  const ws = await db.insert('workspaces', {
+    id: newId,
+    name: wsName,
+    niche: String(niche || 'Other').trim(),
+    website: String(website || '').trim(),
+    owner_user_id: req.user.id
+  });
+
+  await db.insert('workspace_members', {
+    workspace_id: newId,
+    user_id: req.user.id,
+    role: 'owner'
+  });
+
+  // Entitlement default (modul SEO aktif)
+  await db.insert('module_entitlements', {
+    workspace_id: newId,
+    module: 'seo',
+    active: true,
+    source: isPaid ? 'subscription' : 'trial',
+    starts_at: new Date().toISOString()
+  });
+
+  await db.insert('audit_logs', {
+    user_id: req.user.id,
+    workspace_id: newId,
+    action: 'workspace_created',
+    ip: getClientIp(req),
+    meta: { name: wsName }
+  });
+
+  res.json({
+    success: true,
+    workspace: {
+      id: ws.id,
+      name: ws.name,
+      niche: ws.niche,
+      website: ws.website,
+      role: 'owner',
+      modules: ['seo']
+    }
+  });
+}));
+
+app.patch('/api/workspaces/:id', auth, requireWorkspace('admin'), wrap(async (req, res) => {
+  const { name, niche, website } = req.body || {};
+  const patch = {};
+  if (name !== undefined) patch.name = String(name || '').trim();
+  if (niche !== undefined) patch.niche = String(niche || '').trim();
+  if (website !== undefined) patch.website = String(website || '').trim();
+
+  const updated = await db.update('workspaces', { id: req.workspace.id }, patch);
+
+  await db.insert('audit_logs', {
+    user_id: req.user.id,
+    workspace_id: req.workspace.id,
+    action: 'workspace_updated',
+    ip: getClientIp(req),
+    meta: patch
+  });
+
+  res.json({ success: true, workspace: updated });
+}));
+
+app.delete('/api/workspaces/:id', auth, requireWorkspace('owner'), wrap(async (req, res) => {
+  const userWorkspaces = await getUserWorkspaces(req.user.id);
+  if (userWorkspaces.length <= 1) {
+    return res.status(400).json({
+      error: 'Anda tidak dapat menghapus workspace terakhir Anda.',
+      code: 'CANNOT_DELETE_LAST_WORKSPACE'
+    });
+  }
+
+  await db.update('workspaces', { id: req.workspace.id }, {
+    deleted_at: new Date().toISOString()
+  });
+
+  await db.insert('audit_logs', {
+    user_id: req.user.id,
+    workspace_id: req.workspace.id,
+    action: 'workspace_deleted',
+    ip: getClientIp(req)
+  });
+
+  res.json({ success: true, message: 'Workspace berhasil dihapus.' });
+}));
+
+// Workspace API Keys
+app.get('/api/workspaces/:id/api-keys', auth, requireWorkspace('admin'), wrap(async (req, res) => {
+  const keys = await db.findMany('workspace_api_keys', { workspace_id: req.workspace.id }, {
+    orderBy: 'created_at',
+    ascending: false
+  });
+
+  const activeKeys = (keys || [])
+    .filter(k => !k.revoked_at)
+    .map(k => ({
+      id: k.id,
+      prefix: k.prefix,
+      label: k.label,
+      createdAt: k.created_at,
+      lastUsedAt: k.last_used_at
+    }));
+
+  res.json({ apiKeys: activeKeys });
+}));
+
+app.post('/api/workspaces/:id/api-keys', auth, requireWorkspace('admin'), wrap(async (req, res) => {
+  const { label } = req.body || {};
+  const created = await createWorkspaceApiKey({
+    workspaceId: req.workspace.id,
+    userId: req.user.id,
+    label: label || 'Default API Key'
+  });
+
+  await db.insert('audit_logs', {
+    user_id: req.user.id,
+    workspace_id: req.workspace.id,
+    action: 'api_key_created',
+    ip: getClientIp(req),
+    meta: { prefix: created.prefix, label: created.label }
+  });
+
+  res.json({
+    success: true,
+    apiKey: created
+  });
+}));
+
+app.delete('/api/workspaces/:id/api-keys/:keyId', auth, requireWorkspace('admin'), wrap(async (req, res) => {
+  const existingKey = await db.findOne('workspace_api_keys', {
+    id: req.params.keyId,
+    workspace_id: req.workspace.id
+  });
+
+  if (!existingKey) {
+    return res.status(404).json({ error: 'API key tidak ditemukan.' });
+  }
+
+  await db.update('workspace_api_keys', { id: existingKey.id }, {
+    revoked_at: new Date().toISOString()
+  });
+
+  await db.insert('audit_logs', {
+    user_id: req.user.id,
+    workspace_id: req.workspace.id,
+    action: 'api_key_revoked',
+    ip: getClientIp(req),
+    meta: { prefix: existingKey.prefix }
+  });
+
+  res.json({ success: true, message: 'API key berhasil dicabut.' });
+}));
+
+// ---------- Anggota & Undangan Workspace (Langkah 6) ----------
+const splitEmail = (em) => (em ? em.split('@')[0] : '');
+
+app.get('/api/workspaces/:id/members', auth, requireWorkspace('viewer'), wrap(async (req, res) => {
+  const members = await db.findMany('workspace_members', { workspace_id: req.workspace.id }, {
+    orderBy: 'joined_at',
+    ascending: true
+  });
+
+  const enriched = [];
+  for (const m of (members || [])) {
+    const acc = await db.findOne('accounts', { id: m.user_id });
+    enriched.push({
+      userId: m.user_id,
+      name: acc?.name || acc?.brand_name || splitEmail(acc?.email),
+      email: acc?.email || '',
+      role: m.role,
+      joinedAt: m.joined_at,
+      isCurrentUser: m.user_id === req.user.id
+    });
+  }
+
+  res.json({ members: enriched });
+}));
+
+app.patch('/api/workspaces/:id/members/:userId', auth, requireWorkspace('admin'), wrap(async (req, res) => {
+  const targetUserId = req.params.userId;
+  const { role } = req.body || {};
+
+  if (!['admin', 'viewer'].includes(role)) {
+    return res.status(400).json({ error: 'Role harus admin atau viewer.' });
+  }
+
+  const targetMember = await db.findOne('workspace_members', {
+    workspace_id: req.workspace.id,
+    user_id: targetUserId
+  });
+
+  if (!targetMember) {
+    return res.status(404).json({ error: 'Anggota tidak ditemukan di workspace ini.' });
+  }
+
+  // Role owner tidak bisa diubah lewat endpoint ini
+  if (targetMember.role === 'owner') {
+    return res.status(400).json({
+      error: 'Role owner tidak dapat diubah. Silakan gunakan fitur transfer kepemilikan workspace.',
+      code: 'CANNOT_CHANGE_OWNER_ROLE'
+    });
+  }
+
+  // Admin tidak bisa mengubah sesama admin jika bukan owner
+  if (req.member.role === 'admin' && targetMember.role === 'admin') {
+    return res.status(403).json({
+      error: 'Hanya owner yang dapat mengubah role sesama admin.',
+      code: 'FORBIDDEN_ROLE'
+    });
+  }
+
+  await db.update('workspace_members', {
+    workspace_id: req.workspace.id,
+    user_id: targetUserId
+  }, { role });
+
+  await db.insert('audit_logs', {
+    user_id: req.user.id,
+    workspace_id: req.workspace.id,
+    action: 'member_role_updated',
+    target: targetUserId,
+    ip: getClientIp(req),
+    meta: { oldRole: targetMember.role, newRole: role }
+  });
+
+  res.json({ success: true, member: { userId: targetUserId, role } });
+}));
+
+app.delete('/api/workspaces/:id/members/:userId', auth, requireWorkspace('viewer'), wrap(async (req, res) => {
+  const targetUserId = req.params.userId;
+  const isSelf = targetUserId === req.user.id;
+
+  const targetMember = await db.findOne('workspace_members', {
+    workspace_id: req.workspace.id,
+    user_id: targetUserId
+  });
+
+  if (!targetMember) {
+    return res.status(404).json({ error: 'Anggota tidak ditemukan di workspace ini.' });
+  }
+
+  if (targetMember.role === 'owner') {
+    return res.status(400).json({
+      error: 'Owner tidak dapat keluar dari workspace sebelum mengalihkan kepemilikan.',
+      code: 'OWNER_CANNOT_LEAVE'
+    });
+  }
+
+  // Jika bukan keluar sendiri, harus memiliki hak admin/owner
+  if (!isSelf) {
+    if (!['owner', 'admin'].includes(req.member.role)) {
+      return res.status(403).json({
+        error: 'Hanya admin atau owner yang dapat mengeluarkan anggota.',
+        code: 'FORBIDDEN_ROLE'
+      });
+    }
+
+    // Admin tidak bisa mengeluarkan sesama admin atau owner
+    if (req.member.role === 'admin' && ['admin', 'owner'].includes(targetMember.role)) {
+      return res.status(403).json({
+        error: 'Admin tidak dapat mengeluarkan sesama admin atau owner.',
+        code: 'FORBIDDEN_ROLE'
+      });
+    }
+  }
+
+  await db.remove('workspace_members', {
+    workspace_id: req.workspace.id,
+    user_id: targetUserId
+  });
+
+  await db.insert('audit_logs', {
+    user_id: req.user.id,
+    workspace_id: req.workspace.id,
+    action: isSelf ? 'member_left' : 'member_removed',
+    target: targetUserId,
+    ip: getClientIp(req),
+    meta: { removedRole: targetMember.role, isSelf }
+  });
+
+  res.json({
+    success: true,
+    message: isSelf ? 'Anda telah keluar dari workspace.' : 'Anggota telah dikeluarkan dari workspace.'
+  });
+}));
+
+// Undangan Workspace
+app.get('/api/workspaces/:id/invites', auth, requireWorkspace('admin'), wrap(async (req, res) => {
+  const allInvites = await db.findMany('workspace_invites', { workspace_id: req.workspace.id }, {
+    orderBy: 'created_at',
+    ascending: false
+  });
+
+  const now = new Date();
+  const activeInvites = (allInvites || [])
+    .filter(inv => !inv.accepted_at && !inv.revoked_at && new Date(inv.expires_at) > now)
+    .map(inv => ({
+      id: inv.id,
+      email: inv.email,
+      role: inv.role,
+      expiresAt: inv.expires_at,
+      createdAt: inv.created_at
+    }));
+
+  res.json({ invites: activeInvites });
+}));
+
+app.post('/api/workspaces/:id/invites', auth, requireWorkspace('admin'), wrap(async (req, res) => {
+  const { email, role } = req.body || {};
+  const targetEmail = String(email || '').trim().toLowerCase();
+
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(targetEmail)) {
+    return res.status(400).json({ error: 'Format alamat email tidak valid.' });
+  }
+
+  const assignedRole = role === 'admin' ? 'admin' : 'viewer';
+
+  // Rate limit: 10 undangan per jam per workspace
+  if (await enforceRateLimit(res, `invite:ws:${req.workspace.id}`, 3600, 10, 'Batas pengiriman undangan tercapai (maksimal 10 per jam). Silakan coba lagi nanti.')) {
+    return;
+  }
+
+  // Maksimal 20 undangan aktif per workspace
+  const now = new Date();
+  const existingInvites = await db.findMany('workspace_invites', { workspace_id: req.workspace.id });
+  const activeCount = (existingInvites || []).filter(i => !i.accepted_at && !i.revoked_at && new Date(i.expires_at) > now).length;
+  if (activeCount >= 20) {
+    return res.status(400).json({
+      error: 'Batas maksimal 20 undangan aktif untuk workspace ini telah tercapai.',
+      code: 'MAX_INVITES_REACHED'
+    });
+  }
+
+  // Periksa apakah user sudah menjadi anggota
+  const targetAccount = await db.findOne('accounts', { email: targetEmail });
+  if (targetAccount) {
+    const isMember = await db.findOne('workspace_members', {
+      workspace_id: req.workspace.id,
+      user_id: targetAccount.id
+    });
+    if (isMember) {
+      return res.status(400).json({
+        error: 'Pengguna dengan email ini sudah menjadi anggota workspace ini.',
+        code: 'ALREADY_MEMBER'
+      });
+    }
+  }
+
+  const rawToken = newToken();
+  const tokenHash = hashToken(rawToken);
+  const expiresAt = new Date(Date.now() + 7 * 86400e3).toISOString();
+
+  const inviteRow = await db.insert('workspace_invites', {
+    workspace_id: req.workspace.id,
+    email: targetEmail,
+    role: assignedRole,
+    token_hash: tokenHash,
+    invited_by: req.user.id,
+    expires_at: expiresAt
+  });
+
+  const appUrl = (process.env.APP_URL || 'https://markimate-three.vercel.app').replace(/\/+$/, '');
+  const inviteLink = `${appUrl}/invite?token=${encodeURIComponent(rawToken)}`;
+
+  try {
+    await sendWorkspaceInviteEmail({
+      to: targetEmail,
+      workspaceName: req.workspace.name,
+      inviterName: req.user.name || req.user.brand_name || splitEmail(req.user.email),
+      inviteLink,
+      role: assignedRole
+    });
+  } catch (err) {
+    console.error('[INVITE-MAIL-ERR]', err.message);
+  }
+
+  await db.insert('audit_logs', {
+    user_id: req.user.id,
+    workspace_id: req.workspace.id,
+    action: 'invite_created',
+    target: targetEmail,
+    ip: getClientIp(req),
+    meta: { role: assignedRole, expiresAt }
+  });
+
+  res.json({
+    success: true,
+    invite: {
+      id: inviteRow.id,
+      email: targetEmail,
+      role: assignedRole,
+      expiresAt,
+      inviteLink
+    }
+  });
+}));
+
+app.delete('/api/workspaces/:id/invites/:inviteId', auth, requireWorkspace('admin'), wrap(async (req, res) => {
+  const inv = await db.findOne('workspace_invites', {
+    id: req.params.inviteId,
+    workspace_id: req.workspace.id
+  });
+
+  if (!inv) {
+    return res.status(404).json({ error: 'Undangan tidak ditemukan.' });
+  }
+
+  await db.update('workspace_invites', { id: inv.id }, {
+    revoked_at: new Date().toISOString()
+  });
+
+  await db.insert('audit_logs', {
+    user_id: req.user.id,
+    workspace_id: req.workspace.id,
+    action: 'invite_revoked',
+    target: inv.email,
+    ip: getClientIp(req)
+  });
+
+  res.json({ success: true, message: 'Undangan berhasil dibatalkan.' });
+}));
+
+// Endpoint publik info undangan
+app.get('/api/invites/info', wrap(async (req, res) => {
+  const rawToken = String(req.query.token || '').trim();
+  if (!rawToken) {
+    return res.status(400).json({ valid: false, message: 'Token undangan tidak disertakan.' });
+  }
+
+  const tokenHash = hashToken(rawToken);
+  const inv = await db.findOne('workspace_invites', { token_hash: tokenHash });
+
+  if (!inv || inv.revoked_at || inv.accepted_at || new Date(inv.expires_at) <= new Date()) {
+    return res.json({
+      valid: false,
+      message: 'Undangan ini tidak valid, telah digunakan, atau sudah kadaluarsa.'
+    });
+  }
+
+  const ws = await db.findOne('workspaces', { id: inv.workspace_id });
+  const inviter = await db.findOne('accounts', { id: inv.invited_by });
+
+  res.json({
+    valid: true,
+    invite: {
+      id: inv.id,
+      email: inv.email,
+      role: inv.role,
+      workspaceName: ws?.name || 'Workspace',
+      inviterName: inviter?.name || inviter?.brand_name || splitEmail(inviter?.email) || 'Anggota Tim',
+      expiresAt: inv.expires_at
+    }
+  });
+}));
+
+// Endpoint menerima undangan
+app.post('/api/invites/accept', auth, wrap(async (req, res) => {
+  const { token } = req.body || {};
+  if (!token) {
+    return res.status(400).json({ error: 'Token undangan wajib disertakan.' });
+  }
+
+  const tokenHash = hashToken(token);
+  const inv = await db.findOne('workspace_invites', { token_hash: tokenHash });
+
+  if (!inv || inv.revoked_at || inv.accepted_at || new Date(inv.expires_at) <= new Date()) {
+    return res.status(400).json({ error: 'Undangan tidak valid atau sudah kadaluarsa.' });
+  }
+
+  // Verifikasi kesesuaian email pengguna yang login dengan email undangan
+  if (req.user.email.toLowerCase() !== inv.email.toLowerCase()) {
+    return res.status(403).json({
+      error: `Undangan ini ditujukan untuk alamat email ${inv.email}. Anda saat ini masuk sebagai ${req.user.email}. Silakan masuk dengan akun yang sesuai.`,
+      code: 'EMAIL_MISMATCH'
+    });
+  }
+
+  // Tambahkan sebagai anggota jika belum terdaftar
+  const existingMember = await db.findOne('workspace_members', {
+    workspace_id: inv.workspace_id,
+    user_id: req.user.id
+  });
+
+  if (!existingMember) {
+    await db.insert('workspace_members', {
+      workspace_id: inv.workspace_id,
+      user_id: req.user.id,
+      role: inv.role,
+      invited_by: inv.invited_by,
+      joined_at: new Date().toISOString()
+    });
+  }
+
+  await db.update('workspace_invites', { id: inv.id }, {
+    accepted_at: new Date().toISOString()
+  });
+
+  const ws = await db.findOne('workspaces', { id: inv.workspace_id });
+
+  await db.insert('audit_logs', {
+    user_id: req.user.id,
+    workspace_id: inv.workspace_id,
+    action: 'invite_accepted',
+    ip: getClientIp(req),
+    meta: { role: inv.role }
+  });
+
+  res.json({
+    success: true,
+    message: `Selamat! Anda berhasil bergabung ke workspace "${ws?.name || 'Workspace'}".`,
+    workspace: {
+      id: ws?.id,
+      name: ws?.name,
+      role: inv.role
+    }
+  });
+}));
+
+// Transfer ownership
+app.post('/api/workspaces/:id/transfer-ownership', auth, requireWorkspace('owner'), wrap(async (req, res) => {
+  const { userId, password } = req.body || {};
+
+  if (!userId || !password) {
+    return res.status(400).json({ error: 'ID user target dan kata sandi wajib diisi.' });
+  }
+
+  const passOk = await bcrypt.compare(password, req.user.password_hash || '');
+  if (!passOk) {
+    return res.status(400).json({ error: 'Kata sandi salah.' });
+  }
+
+  const targetMember = await db.findOne('workspace_members', {
+    workspace_id: req.workspace.id,
+    user_id: userId
+  });
+
+  if (!targetMember) {
+    return res.status(404).json({ error: 'Pengguna target bukan anggota workspace ini.' });
+  }
+
+  if (targetMember.user_id === req.user.id) {
+    return res.status(400).json({ error: 'Anda sudah menjadi owner workspace ini.' });
+  }
+
+  // Update owner di tabel workspaces
+  await db.update('workspaces', { id: req.workspace.id }, {
+    owner_user_id: userId,
+    updated_at: new Date().toISOString()
+  });
+
+  // Update role di tabel workspace_members
+  await db.update('workspace_members', {
+    workspace_id: req.workspace.id,
+    user_id: userId
+  }, { role: 'owner' });
+
+  await db.update('workspace_members', {
+    workspace_id: req.workspace.id,
+    user_id: req.user.id
+  }, { role: 'admin' });
+
+  await db.insert('audit_logs', {
+    user_id: req.user.id,
+    workspace_id: req.workspace.id,
+    action: 'ownership_transferred',
+    target: userId,
+    ip: getClientIp(req)
+  });
+
+  res.json({
+    success: true,
+    message: 'Kepemilikan workspace berhasil dialihkan.'
+  });
+}));
+
+// Audit Log Workspace (PRD F1 + F2 Langkah 8)
+app.get('/api/workspaces/:id/audit', auth, requireWorkspace('admin'), wrap(async (req, res) => {
+  const logs = await getWorkspaceAuditLogs(req.workspace.id, 100);
+  res.json({ logs });
 }));
 
 // ---------- Credits & Dompet Workspace ----------
-app.get('/api/credits', auth, wrap(async (req, res) => {
-  const workspaceId = req.user.id;
+app.get('/api/credits', auth, requireWorkspace('viewer'), wrap(async (req, res) => {
+  const workspaceId = req.workspace.id;
   // Otomatis grant trial jika user berhak dan belum pernah klaim
   await grantTrialIfEligible(workspaceId, req.user.email);
 
@@ -218,15 +1802,15 @@ app.get('/api/credits', auth, wrap(async (req, res) => {
   });
 }));
 
-app.get('/api/credits/estimate', auth, wrap(async (req, res) => {
+app.get('/api/credits/estimate', auth, requireWorkspace('viewer'), wrap(async (req, res) => {
   const { action, qty, images } = req.query;
   const est = await estimate(action || 'seo.article', Number(qty || 1), { images: Number(images || 0) });
   res.json(est);
 }));
 
-app.get('/api/credits/ledger', auth, wrap(async (req, res) => {
+app.get('/api/credits/ledger', auth, requireWorkspace('viewer'), wrap(async (req, res) => {
   const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
-  const rows = await db.findMany('credit_ledger', { workspace_id: req.user.id }, {
+  const rows = await db.findMany('credit_ledger', { workspace_id: req.workspace.id }, {
     orderBy: 'created_at',
     ascending: false
   });
@@ -320,14 +1904,28 @@ app.put('/api/admin/credit-cost-rates', adminAuth, wrap(async (req, res) => {
   res.json({ status: 'ok', updated });
 }));
 
-// Admin manual subscription activation (PRD §3.2)
+// Admin manual subscription activation (PRD §3.2 & F1+F2 Langkah 7)
 app.post('/api/admin/subscriptions', adminAuth, wrap(async (req, res) => {
-  const { email, plan, months } = req.body || {};
-  const em = String(email || '').trim().toLowerCase();
-  if (!em) throw Object.assign(new Error('Email wajib diisi.'), { status: 400 });
+  const { workspaceId, email, plan, months, durationDays } = req.body || {};
+  let targetWs = null;
+  let user = null;
 
-  const user = await db.findOne('accounts', { email: em });
-  if (!user) throw Object.assign(new Error('User tidak ditemukan.'), { status: 404 });
+  if (workspaceId) {
+    targetWs = await db.findOne('workspaces', { id: String(workspaceId).trim() });
+    if (!targetWs) throw Object.assign(new Error('Workspace tidak ditemukan.'), { status: 404 });
+    user = targetWs.owner_user_id ? await db.findOne('accounts', { id: targetWs.owner_user_id }) : null;
+  } else if (email) {
+    const em = String(email || '').trim().toLowerCase();
+    user = await db.findOne('accounts', { email: em });
+    if (!user) throw Object.assign(new Error('User tidak ditemukan.'), { status: 404 });
+    const resolved = await resolveWorkspaceForUser(user.id);
+    targetWs = resolved?.workspace || await db.findOne('workspaces', { id: user.id });
+    if (!targetWs) {
+      targetWs = { id: user.id, name: user.name || 'Workspace Default' };
+    }
+  } else {
+    throw Object.assign(new Error('workspaceId atau email wajib diisi.'), { status: 400 });
+  }
 
   const planKey = String(plan || '').trim().toLowerCase();
   const planData = PLANS[planKey];
@@ -336,37 +1934,70 @@ app.post('/api/admin/subscriptions', adminAuth, wrap(async (req, res) => {
   }
 
   const numMonths = Math.max(1, parseInt(months, 10) || 1);
-  const endsAt = new Date(Date.now() + numMonths * 30 * 86400e3);
+  const days = durationDays ? Math.max(1, parseInt(durationDays, 10)) : (numMonths * 30);
+  const endsAt = new Date(Date.now() + days * 86400e3);
+
   const sub = await db.insert('subscriptions', {
-    user_id: user.id,
+    user_id: user ? user.id : (targetWs.owner_user_id || targetWs.id),
+    workspace_id: targetWs.id,
     plan: planKey,
     status: 'active',
     method: 'manual',
-    amount: planData.price * numMonths,
+    amount: planData.price * Math.ceil(days / 30),
     invoice_no: 'INV-MANUAL-' + Date.now().toString(36).toUpperCase(),
     started_at: new Date().toISOString(),
     ends_at: endsAt.toISOString(),
     dummy: false
   });
 
-  const updatedUser = await db.update('accounts', { id: user.id }, { plan: planKey });
+  if (user) {
+    await db.update('accounts', { id: user.id }, { plan: planKey });
+  }
 
-  const credits = (planData.credits || 0) * numMonths;
+  // Menulis module_entitlements (source='subscription') untuk semua modul dalam paket
+  const targetModules = planData.modules || ['seo'];
+  for (const mod of targetModules) {
+    const existingEnt = await db.findOne('module_entitlements', {
+      workspace_id: targetWs.id,
+      module: mod
+    });
+    if (existingEnt) {
+      await db.update('module_entitlements', { workspace_id: targetWs.id, module: mod }, {
+        active: true,
+        source: 'subscription',
+        starts_at: new Date().toISOString(),
+        ends_at: endsAt.toISOString()
+      });
+    } else {
+      await db.insert('module_entitlements', {
+        workspace_id: targetWs.id,
+        module: mod,
+        active: true,
+        source: 'subscription',
+        starts_at: new Date().toISOString(),
+        ends_at: endsAt.toISOString()
+      });
+    }
+  }
+
+  const credits = (planData.credits || 0) * Math.ceil(days / 30);
   if (process.env.CREDITS_ENABLED !== 'false' && credits > 0) {
     await grant(
-      user.id,
+      targetWs.id,
       'sub',
       credits,
       endsAt,
       'grant_sub',
-      'Aktivasi manual oleh admin',
+      `Aktivasi manual paket ${planData.name} oleh admin`,
       { actionKey: 'billing.sub', refType: 'subscription', refId: sub.id, note: 'Aktivasi manual oleh admin' }
     );
   }
 
   res.json({
     status: 'ok',
-    user: publicUser(updatedUser),
+    user: user ? publicUser(user) : null,
+    workspace: { id: targetWs.id, name: targetWs.name },
+    modules: targetModules,
     subscription: sub,
     creditsGranted: credits
   });
@@ -418,6 +2049,33 @@ app.post('/api/admin/credits/grant', adminAuth, wrap(async (req, res) => {
     },
     balance: grantResult.totalBalance
   });
+}));
+
+// Admin manual user verification (PRD §3 & §4 Langkah 2)
+app.post('/api/admin/users/:id/verify', adminAuth, wrap(async (req, res) => {
+  const user = await db.findOne('accounts', { id: req.params.id });
+  if (!user) throw Object.assign(new Error('User tidak ditemukan.'), { status: 404 });
+
+  const now = new Date().toISOString();
+  await db.update('accounts', { id: user.id }, {
+    email_verified_at: now,
+    status: 'active'
+  });
+  user.email_verified_at = now;
+  user.status = 'active';
+
+  // Alokasikan trial jika eligible
+  await grantTrialIfEligible(user.id, user.email);
+
+  await db.insert('audit_logs', {
+    user_id: user.id,
+    workspace_id: user.id,
+    action: 'admin_manual_verify',
+    ip: getClientIp(req),
+    meta: { admin: true, email: user.email }
+  });
+
+  res.json({ success: true, user: publicUser(user) });
 }));
 app.patch('/api/me', auth, wrap(async (req, res) => {
   const patch = {};
@@ -726,19 +2384,25 @@ async function fetchCmsOptions(type, cfg) {
   return {};
 }
 
-app.get('/api/cms', auth, wrap(async (req, res) => res.json({ cms: (await db.findMany('cms_connections', { user_id: req.user.id })).map(maskConn) })));
-app.get('/api/cms/:type/options', auth, wrap(async (req, res) => {
+app.get('/api/cms', auth, requireWorkspace('viewer'), requireModule('seo'), wrap(async (req, res) => {
+  let conns = await db.findMany('cms_connections', { workspace_id: req.workspace.id });
+  if (!conns.length) conns = await db.findMany('cms_connections', { user_id: req.user.id });
+  res.json({ cms: conns.map(maskConn) });
+}));
+app.get('/api/cms/:type/options', auth, requireWorkspace('viewer'), requireModule('seo'), wrap(async (req, res) => {
   const type = String(req.params.type).toLowerCase();
-  const c = await db.findOne('cms_connections', { user_id: req.user.id, cms_type: type });
+  let c = await db.findOne('cms_connections', { workspace_id: req.workspace.id, cms_type: type });
+  if (!c) c = await db.findOne('cms_connections', { user_id: req.user.id, cms_type: type });
   if (!c) return res.json({ options: {} });
   const cfg = resolveConnConfig(c);
   const options = await fetchCmsOptions(type, cfg);
   res.json({ options });
 }));
-app.put('/api/cms/:type', auth, wrap(async (req, res) => {
+app.put('/api/cms/:type', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
   const type = String(req.params.type).toLowerCase();
   if (!CMS_TYPES.includes(type)) throw Object.assign(new Error('CMS belum didukung: ' + type), { status: 400 });
-  const existing = await db.findOne('cms_connections', { user_id: req.user.id, cms_type: type });
+  let existing = await db.findOne('cms_connections', { workspace_id: req.workspace.id, cms_type: type });
+  if (!existing) existing = await db.findOne('cms_connections', { user_id: req.user.id, cms_type: type });
   const existingConfig = existing ? resolveConnConfig(existing) : {};
   
   const hasConfig = req.body.config !== undefined || (!req.body.articleSettings && Object.keys(req.body).length > 0);
@@ -763,7 +2427,10 @@ app.put('/api/cms/:type', auth, wrap(async (req, res) => {
     throw Object.assign(new Error('Fitur gambar AI hanya untuk paket berbayar (Pro). Silakan upgrade paket Anda.'), { status: 402 });
   }
 
-  const row = await db.upsert('cms_connections', { user_id: req.user.id, cms_type: type }, {
+  const row = await db.upsert('cms_connections', { workspace_id: req.workspace.id, cms_type: type }, {
+    workspace_id: req.workspace.id,
+    user_id: req.user.id,
+    cms_type: type,
     config: {},
     config_enc: enc,
     config_iv: iv,
@@ -778,20 +2445,25 @@ app.put('/api/cms/:type', auth, wrap(async (req, res) => {
   }
   res.json({ cms: maskConn(await db.findOne('cms_connections', { id: row.id })), test });
 }));
-app.post('/api/cms/:type/test', auth, wrap(async (req, res) => {
+app.post('/api/cms/:type/test', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
   const type = String(req.params.type).toLowerCase();
-  const c = await db.findOne('cms_connections', { user_id: req.user.id, cms_type: type });
+  let c = await db.findOne('cms_connections', { workspace_id: req.workspace.id, cms_type: type });
+  if (!c) c = await db.findOne('cms_connections', { user_id: req.user.id, cms_type: type });
   if (!c) throw Object.assign(new Error('Kredensial belum disimpan.'), { status: 404 });
   const cfg = resolveConnConfig(c);
   const test = await testConnection(type, cfg);
   await db.update('cms_connections', { id: c.id }, { verified: test.ok, verified_at: test.ok ? new Date().toISOString() : null });
   res.json({ test });
 }));
-app.delete('/api/cms/:type', auth, wrap(async (req, res) => { await db.remove('cms_connections', { user_id: req.user.id, cms_type: String(req.params.type).toLowerCase() }); res.json({ ok: true }); }));
+app.delete('/api/cms/:type', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
+  await db.remove('cms_connections', { workspace_id: req.workspace.id, cms_type: String(req.params.type).toLowerCase() });
+  res.json({ ok: true });
+}));
 
 // ---------- Keywords & automation ----------
 const kwPublic = (k) => ({
   id: k.id,
+  workspaceId: k.workspace_id,
   keyword: k.keyword,
   geo: k.geo,
   ln: k.ln,
@@ -818,18 +2490,34 @@ const kwPublic = (k) => ({
 });
 const nextRun = (schedule) => { if (schedule === 'daily') return new Date(Date.now() + 86400e3).toISOString(); if (schedule === 'weekly') return new Date(Date.now() + 7 * 86400e3).toISOString(); return null; };
 
-app.get('/api/keywords', auth, wrap(async (req, res) => res.json({ keywords: (await db.findMany('keywords', { user_id: req.user.id }, { orderBy: 'created_at' })).map(kwPublic) })));
-app.post('/api/keywords', auth, wrap(async (req, res) => {
+app.get('/api/keywords', auth, requireWorkspace('viewer'), requireModule('seo'), wrap(async (req, res) => {
+  let list = await db.findMany('keywords', { workspace_id: req.workspace.id }, { orderBy: 'created_at' });
+  if (!list.length) list = await db.findMany('keywords', { user_id: req.user.id }, { orderBy: 'created_at' });
+  res.json({ keywords: list.map(kwPublic) });
+}));
+app.post('/api/keywords', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
   const b = req.body || {};
   const keyword = String(b.keyword || '').trim(); if (!keyword) throw Object.assign(new Error('Keyword wajib diisi.'), { status: 400 });
   const cms = String(b.cmsType || b.cms || 'wordpress').toLowerCase();
   const schedule = ['immediate', 'daily', 'weekly'].includes(b.schedule) ? b.schedule : 'immediate';
   if (schedule !== 'immediate' && planOf(req.user).id === 'free') throw Object.assign(new Error('Jadwal otomatis hanya untuk paket berbayar (Pro).'), { status: 402 });
-  const row = await db.insert('keywords', { user_id: req.user.id, keyword, geo: String(b.geo || 'ID').toUpperCase(), ln: String(b.ln || 'id').toLowerCase(), cms_type: cms, status: 'Pending', schedule, next_run_at: nextRun(schedule) });
+  const row = await db.insert('keywords', {
+    user_id: req.user.id,
+    workspace_id: req.workspace.id,
+    keyword,
+    geo: String(b.geo || 'ID').toUpperCase(),
+    ln: String(b.ln || 'id').toLowerCase(),
+    cms_type: cms,
+    status: 'Pending',
+    schedule,
+    next_run_at: nextRun(schedule)
+  });
   res.json({ keyword: kwPublic(row) });
 }));
-app.patch('/api/keywords/:id', auth, wrap(async (req, res) => {
-  const k = await db.findOne('keywords', { id: req.params.id, user_id: req.user.id }); if (!k) throw Object.assign(new Error('Tidak ditemukan.'), { status: 404 });
+app.patch('/api/keywords/:id', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
+  let k = await db.findOne('keywords', { id: req.params.id, workspace_id: req.workspace.id });
+  if (!k) k = await db.findOne('keywords', { id: req.params.id, user_id: req.user.id });
+  if (!k) throw Object.assign(new Error('Tidak ditemukan.'), { status: 404 });
   const patch = {}; const b = req.body || {};
   if (b.article) {
     patch.article = { ...(k.article || {}), ...b.article };
@@ -848,22 +2536,30 @@ app.patch('/api/keywords/:id', auth, wrap(async (req, res) => {
   if (b.status) patch.status = String(b.status);
   res.json({ keyword: kwPublic(await db.update('keywords', { id: k.id }, patch)) });
 }));
-app.delete('/api/keywords/:id', auth, wrap(async (req, res) => { await db.remove('keywords', { id: req.params.id, user_id: req.user.id }); res.json({ ok: true }); }));
+app.delete('/api/keywords/:id', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
+  let k = await db.findOne('keywords', { id: req.params.id, workspace_id: req.workspace.id });
+  if (!k) k = await db.findOne('keywords', { id: req.params.id, user_id: req.user.id });
+  if (!k) throw Object.assign(new Error('Tidak ditemukan.'), { status: 404 });
+  await db.remove('keywords', { id: k.id });
+  res.json({ ok: true });
+}));
 
 async function generateFor(user, k) {
+  const wsId = k.workspace_id || user.id;
   const creditsEnabled = process.env.CREDITS_ENABLED !== 'false';
   if (creditsEnabled) {
     // Assert credit sebelum aksi (PRD §4.2: seo.article)
-    await assertAffordable(user.id, 'seo.article', 1);
+    await assertAffordable(wsId, 'seo.article', 1);
   } else {
     const plan = planOf(user);
-    const used = await usageOf(user.id);
+    const used = await usageOf(wsId);
     if (used >= plan.monthlyArticles) throw Object.assign(new Error(`Kuota ${plan.name} bulan ini habis (${plan.monthlyArticles} artikel). Upgrade ke Pro untuk melanjutkan.`), { status: 402 });
   }
 
   await db.update('keywords', { id: k.id }, { status: 'AI Writing...', error: '' });
 
-  const conn = k.cms_type ? await db.findOne('cms_connections', { user_id: user.id, cms_type: k.cms_type }) : null;
+  let conn = k.cms_type ? await db.findOne('cms_connections', { workspace_id: wsId, cms_type: k.cms_type }) : null;
+  if (!conn && k.cms_type) conn = await db.findOne('cms_connections', { user_id: user.id, cms_type: k.cms_type });
   const connConfig = conn ? resolveConnConfig(conn) : null;
   const artSet = conn ? normalizeArticleSettings(conn.article_settings) : normalizeArticleSettings({});
 
@@ -918,7 +2614,7 @@ async function generateFor(user, k) {
 
     // Charge credit setelah sukses status Review Ready (PRD §4.2)
     if (creditsEnabled) {
-      await charge(user.id, 'seo.article', 1, {
+      await charge(wsId, 'seo.article', 1, {
         type: 'keyword',
         id: k.id,
         note: `Generate artikel: ${k.keyword}`
@@ -929,7 +2625,7 @@ async function generateFor(user, k) {
   } catch (e) {
     const usage = e.usage || (e.n8n && e.n8n.usage) || null;
     if (creditsEnabled && usage) {
-      await recordFailedUsage(user.id, 'seo.article', usage, {
+      await recordFailedUsage(wsId, 'seo.article', usage, {
         type: 'keyword',
         id: k.id,
         note: e.message
@@ -956,7 +2652,9 @@ async function generateFor(user, k) {
 }
 
 async function publishFor(user, k, action, articleOverride) {
-  const conn = await db.findOne('cms_connections', { user_id: user.id, cms_type: k.cms_type });
+  const wsId = k.workspace_id || user.id;
+  let conn = await db.findOne('cms_connections', { workspace_id: wsId, cms_type: k.cms_type });
+  if (!conn) conn = await db.findOne('cms_connections', { user_id: user.id, cms_type: k.cms_type });
   if (!conn) throw Object.assign(new Error(`Kredensial ${k.cms_type} belum disimpan di Pengaturan CMS.`), { status: 400 });
   const connConfig = resolveConnConfig(conn);
   const artSet = normalizeArticleSettings(conn.article_settings);
@@ -998,7 +2696,7 @@ async function publishFor(user, k, action, articleOverride) {
   const creditsEnabled = process.env.CREDITS_ENABLED !== 'false';
   if (creditsEnabled && makeImages && options.imageCount > 0) {
     // Assert saldo gambar sebelum publish (PRD §4.2: seo.image × jumlah imagePrompts/count)
-    await assertAffordable(user.id, 'seo.image', options.imageCount);
+    await assertAffordable(wsId, 'seo.image', options.imageCount);
   }
 
   const body = {
@@ -1037,7 +2735,7 @@ async function publishFor(user, k, action, articleOverride) {
 
     // Charge credit gambar yang benar-benar ter-upload (PRD §4.2: seo.image × out.images.length)
     if (creditsEnabled && Array.isArray(out.images) && out.images.length > 0) {
-      await charge(user.id, 'seo.image', out.images.length, {
+      await charge(wsId, 'seo.image', out.images.length, {
         type: 'keyword_images',
         id: `${k.id}_${out.postId || k.post_id || 'post'}`,
         note: `Upload ${out.images.length} gambar artikel ${k.keyword}`
@@ -1048,7 +2746,7 @@ async function publishFor(user, k, action, articleOverride) {
   } catch (e) {
     const usage = e.usage || (e.n8n && e.n8n.usage) || null;
     if (creditsEnabled && usage) {
-      await recordFailedUsage(user.id, 'seo.image', usage, {
+      await recordFailedUsage(wsId, 'seo.image', usage, {
         type: 'keyword_images',
         id: `${k.id}_failed`,
         note: e.message
@@ -1064,8 +2762,10 @@ async function publishFor(user, k, action, articleOverride) {
 }
 const webApproverOn = (u) => (process.env.CREDITS_ENABLED !== 'false' ? u.web_approver !== false : (planOf(u).webApprover && u.web_approver !== false));
 
-app.post('/api/keywords/:id/run', auth, wrap(async (req, res) => {
-  const k = await db.findOne('keywords', { id: req.params.id, user_id: req.user.id }); if (!k) throw Object.assign(new Error('Tidak ditemukan.'), { status: 404 });
+app.post('/api/keywords/:id/run', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
+  let k = await db.findOne('keywords', { id: req.params.id, workspace_id: req.workspace.id });
+  if (!k) k = await db.findOne('keywords', { id: req.params.id, user_id: req.user.id });
+  if (!k) throw Object.assign(new Error('Tidak ditemukan.'), { status: 404 });
   let row = await generateFor(req.user, k);
   if (row.status !== 'Duplicate' && !webApproverOn(req.user)) {
     // Free (atau Web Approver mati): langsung simpan sebagai DRAF di CMS, tanpa review
@@ -1073,8 +2773,10 @@ app.post('/api/keywords/:id/run', auth, wrap(async (req, res) => {
   }
   res.json({ keyword: kwPublic(row) });
 }));
-app.post('/api/keywords/:id/publish', auth, wrap(async (req, res) => {
-  const k = await db.findOne('keywords', { id: req.params.id, user_id: req.user.id }); if (!k) throw Object.assign(new Error('Tidak ditemukan.'), { status: 404 });
+app.post('/api/keywords/:id/publish', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
+  let k = await db.findOne('keywords', { id: req.params.id, workspace_id: req.workspace.id });
+  if (!k) k = await db.findOne('keywords', { id: req.params.id, user_id: req.user.id });
+  if (!k) throw Object.assign(new Error('Tidak ditemukan.'), { status: 404 });
   if (!k.article && !k.post_id) throw Object.assign(new Error('Belum ada artikel. Jalankan dulu.'), { status: 400 });
   const action = req.body.action === 'publish' ? 'publish' : 'draft';
   const row = await publishFor(req.user, k, action, req.body.article || null);
@@ -1104,15 +2806,17 @@ function calcNextWeeklyRun(weekday = 6, hour = 0) {
 }
 
 async function runTopicSource(user, source) {
+  const wsId = source.workspace_id || user.id;
   const creditsEnabled = process.env.CREDITS_ENABLED !== 'false';
   if (creditsEnabled) {
     // Assert saldo seo.topics_run (10 credit, PRD §4.2)
-    await assertAffordable(user.id, 'seo.topics_run', 1);
+    await assertAffordable(wsId, 'seo.topics_run', 1);
   } else if (user.plan === 'free') {
     throw Object.assign(new Error('Topik otomatis hanya untuk paket berbayar (Pro).'), { status: 402 });
   }
 
-  const conn = await db.findOne('cms_connections', { user_id: user.id, cms_type: source.cms_type });
+  let conn = await db.findOne('cms_connections', { workspace_id: wsId, cms_type: source.cms_type });
+  if (!conn) conn = await db.findOne('cms_connections', { user_id: user.id, cms_type: source.cms_type });
   if (!conn) {
     throw Object.assign(new Error(`Koneksi CMS ${source.cms_type} belum disimpan.`), { status: 400 });
   }
@@ -1141,7 +2845,7 @@ async function runTopicSource(user, source) {
   } catch (e) {
     const usage = e.usage || (e.n8n && e.n8n.usage) || null;
     if (creditsEnabled && usage) {
-      await recordFailedUsage(user.id, 'seo.topics_run', usage, {
+      await recordFailedUsage(wsId, 'seo.topics_run', usage, {
         type: 'topic_source',
         id: source.id,
         note: e.message
@@ -1152,7 +2856,7 @@ async function runTopicSource(user, source) {
 
   // Charge credit setelah n8n 200 (PRD §4.2)
   if (creditsEnabled) {
-    await charge(user.id, 'seo.topics_run', 1, {
+    await charge(wsId, 'seo.topics_run', 1, {
       type: 'topic_source',
       id: `${source.id}_${Date.now()}`,
       note: 'Riset topik otomatis (Trends)'
@@ -1168,6 +2872,7 @@ async function runTopicSource(user, source) {
 
     const row = await db.insert('keywords', {
       user_id: user.id,
+      workspace_id: wsId,
       keyword: kwText,
       geo: source.geo || 'ID',
       ln: source.ln || 'id',
@@ -1209,12 +2914,13 @@ async function runTopicSource(user, source) {
   };
 }
 
-app.get('/api/seo/topic-sources', auth, wrap(async (req, res) => {
-  const sources = await db.findMany('seo_topic_sources', { user_id: req.user.id }, { orderBy: 'created_at' });
+app.get('/api/seo/topic-sources', auth, requireWorkspace('viewer'), requireModule('seo'), wrap(async (req, res) => {
+  let sources = await db.findMany('seo_topic_sources', { workspace_id: req.workspace.id }, { orderBy: 'created_at' });
+  if (!sources.length) sources = await db.findMany('seo_topic_sources', { user_id: req.user.id }, { orderBy: 'created_at' });
   res.json({ sources });
 }));
 
-app.put('/api/seo/topic-sources', auth, wrap(async (req, res) => {
+app.put('/api/seo/topic-sources', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
   const b = req.body || {};
   const cmsType = String(b.cmsType || 'wordpress').toLowerCase();
   const seedKeywords = Array.isArray(b.seedKeywords)
@@ -1230,9 +2936,11 @@ app.put('/api/seo/topic-sources', auth, wrap(async (req, res) => {
   const active = b.active !== false;
   const nextRunAt = calcNextWeeklyRun(weekday, hour);
 
-  let existing = b.id ? await db.findOne('seo_topic_sources', { id: b.id, user_id: req.user.id }) : null;
+  let existing = b.id ? await db.findOne('seo_topic_sources', { id: b.id, workspace_id: req.workspace.id }) : null;
+  if (!existing && b.id) existing = await db.findOne('seo_topic_sources', { id: b.id, user_id: req.user.id });
   if (!existing) {
-    existing = await db.findOne('seo_topic_sources', { user_id: req.user.id, cms_type: cmsType });
+    existing = await db.findOne('seo_topic_sources', { workspace_id: req.workspace.id, cms_type: cmsType });
+    if (!existing) existing = await db.findOne('seo_topic_sources', { user_id: req.user.id, cms_type: cmsType });
   }
 
   let source;
@@ -1251,6 +2959,7 @@ app.put('/api/seo/topic-sources', auth, wrap(async (req, res) => {
   } else {
     source = await db.insert('seo_topic_sources', {
       user_id: req.user.id,
+      workspace_id: req.workspace.id,
       cms_type: cmsType,
       seed_keywords: seedKeywords,
       geo, ln, weekday, hour,
@@ -1264,21 +2973,26 @@ app.put('/api/seo/topic-sources', auth, wrap(async (req, res) => {
   res.json({ source });
 }));
 
-app.delete('/api/seo/topic-sources/:id', auth, wrap(async (req, res) => {
-  await db.remove('seo_topic_sources', { id: req.params.id, user_id: req.user.id });
+app.delete('/api/seo/topic-sources/:id', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
+  let source = await db.findOne('seo_topic_sources', { id: req.params.id, workspace_id: req.workspace.id });
+  if (!source) source = await db.findOne('seo_topic_sources', { id: req.params.id, user_id: req.user.id });
+  if (!source) throw Object.assign(new Error('Sumber topik tidak ditemukan.'), { status: 404 });
+  await db.remove('seo_topic_sources', { id: source.id });
   res.json({ ok: true });
 }));
 
-app.post('/api/seo/topic-sources/:id/run', auth, wrap(async (req, res) => {
-  const source = await db.findOne('seo_topic_sources', { id: req.params.id, user_id: req.user.id });
+app.post('/api/seo/topic-sources/:id/run', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
+  let source = await db.findOne('seo_topic_sources', { id: req.params.id, workspace_id: req.workspace.id });
+  if (!source) source = await db.findOne('seo_topic_sources', { id: req.params.id, user_id: req.user.id });
   if (!source) throw Object.assign(new Error('Sumber topik tidak ditemukan.'), { status: 404 });
   const result = await runTopicSource(req.user, source);
   res.json(result);
 }));
 
 // ---------- Billing (dummy) ----------
-app.get('/api/billing', auth, wrap(async (req, res) => {
-  const subs = await db.findMany('subscriptions', { user_id: req.user.id }, { orderBy: 'created_at' });
+app.get('/api/billing', auth, requireWorkspace('viewer'), wrap(async (req, res) => {
+  let subs = await db.findMany('subscriptions', { workspace_id: req.workspace.id }, { orderBy: 'created_at' });
+  if (!subs.length) subs = await db.findMany('subscriptions', { user_id: req.user.id }, { orderBy: 'created_at' });
   res.json({
     plans: Object.values(PLANS),
     current: planOf(req.user),
@@ -1287,7 +3001,7 @@ app.get('/api/billing', auth, wrap(async (req, res) => {
     billingDisabled: process.env.BILLING_DUMMY !== 'true'
   });
 }));
-app.post('/api/billing/checkout', auth, wrap(async (req, res) => {
+app.post('/api/billing/checkout', auth, requireWorkspace('admin'), wrap(async (req, res) => {
   if (process.env.BILLING_DUMMY !== 'true') {
     return res.status(403).json({
       error: 'Pembayaran langsung belum tersedia. Hubungi 3Our untuk aktivasi paket.',
@@ -1302,6 +3016,7 @@ app.post('/api/billing/checkout', auth, wrap(async (req, res) => {
   const endsAt = new Date(Date.now() + 30 * 86400e3);
   const sub = await db.insert('subscriptions', {
     user_id: req.user.id,
+    workspace_id: req.workspace.id,
     plan,
     status: 'active',
     method,
@@ -1313,10 +3028,35 @@ app.post('/api/billing/checkout', auth, wrap(async (req, res) => {
   });
   const u = await db.update('accounts', { id: req.user.id }, { plan });
 
+  // Tulis module_entitlements untuk modul paket
+  for (const mod of (planData.modules || ['seo'])) {
+    const existingEnt = await db.findOne('module_entitlements', {
+      workspace_id: req.workspace.id,
+      module: mod
+    });
+    if (existingEnt) {
+      await db.update('module_entitlements', { workspace_id: req.workspace.id, module: mod }, {
+        active: true,
+        source: 'subscription',
+        starts_at: new Date().toISOString(),
+        ends_at: endsAt.toISOString()
+      });
+    } else {
+      await db.insert('module_entitlements', {
+        workspace_id: req.workspace.id,
+        module: mod,
+        active: true,
+        source: 'subscription',
+        starts_at: new Date().toISOString(),
+        ends_at: endsAt.toISOString()
+      });
+    }
+  }
+
   // PRD §4.3: balance_sub = credit paket (reset, bukan tambah), sub_expires_at = period_end
   if (process.env.CREDITS_ENABLED !== 'false' && planData.credits > 0) {
     await grant(
-      req.user.id,
+      req.workspace.id,
       'sub',
       planData.credits,
       endsAt,
@@ -1332,18 +3072,30 @@ app.post('/api/billing/checkout', auth, wrap(async (req, res) => {
     message: `Pembayaran simulasi berhasil. Paket ${planData.name} aktif 30 hari (${planData.credits || 0} credit).`
   });
 }));
-app.post('/api/billing/cancel', auth, wrap(async (req, res) => {
-  const subs = await db.findMany('subscriptions', { user_id: req.user.id, status: 'active' });
+app.post('/api/billing/cancel', auth, requireWorkspace('admin'), wrap(async (req, res) => {
+  let subs = await db.findMany('subscriptions', { workspace_id: req.workspace.id, status: 'active' });
+  if (!subs.length) subs = await db.findMany('subscriptions', { user_id: req.user.id, status: 'active' });
   for (const s of subs) await db.update('subscriptions', { id: s.id }, { status: 'cancelled' });
   const u = await db.update('accounts', { id: req.user.id }, { plan: 'free' });
   res.json({ user: publicUser(u) });
 }));
 
-// ---------- 3Our Public API (API key per user) ----------
-app.post('/api/v1/articles/generate', apiKeyAuth, wrap(async (req, res) => {
+// ---------- 3Our Public API (API key per workspace/user) ----------
+app.post('/api/v1/articles/generate', apiKeyAuth, requireModule('seo'), wrap(async (req, res) => {
   const b = req.body || {}; const keyword = String(b.keyword || '').trim();
   if (!keyword) throw Object.assign(new Error('keyword wajib diisi.'), { status: 400 });
-  const k = await db.insert('keywords', { user_id: req.user.id, keyword, geo: String(b.geo || 'ID').toUpperCase(), ln: String(b.ln || 'id').toLowerCase(), cms_type: String(b.cmsType || 'wordpress').toLowerCase(), status: 'Pending', schedule: 'immediate', source: 'api' });
+  const wsId = req.workspace ? req.workspace.id : req.user.id;
+  const k = await db.insert('keywords', {
+    user_id: req.user.id,
+    workspace_id: wsId,
+    keyword,
+    geo: String(b.geo || 'ID').toUpperCase(),
+    ln: String(b.ln || 'id').toLowerCase(),
+    cms_type: String(b.cmsType || 'wordpress').toLowerCase(),
+    status: 'Pending',
+    schedule: 'immediate',
+    source: 'api'
+  });
   const row = await generateFor(req.user, k);
   if (row.status === 'Duplicate') {
     return res.status(409).json({
@@ -1361,12 +3113,28 @@ app.post('/api/v1/articles/generate', apiKeyAuth, wrap(async (req, res) => {
     imagePrompts: row.image_prompts || (row.article && row.article.imagePrompts) || null
   });
 }));
-app.post('/api/v1/articles/:id/publish', apiKeyAuth, wrap(async (req, res) => {
-  const k = await db.findOne('keywords', { id: req.params.id, user_id: req.user.id }); if (!k) throw Object.assign(new Error('Artikel tidak ditemukan.'), { status: 404 });
+app.post('/api/v1/articles/:id/publish', apiKeyAuth, requireModule('seo'), wrap(async (req, res) => {
+  const wsId = req.workspace ? req.workspace.id : req.user.id;
+  let k = await db.findOne('keywords', { id: req.params.id, workspace_id: wsId });
+  if (!k) k = await db.findOne('keywords', { id: req.params.id, user_id: req.user.id });
+  if (!k) throw Object.assign(new Error('Artikel tidak ditemukan.'), { status: 404 });
   const row = await publishFor(req.user, k, req.body.action === 'publish' ? 'publish' : 'draft', req.body.article || null);
   res.json({ status: 'ok', id: row.id, postId: row.post_id, draftEditUrl: row.draft_url, publicUrl: row.public_url, postStatus: row.post_status, warnings: row.warnings || [] });
 }));
-app.get('/api/v1/articles', apiKeyAuth, wrap(async (req, res) => res.json({ status: 'ok', articles: (await db.findMany('keywords', { user_id: req.user.id }, { orderBy: 'created_at' })).map(kwPublic) })));
+app.get('/api/v1/articles', apiKeyAuth, requireModule('seo'), wrap(async (req, res) => {
+  const wsId = req.workspace ? req.workspace.id : req.user.id;
+  let articles = await db.findMany('keywords', { workspace_id: wsId }, { orderBy: 'created_at' });
+  if (!articles.length) articles = await db.findMany('keywords', { user_id: req.user.id }, { orderBy: 'created_at' });
+  res.json({ status: 'ok', articles: articles.map(kwPublic) });
+}));
+
+// ---------- Module Entitlements: Ads Report & Ads Spy Ready Endpoints (PRD F1+F2 Langkah 7) ----------
+app.get('/api/ads/reports', auth, requireWorkspace('viewer'), requireModule('ads_report'), wrap(async (req, res) => {
+  res.json({ status: 'ok', module: 'ads_report', reports: [] });
+}));
+app.get('/api/ads/spy', auth, requireWorkspace('viewer'), requireModule('ads_spy'), wrap(async (req, res) => {
+  res.json({ status: 'ok', module: 'ads_spy', competitors: [] });
+}));
 
 // ---------- Cron: jadwal harian/mingguan (Vercel Cron → GET /api/cron/run-scheduled) ----------
 app.get('/api/cron/run-scheduled', wrap(async (req, res) => {
@@ -1382,6 +3150,24 @@ app.get('/api/cron/run-scheduled', wrap(async (req, res) => {
     try { await expireBuckets(); } catch (err) { log(`[CRON] expireBuckets error: ${err.message}`); }
     try { alertSummary = await processDailyCreditAlerts(); } catch (err) { log(`[CRON] processDailyCreditAlerts error: ${err.message}`); }
     try { marginSentinelSummary = await checkMarginSentinel(); } catch (err) { log(`[CRON] checkMarginSentinel error: ${err.message}`); }
+  }
+
+  // 0b. Matikan module_entitlements yang ends_at telah lewat (PRD F1+F2 Langkah 7)
+  let expiredEntitlementsCount = 0;
+  try {
+    expiredEntitlementsCount = await expireEntitlements();
+    if (expiredEntitlementsCount > 0) log(`[CRON] expireEntitlements: ${expiredEntitlementsCount} dinonaktifkan`);
+  } catch (err) {
+    log(`[CRON] expireEntitlements error: ${err.message}`);
+  }
+
+  // 0c. Purge akun pending_deletion > 30 hari (PRD F1+F2 Langkah 8)
+  let purgedAccountsCount = 0;
+  try {
+    purgedAccountsCount = await purgeDeletedAccounts();
+    if (purgedAccountsCount > 0) log(`[CRON] purgeDeletedAccounts: ${purgedAccountsCount} akun dihapus permanen`);
+  } catch (err) {
+    log(`[CRON] purgeDeletedAccounts error: ${err.message}`);
   }
 
   // 1. Scheduled Keywords (daily/weekly)

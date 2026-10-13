@@ -22,6 +22,8 @@ export default function WorkspaceSelector() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newBrandName, setNewBrandName] = useState('');
   const [newNiche, setNewNiche] = useState('Retail & Fashion');
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const dropdownRef = useRef(null);
 
@@ -45,23 +47,30 @@ export default function WorkspaceSelector() {
     setIsOpen(false);
   };
 
-  const handleCreateSubmit = (e) => {
+  const handleCreateSubmit = async (e) => {
     e.preventDefault();
-    if (!newBrandName.trim()) return;
-    createWorkspace({
-      name: newBrandName.trim(),
-      niche: newNiche,
-      initialModules: ['seo', 'ads_report'],
-    });
-    setNewBrandName('');
-    setShowCreateModal(false);
-    setIsOpen(false);
+    if (!newBrandName.trim() || submitting) return;
+    try {
+      setSubmitting(true);
+      setErrorMsg('');
+      await createWorkspace({
+        name: newBrandName.trim(),
+        niche: newNiche,
+      });
+      setNewBrandName('');
+      setShowCreateModal(false);
+      setIsOpen(false);
+    } catch (err) {
+      setErrorMsg(err.message || 'Gagal menambahkan brand.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const activeModulesCount = activeWorkspace?.modules?.length || 0;
+  const activeModulesCount = activeWorkspace?.modules?.length || 3;
 
   return (
-    <div style={styles.container} ref={dropdownRef}>
+    <div className="workspace-selector-container" ref={dropdownRef}>
       <div style={styles.topLabelRow}>
         <span style={styles.topLabel}>Workspace Aktif</span>
         <span style={styles.modulesCountBadge}>
@@ -104,7 +113,7 @@ export default function WorkspaceSelector() {
 
       {/* Popover Dropdown List Workspaces */}
       {isOpen && (
-        <div style={styles.popover} className="card">
+        <div className="workspace-popover-card card">
           <div style={styles.popoverHeader}>
             <span style={styles.popoverTitle}>Daftar Brand / Klien</span>
             <span style={styles.popoverSub}>{workspaces.length} terdaftar</span>
@@ -130,10 +139,10 @@ export default function WorkspaceSelector() {
                       )}
                     </div>
                     <div style={styles.wsItemMeta}>
-                      <span>{ws.niche}</span>
+                      <span>{ws.niche || 'Brand'}</span>
                       <span>·</span>
                       <span style={{ color: 'var(--accent-cyan)' }}>
-                        {ws.modules?.length || 0} role aktif
+                        {ws.role ? `${ws.role}` : 'Aktif'}
                       </span>
                     </div>
                   </div>
@@ -145,6 +154,7 @@ export default function WorkspaceSelector() {
           <div style={styles.popoverFooter}>
             <button
               onClick={() => {
+                setErrorMsg('');
                 setShowCreateModal(true);
                 setIsOpen(false);
               }}
@@ -160,12 +170,11 @@ export default function WorkspaceSelector() {
       {/* Modal Buat Brand Baru */}
       {showCreateModal && (
         <div
-          style={styles.modalOverlay}
-          onClick={() => setShowCreateModal(false)}
+          className="workspace-modal-overlay"
+          onClick={() => !submitting && setShowCreateModal(false)}
         >
           <div
-            style={styles.modalCard}
-            className="card"
+            className="workspace-modal-card card"
             onClick={(e) => e.stopPropagation()}
           >
             <div style={styles.modalHeader}>
@@ -174,12 +183,19 @@ export default function WorkspaceSelector() {
               </div>
               <h3 style={styles.modalTitle}>Tambah Brand Baru</h3>
               <button
-                onClick={() => setShowCreateModal(false)}
+                type="button"
+                onClick={() => !submitting && setShowCreateModal(false)}
                 style={styles.modalCloseBtn}
               >
                 <X size={16} />
               </button>
             </div>
+
+            {errorMsg && (
+              <div className="auth-alert auth-alert-error" style={{ marginBottom: '1rem' }}>
+                {errorMsg}
+              </div>
+            )}
 
             <form onSubmit={handleCreateSubmit} style={styles.modalForm}>
               <div style={styles.formGroup}>
@@ -192,6 +208,7 @@ export default function WorkspaceSelector() {
                   style={styles.input}
                   required
                   autoFocus
+                  disabled={submitting}
                 />
               </div>
 
@@ -201,6 +218,7 @@ export default function WorkspaceSelector() {
                   value={newNiche}
                   onChange={(e) => setNewNiche(e.target.value)}
                   style={styles.select}
+                  disabled={submitting}
                 >
                   <option value="Retail & Fashion">Retail & Fashion</option>
                   <option value="F&B (Kuliner & Kafe)">F&B (Kuliner & Kafe)</option>
@@ -217,11 +235,12 @@ export default function WorkspaceSelector() {
                   type="button"
                   onClick={() => setShowCreateModal(false)}
                   style={styles.modalCancelBtn}
+                  disabled={submitting}
                 >
                   Batal
                 </button>
-                <button type="submit" style={styles.modalSubmitBtn}>
-                  Simpan & Pilih Brand
+                <button type="submit" style={styles.modalSubmitBtn} disabled={submitting}>
+                  {submitting ? 'Menyimpan...' : 'Simpan & Pilih Brand'}
                 </button>
               </div>
             </form>
