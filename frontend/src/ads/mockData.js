@@ -1,4 +1,4 @@
-// Data mock untuk modul Ads Report Supermat (Mode Demo / Offline)
+// Data mock untuk modul Ads Report Markimate (Mode Demo / Offline)
 
 export const PLATFORMS_META = {
   meta: {

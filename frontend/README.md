@@ -24,7 +24,7 @@ VITE_API_BASE_URL=http://localhost:5001
 VITE_ADS_MOCK=true
 ```
 
-- `VITE_API_BASE_URL`: URL backend Express Supermat.
+- `VITE_API_BASE_URL`: URL backend Express Markimate.
 - `VITE_ADS_MOCK`: Setel ke `'true'` (default) untuk menjalankan modul Ads Report dalam **Mode Demo / Mock Offline** dengan data contoh lengkap dan alur simulasi OAuth tanpa ketergantungan backend. Setel ke `'false'` ketika backend telah mengimplementasikan endpoint Ads Report.
 
 ---
@@ -35,7 +35,7 @@ VITE_ADS_MOCK=true
 |---|---|---|
 | `/` | Publik | Landing page AI Digital Marketing Team (16 Roles) |
 | `/roles/:key` | Publik | Detail spesifikasi per role, deliverable, dan waitlist |
-| `/privacy` | Publik | Kebijakan Privasi Supermat Powered by 3Our Indonesia |
+| `/privacy` | Publik | Kebijakan Privasi Markimate Powered by 3Our Indonesia (sebelumnya bernama Supermat) |
 | `/terms` | Publik | Syarat & Ketentuan Layanan |
 | `/login` | Publik | Layar masuk akun pengguna & tombol jalan pintas akun Demo Reviewer |
 | `/register` | Publik | Layar pendaftaran brand baru |

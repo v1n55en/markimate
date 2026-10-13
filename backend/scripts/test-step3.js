@@ -88,6 +88,9 @@ async function runStep3Tests() {
   const n8nPort = mockN8n.address().port;
   const mockN8nUrl = `http://localhost:${n8nPort}`;
 
+  process.env.MARKIMATE_N8N_RUN_URL = `${mockN8nUrl}/run`;
+  process.env.MARKIMATE_N8N_PUBLISH_URL = `${mockN8nUrl}/publish`;
+  process.env.MARKIMATE_N8N_TOPICS_URL = `${mockN8nUrl}/topics`;
   process.env.SUPERMAT_N8N_RUN_URL = `${mockN8nUrl}/run`;
   process.env.SUPERMAT_N8N_PUBLISH_URL = `${mockN8nUrl}/publish`;
   process.env.SUPERMAT_N8N_TOPICS_URL = `${mockN8nUrl}/topics`;

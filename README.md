@@ -1,10 +1,10 @@
-# Supermat — AI Digital Marketing Team Platform
+# Markimate — AI Digital Marketing Team Platform
 
-Web app SaaS **Supermat Powered by 3Our Indonesia**:
+Web app SaaS **Markimate Powered by 3Our Indonesia** (sebelumnya bernama Supermat):
 Platform AI Digital Marketing Team modular all-in-one yang mengintegrasikan 16 peran spesialis digital marketing ke dalam satu dashboard kolaboratif multi-brand.
 
 ```
-frontend (React 19, Vite, React Router v7)  →  backend (Express, Supabase)  →  n8n 3Our (webhook "Supermat API")
+frontend (React 19, Vite, React Router v7)  →  backend (Express, Supabase)  →  n8n 3Our (webhook "Markimate API" / "Supermat API")
    ├── Multi-Workspace Context (Brand Isolation)   └── Ads Report (Shopee, TikTok, Meta, Google APIs)
    ├── SEO Automation (CMS Publish)
    ├── Ads Performance Report (Dashboard & Analytics)
@@ -16,7 +16,7 @@ frontend (React 19, Vite, React Router v7)  →  backend (Express, Supabase)  �
 
 ## 16 AI Digital Marketing Roles (Modular Architecture)
 
-Supermat dirancang dengan model modular berbasis peran spesialis:
+Markimate dirancang dengan model modular berbasis peran spesialis:
 
 | Kategori | Role Key | Nama Role | Status | Harga / Bulan |
 |---|---|---|---|---|
@@ -65,9 +65,9 @@ Supermat dirancang dengan model modular berbasis peran spesialis:
 - Swipe File personal per brand dan Laporan Intelijen Kreatif mingguan.
 
 ### 4. Multi-Workspace Isolation (`WorkspaceContext`)
-- Kelola multi-brand dalam satu login Supermat tanpa saling campur data.
+- Kelola multi-brand dalam satu login Markimate tanpa saling campur data.
 - Switcher brand instan dengan state terisolasi (`ws-3our-official`, `ws-kopi-makmur`, `ws-hijab-store`).
-- Event reactive `supermat:workspace-changed` untuk pembaruan komponen real-time.
+- Event reactive `markimate:workspace-changed` untuk pembaruan komponen real-time.
 
 ---
 
@@ -102,7 +102,7 @@ Supermat dirancang dengan model modular berbasis peran spesialis:
 | `SUPABASE_SCHEMA` | Schema database (`markimate`) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase Service Role Key |
 | `JWT_SECRET` | Secret key untuk penandatanganan JWT |
-| `SUPERMAT_API_KEY` | API Key penghubung backend ↔ n8n |
+| `MARKIMATE_API_KEY` | API Key penghubung backend ↔ n8n (fallback: `SUPERMAT_API_KEY`) |
 | `N8N_BASE_URL` | URL instance n8n |
 | `CRON_SECRET` | Bearer token untuk trigger jadwal Vercel cron |
 
@@ -129,6 +129,6 @@ Buka browser di `http://localhost:5173`.
 
 ## Standar Branding & Identitas
 Sesuai arahan resmi:
-- Entitas resmi aplikasi: **Supermat Powered by 3Our Indonesia**.
+- Entitas resmi aplikasi: **Markimate Powered by 3Our Indonesia** (sebelumnya bernama Supermat).
 - Tidak menggunakan penamaan "PT" atau "PT Stambha Racana Ahita".
 - Seluruh dokumen legal, footer, navbar, dan dashboard menggunakan format `Powered by 3Our Indonesia`.
