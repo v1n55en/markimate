@@ -27,6 +27,7 @@ import VerifyPage from './pages/public/VerifyPage';
 import ForgotPasswordPage from './pages/public/ForgotPasswordPage';
 import ResetPasswordPage from './pages/public/ResetPasswordPage';
 import DataDeletionPage from './pages/public/DataDeletionPage';
+import GoogleCallbackPage from './pages/public/GoogleCallbackPage';
 
 // Halaman Ads Report
 import AdsSummaryPage from './pages/ads/AdsSummaryPage';
@@ -360,6 +361,7 @@ export default function App() {
             <Route path="/reset" element={<ResetPasswordPage />} />
             <Route path="/invite" element={<InvitePage />} />
             <Route path="/data-deletion" element={<DataDeletionPage />} />
+            <Route path="/auth/google/callback" element={<GoogleCallbackPage onLogin={handleLoginSuccess} />} />
 
             <Route
               path="/login"

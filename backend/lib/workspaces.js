@@ -69,6 +69,25 @@ export async function resolveWorkspaceForUser(userId, requestedWsId) {
 }
 
 /**
+ * Membuat workspace default baru untuk user
+ */
+export async function createDefaultWorkspace(userId, name = 'Workspace Utama', niche = 'Other') {
+  const ws = await db.insert('workspaces', {
+    name: name || 'Workspace Utama',
+    niche: niche || 'Other',
+    owner_user_id: userId
+  });
+
+  await db.insert('workspace_members', {
+    workspace_id: ws.id,
+    user_id: userId,
+    role: 'owner'
+  });
+
+  return ws;
+}
+
+/**
  * Middleware untuk menegakkan isolasi workspace dan verifikasi role anggota
  */
 export function requireWorkspace(minRole = 'viewer') {

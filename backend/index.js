@@ -63,6 +63,14 @@ import {
   handleMetaDataDeletion,
   getMetaDataDeletionStatus
 } from './lib/account-lifecycle.js';
+import {
+  generateGoogleAuthUrl,
+  parseGoogleOAuthCookie,
+  clearGoogleOAuthCookie,
+  exchangeGoogleCode,
+  verifyGoogleIdToken,
+  processGoogleAuth
+} from './lib/google-auth.js';
 
 export { PLANS };
 
@@ -231,6 +239,7 @@ const wrap = (fn) => (req, res) => fn(req, res).catch(e => {
     error: e.message,
     n8n: e.n8n || undefined,
     ...(e.code ? { code: e.code } : {}),
+    ...(e.email ? { email: e.email } : {}),
     ...(e.workspaces ? { workspaces: e.workspaces } : {}),
     ...(e.module ? { module: e.module } : {}),
     ...(e.need !== undefined ? { need: e.need } : {}),
@@ -905,6 +914,66 @@ app.post('/api/auth/reset', wrap(async (req, res) => {
     success: true,
     message: 'Kata sandi berhasil diatur ulang. Silakan masuk kembali dengan kata sandi baru Anda.'
   });
+}));
+
+// ==========================================
+// GOOGLE OAUTH 2.0 + PKCE (PRD F1 Langkah 9)
+// ==========================================
+
+app.get('/api/auth/google/start', wrap(async (req, res) => {
+  const authUrl = generateGoogleAuthUrl(req, res);
+  if (req.query.format === 'json' || req.headers.accept?.includes('application/json')) {
+    return res.json({ authUrl });
+  }
+  res.redirect(authUrl);
+}));
+
+app.post('/api/auth/google/callback', wrap(async (req, res) => {
+  const { code, state, linkPassword } = req.body || {};
+  if (!code || !state) {
+    const err = new Error('Kode otorisasi dan parameter state wajib disertakan.');
+    err.status = 400;
+    err.code = 'INVALID_CALLBACK_PARAMS';
+    throw err;
+  }
+
+  // 1. Verifikasi cookie mk_g_oauth
+  const cookieData = parseGoogleOAuthCookie(req);
+  if (!cookieData || cookieData.state !== state) {
+    clearGoogleOAuthCookie(res);
+    const err = new Error('Sesi otentikasi Google kedaluwarsa atau parameter state tidak cocok. Silakan coba masuk kembali.');
+    err.status = 400;
+    err.code = 'INVALID_STATE';
+    throw err;
+  }
+
+  const { codeVerifier, redirectUri } = cookieData;
+
+  // 2. Mock mode hook untuk pengujian integrasi otomatis (hanya aktif di non-production)
+  let googleProfile;
+  if (process.env.NODE_ENV !== 'production' && req.headers['x-google-mock-profile']) {
+    try {
+      googleProfile = JSON.parse(req.headers['x-google-mock-profile']);
+    } catch {
+      throw new Error('Header x-google-mock-profile tidak valid.');
+    }
+  } else {
+    const tokenData = await exchangeGoogleCode(code, codeVerifier, redirectUri);
+    googleProfile = await verifyGoogleIdToken(tokenData.id_token);
+  }
+
+  // Bersihkan cookie OAuth Google setelah dipakai
+  clearGoogleOAuthCookie(res);
+
+  // 3. Proses login / registrasi / penautan akun
+  const result = await processGoogleAuth({
+    googleProfile,
+    linkPassword,
+    req,
+    res
+  });
+
+  res.json(result);
 }));
 
 // ==========================================

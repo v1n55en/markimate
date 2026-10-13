@@ -101,23 +101,99 @@ Markimate dirancang dengan model modular berbasis peran spesialis:
 | `SUPABASE_URL` | URL project Supabase | |
 | `SUPABASE_SCHEMA` | Schema database (`markimate`) | |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase Service Role Key | |
-| `JWT_SECRET` | Secret key untuk penandatanganan JWT | |
+| `JWT_SECRET` | Secret key penandatanganan JWT (in-memory access token) | Wajib diset di produksi |
 | `ADMIN_KEY` | Kunci rahasia header `X-Admin-Key` untuk endpoint admin & reviewer | Wajib diisi di produksi |
-| `BILLING_DUMMY` | Izinkan checkout simulasi/dummy tanpa payment gateway | `false` (wajib `false` di prod agar pembayaran aman) |
+| `BILLING_DUMMY` | Izinkan checkout simulasi/dummy tanpa payment gateway | `false` (wajib `false` di prod) |
 | `MARKIMATE_API_KEY` | API Key penghubung backend ↔ n8n (fallback: `SUPERMAT_API_KEY`) | |
 | `N8N_BASE_URL` | URL instance n8n | |
 | `CRON_SECRET` | Bearer token untuk trigger jadwal cron | |
+| `APP_URL` | Domain frontend publik untuk link email & callback OAuth | `https://markimate-three.vercel.app` (prod) / `http://localhost:5173` (dev) |
+| `RESEND_API_KEY` | API Key Resend untuk pengiriman email transaksional | Opsional di dev (fallback ke Dev Logger) |
+| `MAIL_FROM` | Alamat pengirim email resmi Markimate | `Markimate <noreply@mail.markimate.io>` |
+| `MAIL_DEV_LOG` | Tampilkan tautan verifikasi/reset di log terminal console | `true` untuk dev lokal |
+| `ACCESS_TOKEN_TTL_MIN` | Masa berlaku access token JWT di memori (menit) | `15` (default) |
+| `REFRESH_TOKEN_TTL_DAYS` | Masa berlaku refresh token httpOnly cookie (hari) | `30` (default) |
+| `LEGACY_JWT_ACCEPT_UNTIL`| Batas waktu transisi penerimaan JWT legacy 30 hari | ISO string |
+| `GOOGLE_CLIENT_ID` | OAuth 2.0 Client ID dari Google Cloud Console | Project `markimate` |
+| `GOOGLE_CLIENT_SECRET` | OAuth 2.0 Client Secret dari Google Cloud Console | Project `markimate` |
+| `META_APP_SECRET` | App Secret Meta untuk verifikasi signed_request Data Deletion | |
 
 ---
 
-## 🧑‍💻 Akun Reviewer Platform & Pengujian
-Tidak ada mode demo palsu di Markimate. Seluruh akun baru mendapatkan **Trial 7 Hari (300 credit)** langsung saat registrasi.
-Untuk keperluan peninjauan aplikasi oleh tim auditor platform (Meta, Google, TikTok, Shopee):
-1. Daftarkan akun nyata melalui `/register` menggunakan email reviewer.
-2. Admin dapat mengalokasikan credit tambahan atau mengaktifkan paket manual jika masa audit membutuhkan kuota ekstra:
-   - **Grant Credit**: `POST /api/admin/credits/grant` dengan header `X-Admin-Key: <ADMIN_KEY>` dan body `{ "email": "reviewer@...", "credits": 500, "bucket": "sub" }`.
-   - **Aktivasi Paket**: `POST /api/admin/subscriptions` dengan header `X-Admin-Key: <ADMIN_KEY>` dan body `{ "email": "reviewer@...", "plan": "growth", "billingCycle": "monthly" }`.
-3. Cantumkan kredensial akun reviewer tersebut di formulir pengajuan platform.
+## 🔐 Arsitektur Autentikasi & Keamanan (PRD F1 + F2)
+
+Markimate mengadopsi standar keamanan web enterprise modern:
+1. **Pencegahan XSS (In-Memory Access Token)**:
+   - Token JWT access disimpan murni di memori JavaScript (bukan di `localStorage`).
+   - Masa berlaku access token singkat (15 menit).
+2. **First-Party httpOnly Cookie Proxying**:
+   - Refresh token disimpan dalam cookie `mk_rt` bertipe `httpOnly`, `SameSite=Lax`, dan `Secure` di produksi.
+   - Frontend dan Backend dihubungkan melalui first-party proxy (Vercel rewrite pada `/api/:path*` di produksi dan Vite proxy di lokal), sehingga cookie tidak terblokir oleh mekanisme perlindungan tracking browser (Safari ITP / Chrome third-party cookie restrictions).
+3. **Rotasi Token & Deteksi Pencurian (Token Reuse Detection)**:
+   - Setiap panggilan ke `POST /api/auth/refresh` menerbitkan refresh token baru dan membatalkan token sebelumnya.
+   - Jika refresh token yang sudah dipakai dipanggil kembali (indikasi token telah dicuri), sistem otomatis mencabut **seluruh family sesi** user tersebut dan memblokir akses seketika.
+4. **Verifikasi Email Wajib & Proteksi Trial**:
+   - Pendaftaran akun baru mewajibkan verifikasi email melalui tautan unik bertanda tangan SHA-256 token hash (kedaluwarsa 24 jam).
+   - Trial credit 300 kredit & hak akses modul 7 hari **hanya dialokasikan setelah email diverifikasi** untuk mencegah eksploitasi alamat email palsu.
+5. **Google OAuth 2.0 + PKCE**:
+   - Login & registrasi 1-klik melalui Google OAuth dengan protokol PKCE (`code_verifier` & `code_challenge` SHA-256).
+   - Scope dibatasi hanya `openid email profile`.
+   - Penautan akun otomatis dilengkapi proteksi kata sandi untuk mencegah pengambilalihan akun yang tidak sah.
+6. **Siklus Akun, Hapus Akun & Kepatuhan Regulasi**:
+   - Lupa & reset kata sandi, ganti kata sandi dengan opsi pencabutan sesi lain, dan ganti email dua langkah.
+   - Penghapusan akun dengan masa tenggang (*grace period*) 30 hari. Akun dapat dibatalkan kapan saja sebelum 30 hari.
+   - Cron harian otomatis membersihkan akun kedaluwarsa, menghapus PII pengguna, serta **menganonimkan** transaksi untuk kepatuhan pembukuan pajak.
+   - Webhook callback kepatuhan Meta Platform Data Deletion (`POST /api/data-deletion/meta`) dengan verifikasi HMAC-SHA256 `signed_request` dan pelacak publik status `/data-deletion`.
+7. **Isolasi Workspace & RBAC**:
+   - Setiap data brand, keyword, koneksi CMS, dan kredit diisolasi penuh di tingkat database per workspace.
+   - Akses lintas workspace tanpa hak akses mengembalikan `404 Not Found` (mencegah penyerang menduga ID workspace lain).
+   - Peran berjenjang: `owner` (hak penuh & transfer kepemilikan), `admin` (kelola anggota & API key), dan `viewer` (hanya baca, ditolak 403 untuk operasi tulis).
+
+---
+
+## 🧑‍💻 Verifikasi Manual Akun & Pengujian Admin
+Untuk keperluan peninjauan aplikasi atau audit platform (Meta, Google, TikTok, Shopee):
+1. **Verifikasi Email Manual via Admin**:
+   ```bash
+   curl -X POST https://api-anda/api/admin/users/<USER_ID>/verify \
+     -H "X-Admin-Key: <ADMIN_KEY>"
+   ```
+2. **Grant Credit Tambahan**:
+   ```bash
+   curl -X POST https://api-anda/api/admin/credits/grant \
+     -H "X-Admin-Key: <ADMIN_KEY>" \
+     -H "Content-Type: application/json" \
+     -d '{"email":"reviewer@...", "credits":500, "bucket":"sub"}'
+   ```
+3. **Aktivasi Paket Manual**:
+   ```bash
+   curl -X POST https://api-anda/api/admin/subscriptions \
+     -H "X-Admin-Key: <ADMIN_KEY>" \
+     -H "Content-Type: application/json" \
+     -d '{"email":"reviewer@...", "plan":"growth", "billingCycle":"monthly"}'
+   ```
+
+---
+
+## 🧪 Menjalankan Rangkaian Pengujian (Test Suite)
+
+Seluruh pengujian integrasi dapat dijalankan secara lokal tanpa dependensi eksternal (menggunakan engine JsonStore fallback):
+
+```bash
+# Menjalankan suite pengujian komprehensif E2E (Register → Verify → Login → Refresh → Reuse → Reset → Isolation → Viewer 403 → Purge)
+node backend/scripts/test-auth.js
+
+# Menjalankan pengujian spesifik per modul PRD:
+node backend/scripts/test-step1-migration.js       # Database schema & DB methods
+node backend/scripts/test-step2-auth.js            # Register, verify token & login
+node backend/scripts/test-step3-session.js         # JWT, httpOnly cookie & reuse detection
+node backend/scripts/test-step4-account.js         # Forgot, reset, change password & email
+node backend/scripts/test-step5-workspace.js       # Workspace multi-tenancy & API keys
+node backend/scripts/test-step6-members.js         # Tim, RBAC, invites & transfer owner
+node backend/scripts/test-step7-entitlements.js    # Module entitlement & subscriptions
+node backend/scripts/test-step8-account-lifecycle.js # Delete, 30-day purge, export, Meta callback
+node backend/scripts/test-step9-google-auth.js     # Google OAuth2 PKCE & account linking
+```
 
 ---
 
@@ -133,7 +209,7 @@ npm run dev
 # 2. Jalankan Frontend (port 5173)
 cd frontend
 npm install
-VITE_API_BASE_URL=http://localhost:5001 VITE_ADS_MOCK=true VITE_SPY_MOCK=true npm run dev
+npm run dev
 ```
 
 Buka browser di `http://localhost:5173`.
@@ -145,3 +221,4 @@ Sesuai arahan resmi:
 - Entitas resmi aplikasi: **Markimate Powered by 3Our Indonesia** (sebelumnya bernama Supermat).
 - Tidak menggunakan penamaan "PT" atau "PT Stambha Racana Ahita".
 - Seluruh dokumen legal, footer, navbar, dan dashboard menggunakan format `Powered by 3Our Indonesia`.
+

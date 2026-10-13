@@ -1005,3 +1005,65 @@ h1, h2, h3, h4, h5, h6, p, span, strong, a {
   flex-wrap: wrap;
 }
 
+/* Google OAuth styling */
+.auth-separator {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1.25rem 0;
+  color: var(--text-muted, #64748b);
+  font-size: 0.78rem;
+  font-weight: 500;
+  text-transform: lowercase;
+}
+
+.auth-separator::before,
+.auth-separator::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--border-muted, rgba(255, 255, 255, 0.1));
+}
+
+.auth-separator span {
+  padding: 0 0.75rem;
+  letter-spacing: 0.02em;
+}
+
+.btn-google-auth {
+  width: 100%;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  background-color: var(--bg-surface, #1e293b);
+  border: 1px solid var(--border-muted, rgba(255, 255, 255, 0.12));
+  border-radius: var(--radius-sm, 8px);
+  color: var(--text-primary, #ffffff);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.65rem 1rem;
+  transition: all var(--transition-fast, 0.15s ease);
+  box-sizing: border-box;
+  text-decoration: none;
+}
+
+.btn-google-auth:hover {
+  background-color: var(--bg-surface-hover, #334155);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.btn-google-auth:active {
+  transform: translateY(0);
+}
+
+.google-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+
+
