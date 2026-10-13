@@ -1,34 +1,37 @@
 import { randomBytes, createHash } from 'crypto';
 import bcrypt from 'bcryptjs';
 import { db } from '../db.js';
-import { parseCookies, issueSession } from './session.js';
-import { createDefaultWorkspace } from './workspaces.js';
+import { parseCookies, issueSession, publicUser } from './session.js';
+import { createDefaultWorkspace, resolveWorkspaceForUser } from './workspaces.js';
 import { grantTrialIfEligible } from './credits.js';
 import { logAuditEvent } from './account-lifecycle.js';
+import { newToken, hashToken } from './tokens.js';
 
 const GOOGLE_AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const GOOGLE_TOKENINFO_ENDPOINT = 'https://oauth2.googleapis.com/tokeninfo';
 
 /**
- * Menentukan redirect URI yang valid dan terdaftar di Google Cloud Console.
+ * Menentukan redirect URI yang valid menggunakan allowlist exact match (Langkah 1.8).
  */
 export function getGoogleRedirectUri(req) {
+  const appUrl = (process.env.APP_URL || 'https://markimate-three.vercel.app').replace(/\/+$/, '');
+  const allowed = new Set([
+    `${appUrl}/auth/google/callback`,
+    'http://localhost:5173/auth/google/callback'
+  ]);
+
   const customRedirect = req?.query?.redirect_uri;
-  if (customRedirect && (
-    customRedirect.includes('localhost:5173') ||
-    customRedirect.includes('markimate-three.vercel.app') ||
-    customRedirect.includes('markimate.io')
-  )) {
+  if (customRedirect && allowed.has(customRedirect)) {
     return customRedirect;
   }
 
-  const origin = req?.headers?.origin || req?.headers?.referer;
-  if (origin && (origin.includes('localhost:5173') || origin.includes('127.0.0.1:5173'))) {
-    return 'http://localhost:5173/auth/google/callback';
+  const origin = (req?.headers?.origin || req?.headers?.referer || '').replace(/\/+$/, '');
+  const originCallback = `${origin}/auth/google/callback`;
+  if (allowed.has(originCallback)) {
+    return originCallback;
   }
 
-  const appUrl = (process.env.APP_URL || 'https://markimate-three.vercel.app').replace(/\/+$/, '');
   return `${appUrl}/auth/google/callback`;
 }
 
@@ -172,11 +175,12 @@ export async function verifyGoogleIdToken(idToken) {
 /**
  * Menangani alur login/register/link Google di database:
  * 1. google_sub sudah ada -> login langsung
- * 2. Email sudah ada (ber-password) -> minta password jika belum pernah tautkan akun (cegah takeover), lalu link
- * 3. Akun baru -> buat akun active + workspace default + trial credit
+ * 2. Akun unverified dengan email yang sama -> klaim akun (hapus password lama, tautkan, verifikasi)
+ * 3. Akun active ber-password -> buat pendingToken dan kembalikan 409 LINK_PASSWORD_REQUIRED
+ * 4. User baru -> buat akun active, workspace, trial credit & entitlement seo free
  */
-export async function processGoogleAuth({ googleProfile, linkPassword, req, res }) {
-  const { sub, email, name, picture } = googleProfile;
+export async function processGoogleAuth({ googleProfile, req, res }) {
+  const { sub, email, name } = googleProfile;
   const normalizedEmail = email.trim().toLowerCase();
 
   // 1. Cek berdasarkan google_sub
@@ -203,16 +207,13 @@ export async function processGoogleAuth({ googleProfile, linkPassword, req, res 
       meta: { sub, provider: 'google' }
     });
 
+    // Langkah 1.3: Jangan spread session, return hanya accessToken, expiresIn, user (publicUser)
     return {
       status: 'success',
       action: 'login',
-      user: {
-        id: existingBySub.id,
-        email: existingBySub.email,
-        name: existingBySub.name,
-        brandName: existingBySub.brand_name
-      },
-      ...session
+      accessToken: session.accessToken,
+      expiresIn: session.expiresIn,
+      user: publicUser(existingBySub)
     };
   }
 
@@ -226,28 +227,85 @@ export async function processGoogleAuth({ googleProfile, linkPassword, req, res 
       throw err;
     }
 
-    // Jika akun lama punya kata sandi dan belum ditautkan ke google_sub ini
-    if (existingByEmail.password_hash) {
-      if (!linkPassword) {
-        // Beri tahu client bahwa password Markimate diperlukan untuk keamanan penautan akun
-        const err = new Error('Akun dengan email ini sudah terdaftar. Masukkan kata sandi Markimate untuk menautkan akun Google Anda.');
-        err.status = 409;
-        err.code = 'LINK_PASSWORD_REQUIRED';
-        err.email = normalizedEmail;
-        throw err;
+    // Langkah 1.6: Akun unverified milik orang lain diklaim oleh pemilik email Google terverifikasi
+    if (existingByEmail.status === 'unverified') {
+      const updated = await db.update('accounts', { id: existingByEmail.id }, {
+        password_hash: null,
+        google_sub: sub,
+        status: 'active',
+        email_verified_at: new Date().toISOString(),
+        last_login_at: new Date().toISOString()
+      });
+
+      const wsResolved = await resolveWorkspaceForUser(updated.id);
+      const wsId = wsResolved?.workspace?.id || updated.id;
+
+      // Berikan trial jika memenuhi syarat
+      const trialRes = await grantTrialIfEligible(wsId, updated.email);
+      if (trialRes && trialRes.granted) {
+        const endsAt = trialRes.expiresAt ? new Date(trialRes.expiresAt).toISOString() : new Date(Date.now() + 7 * 86400 * 1000).toISOString();
+        for (const mod of ['seo', 'ads_report', 'ads_spy']) {
+          await db.insert('module_entitlements', {
+            workspace_id: wsId,
+            module: mod,
+            active: true,
+            source: 'trial',
+            starts_at: new Date().toISOString(),
+            ends_at: endsAt
+          });
+        }
       }
 
-      // Verifikasi kata sandi
-      const passwordMatch = await bcrypt.compare(linkPassword, existingByEmail.password_hash);
-      if (!passwordMatch) {
-        const err = new Error('Kata sandi Markimate yang Anda masukkan salah.');
-        err.status = 400;
-        err.code = 'INVALID_PASSWORD';
-        throw err;
-      }
+      // Pastikan entitlement seo free selalu ada
+      await db.insert('module_entitlements', {
+        workspace_id: wsId,
+        module: 'seo',
+        active: true,
+        source: 'free',
+        starts_at: new Date().toISOString()
+      });
+
+      const session = await issueSession(res, updated, req);
+      await logAuditEvent({
+        userId: updated.id,
+        action: 'google_claimed_unverified',
+        target: updated.email,
+        req,
+        meta: { sub, provider: 'google', workspaceId: wsId }
+      });
+
+      return {
+        status: 'success',
+        action: 'claim_unverified',
+        accessToken: session.accessToken,
+        expiresIn: session.expiresIn,
+        user: publicUser(updated)
+      };
     }
 
-    // Tautkan akun ke Google
+    // Langkah 1.4: Akun active ber-password belum ditautkan -> buat pending link token
+    if (existingByEmail.password_hash) {
+      const plainPendingToken = newToken();
+      const tokenHash = hashToken(plainPendingToken);
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+      await db.insert('oauth_pending_links', {
+        token_hash: tokenHash,
+        user_id: existingByEmail.id,
+        email: normalizedEmail,
+        google_sub: sub,
+        expires_at: expiresAt
+      });
+
+      const err = new Error('Akun dengan email ini sudah terdaftar. Masukkan kata sandi Markimate untuk menautkan akun Google Anda.');
+      err.status = 409;
+      err.code = 'LINK_PASSWORD_REQUIRED';
+      err.email = normalizedEmail;
+      err.pendingToken = plainPendingToken;
+      throw err;
+    }
+
+    // Jika akun tidak punya password_hash (misal dari legacy OAuth): tautkan langsung
     const updated = await db.update('accounts', { id: existingByEmail.id }, {
       google_sub: sub,
       status: 'active',
@@ -267,22 +325,20 @@ export async function processGoogleAuth({ googleProfile, linkPassword, req, res 
     return {
       status: 'success',
       action: 'link',
-      user: {
-        id: updated.id,
-        email: updated.email,
-        name: updated.name,
-        brandName: updated.brand_name
-      },
-      ...session
+      accessToken: session.accessToken,
+      expiresIn: session.expiresIn,
+      user: publicUser(updated)
     };
   }
 
   // 3. User Baru (Register via Google)
+  // Langkah 1.1: password_hash null diizinkan
   const newAccount = await db.insert('accounts', {
     email: normalizedEmail,
     name: name || normalizedEmail.split('@')[0],
     brand_name: name || 'Workspace Utama',
     google_sub: sub,
+    password_hash: null,
     status: 'active',
     email_verified_at: new Date().toISOString(),
     plan: 'free',
@@ -293,7 +349,7 @@ export async function processGoogleAuth({ googleProfile, linkPassword, req, res 
   // Buatkan Workspace default
   const defaultWs = await createDefaultWorkspace(newAccount.id, newAccount.brand_name || 'Workspace Utama');
 
-  // Berikan trial credit (50 credit + 7 hari module entitlements)
+  // Berikan trial credit (300 credit + 7 hari module entitlements)
   const trialRes = await grantTrialIfEligible(defaultWs.id, newAccount.email);
   if (trialRes && trialRes.granted) {
     const endsAt = trialRes.expiresAt ? new Date(trialRes.expiresAt).toISOString() : new Date(Date.now() + 7 * 86400 * 1000).toISOString();
@@ -309,6 +365,15 @@ export async function processGoogleAuth({ googleProfile, linkPassword, req, res 
     }
   }
 
+  // Langkah 1.7: Selalu insert entitlement seo dengan source free (on conflict do nothing)
+  await db.insert('module_entitlements', {
+    workspace_id: defaultWs.id,
+    module: 'seo',
+    active: true,
+    source: 'free',
+    starts_at: new Date().toISOString()
+  });
+
   const session = await issueSession(res, newAccount, req);
   await logAuditEvent({
     userId: newAccount.id,
@@ -318,15 +383,12 @@ export async function processGoogleAuth({ googleProfile, linkPassword, req, res 
     meta: { sub, provider: 'google', workspaceId: defaultWs.id }
   });
 
+  // Langkah 1.3: Jangan spread session
   return {
     status: 'success',
     action: 'register',
-    user: {
-      id: newAccount.id,
-      email: newAccount.email,
-      name: newAccount.name,
-      brandName: newAccount.brand_name
-    },
-    ...session
+    accessToken: session.accessToken,
+    expiresIn: session.expiresIn,
+    user: publicUser(newAccount)
   };
 }

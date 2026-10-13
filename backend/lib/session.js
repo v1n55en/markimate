@@ -71,6 +71,16 @@ export function signAccessToken(user) {
   );
 }
 
+export function publicUser(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name || '',
+    brandName: row.brand_name || row.name || ''
+  };
+}
+
 /**
  * Menerbitkan sesi baru (refresh token di cookie + access token di memori)
  */
@@ -101,6 +111,7 @@ export async function issueSession(res, user, req, existingFamilyId = null) {
     accessToken,
     expiresIn: ttlSec,
     sessionId: sessionRecord.id,
-    user
+    user: publicUser(user)
   };
 }
+

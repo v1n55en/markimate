@@ -7,7 +7,7 @@ create schema if not exists markimate;
 create table if not exists markimate.accounts (
   id uuid primary key default gen_random_uuid(),
   email text unique not null,
-  password_hash text not null,
+  password_hash text,
   brand_name text,
   niche text,
   plan text not null default 'free',

@@ -240,6 +240,7 @@ const wrap = (fn) => (req, res) => fn(req, res).catch(e => {
     n8n: e.n8n || undefined,
     ...(e.code ? { code: e.code } : {}),
     ...(e.email ? { email: e.email } : {}),
+    ...(e.pendingToken ? { pendingToken: e.pendingToken } : {}),
     ...(e.workspaces ? { workspaces: e.workspaces } : {}),
     ...(e.module ? { module: e.module } : {}),
     ...(e.need !== undefined ? { need: e.need } : {}),
@@ -540,6 +541,14 @@ app.post('/api/auth/login', wrap(async (req, res) => {
   // Rate limit: 10 per 15 menit per IP + email
   if (await enforceRateLimit(res, `login:${clientIp}:${em}`, 900, 10, 'Terlalu banyak percobaan masuk yang gagal. Silakan coba lagi dalam 15 menit.')) {
     return;
+  }
+
+  // Jika akun terdaftar lewat Google (tidak memiliki password)
+  if (user && !user.password_hash) {
+    return res.status(401).json({
+      error: 'Akun ini terdaftar lewat Google. Masuk dengan Google atau atur kata sandi lewat Lupa Kata Sandi.',
+      code: 'PASSWORD_NOT_SET'
+    });
   }
 
   const passwordValid = user && (await bcrypt.compare(password, user.password_hash));
@@ -929,7 +938,7 @@ app.get('/api/auth/google/start', wrap(async (req, res) => {
 }));
 
 app.post('/api/auth/google/callback', wrap(async (req, res) => {
-  const { code, state, linkPassword } = req.body || {};
+  const { code, state } = req.body || {};
   if (!code || !state) {
     const err = new Error('Kode otorisasi dan parameter state wajib disertakan.');
     err.status = 400;
@@ -949,9 +958,9 @@ app.post('/api/auth/google/callback', wrap(async (req, res) => {
 
   const { codeVerifier, redirectUri } = cookieData;
 
-  // 2. Mock mode hook untuk pengujian integrasi otomatis (hanya aktif di non-production)
+  // 2. Mock mode hook untuk pengujian integrasi otomatis (hanya aktif jika GOOGLE_AUTH_MOCK=true di non-production)
   let googleProfile;
-  if (process.env.NODE_ENV !== 'production' && req.headers['x-google-mock-profile']) {
+  if (process.env.NODE_ENV !== 'production' && process.env.GOOGLE_AUTH_MOCK === 'true' && req.headers['x-google-mock-profile']) {
     try {
       googleProfile = JSON.parse(req.headers['x-google-mock-profile']);
     } catch {
@@ -968,12 +977,72 @@ app.post('/api/auth/google/callback', wrap(async (req, res) => {
   // 3. Proses login / registrasi / penautan akun
   const result = await processGoogleAuth({
     googleProfile,
-    linkPassword,
     req,
     res
   });
 
   res.json(result);
+}));
+
+app.post('/api/auth/google/link', wrap(async (req, res) => {
+  const { pendingToken, password } = req.body || {};
+  if (!pendingToken || !password) {
+    return res.status(400).json({
+      error: 'Token penautan dan kata sandi Markimate wajib diisi.',
+      code: 'PARAMS_REQUIRED'
+    });
+  }
+
+  const tokenHash = hashToken(pendingToken);
+  const linkRecord = await db.findOne('oauth_pending_links', { token_hash: tokenHash });
+
+  if (!linkRecord || linkRecord.used_at || new Date(linkRecord.expires_at) < new Date()) {
+    return res.status(400).json({
+      error: 'Sesi penautan akun kedaluwarsa atau tidak valid. Silakan coba masuk kembali dengan Google.',
+      code: 'INVALID_PENDING_TOKEN'
+    });
+  }
+
+  const user = await db.findOne('accounts', { id: linkRecord.user_id });
+  if (!user) {
+    return res.status(404).json({ error: 'Pengguna tidak ditemukan.', code: 'USER_NOT_FOUND' });
+  }
+
+  const passwordMatch = user.password_hash && (await bcrypt.compare(password, user.password_hash));
+  if (!passwordMatch) {
+    return res.status(400).json({
+      error: 'Kata sandi Markimate yang Anda masukkan salah.',
+      code: 'INVALID_PASSWORD'
+    });
+  }
+
+  // Tandai pending link sudah digunakan (1x pakai)
+  await db.update('oauth_pending_links', { id: linkRecord.id }, { used_at: new Date().toISOString() });
+
+  // Tautkan akun ke Google
+  const updated = await db.update('accounts', { id: user.id }, {
+    google_sub: linkRecord.google_sub,
+    status: 'active',
+    email_verified_at: user.email_verified_at || new Date().toISOString(),
+    last_login_at: new Date().toISOString()
+  });
+
+  const session = await issueSession(res, updated, req);
+  await logAuditEvent({
+    userId: updated.id,
+    action: 'link_google',
+    target: updated.email,
+    req,
+    meta: { sub: linkRecord.google_sub, provider: 'google' }
+  });
+
+  res.json({
+    status: 'success',
+    action: 'link',
+    accessToken: session.accessToken,
+    expiresIn: session.expiresIn,
+    user: publicUser(updated)
+  });
 }));
 
 // ==========================================

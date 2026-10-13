@@ -1,18 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Lock, KeyRound, AlertCircle, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
-import { useWorkspace } from '../../context/WorkspaceContext.jsx';
+import { setToken, API_BASE_URL } from '../../api.js';
 
 export default function GoogleCallbackPage({ onLogin }) {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { setAccessToken } = useWorkspace();
 
   const [status, setStatus] = useState('processing'); // 'processing' | 'link_required' | 'success' | 'error'
   const [errorMessage, setErrorMessage] = useState('');
   const [emailToLink, setEmailToLink] = useState('');
+  const [pendingToken, setPendingToken] = useState('');
   const [linkPassword, setLinkPassword] = useState('');
-  const [submittingLink, setSubmittingLink] = useState('');
+  const [submittingLink, setSubmittingLink] = useState(false);
+
+  const exchangeStartedRef = useRef(false);
 
   const code = searchParams.get('code');
   const state = searchParams.get('state');
@@ -35,21 +37,23 @@ export default function GoogleCallbackPage({ onLogin }) {
       return;
     }
 
+    if (exchangeStartedRef.current) return;
+    exchangeStartedRef.current = true;
+
     handleExchange(code, state);
   }, [code, state, errorParam]);
 
-  const handleExchange = async (authCode, authState, password = null) => {
+  const handleExchange = async (authCode, authState) => {
     try {
-      if (password) setSubmittingLink(true);
-      else setStatus('processing');
+      setStatus('processing');
 
-      const res = await fetch('/api/auth/google/callback', {
+      const res = await fetch(`${API_BASE_URL}/api/auth/google/callback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           code: authCode,
-          state: authState,
-          ...(password ? { linkPassword: password } : {})
+          state: authState
         })
       });
 
@@ -59,15 +63,15 @@ export default function GoogleCallbackPage({ onLogin }) {
         if (res.status === 409 && data.code === 'LINK_PASSWORD_REQUIRED') {
           setStatus('link_required');
           setEmailToLink(data.email || '');
-          setSubmittingLink(false);
+          setPendingToken(data.pendingToken || '');
           return;
         }
         throw new Error(data.error || 'Terjadi kesalahan saat memproses login Google.');
       }
 
       setStatus('success');
-      if (data.accessToken && setAccessToken) {
-        setAccessToken(data.accessToken);
+      if (data.accessToken) {
+        setToken(data.accessToken);
       }
       if (onLogin) {
         onLogin(data.user, data.accessToken);
@@ -79,15 +83,47 @@ export default function GoogleCallbackPage({ onLogin }) {
     } catch (err) {
       setStatus('error');
       setErrorMessage(err.message || 'Gagal menghubungkan dengan Google.');
-    } finally {
-      setSubmittingLink(false);
     }
   };
 
-  const handleLinkSubmit = (e) => {
+  const handleLinkSubmit = async (e) => {
     e.preventDefault();
-    if (!linkPassword) return;
-    handleExchange(code, state, linkPassword);
+    if (!linkPassword || !pendingToken) return;
+    try {
+      setSubmittingLink(true);
+      setErrorMessage('');
+
+      const res = await fetch(`${API_BASE_URL}/api/auth/google/link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          pendingToken,
+          password: linkPassword
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Gagal menautkan akun Google.');
+      }
+
+      setStatus('success');
+      if (data.accessToken) {
+        setToken(data.accessToken);
+      }
+      if (onLogin) {
+        onLogin(data.user, data.accessToken);
+      }
+
+      setTimeout(() => {
+        navigate('/app', { replace: true });
+      }, 700);
+    } catch (err) {
+      setErrorMessage(err.message || 'Gagal menautkan akun.');
+    } finally {
+      setSubmittingLink(false);
+    }
   };
 
   return (
