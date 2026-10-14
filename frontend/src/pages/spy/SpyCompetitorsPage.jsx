@@ -19,10 +19,8 @@ import { listCompetitors, addCompetitor, removeCompetitor, scanNow, isSpyMock } 
 import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
 
 export default function SpyCompetitorsPage() {
-  if (!isSpyMock()) {
-    return <ModuleComingSoonCard roleKey="ads_spy" />;
-  }
   const { lang, t } = useLanguage();
+  const mockActive = isSpyMock();
   const [competitors, setCompetitors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [scanningId, setScanningId] = useState(null);
@@ -117,6 +115,10 @@ export default function SpyCompetitorsPage() {
 
   const quotaUsed = competitors.length;
   const quotaLimit = 5;
+
+  if (!mockActive) {
+    return <ModuleComingSoonCard roleKey="ads_spy" />;
+  }
 
   return (
     <div style={styles.container}>

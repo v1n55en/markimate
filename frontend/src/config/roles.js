@@ -466,7 +466,7 @@ export function getLocalizedRole(roleOrKey, lang = 'en') {
   const role = typeof roleOrKey === 'string' ? ROLES.find((r) => r.key === roleOrKey) : roleOrKey;
   if (!role) return null;
 
-  if (lang === 'id') {
+  if (lang.startsWith('id')) {
     return {
       ...role,
       name: role.name_id || role.name,
@@ -494,7 +494,7 @@ export function getLocalizedRoles(lang = 'en') {
 export function getLocalizedCategories(lang = 'en') {
   return ROLE_CATEGORIES.map((cat) => ({
     key: cat.key,
-    label: lang === 'id' && cat.label_id ? cat.label_id : cat.label,
+    label: lang.startsWith('id') && cat.label_id ? cat.label_id : cat.label,
   }));
 }
 

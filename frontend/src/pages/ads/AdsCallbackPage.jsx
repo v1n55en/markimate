@@ -7,10 +7,8 @@ import { PLATFORMS_META } from '../../ads/mockData';
 import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
 
 export default function AdsCallbackPage() {
-  if (!isAdsMock()) {
-    return <ModuleComingSoonCard roleKey="ads_report" />;
-  }
   const { lang, t } = useLanguage();
+  const mockActive = isAdsMock();
   const { platform } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -66,6 +64,10 @@ export default function AdsCallbackPage() {
 
     return () => clearInterval(timer);
   }, [status, navigate]);
+
+  if (!mockActive) {
+    return <ModuleComingSoonCard roleKey="ads_report" />;
+  }
 
   return (
     <div style={styles.container}>

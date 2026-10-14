@@ -31,10 +31,8 @@ import DataTable from '../../components/ads/DataTable';
 import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
 
 export default function AdsReportDetailPage({ user }) {
-  if (!isAdsMock()) {
-    return <ModuleComingSoonCard roleKey="ads_report" />;
-  }
   const { lang, t } = useLanguage();
+  const mockActive = isAdsMock();
   const { reportId } = useParams();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
@@ -76,6 +74,10 @@ export default function AdsReportDetailPage({ user }) {
       setApproving(false);
     }
   };
+
+  if (!mockActive) {
+    return <ModuleComingSoonCard roleKey="ads_report" />;
+  }
 
   if (loading) {
     return (

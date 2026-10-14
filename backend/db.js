@@ -40,7 +40,7 @@ const TABLES = [
 const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
 
 function makeSupabase() {
-  if (process.env.NODE_ENV === 'test') return null;
+  if (process.env.NODE_ENV === 'test' || process.env.FORCE_LOCAL_DB === 'true') return null;
   const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
   if (!url || !key || url.includes('placeholder') || key.includes('placeholder')) return null;
   const schema = process.env.SUPABASE_SCHEMA || 'public';

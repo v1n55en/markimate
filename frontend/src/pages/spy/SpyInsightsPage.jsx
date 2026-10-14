@@ -20,10 +20,8 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
 
 export default function SpyInsightsPage() {
-  if (!isSpyMock()) {
-    return <ModuleComingSoonCard roleKey="ads_spy" />;
-  }
   const { t } = useLanguage();
+  const mockActive = isSpyMock();
   const { activeWorkspace } = useWorkspace();
   const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -64,6 +62,10 @@ export default function SpyInsightsPage() {
       );
     }, 1200);
   };
+
+  if (!mockActive) {
+    return <ModuleComingSoonCard roleKey="ads_spy" />;
+  }
 
   return (
     <div style={styles.container}>

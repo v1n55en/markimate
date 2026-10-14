@@ -21,10 +21,8 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
 
 export default function SpyLibraryPage() {
-  if (!isSpyMock()) {
-    return <ModuleComingSoonCard roleKey="ads_spy" />;
-  }
   const { lang, t } = useLanguage();
+  const mockActive = isSpyMock();
   const { activeWorkspace } = useWorkspace();
   const [searchParams] = useSearchParams();
 
@@ -112,6 +110,10 @@ export default function SpyLibraryPage() {
     setCopiedNotice(true);
     setTimeout(() => setCopiedNotice(false), 2500);
   };
+
+  if (!mockActive) {
+    return <ModuleComingSoonCard roleKey="ads_spy" />;
+  }
 
   return (
     <div style={styles.container}>

@@ -23,10 +23,8 @@ import StatusChip from '../../components/ads/StatusChip';
 import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
 
 export default function AdsSummaryPage() {
-  if (!isAdsMock()) {
-    return <ModuleComingSoonCard roleKey="ads_report" />;
-  }
   const { lang, t } = useLanguage();
+  const mockActive = isAdsMock();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -63,6 +61,10 @@ export default function AdsSummaryPage() {
 
   const connectedList = connections.filter((c) => c.status === 'connected');
   const hasNoConnections = connectedList.length === 0;
+
+  if (!mockActive) {
+    return <ModuleComingSoonCard roleKey="ads_report" />;
+  }
 
   if (loading) {
     return (

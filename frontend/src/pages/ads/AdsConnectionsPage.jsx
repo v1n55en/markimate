@@ -8,10 +8,8 @@ import PlatformCard from '../../components/ads/PlatformCard';
 import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
 
 export default function AdsConnectionsPage() {
-  if (!isAdsMock()) {
-    return <ModuleComingSoonCard roleKey="ads_report" />;
-  }
-  const { lang, t } = useLanguage();
+  const { t } = useLanguage();
+  const mockActive = isAdsMock();
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -79,6 +77,10 @@ export default function AdsConnectionsPage() {
   };
 
   const platformKeys = ['meta', 'google', 'tiktok', 'tiktok_gmvmax', 'shopee'];
+
+  if (!mockActive) {
+    return <ModuleComingSoonCard roleKey="ads_report" />;
+  }
 
   return (
     <div style={styles.page}>

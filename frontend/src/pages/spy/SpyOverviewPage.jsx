@@ -16,15 +16,14 @@ import { useWorkspace } from '../../context/WorkspaceContext';
 import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
 
 export default function SpyOverviewPage() {
-  if (!isSpyMock()) {
-    return <ModuleComingSoonCard roleKey="ads_spy" />;
-  }
-  const { lang, t } = useLanguage();
+  const { t } = useLanguage();
   const { activeWorkspace } = useWorkspace();
   const [loading, setLoading] = useState(true);
   const [competitors, setCompetitors] = useState([]);
   const [winningCreatives, setWinningCreatives] = useState([]);
   const [insights, setInsights] = useState(null);
+
+  const mockActive = isSpyMock();
 
   const loadData = async () => {
     setLoading(true);
@@ -57,6 +56,10 @@ export default function SpyOverviewPage() {
 
   const totalMonitored = competitors.length;
   const newAdsCount = competitors.reduce((acc, c) => acc + (c.newAdsThisWeek || 0), 0);
+
+  if (!mockActive) {
+    return <ModuleComingSoonCard roleKey="ads_spy" />;
+  }
 
   return (
     <div style={styles.container}>
