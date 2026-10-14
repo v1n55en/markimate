@@ -1,8 +1,10 @@
 import { createContext, useContext, useState, useEffect, isValidElement, cloneElement } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Globe } from 'lucide-react';
 import { TRANSLATIONS } from '../i18n/index.js';
 import { storage } from '../lib/storage.js';
 import * as format from '../lib/format.js';
+import { isPublicPath, getCleanPath, getLocalizedPath } from '../lib/localized-router.jsx';
 
 const STORAGE_KEY = 'markimate_lang';
 const LEGACY_STORAGE_KEY = 'lang';
@@ -74,6 +76,25 @@ function detectInitialLanguage() {
 
 export function LanguageProvider({ children }) {
   const [lang, setLangState] = useState(detectInitialLanguage);
+  let location;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    location = useLocation();
+  } catch {
+    // Di luar Router context
+  }
+
+  // Sinkronisasi bahasa dengan URL publik saat navigasi
+  useEffect(() => {
+    if (!location?.pathname) return;
+    const pathname = location.pathname;
+
+    if (pathname === '/id' || pathname.startsWith('/id/')) {
+      if (lang !== 'id') setLangState('id');
+    } else if (isPublicPath(pathname)) {
+      if (lang !== 'en') setLangState('en');
+    }
+  }, [location?.pathname, lang]);
 
   useEffect(() => {
     try {
@@ -203,6 +224,29 @@ export function Trans({ i18nKey, values = {}, components = {}, fallback = '' }) 
 export function LanguageSwitcher({ size = 'normal', className = '' }) {
   const { lang, setLang } = useLanguage();
   const isSmall = size === 'small';
+  let location;
+  let navigate;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    location = useLocation();
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    navigate = useNavigate();
+  } catch {}
+
+  const handleSelectLang = (targetLang) => {
+    if (targetLang === lang) return;
+    try {
+      storage.setItem('markimate_lang_selected', 'true');
+      storage.setItem(STORAGE_KEY, targetLang);
+    } catch {}
+
+    setLang(targetLang);
+
+    if (location && navigate && isPublicPath(location.pathname)) {
+      const nextPath = getLocalizedPath(location.pathname, targetLang);
+      navigate(nextPath + location.search + location.hash);
+    }
+  };
 
   return (
     <div
@@ -218,7 +262,7 @@ export function LanguageSwitcher({ size = 'normal', className = '' }) {
       <button
         type="button"
         className={`language-switcher-btn ${lang === 'en' ? 'active' : ''}`}
-        onClick={() => setLang('en')}
+        onClick={() => handleSelectLang('en')}
         aria-label="English"
         aria-pressed={lang === 'en'}
       >
@@ -228,7 +272,7 @@ export function LanguageSwitcher({ size = 'normal', className = '' }) {
       <button
         type="button"
         className={`language-switcher-btn ${lang === 'id' ? 'active' : ''}`}
-        onClick={() => setLang('id')}
+        onClick={() => handleSelectLang('id')}
         aria-label="Bahasa Indonesia"
         aria-pressed={lang === 'id'}
       >

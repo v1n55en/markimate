@@ -1,10 +1,16 @@
 import { ShieldCheck, Mail, MapPin, Phone, Building2, CheckCircle2, Lock } from 'lucide-react';
 import PublicNavbar from '../../components/PublicNavbar';
 import PublicFooter from '../../components/PublicFooter';
+import SeoHead from '../../components/common/SeoHead';
 
 export default function PrivacyPage() {
   return (
     <div style={styles.page}>
+      <SeoHead
+        title="Kebijakan Privasi"
+        description="Kebijakan Privasi Markimate: Komitmen perlindungan privasi, integritas, dan keamanan data pengguna."
+        path="/privacy"
+      />
       <PublicNavbar />
 
       <main style={styles.main}>

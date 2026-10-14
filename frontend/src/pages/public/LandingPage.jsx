@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { LocalizedLink } from '../../lib/localized-router';
 import {
   Sparkles,
   ArrowRight,
@@ -39,6 +40,7 @@ import {
 import PublicNavbar from '../../components/PublicNavbar';
 import PublicFooter from '../../components/PublicFooter';
 import WaitlistModal from '../../components/common/WaitlistModal';
+import SeoHead from '../../components/common/SeoHead';
 import { useLanguage } from '../../context/LanguageContext';
 
 // Pemeta ikon Lucide untuk kartu role
@@ -80,6 +82,7 @@ export default function LandingPage() {
 
   return (
     <div style={styles.page}>
+      <SeoHead path="/" />
       <PublicNavbar />
 
       <main style={styles.main}>
@@ -211,10 +214,10 @@ export default function LandingPage() {
 
                   <div style={styles.cardFooter}>
                     {isAvail ? (
-                      <Link to={`/roles/${role.key}`} style={styles.learnMoreLink}>
+                      <LocalizedLink to={`/roles/${role.key}`} style={styles.learnMoreLink}>
                         <span>{t('rolesGrid.viewDetails', 'Role Details')}</span>
                         <ArrowRight size={14} />
-                      </Link>
+                      </LocalizedLink>
                     ) : (
                       <button
                         onClick={() => setActiveWaitlistRole(role)}

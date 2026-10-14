@@ -1,10 +1,16 @@
 import { FileText } from 'lucide-react';
 import PublicNavbar from '../../components/PublicNavbar';
 import PublicFooter from '../../components/PublicFooter';
+import SeoHead from '../../components/common/SeoHead';
 
 export default function TermsPage() {
   return (
     <div style={styles.page}>
+      <SeoHead
+        title="Syarat & Ketentuan Layanan"
+        description="Syarat dan Ketentuan Penggunaan Layanan Markimate: Ketentuan umum, hak cipta, dan kewajiban pengguna."
+        path="/terms"
+      />
       <PublicNavbar />
 
       <main style={styles.main}>

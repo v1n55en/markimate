@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ShieldAlert, CheckCircle2, AlertCircle, Search, ExternalLink, ArrowLeft, Trash2 } from 'lucide-react';
 import { api } from '../../api';
+import SeoHead from '../../components/common/SeoHead';
 
 export default function DataDeletionPage() {
   const [searchParams] = useSearchParams();
@@ -36,6 +37,11 @@ export default function DataDeletionPage() {
 
   return (
     <div className="auth-page-container">
+      <SeoHead
+        title="Instruksi Penghapusan Data Akun"
+        description="Petunjuk dan panduan penghapusan data akun Markimate sesuai standar privasi data."
+        path="/data-deletion"
+      />
       <div className="auth-card-wrapper" style={{ maxWidth: '640px' }}>
         <div style={{ marginBottom: '1.5rem' }}>
           <Link

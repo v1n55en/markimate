@@ -39,6 +39,7 @@ import AdsCallbackPage from './pages/ads/AdsCallbackPage';
 import { api, getToken, setToken, refreshSession, API_BASE_URL } from './api';
 import { WorkspaceProvider } from './context/WorkspaceContext';
 import { LanguageProvider } from './context/LanguageContext';
+import { useInitialLanguageRedirect } from './lib/localized-router';
 import ModuleGuard from './components/common/ModuleGuard';
 import ModuleActivatePage from './pages/app/ModuleActivatePage';
 import WorkspaceDashboardPage from './pages/app/WorkspaceDashboardPage';
@@ -219,6 +220,73 @@ function ProtectedLayout({ me, onLogout, refreshMe }) {
   );
 }
 
+// Komponen Routing yang dibungkus di dalam LanguageProvider
+function AppRoutes({ me, onLoginSuccess, onLogout, refreshMe }) {
+  // Redirect kunjungan pertama kali ke /id bila browser berbahasa Indonesia (PRD F3 §2.3)
+  useInitialLanguageRedirect();
+
+  return (
+    <Routes>
+      {/* Rute Publik Kanonik (EN) */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/roles/:key" element={<RoleDetailPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/terms" element={<TermsPage />} />
+      <Route path="/data-deletion" element={<DataDeletionPage />} />
+
+      {/* Rute Publik Terlokalisasi (ID) (PRD F3 §2.3) */}
+      <Route path="/id" element={<LandingPage />} />
+      <Route path="/id/roles/:key" element={<RoleDetailPage />} />
+      <Route path="/id/privacy" element={<PrivacyPage />} />
+      <Route path="/id/terms" element={<TermsPage />} />
+      <Route path="/id/data-deletion" element={<DataDeletionPage />} />
+
+      {/* Rute Auth (Tanpa prefix /id) */}
+      <Route path="/verify" element={<VerifyPage onLoginSuccess={onLoginSuccess} />} />
+      <Route path="/forgot" element={<ForgotPasswordPage />} />
+      <Route path="/reset" element={<ResetPasswordPage />} />
+      <Route path="/invite" element={<InvitePage />} />
+      <Route path="/auth/google/callback" element={<GoogleCallbackPage onLogin={onLoginSuccess} />} />
+
+      <Route
+        path="/login"
+        element={
+          me ? (
+            <Navigate to="/app/ads" replace />
+          ) : (
+            <AuthScreen onLoginSuccess={onLoginSuccess} initialMode="login" />
+          )
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          me ? (
+            <Navigate to="/app/ads" replace />
+          ) : (
+            <AuthScreen onLoginSuccess={onLoginSuccess} initialMode="register" />
+          )
+        }
+      />
+
+      {/* Rute Terproteksi Aplikasi */}
+      <Route
+        path="/app/*"
+        element={
+          <ProtectedLayout
+            me={me}
+            onLogout={onLogout}
+            refreshMe={refreshMe}
+          />
+        }
+      />
+
+      {/* Catch-all redirect ke Beranda */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
 // Komponen Utama App
 export default function App() {
   const [me, setMe] = useState(null); // { user, plan, usage, cms }
@@ -350,55 +418,12 @@ export default function App() {
     <BrowserRouter>
       <WorkspaceProvider>
         <LanguageProvider>
-          <Routes>
-            {/* Rute Publik */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/roles/:key" element={<RoleDetailPage />} />
-            <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/terms" element={<TermsPage />} />
-            <Route path="/verify" element={<VerifyPage onLoginSuccess={handleLoginSuccess} />} />
-            <Route path="/forgot" element={<ForgotPasswordPage />} />
-            <Route path="/reset" element={<ResetPasswordPage />} />
-            <Route path="/invite" element={<InvitePage />} />
-            <Route path="/data-deletion" element={<DataDeletionPage />} />
-            <Route path="/auth/google/callback" element={<GoogleCallbackPage onLogin={handleLoginSuccess} />} />
-
-            <Route
-              path="/login"
-              element={
-                me ? (
-                  <Navigate to="/app/ads" replace />
-                ) : (
-                  <AuthScreen onLoginSuccess={handleLoginSuccess} initialMode="login" />
-                )
-              }
-            />
-            <Route
-              path="/register"
-              element={
-                me ? (
-                  <Navigate to="/app/ads" replace />
-                ) : (
-                  <AuthScreen onLoginSuccess={handleLoginSuccess} initialMode="register" />
-                )
-              }
-            />
-
-            {/* Rute Terproteksi Aplikasi */}
-            <Route
-              path="/app/*"
-              element={
-                <ProtectedLayout
-                  me={me}
-                  onLogout={handleLogout}
-                  refreshMe={refreshMe}
-                />
-              }
-            />
-
-            {/* Catch-all redirect ke Beranda */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
+          <AppRoutes
+            me={me}
+            onLoginSuccess={handleLoginSuccess}
+            onLogout={handleLogout}
+            refreshMe={refreshMe}
+          />
         </LanguageProvider>
       </WorkspaceProvider>
     </BrowserRouter>

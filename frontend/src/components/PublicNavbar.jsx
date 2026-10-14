@@ -2,16 +2,18 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, LogIn, Menu, X } from 'lucide-react';
 import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
+import { LocalizedLink, useLocalizedPath } from '../lib/localized-router';
 import MarkimateLogo from './common/MarkimateLogo';
 
 export default function PublicNavbar() {
   const { t } = useLanguage();
+  const localize = useLocalizedPath();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <header style={styles.header}>
       <div style={styles.container}>
-        <Link to="/" style={styles.brand} onClick={() => setMobileMenuOpen(false)}>
+        <LocalizedLink to="/" style={styles.brand} onClick={() => setMobileMenuOpen(false)}>
           <div style={styles.logoBox}>
             <MarkimateLogo size={24} />
           </div>
@@ -19,14 +21,14 @@ export default function PublicNavbar() {
             <span style={styles.brandTitle}>Markimate</span>
             <span style={styles.brandSub}>powered by 3our</span>
           </div>
-        </Link>
+        </LocalizedLink>
 
         {/* Desktop Nav Links */}
         <nav style={styles.nav} className="hide-on-mobile">
-          <a href="/#roles" style={styles.navLink}>{t('nav.teamRoles', 'AI Roles')}</a>
-          <a href="/#how-it-works" style={styles.navLink}>{t('nav.howItWorks', 'How It Works')}</a>
-          <a href="/#pricing" style={styles.navLink}>{t('nav.pricing', 'Pricing')}</a>
-          <Link to="/privacy" style={styles.navLink}>{t('nav.privacy', 'Privacy')}</Link>
+          <a href={localize('/#roles')} style={styles.navLink}>{t('nav.teamRoles', 'AI Roles')}</a>
+          <a href={localize('/#how-it-works')} style={styles.navLink}>{t('nav.howItWorks', 'How It Works')}</a>
+          <a href={localize('/#pricing')} style={styles.navLink}>{t('nav.pricing', 'Pricing')}</a>
+          <LocalizedLink to="/privacy" style={styles.navLink}>{t('nav.privacy', 'Privacy')}</LocalizedLink>
         </nav>
 
         {/* Desktop CTA Group */}
@@ -61,33 +63,33 @@ export default function PublicNavbar() {
         <div style={styles.mobileDropdown}>
           <nav style={styles.mobileNavList}>
             <a
-              href="/#roles"
+              href={localize('/#roles')}
               style={styles.mobileNavLink}
               onClick={() => setMobileMenuOpen(false)}
             >
               {t('nav.teamRoles', 'AI Roles')}
             </a>
             <a
-              href="/#how-it-works"
+              href={localize('/#how-it-works')}
               style={styles.mobileNavLink}
               onClick={() => setMobileMenuOpen(false)}
             >
               {t('nav.howItWorks', 'How It Works')}
             </a>
             <a
-              href="/#pricing"
+              href={localize('/#pricing')}
               style={styles.mobileNavLink}
               onClick={() => setMobileMenuOpen(false)}
             >
               {t('nav.pricing', 'Pricing')}
             </a>
-            <Link
+            <LocalizedLink
               to="/privacy"
               style={styles.mobileNavLink}
               onClick={() => setMobileMenuOpen(false)}
             >
               {t('nav.privacy', 'Privacy')}
-            </Link>
+            </LocalizedLink>
           </nav>
 
           <div style={styles.mobileDrawerCtas}>

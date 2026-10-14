@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Mail, MapPin, Phone, ShieldCheck } from 'lucide-react';
 import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
+import { LocalizedLink } from '../lib/localized-router';
 import MarkimateLogo from './common/MarkimateLogo';
 
 export default function PublicFooter() {
@@ -38,16 +39,16 @@ export default function PublicFooter() {
           <div style={styles.linksCol}>
             <span style={styles.linksTitle}>{t('footer.platformLegal', 'Platform & Legal')}</span>
             <div style={styles.linksGroup}>
-              <Link to="/privacy" style={styles.link}>
+              <LocalizedLink to="/privacy" style={styles.link}>
                 <ShieldCheck size={14} color="var(--accent-green)" />
                 <span>{t('footer.privacy', 'Privacy Policy')}</span>
-              </Link>
-              <Link to="/terms" style={styles.link}>
+              </LocalizedLink>
+              <LocalizedLink to="/terms" style={styles.link}>
                 <span>{t('footer.terms', 'Terms of Service')}</span>
-              </Link>
-              <Link to="/data-deletion" style={styles.link}>
+              </LocalizedLink>
+              <LocalizedLink to="/data-deletion" style={styles.link}>
                 <span>{t('footer.dataDeletion', 'Data Deletion')}</span>
-              </Link>
+              </LocalizedLink>
               <Link to="/login" style={styles.link}>
                 <span>{t('footer.loginPortal', 'Client Portal Login')}</span>
               </Link>

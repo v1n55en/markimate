@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { LocalizedLink } from '../../lib/localized-router';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -28,6 +29,7 @@ import { MODULE_PRICES, MODULE_QUOTA, formatCurrency } from '../../config/pricin
 import PublicNavbar from '../../components/PublicNavbar';
 import PublicFooter from '../../components/PublicFooter';
 import WaitlistModal from '../../components/common/WaitlistModal';
+import SeoHead from '../../components/common/SeoHead';
 
 // Pemeta ikon Lucide dinamis
 const ICON_MAP = {
@@ -89,15 +91,20 @@ export default function RoleDetailPage() {
 
   return (
     <div style={styles.page}>
+      <SeoHead
+        title={role.name}
+        description={role.description}
+        path={`/roles/${key}`}
+      />
       <PublicNavbar />
 
       <main style={styles.main}>
         {/* Back navigation */}
         <div style={styles.topNav}>
-          <Link to="/" style={styles.backLink}>
+          <LocalizedLink to="/" style={styles.backLink}>
             <ArrowLeft size={16} />
             <span>{t('roleDetail.backLink', 'Back to All Roles')}</span>
-          </Link>
+          </LocalizedLink>
         </div>
 
         {/* Role Hero Card */}
