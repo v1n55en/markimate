@@ -1,10 +1,14 @@
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { ShieldAlert, CheckCircle2, AlertCircle, Search, ExternalLink, ArrowLeft, Trash2 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { CheckCircle2, AlertCircle, Search, ExternalLink, ArrowLeft, Trash2 } from 'lucide-react';
 import { api } from '../../api';
 import SeoHead from '../../components/common/SeoHead';
+import { LocalizedLink } from '../../lib/localized-router';
+import { useLanguage } from '../../context/LanguageContext';
+import { formatDateTime } from '../../lib/format';
 
 export default function DataDeletionPage() {
+  const { t, lang } = useLanguage();
   const [searchParams] = useSearchParams();
   const initialCode = searchParams.get('code') || '';
 
@@ -17,7 +21,7 @@ export default function DataDeletionPage() {
     if (e) e.preventDefault();
     const code = confirmationCode.trim();
     if (!code) {
-      setStatusError('Silakan masukkan kode konfirmasi penghapusan.');
+      setStatusError(t('dataDeletion.errorRequired', 'Please enter your confirmation code.'));
       return;
     }
 
@@ -29,7 +33,7 @@ export default function DataDeletionPage() {
       const res = await api(`/api/data-deletion/status?code=${encodeURIComponent(code)}`);
       setStatusResult(res);
     } catch (err) {
-      setStatusError(err.message || 'Kode konfirmasi tidak ditemukan atau tidak valid.');
+      setStatusError(err.message || t('dataDeletion.errorInvalid', 'Confirmation code not found or invalid.'));
     } finally {
       setChecking(false);
     }
@@ -38,13 +42,13 @@ export default function DataDeletionPage() {
   return (
     <div className="auth-page-container">
       <SeoHead
-        title="Instruksi Penghapusan Data Akun"
-        description="Petunjuk dan panduan penghapusan data akun Markimate sesuai standar privasi data."
+        title={t('dataDeletion.pageTitle', 'User & Meta Data Deletion')}
+        description={t('dataDeletion.pageSubtitle', 'Platform & Meta Data Deletion Instructions')}
         path="/data-deletion"
       />
       <div className="auth-card-wrapper" style={{ maxWidth: '640px' }}>
         <div style={{ marginBottom: '1.5rem' }}>
-          <Link
+          <LocalizedLink
             to="/login"
             style={{
               display: 'inline-flex',
@@ -56,8 +60,8 @@ export default function DataDeletionPage() {
             }}
           >
             <ArrowLeft size={16} />
-            <span>Kembali ke Halaman Masuk</span>
-          </Link>
+            <span>{t('dataDeletion.backToLogin', 'Back to Sign In')}</span>
+          </LocalizedLink>
         </div>
 
         <div className="auth-card">
@@ -78,27 +82,27 @@ export default function DataDeletionPage() {
             </div>
             <div>
               <h1 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-                Penghapusan Data Pengguna & Meta
+                {t('dataDeletion.pageTitle', 'User & Meta Data Deletion')}
               </h1>
               <p style={{ fontSize: '0.825rem', margin: '2px 0 0 0', color: 'var(--text-secondary)' }}>
-                Panduan Penghapusan Data Sesuai Ketentuan Privasi Platform & Meta
+                {t('dataDeletion.pageSubtitle', 'Platform & Meta Data Deletion Instructions')}
               </p>
             </div>
           </div>
 
           <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '1.5rem' }}>
             <p style={{ marginTop: 0 }}>
-              Sesuai dengan Kebijakan Platform Meta dan komitmen privasi Markimate, pengguna memiliki hak penuh untuk meminta penghapusan akun serta seluruh data integrasi iklan Meta, kata kunci, artikel, dan koneksi CMS kapan saja.
+              {t('dataDeletion.policyDesc', 'In compliance with Meta Platform Policies and Markimate\'s privacy commitment, users retain the right to request deletion of their account and all connected Meta advertising data, keywords, articles, and CMS connections at any time.')}
             </p>
 
             <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-              1. Menghapus Akun & Data Anda di Markimate
+              {t('dataDeletion.section1Title', '1. Deleting Your Markimate Account & Data')}
             </h3>
             <p>
-              Jika Anda memiliki akun Markimate yang aktif, Anda dapat meminta penghapusan akun beserta seluruh workspace Anda langsung dari menu pengaturan:
+              {t('dataDeletion.section1Desc', 'If you have an active Markimate account, you can request full account and workspace deletion directly from account settings:')}
             </p>
             <div style={{ margin: '0.75rem 0' }}>
-              <Link
+              <LocalizedLink
                 to="/app/settings/account"
                 className="btn btn-secondary"
                 style={{
@@ -109,19 +113,19 @@ export default function DataDeletionPage() {
                   fontSize: '0.85rem'
                 }}
               >
-                <span>Buka Pengaturan Akun</span>
+                <span>{t('dataDeletion.openSettingsBtn', 'Open Account Settings')}</span>
                 <ExternalLink size={14} />
-              </Link>
+              </LocalizedLink>
             </div>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Akun yang diminta untuk dihapus akan memasuki masa tenggang 30 hari sebelum seluruh data dihapus permanen. Anda dapat membatalkannya kapan saja dengan login kembali dalam periode tersebut.
+              {t('dataDeletion.gracePeriodNote', 'Accounts requested for deletion enter a 30-day grace period before permanent deletion. You may cancel deletion at any time by signing in during this period.')}
             </p>
 
             <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '1.25rem', marginBottom: '0.5rem' }}>
-              2. Penghapusan Data Aplikasi dari Facebook / Meta
+              {t('dataDeletion.section2Title', '2. Facebook / Meta App Data Deletion')}
             </h3>
             <p>
-              Jika Anda telah mencabut izin aplikasi Markimate melalui menu <em>Settings & Privacy &gt; Settings &gt; Apps and Websites</em> di akun Facebook/Meta Anda, Meta akan secara otomatis memicu Webhook Callback Penghapusan Data ke server Markimate.
+              {t('dataDeletion.section2Desc', 'If you revoke Markimate app permissions via Settings & Privacy > Settings > Apps and Websites on your Facebook/Meta account, Meta automatically triggers a Data Deletion Webhook Callback to Markimate servers.')}
             </p>
           </div>
 
@@ -130,10 +134,10 @@ export default function DataDeletionPage() {
           {/* Form Cek Status Penghapusan */}
           <div>
             <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-              Periksa Status Permintaan Penghapusan Data
+              {t('dataDeletion.checkFormTitle', 'Check Data Deletion Request Status')}
             </h3>
             <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginTop: 0, marginBottom: '1rem' }}>
-              Masukkan Kode Konfirmasi Penghapusan (Confirmation Code) yang Anda terima dari Meta untuk memeriksa status proses penghapusan:
+              {t('dataDeletion.checkFormDesc', 'Enter the Confirmation Code you received from Meta to check processing status:')}
             </p>
 
             <form onSubmit={handleCheckStatus} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -141,7 +145,7 @@ export default function DataDeletionPage() {
                 type="text"
                 className="auth-input"
                 style={{ flex: '1 1 240px', minWidth: '220px' }}
-                placeholder="Contoh: del_a1b2c3d4e5f6..."
+                placeholder={t('dataDeletion.codePlaceholder', 'e.g. del_a1b2c3d4e5f6...')}
                 value={confirmationCode}
                 onChange={(e) => setConfirmationCode(e.target.value)}
               />
@@ -152,7 +156,7 @@ export default function DataDeletionPage() {
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
                 <Search size={15} />
-                <span>{checking ? 'Memeriksa…' : 'Cek Status'}</span>
+                <span>{checking ? t('dataDeletion.checkingBtn', 'Checking...') : t('dataDeletion.checkStatusBtn', 'Check Status')}</span>
               </button>
             </form>
 
@@ -178,12 +182,12 @@ export default function DataDeletionPage() {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent-green)', fontWeight: 600, fontSize: '0.9rem' }}>
                   <CheckCircle2 size={16} />
-                  <span>Permintaan Penghapusan Terverifikasi</span>
+                  <span>{t('dataDeletion.statusVerified', 'Deletion Request Verified')}</span>
                 </div>
                 <div style={{ marginTop: '0.5rem', fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                  <div>Kode Konfirmasi: <code style={{ color: 'var(--text-primary)' }}>{statusResult.confirmationCode}</code></div>
-                  <div>Status Proses: <strong style={{ color: 'var(--accent-green)' }}>{statusResult.status?.toUpperCase() || 'COMPLETED'}</strong></div>
-                  <div>Waktu Diproses: {new Date(statusResult.requestedAt).toLocaleString('id-ID')}</div>
+                  <div>{t('dataDeletion.statusCode', 'Confirmation Code:')} <code style={{ color: 'var(--text-primary)' }}>{statusResult.confirmationCode}</code></div>
+                  <div>{t('dataDeletion.statusLabel', 'Process Status:')} <strong style={{ color: 'var(--accent-green)' }}>{statusResult.status?.toUpperCase() || 'COMPLETED'}</strong></div>
+                  <div>{t('dataDeletion.statusProcessedAt', 'Processed At:')} {formatDateTime(statusResult.requestedAt, lang)}</div>
                 </div>
               </div>
             )}

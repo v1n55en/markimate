@@ -49,9 +49,9 @@ export default function PublicFooter() {
               <LocalizedLink to="/data-deletion" style={styles.link}>
                 <span>{t('footer.dataDeletion', 'Data Deletion')}</span>
               </LocalizedLink>
-              <Link to="/login" style={styles.link}>
+              <LocalizedLink to="/login" style={styles.link}>
                 <span>{t('footer.loginPortal', 'Client Portal Login')}</span>
-              </Link>
+              </LocalizedLink>
             </div>
           </div>
         </div>

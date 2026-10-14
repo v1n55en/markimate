@@ -33,9 +33,10 @@ import {
 import {
   BUNDLES,
   TEAM_COST_BENCHMARK,
-  IN_HOUSE_COMPARISON,
+  getLocalizedInHouseComparison,
   formatIDR,
   formatCurrency,
+  TRIAL,
 } from '../../config/pricing';
 import PublicNavbar from '../../components/PublicNavbar';
 import PublicFooter from '../../components/PublicFooter';
@@ -107,10 +108,10 @@ export default function LandingPage() {
           </p>
 
           <div style={styles.heroCtas}>
-            <Link to="/register" style={styles.primaryCta}>
+            <LocalizedLink to="/register" style={styles.primaryCta}>
               <span>{t('hero.ctaPrimary', 'Start Free — 300 credits, 7 days')}</span>
               <ArrowRight size={16} />
-            </Link>
+            </LocalizedLink>
             <a href="#pricing" style={styles.secondaryCta}>
               {t('hero.ctaSecondary', 'View Plans & Pricing')}
             </a>
@@ -119,13 +120,11 @@ export default function LandingPage() {
           <div style={styles.trialHighlightCard}>
             <Coins size={16} color="var(--accent-cyan)" />
             <span>
-              {lang === 'id'
-                ? 'Coba gratis 7 hari — 300 credit, semua modul terbuka, tanpa kartu kredit'
-                : '7-Day Free Trial — 300 credits, all modules unlocked, zero credit card required'}
+              {t('hero.trialBanner', { days: TRIAL.days, credits: TRIAL.credits }, `${TRIAL.days}-Day Free Trial — ${TRIAL.credits} credits, all modules unlocked, zero credit card required`)}
             </span>
-            <Link to="/register" style={styles.trialLink}>
-              {lang === 'id' ? 'Klaim Sekarang →' : 'Claim Now →'}
-            </Link>
+            <LocalizedLink to="/register" style={styles.trialLink}>
+              {t('hero.claimNow', 'Claim Now →')}
+            </LocalizedLink>
           </div>
 
           <div style={styles.heroProof}>
@@ -310,7 +309,7 @@ export default function LandingPage() {
                 </span>
                 <span style={styles.inHouseTotal}>{formatIDR(TEAM_COST_BENCHMARK.focus3, lang)}/mo</span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--accent-green)', fontWeight: '700' }}>
-                  {t('benchmark.focus3Badge', lang === 'id' ? 'Markimate Fokus 3: Rp 3.200.000/bln' : 'Markimate Focus 3: $210/mo')}
+                  {t('benchmark.focus3Badge', { amount: formatCurrency(3200000, lang) }, `Markimate Focus 3: ${formatCurrency(3200000, lang)}/mo`)}
                 </span>
               </div>
             </div>
@@ -332,15 +331,13 @@ export default function LandingPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {IN_HOUSE_COMPARISON.map((row, idx) => {
-                      const roleName = lang === 'en' ? (row.role_en || row.role) : (row.role_id || row.role);
-                      const deliverablesText = lang === 'en' ? (row.deliverables_en || row.deliverables) : (row.deliverables_id || row.deliverables);
+                    {getLocalizedInHouseComparison(lang).map((row, idx) => {
                       return (
                         <tr key={idx} style={styles.tr}>
                           <td style={styles.td}>
-                            <strong>{roleName}</strong>
+                            <strong>{row.roleName}</strong>
                           </td>
-                          <td style={styles.td}>{deliverablesText}</td>
+                          <td style={styles.td}>{row.deliverablesText}</td>
                           <td style={{ ...styles.td, textAlign: 'right', color: 'var(--text-muted)' }}>
                             <span style={{ textDecoration: 'line-through' }}>
                               {formatIDR(row.inHouseMonthly, lang)}
@@ -363,7 +360,7 @@ export default function LandingPage() {
                       </td>
                       <td style={{ ...styles.tdTotal, textAlign: 'right' }}>
                         <strong style={{ color: 'var(--accent-green)', fontSize: '1.05rem' }}>
-                          {formatCurrency(3200000, lang)} {lang === 'id' ? '/ bln' : '/ mo'} ({t('benchmark.totalDiscount', 'Discount Bundle')})
+                          {formatCurrency(3200000, lang)} {t('benchmark.perMonth', '/ mo')} ({t('benchmark.totalDiscount', 'Discount Bundle')})
                         </strong>
                       </td>
                     </tr>
@@ -374,18 +371,16 @@ export default function LandingPage() {
 
             {/* Mobile View (Touch-Friendly Responsive Cards) */}
             <div className="comp-cards-mobile">
-              {IN_HOUSE_COMPARISON.map((row, idx) => {
-                const roleName = lang === 'en' ? (row.role_en || row.role) : (row.role_id || row.role);
-                const deliverablesText = lang === 'en' ? (row.deliverables_en || row.deliverables) : (row.deliverables_id || row.deliverables);
+              {getLocalizedInHouseComparison(lang).map((row, idx) => {
                 return (
                   <div key={idx} style={styles.mobileCompCard}>
                     <div style={styles.mobileCompHeader}>
-                      <span style={styles.mobileCompRoleTitle}>{roleName}</span>
+                      <span style={styles.mobileCompRoleTitle}>{row.roleName}</span>
                       <span style={styles.mobileCompSavingsBadge}>
                         {t('benchmark.saveTag', 'Save')} {row.savingsPct}%
                       </span>
                     </div>
-                    <p style={styles.mobileCompDeliverables}>{deliverablesText}</p>
+                    <p style={styles.mobileCompDeliverables}>{row.deliverablesText}</p>
                     <div style={styles.mobileCompPriceGrid}>
                       <div style={styles.mobileCompPriceBox}>
                         <span style={styles.mobileCompPriceLabel}>
@@ -412,7 +407,7 @@ export default function LandingPage() {
               <div style={styles.mobileTotalCard}>
                 <div style={styles.mobileTotalHeader}>
                   <span style={styles.mobileTotalBadge}>
-                    {lang === 'id' ? 'Paket Fokus 3 · Hemat 89%' : 'Focus 3 Bundle · Save 89%'}
+                    {t('benchmark.focus3MobileBadge', 'Focus 3 Bundle · Save 89%')}
                   </span>
                   <h4 style={styles.mobileTotalTitle}>
                     {t('benchmark.totalTitle', 'Total Monthly Investment')}
@@ -422,7 +417,7 @@ export default function LandingPage() {
                 <div style={styles.mobileTotalRow}>
                   <div>
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>
-                      {lang === 'id' ? 'In-House 3 Role' : 'In-House 3 Roles'}
+                      {t('benchmark.inhouseRolesLabel', 'In-House 3 Roles')}
                     </span>
                     <span style={styles.mobileTotalInhouse}>
                       {formatIDR(TEAM_COST_BENCHMARK.focus3, lang)}/mo
@@ -430,17 +425,17 @@ export default function LandingPage() {
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <span style={{ fontSize: '0.7rem', color: 'var(--accent-green)', fontWeight: 600, display: 'block' }}>
-                      {lang === 'id' ? 'Bundle Markimate' : 'Markimate Bundle'}
+                      {t('benchmark.bundleMarkimateLabel', 'Markimate Bundle')}
                     </span>
                     <span style={styles.mobileTotalMarkimate}>
-                      {formatCurrency(3200000, lang)}{lang === 'id' ? '/bln' : '/mo'}
+                      {formatCurrency(3200000, lang)}{t('benchmark.perMonthShort', '/mo')}
                     </span>
                   </div>
                 </div>
 
                 <div style={styles.mobileTotalNote}>
                   <Sparkles size={14} color="var(--accent-green)" style={{ flexShrink: 0 }} />
-                  <span>{t('benchmark.saveMonthlyNote', lang === 'id' ? 'Anda menghemat Rp 26.175.000 setiap bulan' : 'You save $1,765 every month')}</span>
+                  <span>{t('benchmark.saveMonthlyNote', { amount: formatCurrency(26175000, lang) }, `You save ${formatCurrency(26175000, lang)} every month`)}</span>
                 </div>
               </div>
             </div>
@@ -466,43 +461,41 @@ export default function LandingPage() {
               </div>
               <div style={{ flex: 1, minWidth: '220px' }}>
                 <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
-                  {lang === 'id' ? 'Coba Gratis 7 Hari — 300 Credit Tanpa Kartu Kredit' : '7-Day Free Trial — 300 Credits, Zero Credit Card Required'}
+                  {t('bundles.pricingTrialTitle', { days: TRIAL.days, credits: TRIAL.credits }, `${TRIAL.days}-Day Free Trial — ${TRIAL.credits} Credits, Zero Credit Card Required`)}
                 </div>
                 <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                  {lang === 'id'
-                    ? '1 credit = Rp1.000. Dapatkan 300 credit langsung untuk mencoba pembuatan artikel SEO bergambar dan seluruh modul secara bebas.'
-                    : '1 credit = IDR 1,000. Get 300 free credits instantly to test AI SEO articles with images and all modules freely.'}
+                  {t('bundles.pricingTrialDesc', { credits: TRIAL.credits }, `1 credit = IDR 1,000. Get ${TRIAL.credits} free credits instantly to test AI SEO articles with images and all modules freely.`)}
                 </div>
               </div>
-              <Link to="/register" style={styles.trialCtaBtn}>
-                {lang === 'id' ? 'Mulai Free Trial' : 'Start Free Trial'}
-              </Link>
+              <LocalizedLink to="/register" style={styles.trialCtaBtn}>
+                {t('bundles.pricingTrialBtn', 'Start Free Trial')}
+              </LocalizedLink>
             </div>
           </div>
 
           <div style={styles.pricingCardsGrid}>
             {/* Paket 1: Beli Satuan */}
             <div style={styles.planCard} className="card">
-              <span style={styles.planBadge}>{lang === 'id' ? 'Fleksibel' : 'Modular'}</span>
-              <h3 style={styles.planName}>{lang === 'id' ? 'Per Modul Mandiri' : 'Individual Roles'}</h3>
+              <span style={styles.planBadge}>{t('bundles.planBadgeModular', 'Modular')}</span>
+              <h3 style={styles.planName}>{t('bundles.modularTitle', 'Individual Roles')}</h3>
               <p style={styles.planDesc}>
-                {lang === 'id' ? 'Beli satuan role sesuai kebutuhan spesifik bisnismu.' : 'Subscribe to individual roles based on your exact business needs.'}
+                {t('bundles.modularDesc', 'Subscribe to individual roles based on your exact business needs.')}
               </p>
               <div style={styles.planPriceRow}>
                 <span style={styles.planPriceVal}>
-                  {lang === 'id' ? 'Mulai Rp 1 jt' : 'From $69'}
+                  {t('bundles.modularPriceFrom', { price: formatCurrency(1000000, lang) }, `From ${formatCurrency(1000000, lang)}`)}
                 </span>
                 <span style={styles.planPeriod}>{t('bundles.perMonth', '/ month')}</span>
               </div>
               <ul style={styles.planFeatures}>
-                <li>{lang === 'id' ? 'AI SEO: 1.500 cr / bln (≈20 artikel bergambar)' : 'AI SEO: 1,500 cr / mo (≈20 rich articles)'}</li>
-                <li>{lang === 'id' ? 'AI Ads Report: 1.500 cr / bln (3 akun iklan)' : 'AI Ads Report: 1,500 cr / mo (3 ad accounts)'}</li>
-                <li>{lang === 'id' ? 'AI Ads Spy: 1.000 cr / bln (5 kompetitor)' : 'AI Ads Creative Spy: 1,000 cr / mo (5 competitors)'}</li>
-                <li>{lang === 'id' ? 'Credit berlaku lintas modul aktif' : 'Credits usable across all active modules'}</li>
+                <li>{t('bundles.modularFeat1', 'AI SEO: 1,500 cr / mo (≈20 rich articles)')}</li>
+                <li>{t('bundles.modularFeat2', 'AI Ads Report: 1,500 cr / mo (3 ad accounts)')}</li>
+                <li>{t('bundles.modularFeat3', 'AI Ads Creative Spy: 1,000 cr / mo (5 competitors)')}</li>
+                <li>{t('bundles.modularFeat4', 'Credits usable across all active modules')}</li>
               </ul>
-              <Link to="/register" style={styles.planBtnSecondary}>
+              <LocalizedLink to="/register" style={styles.planBtnSecondary}>
                 {t('bundles.ctaSelect', 'Select Plan')}
-              </Link>
+              </LocalizedLink>
             </div>
 
             {/* Paket 2: Bundle Fokus 3 (Paling Populer) */}
@@ -515,23 +508,23 @@ export default function LandingPage() {
                 <span style={styles.planPeriod}>{t('bundles.perMonth', '/ month')}</span>
               </div>
               <div style={styles.discountBadge}>
-                {lang === 'id' ? 'Hemat 20% vs Beli Satuan (Rp 4.000.000)' : 'Save 20% vs Standalone ($267)'}
+                {t('bundles.fokus3SaveBadge', { amount: formatCurrency(4000000, lang) }, `Save 20% vs Standalone (${formatCurrency(4000000, lang)})`)}
               </div>
               <ul style={styles.planFeatures}>
-                <li>{lang === 'id' ? 'Semua fitur SEO Specialist (20 artikel)' : 'All SEO Specialist features (20 articles)'}</li>
-                <li>{lang === 'id' ? 'Semua fitur Ads Report (Meta, Google, TikTok, Shopee)' : 'All Ads Report channels (Meta, Google, TikTok, Shopee)'}</li>
-                <li>{lang === 'id' ? 'Semua fitur Ads Creative Spy (5 kompetitor)' : 'All Ads Creative Spy tools (5 competitors)'}</li>
-                <li>{lang === 'id' ? 'Ekspor Google Slides & Sheets' : 'Export to Google Slides & Google Sheets'}</li>
-                <li>{lang === 'id' ? 'Dukungan prioritas tim 3Our' : 'Priority 3Our specialist support'}</li>
+                <li>{t('bundles.fokus3Feat1', 'All SEO Specialist features (20 articles)')}</li>
+                <li>{t('bundles.fokus3Feat2', 'All Ads Report channels (Meta, Google, TikTok, Shopee)')}</li>
+                <li>{t('bundles.fokus3Feat3', 'All Ads Creative Spy tools (5 competitors)')}</li>
+                <li>{t('bundles.fokus3Feat4', 'Export to Google Slides & Google Sheets')}</li>
+                <li>{t('bundles.fokus3Feat5', 'Priority 3Our specialist support')}</li>
               </ul>
-              <Link to="/register" style={styles.planBtnPrimary}>
+              <LocalizedLink to="/register" style={styles.planBtnPrimary}>
                 {t('bundles.ctaSelect', 'Select Plan')}
-              </Link>
+              </LocalizedLink>
             </div>
 
             {/* Paket 3: All-in-One Pre-order */}
             <div style={styles.planCard} className="card">
-              <span style={styles.planBadgePreorder}>Pre-Order</span>
+              <span style={styles.planBadgePreorder}>{t('bundles.preorderBadge', 'Pre-Order')}</span>
               <h3 style={styles.planName}>{t('bundles.allInOneTitle', 'All-in-One AI Team')}</h3>
               <p style={styles.planDesc}>{t('bundles.allInOneDesc', 'Full access to all 16 AI marketing roles upon launch.')}</p>
               <div style={styles.planPriceRow}>
@@ -539,33 +532,33 @@ export default function LandingPage() {
                 <span style={styles.planPeriod}>{t('bundles.perMonth', '/ month')}</span>
               </div>
               <div style={styles.preorderNotice}>
-                {lang === 'id' ? 'Modul baru otomatis aktif saat rilis tanpa biaya tambahan' : 'Upcoming modules unlock automatically upon release at zero extra charge'}
+                {t('bundles.preorderNotice', 'Upcoming modules unlock automatically upon release at zero extra charge')}
               </div>
               <ul style={styles.planFeatures}>
-                <li>{lang === 'id' ? 'Akses instan ke 3 role yang sudah tersedia' : 'Instant access to all 3 currently available roles'}</li>
-                <li>{lang === 'id' ? 'Akses otomatis ke 13 role berikutnya saat rilis' : 'Automatic access to upcoming 13 roles upon release'}</li>
-                <li>{lang === 'id' ? 'Kuota kompetitor & artikel 2x lipat' : '2x article & competitor tracking quotas'}</li>
-                <li>{lang === 'id' ? 'Kunci harga seumur hidup' : 'Lifetime price-lock guarantee'}</li>
+                <li>{t('bundles.allInOneFeat1', 'Instant access to all 3 currently available roles')}</li>
+                <li>{t('bundles.allInOneFeat2', 'Automatic access to upcoming 13 roles upon release')}</li>
+                <li>{t('bundles.allInOneFeat3', '2x article & competitor tracking quotas')}</li>
+                <li>{t('bundles.allInOneFeat4', 'Lifetime price-lock guarantee')}</li>
               </ul>
-              <Link to="/register" style={styles.planBtnSecondary}>
+              <LocalizedLink to="/register" style={styles.planBtnSecondary}>
                 {t('bundles.ctaPreorder', 'Pre-Order Access')}
-              </Link>
+              </LocalizedLink>
             </div>
 
             {/* Paket 4: Managed by 3Our */}
             <div style={styles.planCard} className="card">
-              <span style={styles.planBadge}>{lang === 'id' ? 'Layanan Penuh' : 'Full Service'}</span>
+              <span style={styles.planBadge}>{t('bundles.planBadgeManaged', 'Full Service')}</span>
               <h3 style={styles.planName}>{t('bundles.managedTitle', 'Managed by 3Our')}</h3>
               <p style={styles.planDesc}>{t('bundles.managedDesc', 'Hybrid AI team with dedicated human marketing specialists from 3Our Indonesia.')}</p>
               <div style={styles.planPriceRow}>
-                <span style={styles.planPriceVal}>{lang === 'id' ? 'Konsultasi' : 'Custom'}</span>
-                <span style={styles.planPeriod}>{lang === 'id' ? '/ retainer' : '/ retainer'}</span>
+                <span style={styles.planPriceVal}>{t('bundles.managedPriceVal', 'Custom')}</span>
+                <span style={styles.planPeriod}>{t('bundles.managedPeriod', '/ retainer')}</span>
               </div>
               <ul style={styles.planFeatures}>
-                <li>{lang === 'id' ? 'Platform Markimate dikelola penuh oleh tim 3Our' : 'Markimate platform fully operated by 3Our specialists'}</li>
-                <li>{lang === 'id' ? 'Konsultasi strategi bulanan 1-on-1' : '1-on-1 monthly strategic growth consultations'}</li>
-                <li>{lang === 'id' ? 'Produksi konten & optimasi kampanye ads langsung' : 'Hands-on creative production and media buying execution'}</li>
-                <li>{lang === 'id' ? 'Laporan eksekutif siap presentasi' : 'Executive slide decks prepared for board meetings'}</li>
+                <li>{t('bundles.managedFeat1', 'Markimate platform fully operated by 3Our specialists')}</li>
+                <li>{t('bundles.managedFeat2', '1-on-1 monthly strategic growth consultations')}</li>
+                <li>{t('bundles.managedFeat3', 'Hands-on creative production and media buying execution')}</li>
+                <li>{t('bundles.managedFeat4', 'Executive slide decks prepared for board meetings')}</li>
               </ul>
               <a
                 href={managedBundle?.contactUrl || 'https://wa.me/6285179642520'}

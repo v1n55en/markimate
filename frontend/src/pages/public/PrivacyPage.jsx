@@ -1,14 +1,20 @@
-import { ShieldCheck, Mail, MapPin, Phone, Building2, CheckCircle2, Lock } from 'lucide-react';
+import { ShieldCheck, Mail, MapPin, Phone, Building2, CheckCircle2, Lock, AlertTriangle } from 'lucide-react';
 import PublicNavbar from '../../components/PublicNavbar';
 import PublicFooter from '../../components/PublicFooter';
 import SeoHead from '../../components/common/SeoHead';
+import { useLanguage } from '../../context/LanguageContext';
+import { PRIVACY_CONTENT, LEGAL_PREVAILING_NOTICE } from '../../content/legal-content';
 
 export default function PrivacyPage() {
+  const { lang } = useLanguage();
+  const content = PRIVACY_CONTENT[lang] || PRIVACY_CONTENT.id;
+  const prevailingNotice = LEGAL_PREVAILING_NOTICE[lang] || LEGAL_PREVAILING_NOTICE.id;
+
   return (
     <div style={styles.page}>
       <SeoHead
-        title="Kebijakan Privasi"
-        description="Kebijakan Privasi Markimate: Komitmen perlindungan privasi, integritas, dan keamanan data pengguna."
+        title={content.seoTitle}
+        description={content.seoDescription}
         path="/privacy"
       />
       <PublicNavbar />
@@ -18,154 +24,100 @@ export default function PrivacyPage() {
           <div style={styles.iconBox}>
             <ShieldCheck size={28} color="var(--accent-green)" />
           </div>
-          <h1 style={styles.title}>Kebijakan Privasi Markimate</h1>
-          <p style={styles.subtitle}>
-            Terakhir diperbarui: 11 Oktober 2026 · Berlaku untuk seluruh pengguna dan peninjau platform
-          </p>
+          <h1 style={styles.title}>{content.title}</h1>
+          <p style={styles.subtitle}>{content.lastUpdated}</p>
+        </div>
+
+        {/* Banner Klausul Hukum (Indonesian prevailing clause) */}
+        <div style={styles.prevailingBanner}>
+          <AlertTriangle size={18} color="var(--accent-yellow)" style={{ flexShrink: 0, marginTop: '2px' }} />
+          <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            <strong style={{ color: 'var(--text-primary)' }}>Notice / Pemberitahuan: </strong>
+            {prevailingNotice}
+          </div>
         </div>
 
         <div style={styles.contentCard} className="card">
-          {/* Section 1 */}
-          <section style={styles.section}>
-            <h2 style={styles.sectionHeading}>1. Pendahuluan & Identitas Pengelola</h2>
-            <p style={styles.paragraph}>
-              Selamat datang di <strong>Markimate</strong>, platform dengan Semua Tim Digital Marketing dalam satu platform yang dikembangkan dan dioperasikan oleh <strong>Markimate · powered by 3our</strong>. Kami berkomitmen penuh untuk melindungi privasi, integritas, dan keamanan data seluruh pengguna kami, termasuk data yang diakses melalui integrasi Application Programming Interface (API) platform pihak ketiga.
-            </p>
-            <div style={styles.highlightBox}>
-              <div style={styles.companyRow}>
-                <Building2 size={16} color="var(--accent-cyan)" />
-                <span><strong>Entitas Pengelola Resmi:</strong> Markimate · powered by 3our</span>
-              </div>
-              <div style={styles.companyRow}>
-                <MapPin size={16} color="var(--accent-cyan)" />
-                <span><strong>Alamat Kantor:</strong> Jl. BSD Raya Utama, Kabupaten Tangerang, Banten, Indonesia</span>
-              </div>
-              <div style={styles.companyRow}>
-                <Mail size={16} color="var(--accent-cyan)" />
-                <span><strong>Email Kontak Resmi:</strong> <a href="mailto:info@3ourasia.id" style={{ color: 'var(--accent-cyan)' }}>info@3ourasia.id</a></span>
-              </div>
-              <div style={styles.companyRow}>
-                <Phone size={16} color="var(--accent-cyan)" />
-                <span><strong>WhatsApp Resmi:</strong> <a href="https://wa.me/6285179642520" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-cyan)' }}>+62 851-7964-2520</a></span>
-              </div>
-            </div>
-          </section>
+          {content.sections.map((sec) => (
+            <section key={sec.number} style={styles.section}>
+              <h2 style={styles.sectionHeading}>
+                {sec.number}. {sec.title}
+              </h2>
 
-          {/* Section 2 */}
-          <section style={styles.section}>
-            <h2 style={styles.sectionHeading}>2. Data yang Kami Kumpulkan & Akses</h2>
-            <p style={styles.paragraph}>
-              Markimate menyediakan modul layanan: <em>SEO Article Automation</em>, <em>Ads Performance Report</em>, dan <em>Ads Creative Spy</em>. Dalam menyediakan layanan laporan performa periklanan, sistem kami mengakses data dari platform mitra (seperti Shopee Open Platform, TikTok Marketing API & TikTok Shop, Meta Marketing API, serta Google Ads API):
-            </p>
-            <ul style={styles.bulletList}>
-              <li>
-                <strong>Metrik Performa Kampanye:</strong> Total biaya iklan (spend/cost), impresi (impressions), klik (clicks), rasio klik-tayang (CTR), biaya per klik (CPC), jumlah konversi/pesanan (conversions/orders), Gross Merchandise Value (GMV), dan Return on Ad Spend (ROAS).
-              </li>
-              <li>
-                <strong>Identitas Akun & Toko:</strong> Nama toko/akun iklan, ID toko (Shop ID), ID akun iklan (Ad Account ID / Customer ID / Advertiser ID).
-              </li>
-              <li>
-                <strong>Metadata Kampanye & Materi Iklan:</strong> Nama kampanye, grup iklan, nama produk terkait iklan, format iklan, serta thumbnail materi kreatif untuk keperluan penyusunan laporan visual.
-              </li>
-              <li>
-                <strong>Data Akun Pengguna Markimate:</strong> Nama brand bisnis, alamat email, serta preferensi CMS yang didaftarkan saat pembuatan akun.
-              </li>
-            </ul>
-          </section>
+              {sec.alertBox && (
+                <div style={styles.alertBox}>
+                  <CheckCircle2 size={18} color="var(--accent-green)" style={{ flexShrink: 0 }} />
+                  <div>{sec.alertBox}</div>
+                </div>
+              )}
 
-          {/* Section 3 */}
-          <section style={styles.section}>
-            <h2 style={styles.sectionHeading}>3. Tujuan Penggunaan Data & Sifat Akses Read-Only</h2>
-            <div style={styles.alertBox}>
-              <CheckCircle2 size={18} color="var(--accent-green)" style={{ flexShrink: 0 }} />
-              <div>
-                <strong>Akses Sepenuhnya Read-Only (Hanya Baca):</strong> Seluruh otorisasi yang diminta oleh Markimate bersifat read-only. Kami <em>tidak pernah</em> meminta atau menggunakan izin untuk membuat, memodifikasi, menghentikan kampanye iklan, memotong saldo keuangan, atau mengubah pengaturan toko Anda.
-              </div>
-            </div>
-            <p style={styles.paragraph}>Data yang diakses digunakan semata-mata untuk tujuan:</p>
-            <ul style={styles.bulletList}>
-              <li>Menghasilkan ringkasan dasbor performa multi-platform bulanan bagi pemilik akun.</li>
-              <li>Menyusun laporan presentasi eksekutif otomatis (Google Slides) dan spreadsheet rekapitulasi data (Google Sheets) untuk keperluan review bisnis Anda.</li>
-              <li>Menghasilkan analisis komparatif dan insight rekomendasi optimasi biaya berbasis AI.</li>
-            </ul>
-          </section>
+              {sec.securityBox && (
+                <div style={styles.securityBox}>
+                  <Lock size={18} color="var(--accent-cyan)" style={{ flexShrink: 0 }} />
+                  <div>{sec.securityBox}</div>
+                </div>
+              )}
 
-          {/* Section 4 */}
-          <section style={styles.section}>
-            <h2 style={styles.sectionHeading}>4. Jaminan Tidak Menjual atau Membagikan Data</h2>
-            <p style={styles.paragraph}>
-              <strong>Markimate · powered by 3our menegaskan bahwa kami tidak pernah dan tidak akan pernah menjual, menyewakan, menukar, atau memonetisasi data bisnis, data iklan, atau informasi pelanggan Anda kepada pihak ketiga mana pun</strong> untuk tujuan periklanan pihak ketiga, pialang data (data broker), atau tujuan lain di luar operasional layanan Markimate yang secara tegas disetujui pengguna.
-            </p>
-          </section>
+              <p style={styles.paragraph}>{sec.content}</p>
 
-          {/* Section 5 */}
-          <section style={styles.section}>
-            <h2 style={styles.sectionHeading}>5. Penyimpanan Data & Keamanan Token OAuth</h2>
-            <div style={styles.securityBox}>
-              <Lock size={18} color="var(--accent-cyan)" style={{ flexShrink: 0 }} />
-              <div>
-                <strong>Enkripsi Tingkat Tinggi:</strong> Kredensial otentikasi (Access Token & Refresh Token OAuth) disimpan secara terenkripsi menggunakan algoritma standar industri (AES-256) pada pangkalan data terisolasi. Token hanya didekripsi saat sistem melakukan panggilan API terjadwal untuk penyusunan laporan berkala.
-              </div>
-            </div>
-            <p style={styles.paragraph}>
-              Kami menerapkan kontrol akses berbasis peran (RBAC), transmisi data terenkripsi SSL/TLS HTTPS end-to-end, dan pemantauan keamanan berkala untuk mencegah akses tanpa hak.
-            </p>
-          </section>
-
-          {/* Section 6 */}
-          <section style={styles.section}>
-            <h2 style={styles.sectionHeading}>6. Hak Pengguna & Cara Mencabut Akses Otorisasi</h2>
-            <p style={styles.paragraph}>
-              Pengguna memiliki kendali penuh atas koneksi platform iklan dan marketplace yang terhubung. Anda dapat mencabut izin akses kapan saja melalui salah satu cara berikut:
-            </p>
-            <ol style={styles.orderedList}>
-              <li>
-                <strong>Melalui Dasbor Markimate:</strong> Masuk ke akun Anda, buka menu <em>Ads Report → Koneksi Platform</em>, lalu klik tombol <em>Putuskan</em> pada akun yang ingin dicabut. Token akses akan segera dihapus dari sistem kami.
-              </li>
-              <li>
-                <strong>Melalui Pengaturan Platform Masing-Masing:</strong>
-                <ul style={{ ...styles.bulletList, marginTop: '0.5rem' }}>
-                  <li>Shopee: Masuk ke <em>Shopee Seller Centre → Pengaturan Akun → Aplikasi Mitra Terhubung</em> dan klik Cabut Akses.</li>
-                  <li>TikTok: Masuk ke <em>TikTok Business Center / Seller Center → Authorized Apps</em> dan hapus otorisasi Markimate.</li>
-                  <li>Meta: Buka <em>Pengaturan Bisnis Meta → Integrasi Bisnis</em> dan hapus Markimate.</li>
-                  <li>Google: Buka <em>Akun Google → Keamanan → Kelola akses pihak ketiga</em> dan cabut izin.</li>
+              {sec.bullets && (
+                <ul style={styles.bulletList}>
+                  {sec.bullets.map((b, bIdx) => (
+                    <li key={bIdx}>{b}</li>
+                  ))}
                 </ul>
-              </li>
-            </ol>
-          </section>
+              )}
 
-          {/* Section 7 */}
-          <section style={styles.section}>
-            <h2 style={styles.sectionHeading}>7. Perubahan Kebijakan Privasi</h2>
-            <p style={styles.paragraph}>
-              Kami dapat memperbarui kebijakan privasi ini sewaktu-waktu seiring dengan penambahan fitur atau penyesuaian regulasi perlindungan data. Setiap pembaruan substansial akan diumumkan melalui pemberitahuan di dasbor aplikasi atau melalui email terdaftar.
-            </p>
-          </section>
+              {sec.ordered && (
+                <ol style={styles.orderedList}>
+                  {sec.ordered.map((o, oIdx) => (
+                    <li key={oIdx}>{o}</li>
+                  ))}
+                </ol>
+              )}
 
-          {/* Section 8 */}
-          <section style={styles.section}>
-            <h2 style={styles.sectionHeading}>8. Kontak Pertanyaan & Layanan Pelanggan</h2>
-            <p style={styles.paragraph}>
-              Apabila Anda memiliki pertanyaan, klarifikasi, atau permintaan penghapusan data terkait kebijakan privasi ini, silakan hubungi tim kami di:
-            </p>
-            <div style={styles.contactCard}>
-              <p style={{ margin: 0 }}><strong>Departemen Legal & Privasi Data</strong></p>
-              <p style={{ margin: '0.25rem 0' }}>Markimate · powered by 3our</p>
-              <p style={{ margin: '0.25rem 0', color: 'var(--text-muted)' }}>Jl. BSD Raya Utama, Kabupaten Tangerang, Banten</p>
-              <p style={{ margin: '0.25rem 0' }}>
-                Email:{' '}
-                <a href="mailto:info@3ourasia.id" style={{ color: 'var(--accent-cyan)' }}>
-                  info@3ourasia.id
-                </a>
-              </p>
-              <p style={{ margin: '0.25rem 0' }}>
-                WhatsApp:{' '}
-                <a href="https://wa.me/6285179642520" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-cyan)' }}>
-                  +62 851-7964-2520
-                </a>
-              </p>
-            </div>
-          </section>
+              {sec.hasCompanyBox && (
+                <div style={styles.highlightBox}>
+                  <div style={styles.companyRow}>
+                    <Building2 size={16} color="var(--accent-cyan)" />
+                    <span><strong>Entitas / Entity:</strong> {content.companyOfficial}</span>
+                  </div>
+                  <div style={styles.companyRow}>
+                    <MapPin size={16} color="var(--accent-cyan)" />
+                    <span><strong>Alamat / Address:</strong> {content.companyAddress}</span>
+                  </div>
+                  <div style={styles.companyRow}>
+                    <Mail size={16} color="var(--accent-cyan)" />
+                    <span><strong>Email:</strong> <a href={`mailto:${content.companyEmail}`} style={{ color: 'var(--accent-cyan)' }}>{content.companyEmail}</a></span>
+                  </div>
+                  <div style={styles.companyRow}>
+                    <Phone size={16} color="var(--accent-cyan)" />
+                    <span><strong>WhatsApp:</strong> <a href="https://wa.me/6285179642520" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-cyan)' }}>{content.companyPhone}</a></span>
+                  </div>
+                </div>
+              )}
+
+              {sec.hasContactCard && (
+                <div style={styles.contactCard}>
+                  <p style={{ margin: 0 }}><strong>Departemen Legal & Privasi Data / Legal & Privacy Office</strong></p>
+                  <p style={{ margin: '0.25rem 0' }}>{content.companyOfficial}</p>
+                  <p style={{ margin: '0.25rem 0', color: 'var(--text-muted)' }}>{content.companyAddress}</p>
+                  <p style={{ margin: '0.25rem 0' }}>
+                    Email:{' '}
+                    <a href={`mailto:${content.companyEmail}`} style={{ color: 'var(--accent-cyan)' }}>
+                      {content.companyEmail}
+                    </a>
+                  </p>
+                  <p style={{ margin: '0.25rem 0' }}>
+                    WhatsApp:{' '}
+                    <a href="https://wa.me/6285179642520" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-cyan)' }}>
+                      {content.companyPhone}
+                    </a>
+                  </p>
+                </div>
+              )}
+            </section>
+          ))}
         </div>
       </main>
 
@@ -214,6 +166,16 @@ const styles = {
   subtitle: {
     fontSize: '0.85rem',
     color: 'var(--text-muted)',
+  },
+  prevailingBanner: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '0.75rem',
+    padding: '0.85rem 1.25rem',
+    borderRadius: '10px',
+    backgroundColor: 'rgba(234, 179, 8, 0.08)',
+    border: '1px solid rgba(234, 179, 8, 0.25)',
+    marginBottom: '1.5rem',
   },
   contentCard: {
     padding: '2.5rem',

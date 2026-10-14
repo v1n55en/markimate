@@ -108,6 +108,14 @@ export const IN_HOUSE_COMPARISON = [
   },
 ];
 
+export const getLocalizedInHouseComparison = (lang = 'id') => {
+  return IN_HOUSE_COMPARISON.map((row) => ({
+    ...row,
+    roleName: lang === 'en' ? (row.role_en || row.role) : (row.role_id || row.role),
+    deliverablesText: lang === 'en' ? (row.deliverables_en || row.deliverables) : (row.deliverables_id || row.deliverables),
+  }));
+};
+
 // Format mata uang: USD ($) jika 'en', IDR (Rp) jika 'id'
 export const formatCurrency = (n, lang = 'id') => {
   if (lang === 'en') {

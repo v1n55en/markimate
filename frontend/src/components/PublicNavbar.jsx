@@ -34,14 +34,14 @@ export default function PublicNavbar() {
         {/* Desktop CTA Group */}
         <div style={styles.ctaGroup} className="hide-on-mobile">
           <LanguageSwitcher />
-          <Link to="/login" style={styles.loginBtn}>
+          <LocalizedLink to="/login" style={styles.loginBtn}>
             <LogIn size={15} />
             <span>{t('nav.login', 'Sign In')}</span>
-          </Link>
-          <Link to="/register" style={styles.registerBtn}>
+          </LocalizedLink>
+          <LocalizedLink to="/register" style={styles.registerBtn}>
             <span>{t('nav.register', 'Start 7-Day Free Trial')}</span>
             <ArrowRight size={15} />
-          </Link>
+          </LocalizedLink>
         </div>
 
         {/* Mobile Action Controls: Language Switcher + Hamburger */}
@@ -93,22 +93,26 @@ export default function PublicNavbar() {
           </nav>
 
           <div style={styles.mobileDrawerCtas}>
-            <Link
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.25rem 0', borderBottom: '1px solid rgba(39, 39, 42, 0.5)', marginBottom: '0.5rem' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Language / Bahasa</span>
+              <LanguageSwitcher size="small" />
+            </div>
+            <LocalizedLink
               to="/login"
               style={styles.mobileLoginBtn}
               onClick={() => setMobileMenuOpen(false)}
             >
               <LogIn size={16} />
               <span>{t('nav.login', 'Sign In')}</span>
-            </Link>
-            <Link
+            </LocalizedLink>
+            <LocalizedLink
               to="/register"
               style={styles.mobileRegisterBtn}
               onClick={() => setMobileMenuOpen(false)}
             >
               <span>{t('nav.register', 'Start 7-Day Free Trial')}</span>
               <ArrowRight size={16} />
-            </Link>
+            </LocalizedLink>
           </div>
         </div>
       )}
@@ -129,11 +133,11 @@ const styles = {
   container: {
     maxWidth: '1200px',
     margin: '0 auto',
-    padding: '0.75rem 1.25rem',
+    padding: '0.65rem clamp(0.6rem, 3vw, 1.25rem)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: '0.75rem',
+    gap: '0.5rem',
   },
   brand: {
     display: 'flex',

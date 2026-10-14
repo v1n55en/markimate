@@ -67,17 +67,15 @@ export default function RoleDetailPage() {
         <PublicNavbar />
         <main style={{ ...styles.main, textAlign: 'center', padding: '5rem 1rem' }}>
           <h2 style={{ color: 'var(--text-primary)' }}>
-            {lang === 'id' ? 'Role Tidak Ditemukan' : 'Role Not Found'}
+            {t('roleDetail.notFoundTitle', 'Role Not Found')}
           </h2>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-            {lang === 'id'
-              ? `Role marketing dengan kode "${key}" tidak terdaftar.`
-              : `Marketing AI role with key "${key}" was not found.`}
+            {t('roleDetail.notFoundDesc', { key }, `Marketing AI role with key "${key}" was not found.`)}
           </p>
-          <Link to="/" style={styles.backBtn}>
+          <LocalizedLink to="/" style={styles.backBtn}>
             <ArrowLeft size={16} />
             <span>{t('roleDetail.backLink', 'Back to All Roles')}</span>
-          </Link>
+          </LocalizedLink>
         </main>
         <PublicFooter />
       </div>
@@ -152,7 +150,7 @@ export default function RoleDetailPage() {
             {isAvailable ? (
               <div style={styles.pricingBox}>
                 <span style={styles.pricingTag}>
-                  {lang === 'id' ? 'Investasi Modul Mandiri' : 'Individual Role Investment'}
+                  {t('roleDetail.pricingTag', 'Individual Role Investment')}
                 </span>
                 <div style={styles.priceRow}>
                   <span style={styles.priceAmount}>{formatCurrency(price, lang)}</span>
@@ -161,25 +159,23 @@ export default function RoleDetailPage() {
                 {quota && (
                   <div style={styles.quotaRow}>
                     <span style={styles.quotaText}>
-                      {lang === 'id' ? `Termasuk: ${quota}` : `Includes: ${quota}`}
+                      {t('roleDetail.quotaIncludes', { quota }, `Includes: ${quota}`)}
                     </span>
                   </div>
                 )}
                 <div style={styles.pricingCtas}>
-                  <Link to="/register" style={styles.primaryActionBtn}>
+                  <LocalizedLink to="/register" style={styles.primaryActionBtn}>
                     <span>{t('bundles.ctaSelect', 'Start Subscription')}</span>
                     <ArrowRight size={15} />
-                  </Link>
-                  <Link to="/register" style={styles.secondaryActionBtn}>
+                  </LocalizedLink>
+                  <LocalizedLink to="/register" style={styles.secondaryActionBtn}>
                     {t('finalCta.btnTrial', 'Start 7-Day Free Trial')}
-                  </Link>
+                  </LocalizedLink>
                 </div>
                 <div style={styles.guaranteeText}>
                   <ShieldCheck size={14} color="var(--accent-green)" />
                   <span>
-                    {lang === 'id'
-                      ? 'Garansi Human-in-the-Loop: Review sebelum terbit'
-                      : 'Human-in-the-Loop Guarantee: Review before live'}
+                    {t('roleDetail.guarantee', 'Human-in-the-Loop Guarantee: Review before live')}
                   </span>
                 </div>
               </div>
@@ -189,12 +185,10 @@ export default function RoleDetailPage() {
                   <Bell size={24} color="var(--accent-yellow)" />
                 </div>
                 <h3 style={styles.waitlistTitle}>
-                  {lang === 'id' ? 'Ingin Menggunakan Role Ini?' : 'Want to Deploy This AI Role?'}
+                  {t('roleDetail.waitlistPromptTitle', 'Want to Deploy This AI Role?')}
                 </h3>
                 <p style={styles.waitlistSubtitle}>
-                  {lang === 'id'
-                    ? 'Daftarkan email Anda untuk mendapatkan prioritas akses beta dan diskon early-bird saat modul ini dirilis.'
-                    : 'Register your work email for priority beta onboarding and early-bird discounts when this role launches.'}
+                  {t('roleDetail.waitlistPromptDesc', 'Register your work email for priority beta onboarding and early-bird discounts when this role launches.')}
                 </p>
                 <button
                   onClick={() => setShowWaitlistModal(true)}
@@ -235,9 +229,7 @@ export default function RoleDetailPage() {
               <p style={styles.sampleContent}>{role.sampleOutput}</p>
               <div style={styles.sampleFooter}>
                 <span style={styles.sampleNote}>
-                  {lang === 'id'
-                    ? 'Setiap deliverable dapat ditinjau, disunting, dan disetujui di dalam dasbor Markimate sebelum diterbitkan atau digunakan.'
-                    : 'Every deliverable can be reviewed, edited, and approved inside the Markimate console before being published.'}
+                  {t('roleDetail.sampleNote', 'Every deliverable can be reviewed, edited, and approved inside the Markimate console before being published.')}
                 </span>
                 {isAvailable && role.path && (
                   <button
@@ -256,19 +248,15 @@ export default function RoleDetailPage() {
         <div style={styles.bottomCtaBox} className="card">
           <div>
             <h3 style={styles.bottomCtaTitle}>
-              {lang === 'id'
-                ? 'Butuh Lebih dari Satu Role? Hemat dengan Bundle "Fokus 3"'
-                : 'Need Multiple Roles? Save 20% with the Focus 3 Bundle'}
+              {t('roleDetail.bottomCtaTitle', 'Need Multiple Roles? Save 20% with the Focus 3 Bundle')}
             </h3>
             <p style={styles.bottomCtaDesc}>
-              {lang === 'id'
-                ? 'Dapatkan SEO Specialist, Ads Specialist (Report), dan Ads Creative Spy sekaligus dengan diskon 20%.'
-                : 'Deploy SEO Specialist, Ads Report, and Ads Creative Spy simultaneously with an automatic 20% discount.'}
+              {t('roleDetail.bottomCtaDesc', 'Deploy SEO Specialist, Ads Report, and Ads Creative Spy simultaneously with an automatic 20% discount.')}
             </p>
           </div>
-          <Link to="/#pricing" style={styles.bottomCtaLink}>
+          <LocalizedLink to="/#pricing" style={styles.bottomCtaLink}>
             {t('hero.ctaSecondary', 'View Plans & Pricing')}
-          </Link>
+          </LocalizedLink>
         </div>
       </main>
 

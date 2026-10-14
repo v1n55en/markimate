@@ -22,7 +22,7 @@ export const ROLES = [
     category: 'Content',
     status: 'available',
     description: 'Keyword research, rank-ready SEO writing, automated 1-click publishing to WordPress/Wix',
-    description_id: 'Riset keyword, tulis artikel SEO, kirim ke WordPress/Wix setelah kamu setujui',
+    description_id: 'Riset keyword, tulis artikel SEO, kirim ke WordPress/Wix setelah Anda setujui',
     longDescription:
       'Autonomous AI SEO specialist that tracks live Google search trends, identifies high-intent keyword opportunities, drafts comprehensive search-optimized articles, and pushes directly to your CMS upon editorial approval.',
     longDescription_id:

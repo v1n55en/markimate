@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { X, Bell, CheckCircle2, AlertCircle } from 'lucide-react';
-import { useLanguage } from '../../context/LanguageContext';
+import { useLanguage, Trans } from '../../context/LanguageContext';
 import { storage } from '../../lib/storage';
 
 export default function WaitlistModal({ role, onClose }) {
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
@@ -13,12 +13,12 @@ export default function WaitlistModal({ role, onClose }) {
 
   if (!role) return null;
 
-  const roleName = lang === 'id' && role.name_id ? role.name_id : role.name;
+  const roleName = role.name;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email) {
-      setError(lang === 'id' ? 'Harap masukkan alamat email Anda.' : 'Please enter your work email.');
+      setError(t('waitlist.errorEmailRequired', 'Please enter your work email.'));
       return;
     }
     setError('');
@@ -40,7 +40,7 @@ export default function WaitlistModal({ role, onClose }) {
       await new Promise((r) => setTimeout(r, 400));
       setSubmitted(true);
     } catch {
-      setError(lang === 'id' ? 'Terjadi kendala saat menyimpan. Silakan coba lagi.' : 'Something went wrong. Please try again.');
+      setError(t('waitlist.errorGeneric', 'Something went wrong. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -61,7 +61,7 @@ export default function WaitlistModal({ role, onClose }) {
               </div>
               <h3 style={styles.title}>{t('waitlist.modalTitle', 'Join Early Access Waitlist')}</h3>
               <p style={styles.subtitle}>
-                <strong>{roleName}</strong> {lang === 'id' ? 'sedang dalam tahap pengembangan akhir. Jadilah yang pertama mencoba dan dapatkan penawaran 50% early bird.' : 'is currently in private beta development. Join early to receive priority access and 50% off your first month.'}
+                {t('waitlist.roleDeveloping', { roleName })}
               </p>
             </div>
 
@@ -101,7 +101,7 @@ export default function WaitlistModal({ role, onClose }) {
               </button>
 
               <span style={styles.privacyNote}>
-                {lang === 'id' ? 'Kami menghargai privasi Anda. Tidak ada spam, hanya update penting seputar peluncuran.' : 'We respect your inbox. Zero spam, only crucial release notifications.'}
+                {t('waitlist.privacyNote', 'We respect your inbox. Zero spam, only crucial release notifications.')}
               </span>
             </form>
           </div>
@@ -112,11 +112,7 @@ export default function WaitlistModal({ role, onClose }) {
             </div>
             <h3 style={styles.title}>{t('waitlist.successTitle', "You're on the list!")}</h3>
             <p style={styles.subtitle}>
-              {lang === 'id' ? (
-                <>Terima kasih! Kami akan mengirimkan notifikasi ke <strong>{email}</strong> segera setelah role <strong>{roleName}</strong> siap digunakan.</>
-              ) : (
-                <>Thank you! We will notify <strong>{email}</strong> as soon as <strong>{roleName}</strong> is ready for deployment.</>
-              )}
+              {t('waitlist.successMessage', { email, roleName })}
             </p>
             <button onClick={onClose} style={styles.closeModalBtn}>
               {t('waitlist.closeBtn', 'Close')}
