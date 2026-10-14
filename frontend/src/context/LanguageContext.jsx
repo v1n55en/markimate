@@ -1,36 +1,85 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, isValidElement, cloneElement } from 'react';
 import { Globe } from 'lucide-react';
-import { TRANSLATIONS } from '../i18n/translations';
-import { storage } from '../lib/storage';
+import { TRANSLATIONS } from '../i18n/index.js';
+import { storage } from '../lib/storage.js';
+import * as format from '../lib/format.js';
+
+const STORAGE_KEY = 'markimate_lang';
+const LEGACY_STORAGE_KEY = 'lang';
 
 const LanguageContext = createContext({
   lang: 'en',
   setLang: () => {},
   toggleLang: () => {},
-  t: (path, fallback = '') => fallback,
+  t: (path, params = {}, fallback = '') => fallback || path,
+  format,
 });
 
-const STORAGE_KEY = 'lang';
+function resolvePath(obj, path) {
+  if (!obj || !path) return undefined;
+  const parts = path.split('.');
+  let curr = obj;
+  for (const part of parts) {
+    if (curr && typeof curr === 'object' && part in curr) {
+      curr = curr[part];
+    } else {
+      return undefined;
+    }
+  }
+  return curr;
+}
+
+/**
+ * Resolusi bahasa sesuai urutan prioritas PRD §2.2:
+ * 1. Prefix URL publik (/id/... -> id)
+ * 2. accounts.locale dari user tersimpan
+ * 3. Pilihan tersimpan (markimate_lang di localStorage)
+ * 4. Bahasa browser (navigator.languages diawali 'id' -> id)
+ * 5. Default: en
+ */
+function detectInitialLanguage() {
+  if (typeof window !== 'undefined' && window.location) {
+    const pathname = window.location.pathname || '';
+    if (pathname === '/id' || pathname.startsWith('/id/')) {
+      return 'id';
+    }
+  }
+
+  try {
+    const userRaw = storage.getItem('markimate_user') || storage.getItem('user');
+    if (userRaw) {
+      const u = typeof userRaw === 'string' ? JSON.parse(userRaw) : userRaw;
+      if (u?.locale === 'id' || u?.locale === 'en') {
+        return u.locale;
+      }
+    }
+  } catch {}
+
+  try {
+    const saved = storage.getItem(STORAGE_KEY) || storage.getItem(LEGACY_STORAGE_KEY);
+    if (saved === 'en' || saved === 'id') return saved;
+  } catch {}
+
+  if (typeof navigator !== 'undefined') {
+    const langs = navigator.languages || [navigator.language || ''];
+    for (const l of langs) {
+      if (typeof l === 'string' && l.toLowerCase().startsWith('id')) {
+        return 'id';
+      }
+    }
+  }
+
+  return 'en';
+}
 
 export function LanguageProvider({ children }) {
-  const [lang, setLangState] = useState(() => {
-    try {
-      const saved = storage.getItem(STORAGE_KEY);
-      if (saved === 'en' || saved === 'id') return saved;
-    } catch {
-      // Fallback
-    }
-    // Default: English as primary
-    return 'en';
-  });
+  const [lang, setLangState] = useState(detectInitialLanguage);
 
   useEffect(() => {
     try {
       storage.setItem(STORAGE_KEY, lang);
       document.documentElement.lang = lang;
-    } catch {
-      // Ignore
-    }
+    } catch {}
   }, [lang]);
 
   const setLang = (newLang) => {
@@ -43,32 +92,68 @@ export function LanguageProvider({ children }) {
     setLangState((prev) => (prev === 'en' ? 'id' : 'en'));
   };
 
-  // Helper resolver dot-notation path, e.g. t('hero.title')
-  const t = (path, fallback = '') => {
+  /**
+   * Helper penterjemah t(path, params, fallback)
+   * Mendukung:
+   * - dot notation: t('hero.title')
+   * - interpolasi: t('hero.ctaPrimary', { credits: 300, days: 7 })
+   * - pluralisasi: t('common.itemsCount', { count: 1 }) -> mencari itemsCount_one / itemsCount_other
+   * - dev warning bila key tidak ditemukan
+   */
+  const t = (path, params = {}, fallback = '') => {
     if (!path) return fallback;
-    const parts = path.split('.');
-    let current = TRANSLATIONS[lang] || TRANSLATIONS.en;
-    for (const part of parts) {
-      if (current && typeof current === 'object' && part in current) {
-        current = current[part];
-      } else {
-        // Fallback to English if key missing in Indonesian
-        let enCurrent = TRANSLATIONS.en;
-        for (const p of parts) {
-          if (enCurrent && typeof enCurrent === 'object' && p in enCurrent) {
-            enCurrent = enCurrent[p];
-          } else {
-            return fallback || path;
-          }
+
+    // Normalisasi parameter fallback bila params dipassing sebagai string fallback
+    let actualParams = params;
+    let actualFallback = fallback;
+    if (typeof params === 'string') {
+      actualFallback = params;
+      actualParams = {};
+    }
+
+    const count = typeof actualParams === 'number'
+      ? actualParams
+      : (actualParams && (actualParams.count !== undefined ? actualParams.count : actualParams.number));
+
+    let lookupKey = path;
+    if (typeof count === 'number') {
+      try {
+        const pr = new Intl.PluralRules(lang);
+        const rule = pr.select(count); // 'one', 'other'
+        const pluralKey = `${path}_${rule}`;
+        if (resolvePath(TRANSLATIONS[lang], pluralKey) !== undefined) {
+          lookupKey = pluralKey;
         }
-        return enCurrent || fallback || path;
+      } catch {}
+    }
+
+    let val = resolvePath(TRANSLATIONS[lang], lookupKey);
+
+    if (val === undefined) {
+      // Fallback ke EN bila belum ada di ID
+      if (lang !== 'en') {
+        val = resolvePath(TRANSLATIONS.en, lookupKey);
+        if (import.meta.env?.DEV) {
+          console.warn(`[i18n] Missing translation key: "${lookupKey}" for language "${lang}"`);
+        }
       }
     }
-    return typeof current === 'string' ? current : fallback || path;
+
+    if (val === undefined) {
+      val = actualFallback || path;
+    }
+
+    if (typeof val === 'string' && actualParams && typeof actualParams === 'object') {
+      return val.replace(/\{([a-zA-Z0-9_]+)\}/g, (match, paramName) => {
+        return paramName in actualParams ? String(actualParams[paramName]) : match;
+      });
+    }
+
+    return val;
   };
 
   return (
-    <LanguageContext.Provider value={{ lang, setLang, toggleLang, t }}>
+    <LanguageContext.Provider value={{ lang, setLang, toggleLang, t, format }}>
       {children}
     </LanguageContext.Provider>
   );
@@ -79,71 +164,73 @@ export function useLanguage() {
   return useContext(LanguageContext);
 }
 
-// Komponen Switcher Bahasa yang fleksibel dan elegan
-export function LanguageSwitcher({ size = 'normal', style = {} }) {
-  const { lang, setLang } = useLanguage();
+/**
+ * Komponen <Trans> untuk teks dengan komponen tersemat (link/bold) tanpa dangerouslySetInnerHTML
+ */
+export function Trans({ i18nKey, values = {}, components = {}, fallback = '' }) {
+  const { t } = useLanguage();
+  const rawText = t(i18nKey, values, fallback);
+  if (typeof rawText !== 'string') return rawText;
 
+  const tagRegex = /<([a-zA-Z0-9_]+)>(.*?)<\/\1>/g;
+  const elements = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = tagRegex.exec(rawText)) !== null) {
+    if (match.index > lastIndex) {
+      elements.push(rawText.substring(lastIndex, match.index));
+    }
+    const [ , tagName, content ] = match;
+    const comp = components[tagName];
+    if (comp && isValidElement(comp)) {
+      elements.push(cloneElement(comp, { key: elements.length }, content));
+    } else {
+      elements.push(content);
+    }
+    lastIndex = tagRegex.lastIndex;
+  }
+  if (lastIndex < rawText.length) {
+    elements.push(rawText.substring(lastIndex));
+  }
+
+  return <>{elements}</>;
+}
+
+/**
+ * Komponen Switcher Bahasa (className + CSS murni, touch target >= 44px, aksesibilitas penuh)
+ */
+export function LanguageSwitcher({ size = 'normal', className = '' }) {
+  const { lang, setLang } = useLanguage();
   const isSmall = size === 'small';
 
   return (
     <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        backgroundColor: 'rgba(24, 24, 27, 0.8)',
-        border: '1px solid var(--border-muted)',
-        borderRadius: '8px',
-        padding: isSmall ? '2px' : '3px',
-        gap: '2px',
-        backdropFilter: 'blur(8px)',
-        userSelect: 'none',
-        ...style,
-      }}
+      className={`language-switcher ${isSmall ? 'language-switcher-sm' : ''} ${className}`}
       title="Switch Language / Ganti Bahasa"
+      role="group"
+      aria-label="Language selection"
     >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          padding: isSmall ? '0 4px' : '0 6px',
-          color: 'var(--text-muted)',
-        }}
-      >
-        <Globe size={isSmall ? 12 : 14} />
+      <div className="language-switcher-icon">
+        <Globe size={isSmall ? 14 : 16} />
       </div>
 
       <button
         type="button"
+        className={`language-switcher-btn ${lang === 'en' ? 'active' : ''}`}
         onClick={() => setLang('en')}
-        style={{
-          border: 'none',
-          cursor: 'pointer',
-          borderRadius: '5px',
-          padding: isSmall ? '2px 6px' : '4px 8px',
-          fontSize: isSmall ? '0.72rem' : '0.78rem',
-          fontWeight: lang === 'en' ? '700' : '500',
-          backgroundColor: lang === 'en' ? 'var(--accent-cyan)' : 'transparent',
-          color: lang === 'en' ? '#09090b' : 'var(--text-muted)',
-          transition: 'all 0.15s ease',
-        }}
+        aria-label="English"
+        aria-pressed={lang === 'en'}
       >
         EN
       </button>
 
       <button
         type="button"
+        className={`language-switcher-btn ${lang === 'id' ? 'active' : ''}`}
         onClick={() => setLang('id')}
-        style={{
-          border: 'none',
-          cursor: 'pointer',
-          borderRadius: '5px',
-          padding: isSmall ? '2px 6px' : '4px 8px',
-          fontSize: isSmall ? '0.72rem' : '0.78rem',
-          fontWeight: lang === 'id' ? '700' : '500',
-          backgroundColor: lang === 'id' ? 'var(--accent-cyan)' : 'transparent',
-          color: lang === 'id' ? '#09090b' : 'var(--text-muted)',
-          transition: 'all 0.15s ease',
-        }}
+        aria-label="Bahasa Indonesia"
+        aria-pressed={lang === 'id'}
       >
         ID
       </button>

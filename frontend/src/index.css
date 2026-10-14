@@ -1211,4 +1211,65 @@ h1, h2, h3, h4, h5, h6, p, span, strong, a {
   height: 18px;
 }
 
+/* ========================================================
+   Language Switcher (Touch target >= 44px, Accessible)
+   ======================================================== */
+.language-switcher {
+  display: inline-flex;
+  align-items: center;
+  background-color: rgba(24, 24, 27, 0.85);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-md);
+  padding: 2px;
+  gap: 2px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  user-select: none;
+}
+
+.language-switcher-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  color: var(--text-muted);
+}
+
+.language-switcher-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.language-switcher-btn:hover:not(.active) {
+  color: var(--text-primary);
+  background-color: var(--bg-surface-hover);
+}
+
+.language-switcher-btn.active {
+  background-color: var(--accent-cyan);
+  color: #09090b;
+  font-weight: 700;
+  box-shadow: 0 0 10px var(--accent-cyan-glow);
+}
+
+.language-switcher-sm .language-switcher-btn {
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 0.78rem;
+  padding: 0 8px;
+}
+
+
 
