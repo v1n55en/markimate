@@ -680,7 +680,7 @@ const styles = {
     backgroundColor: 'var(--bg-base)',
     border: '1px solid var(--border-muted)',
     color: 'var(--text-primary)',
-    fontSize: '0.85rem',
+    fontSize: '16px',
     outline: 'none',
   },
   select: {
@@ -690,7 +690,7 @@ const styles = {
     backgroundColor: 'var(--bg-base)',
     border: '1px solid var(--border-muted)',
     color: 'var(--text-primary)',
-    fontSize: '0.85rem',
+    fontSize: '16px',
     outline: 'none',
   },
   submitBtn: {

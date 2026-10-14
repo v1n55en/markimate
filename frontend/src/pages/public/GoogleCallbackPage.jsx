@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Lock, KeyRound, AlertCircle, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
 import { setToken, API_BASE_URL } from '../../api.js';
@@ -20,30 +20,7 @@ export default function GoogleCallbackPage({ onLogin }) {
   const state = searchParams.get('state');
   const errorParam = searchParams.get('error');
 
-  useEffect(() => {
-    if (errorParam) {
-      setStatus('error');
-      setErrorMessage(
-        errorParam === 'access_denied'
-          ? 'Otorisasi Google dibatalkan oleh pengguna.'
-          : `Gagal otorisasi Google: ${errorParam}`
-      );
-      return;
-    }
-
-    if (!code || !state) {
-      setStatus('error');
-      setErrorMessage('Parameter otorisasi Google tidak lengkap.');
-      return;
-    }
-
-    if (exchangeStartedRef.current) return;
-    exchangeStartedRef.current = true;
-
-    handleExchange(code, state);
-  }, [code, state, errorParam]);
-
-  const handleExchange = async (authCode, authState) => {
+  const handleExchange = useCallback(async (authCode, authState) => {
     try {
       setStatus('processing');
 
@@ -84,7 +61,30 @@ export default function GoogleCallbackPage({ onLogin }) {
       setStatus('error');
       setErrorMessage(err.message || 'Gagal menghubungkan dengan Google.');
     }
-  };
+  }, [navigate, onLogin]);
+
+  useEffect(() => {
+    if (errorParam) {
+      setStatus('error');
+      setErrorMessage(
+        errorParam === 'access_denied'
+          ? 'Otorisasi Google dibatalkan oleh pengguna.'
+          : `Gagal otorisasi Google: ${errorParam}`
+      );
+      return;
+    }
+
+    if (!code || !state) {
+      setStatus('error');
+      setErrorMessage('Parameter otorisasi Google tidak lengkap.');
+      return;
+    }
+
+    if (exchangeStartedRef.current) return;
+    exchangeStartedRef.current = true;
+
+    handleExchange(code, state);
+  }, [code, state, errorParam, handleExchange]);
 
   const handleLinkSubmit = async (e) => {
     e.preventDefault();
@@ -130,24 +130,24 @@ export default function GoogleCallbackPage({ onLogin }) {
     <div className="auth-page-container">
       <div className="auth-card-box">
         {status === 'processing' && (
-          <div className="text-center py-6">
-            <div className="inline-flex p-4 rounded-full bg-cyan-500/10 mb-4 animate-spin">
-              <Loader2 size={36} className="text-cyan-500" />
+          <div className="callback-status-box">
+            <div className="callback-icon-circle callback-icon-cyan">
+              <Loader2 size={36} className="animate-spin" />
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">Menghubungkan Akun Google…</h2>
-            <p className="text-sm text-slate-400">
+            <h2 className="callback-title">Menghubungkan Akun Google…</h2>
+            <p className="callback-desc">
               Sedang memverifikasi data dan menyiapkan sesi workspace Anda. Mohon tunggu sebentar.
             </p>
           </div>
         )}
 
         {status === 'success' && (
-          <div className="text-center py-6">
-            <div className="inline-flex p-4 rounded-full bg-emerald-500/10 mb-4">
-              <CheckCircle2 size={36} className="text-emerald-500" />
+          <div className="callback-status-box">
+            <div className="callback-icon-circle callback-icon-green">
+              <CheckCircle2 size={36} />
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">Berhasil Masuk!</h2>
-            <p className="text-sm text-slate-400">
+            <h2 className="callback-title">Berhasil Masuk!</h2>
+            <p className="callback-desc">
               Mengarahkan Anda ke dashboard Markimate…
             </p>
           </div>
@@ -155,28 +155,28 @@ export default function GoogleCallbackPage({ onLogin }) {
 
         {status === 'link_required' && (
           <div>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-2.5 rounded-xl bg-cyan-500/10 text-cyan-400">
+            <div className="callback-header-row">
+              <div className="callback-header-icon">
                 <Lock size={22} />
               </div>
-              <div>
-                <h2 className="text-lg font-bold text-white">Tautkan Akun Google</h2>
-                <p className="text-xs text-slate-400">Verifikasi keamanan kepemilikan akun</p>
+              <div className="callback-header-text">
+                <h2>Tautkan Akun Google</h2>
+                <p>Verifikasi keamanan kepemilikan akun</p>
               </div>
             </div>
 
-            <div className="bg-slate-800/60 border border-slate-700/60 rounded-lg p-3.5 mb-4 text-xs text-slate-300 leading-relaxed">
+            <div className="callback-info-callout">
               Email <strong>{emailToLink}</strong> sudah terdaftar di Markimate menggunakan kata sandi. Masukkan kata sandi akun Anda untuk menautkannya dengan akun Google ini demi mencegah pengambilalihan akun yang tidak sah.
             </div>
 
             {errorMessage && (
-              <div className="auth-error-alert mb-4">
-                <AlertCircle size={15} />
+              <div className="auth-error-alert" style={{ marginBottom: '1rem' }}>
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
                 <span>{errorMessage}</span>
               </div>
             )}
 
-            <form onSubmit={handleLinkSubmit} className="space-y-4">
+            <form onSubmit={handleLinkSubmit} className="auth-form">
               <div className="auth-field">
                 <label className="auth-field-label">Kata Sandi Markimate Anda</label>
                 <div className="auth-input-wrapper">
@@ -196,7 +196,8 @@ export default function GoogleCallbackPage({ onLogin }) {
               <button
                 type="submit"
                 disabled={submittingLink || !linkPassword}
-                className="btn btn-primary w-full py-2.5 flex items-center justify-center gap-2 text-sm font-semibold"
+                className="btn btn-primary"
+                style={{ width: '100%', minHeight: '44px', fontWeight: 600, fontSize: '15px' }}
               >
                 {submittingLink ? (
                   <>
@@ -209,9 +210,9 @@ export default function GoogleCallbackPage({ onLogin }) {
               </button>
             </form>
 
-            <div className="text-center mt-4">
-              <Link to="/login" className="text-xs text-slate-400 hover:text-white inline-flex items-center gap-1">
-                <ArrowLeft size={13} />
+            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+              <Link to="/login" className="callback-cancel-link">
+                <ArrowLeft size={14} />
                 <span>Batalkan dan kembali ke login</span>
               </Link>
             </div>
@@ -219,18 +220,19 @@ export default function GoogleCallbackPage({ onLogin }) {
         )}
 
         {status === 'error' && (
-          <div className="text-center py-4">
-            <div className="inline-flex p-4 rounded-full bg-rose-500/10 mb-4 text-rose-400">
+          <div className="callback-status-box">
+            <div className="callback-icon-circle callback-icon-red">
               <AlertCircle size={36} />
             </div>
-            <h2 className="text-lg font-bold text-white mb-2">Gagal Masuk dengan Google</h2>
-            <p className="text-sm text-slate-300 mb-6 leading-relaxed">
+            <h2 className="callback-title">Gagal Masuk dengan Google</h2>
+            <p className="callback-desc">
               {errorMessage || 'Terjadi kesalahan yang tidak terduga saat mencoba menghubungkan akun.'}
             </p>
-            <div className="flex flex-col gap-2">
+            <div style={{ width: '100%' }}>
               <Link
                 to="/login"
-                className="btn btn-primary py-2.5 text-sm font-semibold inline-flex items-center justify-center gap-2"
+                className="btn btn-primary"
+                style={{ width: '100%', minHeight: '44px', textDecoration: 'none', fontWeight: 600 }}
               >
                 <ArrowLeft size={16} />
                 <span>Kembali ke Halaman Masuk</span>
