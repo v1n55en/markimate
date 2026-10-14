@@ -213,13 +213,16 @@ async function runStep8Tests() {
   });
   assert.strictEqual(deleteAgainRes.status, 200);
 
-  // Tambahkan transaksi credit_orders agar diuji anonimisasinya
+  // Tambahkan transaksi credit_orders agar diuji retensinya untuk kewajiban pajak
   await db.insert('credit_orders', {
-    user_id: accSolo.id,
+    id: crypto.randomUUID(),
+    order_id: `tax-order-${Date.now()}`,
     workspace_id: accSolo.id,
-    amount: 1500000,
-    status: 'paid',
-    meta: { email: emailSolo }
+    package_id: 'growth',
+    package_name: 'Paket Growth',
+    amount: 1000000,
+    credits: 1050,
+    status: 'paid'
   });
 
   // Mundurkan deleted_requested_at menjadi 31 hari yang lalu
@@ -240,10 +243,10 @@ async function runStep8Tests() {
   const remainingKws = await db.findMany('keywords', { workspace_id: accSolo.id });
   assert.strictEqual(remainingKws.length, 0, 'Data keywords workspace harus terhapus');
 
-  // Periksa bahwa credit_orders tetap tersimpan tapi dianomisasi (user_id = null)
+  // Periksa bahwa credit_orders tetap tersimpan untuk kewajiban perpajakan
   const remainingOrders = await db.findMany('credit_orders', { workspace_id: accSolo.id });
   assert.ok(remainingOrders.length > 0, 'Riwayat pesanan kredit pajak harus dipertahankan');
-  assert.strictEqual(remainingOrders[0].user_id, null, 'user_id pesanan harus dianomisasi');
+  assert.strictEqual(remainingOrders[0].status, 'paid', 'Status pesanan pajak tetap valid');
 
   // Periksa bahwa audit_logs dianomisasi
   const soloAuditLogs = await db.findMany('audit_logs', { workspace_id: accSolo.id });

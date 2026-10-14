@@ -3,6 +3,7 @@
 import assert from 'assert';
 import { db } from '../db.js';
 import { purgeDeletedAccounts } from '../lib/account-lifecycle.js';
+import { newToken, hashToken } from '../lib/tokens.js';
 
 const PORT = 5017;
 const baseUrl = `http://localhost:${PORT}`;
@@ -133,14 +134,27 @@ async function runFullAuthSuite() {
   const cookie2 = refreshRes.rtCookie;
 
   // -------------------------------------------------------------
-  // 5. REUSE DETECTION (Token Theft Protection)
+  // 5. REUSE DETECTION & GRACE WINDOW (Langkah 2.3)
   // -------------------------------------------------------------
-  console.log('5. [REUSE DETECTION] Mencoba menggunakan refresh token lama yang sudah dirotasi...');
+  console.log('5. [GRACE WINDOW & REUSE DETECTION] Menguji grace window 30s & deteksi reuse token...');
+  // 5a. Grace window: pemanggilan token lama dalam <30 detik tetap berhasil (multi-tab support)
+  const graceRes = await req('/api/auth/refresh', {
+    method: 'POST',
+    cookie: cookie1
+  });
+  assert.strictEqual(graceRes.status, 200, 'Refresh dalam grace window 30s harus mengembalikan 200 OK');
+
+  // 5b. Penggunaan di luar grace window (>30 detik) memicu deteksi reuse & pencabutan sesi
+  const tokenVal = cookie1.split('mk_rt=')[1]?.split(';')[0];
+  await db.update('refresh_tokens', { token_hash: hashToken(tokenVal) }, {
+    revoked_at: new Date(Date.now() - 60 * 1000).toISOString()
+  });
+
   const reuseRes = await req('/api/auth/refresh', {
     method: 'POST',
-    cookie: cookie1 // Token lama yang sudah dipakai
+    cookie: cookie1 // Token lama di luar grace window
   });
-  assert.strictEqual(reuseRes.status, 401, 'Percobaan reuse token harus ditolak 401');
+  assert.strictEqual(reuseRes.status, 401, 'Percobaan reuse token di luar 30s harus ditolak 401');
   assert.strictEqual(reuseRes.data.code, 'TOKEN_REUSE_DETECTED');
 
   // Token yang sah berikutnya (cookie2) pun harus otomatis invalid karena seluruh family telah dicabut
@@ -165,7 +179,6 @@ async function runFullAuthSuite() {
   assert.ok(resetRow);
 
   // Simulasikan token reset plain
-  const { newToken, hashToken } = await import('../lib/tokens.js');
   const knownPlainToken = newToken();
   await db.insert('password_resets', {
     user_id: verifiedUser.id,

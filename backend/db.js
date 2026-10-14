@@ -40,6 +40,7 @@ const TABLES = [
 const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
 
 function makeSupabase() {
+  if (process.env.NODE_ENV === 'test') return null;
   const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
   if (!url || !key || url.includes('placeholder') || key.includes('placeholder')) return null;
   const schema = process.env.SUPABASE_SCHEMA || 'public';
@@ -99,8 +100,27 @@ class JsonStore {
     if (opts.limit && opts.limit > 0) rows = rows.slice(0, opts.limit);
     return rows;
   }
-  async insert(table, row) { if (!this.data[table]) this.data[table] = []; const r = { id: row.id || randomUUID(), created_at: new Date().toISOString(), ...row }; this.data[table].push(r); this.save(); return r; }
-  async update(table, where, patch) { const rows = (this.data[table] || []).filter(r => this._match(r, where)); rows.forEach(r => Object.assign(r, patch, { updated_at: new Date().toISOString() })); this.save(); return rows[0] || null; }
+  async insert(table, row) {
+    if (process.env.SCHEMA_CONTRACT_VALIDATION === 'true') {
+      const { validateRowContract } = await import('./lib/schema-contract.js');
+      validateRowContract(table, row, true);
+    }
+    if (!this.data[table]) this.data[table] = [];
+    const r = { id: row.id || randomUUID(), created_at: new Date().toISOString(), ...row };
+    this.data[table].push(r);
+    this.save();
+    return r;
+  }
+  async update(table, where, patch) {
+    if (process.env.SCHEMA_CONTRACT_VALIDATION === 'true') {
+      const { validateRowContract } = await import('./lib/schema-contract.js');
+      validateRowContract(table, patch, false);
+    }
+    const rows = (this.data[table] || []).filter(r => this._match(r, where));
+    rows.forEach(r => Object.assign(r, patch, { updated_at: new Date().toISOString() }));
+    this.save();
+    return rows[0] || null;
+  }
   async upsert(table, where, row) { const ex = await this.findOne(table, where); return ex ? this.update(table, where, row) : this.insert(table, { ...where, ...row }); }
   async remove(table, where) { const before = (this.data[table] || []).length; this.data[table] = (this.data[table] || []).filter(r => !this._match(r, where)); this.save(); return before - this.data[table].length; }
   async rpc(name, params = {}) {
@@ -152,4 +172,4 @@ class SupabaseStore {
 const sb = makeSupabase();
 export const db = sb ? new SupabaseStore(sb) : new JsonStore();
 export const dbMode = sb ? 'supabase' : 'json';
-export { TABLES };
+export { TABLES, JsonStore };

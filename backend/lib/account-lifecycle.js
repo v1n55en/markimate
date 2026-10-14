@@ -331,20 +331,8 @@ export async function purgeDeletedAccounts() {
       }
 
       // 4. Simpan riwayat transaksi tanpa data pribadi (kewajiban pajak)
-      const orders = await db.findMany('credit_orders', { user_id: user.id });
-      for (const ord of (orders || [])) {
-        await db.update('credit_orders', { id: ord.id }, {
-          user_id: null,
-          meta: { ...(ord.meta || {}), user_anonymized: true }
-        });
-      }
-
-      const subs = await db.findMany('subscriptions', { user_id: user.id });
-      for (const s of (subs || [])) {
-        await db.update('subscriptions', { id: s.id }, {
-          user_id: null
-        });
-      }
+      // credit_orders terikat ke workspace_id dan skema SQL-nya (007_credits.sql) sudah bebas dari data pribadi (tanpa nama/email/user_id).
+      // Catatan transaksi ini tetap dipertahankan di database saat akun dan workspace dihapus.
 
       // 5. Pastikan credit_trials menyimpan hanya hash email
       const trials = await db.findMany('credit_trials', { user_id: user.id });
