@@ -28,6 +28,7 @@ import { createSnapTransaction, handleMidtransWebhook } from './lib/midtrans.js'
 import { calculateUsageAndMargin, checkMarginSentinel } from './lib/margin.js';
 import {
   sendMail,
+  sendVerificationEmail,
   sendPasswordResetEmail,
   sendPasswordChangedNotice,
   sendEmailChangeVerification,
@@ -120,6 +121,7 @@ const publicUser = (u) => u && ({
   plan: u.plan || 'free',
   webApprover: u.web_approver !== false,
   status: u.status || 'active',
+  locale: u.locale || 'id',
   emailVerifiedAt: u.email_verified_at,
   createdAt: u.created_at
 });
@@ -174,13 +176,13 @@ async function auth(req, res, next) {
   try {
     const h = String(req.headers.authorization || '');
     const token = h.startsWith('Bearer ') ? h.slice(7) : '';
-    if (!token) return res.status(401).json({ error: 'Belum login.', code: 'UNAUTHORIZED' });
+    if (!token) return res.status(401).json({ error: 'Authentication required.', code: 'UNAUTHORIZED' });
 
     let payload;
     try {
       payload = jwt.verify(token, JWT_SECRET);
     } catch (jwtErr) {
-      return res.status(401).json({ error: 'Sesi tidak valid atau telah kadaluarsa.', code: 'TOKEN_EXPIRED' });
+      return res.status(401).json({ error: 'Session is invalid or has expired.', code: 'TOKEN_EXPIRED' });
     }
 
     // Jika token baru (typ: 'access'), izinkan.
@@ -190,7 +192,7 @@ async function auth(req, res, next) {
       const legacyUntil = new Date(process.env.LEGACY_JWT_ACCEPT_UNTIL || defaultUntil);
       if (new Date() > legacyUntil) {
         return res.status(401).json({
-          error: 'Format sesi sudah usang. Silakan masuk kembali.',
+          error: 'Session format is outdated. Please sign in again.',
           code: 'LEGACY_SESSION_EXPIRED'
         });
       }
@@ -200,18 +202,18 @@ async function auth(req, res, next) {
     const userId = payload.sub || payload.userId || payload.id;
     const user = await db.findOne('accounts', { id: userId });
     if (!user || user.status === 'pending_deletion') {
-      return res.status(401).json({ error: 'Akun tidak ditemukan atau tidak aktif.', code: 'ACCOUNT_INACTIVE' });
+      return res.status(401).json({ error: 'Account not found or inactive.', code: 'ACCOUNT_INACTIVE' });
     }
 
     req.user = user;
     next();
   } catch (e) {
-    return res.status(401).json({ error: 'Sesi tidak valid, silakan login ulang.', code: 'UNAUTHORIZED' });
+    return res.status(401).json({ error: 'Session is invalid. Please sign in again.', code: 'UNAUTHORIZED' });
   }
 }
 async function apiKeyAuth(req, res, next) {
   const key = String(req.headers['x-api-key'] || '').trim() || String(req.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
-  if (!key) return res.status(401).json({ status: 'error', message: 'Kirim header X-API-Key.' });
+  if (!key) return res.status(401).json({ status: 'error', error: 'Missing X-API-Key header.', message: 'Missing X-API-Key header.', code: 'UNAUTHORIZED' });
 
   // 1. Coba cari di workspace_api_keys (SHA-256 hash)
   const keyHash = hashToken(key);
@@ -220,7 +222,7 @@ async function apiKeyAuth(req, res, next) {
   if (apiKeyRecord && !apiKeyRecord.revoked_at) {
     const ws = await db.findOne('workspaces', { id: apiKeyRecord.workspace_id });
     if (!ws || ws.deleted_at) {
-      return res.status(401).json({ status: 'error', message: 'Workspace API key tidak aktif.' });
+      return res.status(401).json({ status: 'error', error: 'Workspace API key is inactive.', message: 'Workspace API key is inactive.', code: 'UNAUTHORIZED' });
     }
     const owner = await db.findOne('accounts', { id: ws.owner_user_id });
     req.user = owner || { id: ws.owner_user_id, plan: 'free' };
@@ -233,7 +235,7 @@ async function apiKeyAuth(req, res, next) {
 
   // 2. Fallback backward compatibility: cari di accounts.api_key lama
   const user = await db.findOne('accounts', { api_key: key });
-  if (!user) return res.status(401).json({ status: 'error', message: 'API key tidak valid.' });
+  if (!user) return res.status(401).json({ status: 'error', error: 'Invalid API key.', message: 'Invalid API key.', code: 'UNAUTHORIZED' });
 
   req.user = user;
   const resolved = await resolveWorkspaceForUser(user.id);
@@ -264,22 +266,23 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', db: dbMode, n8n: N
 
 // ---------- Auth (F1 & F2) ----------
 app.post('/api/auth/register', wrap(async (req, res) => {
-  const { email, password, brandName, niche, name, acceptTerms } = req.body || {};
+  const { email, password, brandName, niche, name, acceptTerms, locale } = req.body || {};
   const em = String(email || '').trim().toLowerCase();
   const clientIp = getClientIp(req);
+  const targetLocale = (locale === 'en' || locale === 'id') ? locale : 'id';
 
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) {
-    throw Object.assign(new Error('Format alamat email tidak valid.'), { status: 400 });
+    throw Object.assign(new Error('Please provide a valid email address.'), { status: 400, code: 'INVALID_EMAIL' });
   }
   if (String(password || '').length < 10) {
-    throw Object.assign(new Error('Kata sandi minimal 10 karakter.'), { status: 400 });
+    throw Object.assign(new Error('Password must be at least 10 characters.'), { status: 400, code: 'PASSWORD_TOO_SHORT' });
   }
   if (acceptTerms !== true) {
-    throw Object.assign(new Error('Anda harus menyetujui Syarat & Ketentuan serta Kebijakan Privasi.'), { status: 400 });
+    throw Object.assign(new Error('You must agree to the Terms of Service and Privacy Policy.'), { status: 400, code: 'TERMS_REQUIRED' });
   }
 
   // Rate limit: 5 registrasi per 15 menit per IP
-  if (await enforceRateLimit(res, `register:ip:${clientIp}`, 900, 5, 'Terlalu banyak pendaftaran dari alamat IP ini. Silakan coba lagi dalam 15 menit.')) {
+  if (await enforceRateLimit(res, `register:ip:${clientIp}`, 900, 5, 'Too many registration attempts from this IP address. Please try again in 15 minutes.')) {
     return;
   }
 
@@ -296,15 +299,10 @@ app.post('/api/auth/register', wrap(async (req, res) => {
         token_hash: tokenHash,
         expires_at: expiresAt
       });
-      const appUrl = (process.env.APP_URL || 'https://markimate-three.vercel.app').replace(/\/+$/, '');
-      const verifyUrl = `${appUrl}/verify?token=${verifyToken}`;
-      await sendMail({
+      await sendVerificationEmail({
         to: em,
-        subject: 'Verifikasi Alamat Email Anda — Markimate',
-        text: `Halo,\n\nTerima kasih telah mendaftar di Markimate. Buka tautan berikut untuk memverifikasi email Anda:\n${verifyUrl}\n\nTautan ini berlaku 24 jam.`,
-        actionUrl: verifyUrl,
-        actionText: 'Verifikasi Email Saya',
-        tag: 'email_verification'
+        token: verifyToken,
+        locale: targetLocale || existing.locale || 'id'
       });
     }
     return res.json({ status: 'verification_sent', email: em });
@@ -325,6 +323,7 @@ app.post('/api/auth/register', wrap(async (req, res) => {
     api_key: genApiKey(),
     web_approver: true,
     status: 'unverified',
+    locale: targetLocale,
     email_verified_at: null,
     failed_login_count: 0
   });
@@ -367,16 +366,11 @@ app.post('/api/auth/register', wrap(async (req, res) => {
     expires_at: expiresAt
   });
 
-  // 6. Kirim email verifikasi
-  const appUrl = (process.env.APP_URL || 'https://markimate-three.vercel.app').replace(/\/+$/, '');
-  const verifyUrl = `${appUrl}/verify?token=${verifyToken}`;
-  await sendMail({
+  // 6. Kirim email verifikasi bilingual
+  await sendVerificationEmail({
     to: em,
-    subject: 'Verifikasi Alamat Email Anda — Markimate',
-    text: `Halo,\n\nTerima kasih telah mendaftar di Markimate. Buka tautan berikut untuk memverifikasi akun Anda:\n${verifyUrl}\n\nTautan berlaku selama 24 jam.`,
-    actionUrl: verifyUrl,
-    actionText: 'Verifikasi Email Saya',
-    tag: 'email_verification'
+    token: verifyToken,
+    locale: targetLocale
   });
 
   // Catat audit log pendaftaran
@@ -385,7 +379,7 @@ app.post('/api/auth/register', wrap(async (req, res) => {
     workspace_id: user.id,
     action: 'account_registered',
     ip: clientIp,
-    meta: { email: em }
+    meta: { email: em, locale: targetLocale }
   });
 
   // TIDAK ada token sesi dan TIDAK ada trial credit di langkah ini
@@ -396,14 +390,14 @@ app.post('/api/auth/verify', wrap(async (req, res) => {
   const { token } = req.body || {};
   const clientIp = getClientIp(req);
   if (!token) {
-    throw Object.assign(new Error('Token verifikasi diperlukan.'), { status: 400 });
+    throw Object.assign(new Error('Verification token is required.'), { status: 400, code: 'TOKEN_REQUIRED' });
   }
 
   const tokenHash = hashToken(token);
   const record = await db.findOne('email_verifications', { token_hash: tokenHash });
 
   if (!record || record.used_at || new Date(record.expires_at) < new Date()) {
-    throw Object.assign(new Error('Tautan verifikasi tidak valid atau sudah kadaluarsa.'), {
+    throw Object.assign(new Error('Invalid or expired verification token.'), {
       status: 400,
       code: 'INVALID_TOKEN'
     });
@@ -414,14 +408,14 @@ app.post('/api/auth/verify', wrap(async (req, res) => {
   await db.update('email_verifications', { id: record.id }, { used_at: now });
 
   const user = await db.findOne('accounts', { id: record.user_id });
-  if (!user) throw Object.assign(new Error('Akun pengguna tidak ditemukan.'), { status: 404 });
+  if (!user) throw Object.assign(new Error('User not found.'), { status: 404, code: 'NOT_FOUND' });
 
   // 1. Kasus Perubahan Alamat Email Akun
   if (record.new_email) {
     const newEmail = record.new_email.toLowerCase();
     const existingOther = await db.findOne('accounts', { email: newEmail });
     if (existingOther && existingOther.id !== user.id) {
-      throw Object.assign(new Error('Alamat email baru telah digunakan oleh akun lain.'), { status: 400 });
+      throw Object.assign(new Error('New email address is already in use.'), { status: 400, code: 'EMAIL_EXISTS' });
     }
 
     await db.update('accounts', { id: user.id }, {
@@ -492,12 +486,13 @@ app.post('/api/auth/verify', wrap(async (req, res) => {
 }));
 
 app.post('/api/auth/resend-verification', wrap(async (req, res) => {
-  const em = String((req.body || {}).email || '').trim().toLowerCase();
+  const { email, locale } = req.body || {};
+  const em = String(email || '').trim().toLowerCase();
   const clientIp = getClientIp(req);
-  if (!em) throw Object.assign(new Error('Alamat email wajib diisi.'), { status: 400 });
+  if (!em) throw Object.assign(new Error('Email address is required.'), { status: 400, code: 'EMAIL_REQUIRED' });
 
   // Rate limit: maks 3 per jam per email
-  if (await enforceRateLimit(res, `resend_verify:${em}`, 3600, 3, 'Batas pengiriman ulang tercapai. Silakan coba lagi dalam 1 jam.')) {
+  if (await enforceRateLimit(res, `resend_verify:${em}`, 3600, 3, 'Resend verification limit reached. Please try again in 1 hour.')) {
     return;
   }
 
@@ -511,21 +506,17 @@ app.post('/api/auth/resend-verification', wrap(async (req, res) => {
       token_hash: tokenHash,
       expires_at: expiresAt
     });
-    const appUrl = (process.env.APP_URL || 'https://markimate-three.vercel.app').replace(/\/+$/, '');
-    const verifyUrl = `${appUrl}/verify?token=${verifyToken}`;
-    await sendMail({
+    const targetLocale = (locale === 'en' || locale === 'id') ? locale : (user.locale || 'id');
+    await sendVerificationEmail({
       to: em,
-      subject: 'Verifikasi Alamat Email Anda — Markimate',
-      text: `Halo,\n\nBerikut tautan verifikasi baru untuk akun Markimate Anda:\n${verifyUrl}\n\nTautan berlaku 24 jam.`,
-      actionUrl: verifyUrl,
-      actionText: 'Verifikasi Email Saya',
-      tag: 'email_verification'
+      token: verifyToken,
+      locale: targetLocale
     });
   }
 
   // Respons konsisten untuk mencegah enumeration
   res.json({
-    message: 'Jika email terdaftar dan belum diverifikasi, tautan verifikasi telah dikirim.',
+    message: 'If the email is registered and unverified, a verification link has been sent.',
     status: 'sent'
   });
 }));
@@ -541,20 +532,20 @@ app.post('/api/auth/login', wrap(async (req, res) => {
   if (user && user.locked_until && new Date(user.locked_until) > new Date()) {
     const remainingMin = Math.ceil((new Date(user.locked_until).getTime() - Date.now()) / 60000);
     return res.status(423).json({
-      error: `Akun terkunci sementara karena terlalu banyak percobaan masuk gagal. Coba lagi dalam ${remainingMin} menit.`,
+      error: `Account is temporarily locked due to too many failed attempts. Try again in ${remainingMin} minutes.`,
       code: 'ACCOUNT_LOCKED'
     });
   }
 
   // Rate limit: 10 per 15 menit per IP + email
-  if (await enforceRateLimit(res, `login:${clientIp}:${em}`, 900, 10, 'Terlalu banyak percobaan masuk yang gagal. Silakan coba lagi dalam 15 menit.')) {
+  if (await enforceRateLimit(res, `login:${clientIp}:${em}`, 900, 10, 'Too many failed sign in attempts. Please try again in 15 minutes.')) {
     return;
   }
 
   // Jika akun terdaftar lewat Google (tidak memiliki password)
   if (user && !user.password_hash) {
     return res.status(401).json({
-      error: 'Akun ini terdaftar lewat Google. Masuk dengan Google atau atur kata sandi lewat Lupa Kata Sandi.',
+      error: 'This account was registered via Google. Sign in with Google or reset password via Forgot Password.',
       code: 'PASSWORD_NOT_SET'
     });
   }
@@ -576,7 +567,7 @@ app.post('/api/auth/login', wrap(async (req, res) => {
         meta: { email: em, reason: 'wrong_password', attempts: failed }
       });
     }
-    throw Object.assign(new Error('Email atau kata sandi salah.'), { status: 401 });
+    throw Object.assign(new Error('Invalid email or password.'), { status: 401, code: 'INVALID_CREDENTIALS' });
   }
 
   // Password benar: reset percobaan gagal & perbarui last_login_at
@@ -589,7 +580,7 @@ app.post('/api/auth/login', wrap(async (req, res) => {
   // Periksa apakah akun sedang dijadwalkan untuk dihapus (PRD F1+F2 Langkah 8)
   if (user.status === 'pending_deletion') {
     return res.status(403).json({
-      error: 'Akun Anda sedang dijadwalkan untuk dihapus. Silakan batalkan penghapusan terlebih dahulu untuk masuk kembali.',
+      error: 'Account is scheduled for deletion. Please cancel deletion first to sign in.',
       code: 'ACCOUNT_PENDING_DELETION',
       email: user.email,
       deletedRequestedAt: user.deleted_requested_at
@@ -599,7 +590,7 @@ app.post('/api/auth/login', wrap(async (req, res) => {
   // Periksa status email verified
   if (user.status === 'unverified' || !user.email_verified_at) {
     return res.status(403).json({
-      error: 'Email Anda belum diverifikasi. Silakan periksa inbox email Anda atau klik tombol kirim ulang.',
+      error: 'Please verify your email address before signing in.',
       code: 'EMAIL_NOT_VERIFIED',
       email: user.email
     });
@@ -640,7 +631,7 @@ app.post('/api/auth/refresh', wrap(async (req, res) => {
   const clientIp = getClientIp(req);
   if (!rawToken) {
     return res.status(401).json({
-      error: 'Sesi tidak ditemukan atau cookie telah dihapus.',
+      error: 'No refresh token provided.',
       code: 'NO_REFRESH_TOKEN'
     });
   }
@@ -651,7 +642,7 @@ app.post('/api/auth/refresh', wrap(async (req, res) => {
   if (!record) {
     clearRefreshTokenCookie(res);
     return res.status(401).json({
-      error: 'Sesi tidak valid atau telah berakhir.',
+      error: 'Invalid or expired session.',
       code: 'INVALID_REFRESH_TOKEN'
     });
   }
@@ -694,7 +685,7 @@ app.post('/api/auth/refresh', wrap(async (req, res) => {
       meta: { familyId: record.family_id, attemptedTokenHash: tokenHash }
     });
     return res.status(401).json({
-      error: 'Terdeteksi penggunaan token yang tidak sah. Semua sesi telah dicabut demi keamanan.',
+      error: 'Refresh token reuse detected. All sessions have been revoked.',
       code: 'TOKEN_REUSE_DETECTED'
     });
   }
@@ -703,7 +694,7 @@ app.post('/api/auth/refresh', wrap(async (req, res) => {
   if (new Date(record.expires_at) < new Date()) {
     clearRefreshTokenCookie(res);
     return res.status(401).json({
-      error: 'Sesi telah kadaluarsa. Silakan masuk kembali.',
+      error: 'Session has expired. Please sign in again.',
       code: 'SESSION_EXPIRED'
     });
   }
@@ -712,7 +703,7 @@ app.post('/api/auth/refresh', wrap(async (req, res) => {
   if (!user || user.status !== 'active') {
     clearRefreshTokenCookie(res);
     return res.status(401).json({
-      error: 'Akun tidak ditemukan atau tidak aktif.',
+      error: 'Account not found or inactive.',
       code: 'ACCOUNT_INACTIVE'
     });
   }
@@ -747,7 +738,7 @@ app.post('/api/auth/logout', wrap(async (req, res) => {
     }
   }
   clearRefreshTokenCookie(res);
-  res.json({ success: true, message: 'Berhasil keluar.' });
+  res.json({ success: true, message: 'Signed out successfully.' });
 }));
 
 // Logout Semua Perangkat (Revoke Semua Sesi User)
@@ -765,26 +756,26 @@ app.post('/api/auth/logout-all', auth, wrap(async (req, res) => {
     action: 'logout_all',
     ip: getClientIp(req)
   });
-  res.json({ success: true, message: 'Semua sesi perangkat berhasil dicabut.' });
+  res.json({ success: true, message: 'All device sessions revoked.' });
 }));
 
 // Upgrade Sesi Legacy (Bearer JWT 30 hari -> Access Token 15m + Cookie Refresh Token)
 app.post('/api/auth/upgrade-session', wrap(async (req, res) => {
   const h = String(req.headers.authorization || '');
   const token = h.startsWith('Bearer ') ? h.slice(7) : '';
-  if (!token) return res.status(401).json({ error: 'Token sesi lama tidak ditemukan.' });
+  if (!token) return res.status(401).json({ error: 'Legacy session token not found.', code: 'UNAUTHORIZED' });
 
   let payload;
   try {
     payload = jwt.verify(token, JWT_SECRET);
   } catch (err) {
-    return res.status(401).json({ error: 'Token sesi lama tidak valid atau kadaluarsa.' });
+    return res.status(401).json({ error: 'Legacy session token is invalid or has expired.', code: 'TOKEN_EXPIRED' });
   }
 
   const userId = payload.sub || payload.userId || payload.id;
   const user = await db.findOne('accounts', { id: userId });
   if (!user || user.status !== 'active') {
-    return res.status(401).json({ error: 'Akun tidak aktif atau tidak ditemukan.' });
+    return res.status(401).json({ error: 'Account not found or inactive.', code: 'ACCOUNT_INACTIVE' });
   }
 
   const session = await issueSession(res, user, req);
@@ -812,7 +803,7 @@ app.get('/api/sessions', auth, wrap(async (req, res) => {
     .map(r => ({
       id: r.id,
       ip: r.ip || '127.0.0.1',
-      userAgent: r.user_agent || 'Perangkat Tidak Dikenal',
+      userAgent: r.user_agent || 'Unknown Device',
       createdAt: r.created_at,
       lastUsedAt: r.last_used_at,
       current: Boolean(currentHash && r.token_hash === currentHash)
@@ -824,7 +815,7 @@ app.get('/api/sessions', auth, wrap(async (req, res) => {
 // Cabut Sesi Perangkat Tertentu
 app.delete('/api/sessions/:id', auth, requireUuidParam('id'), wrap(async (req, res) => {
   const record = await db.findOne('refresh_tokens', { id: req.params.id, user_id: req.user.id });
-  if (!record) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+  if (!record) return res.status(404).json({ error: 'Session not found.', code: 'SESSION_NOT_FOUND' });
 
   await db.update('refresh_tokens', { id: record.id }, { revoked_at: new Date().toISOString() });
 
@@ -840,22 +831,23 @@ app.delete('/api/sessions/:id', auth, requireUuidParam('id'), wrap(async (req, r
     meta: { sessionId: record.id }
   });
 
-  res.json({ success: true, message: 'Sesi berhasil dicabut.' });
+  res.json({ success: true, message: 'Session revoked successfully.' });
 }));
 
 // ==========================================
 // Siklus Akun: Lupa & Reset Password (PRD F1 + F2 Langkah 4)
 // ==========================================
 app.post('/api/auth/forgot', wrap(async (req, res) => {
-  const em = String((req.body || {}).email || '').trim().toLowerCase();
+  const { email, locale } = req.body || {};
+  const em = String(email || '').trim().toLowerCase();
   const clientIp = getClientIp(req);
   if (!em) {
-    return res.status(400).json({ error: 'Alamat email wajib diisi.', code: 'EMAIL_REQUIRED' });
+    return res.status(400).json({ error: 'Email address is required.', code: 'EMAIL_REQUIRED' });
   }
 
   // Rate limit: 3/jam per email & 10/jam per IP
-  if (await enforceRateLimit(res, `forgot_ip:${clientIp}`, 3600, 10, 'Terlalu banyak permintaan reset kata sandi dari jaringan Anda. Silakan coba lagi 1 jam lagi.')) return;
-  if (await enforceRateLimit(res, `forgot_email:${em}`, 3600, 3, 'Terlalu banyak permintaan untuk email ini. Silakan tunggu 1 jam lagi.')) return;
+  if (await enforceRateLimit(res, `forgot_ip:${clientIp}`, 3600, 10, 'Too many password reset requests from your network. Please try again in 1 hour.')) return;
+  if (await enforceRateLimit(res, `forgot_email:${em}`, 3600, 3, 'Too many password reset requests for this email. Please try again in 1 hour.')) return;
 
   const user = await db.findOne('accounts', { email: em });
   if (user && user.status === 'active') {
@@ -870,7 +862,8 @@ app.post('/api/auth/forgot', wrap(async (req, res) => {
       ip: clientIp
     });
 
-    await sendPasswordResetEmail({ to: user.email, token: rawToken });
+    const targetLocale = (locale === 'en' || locale === 'id') ? locale : (user.locale || 'id');
+    await sendPasswordResetEmail({ to: user.email, token: rawToken, locale: targetLocale });
 
     await db.insert('audit_logs', {
       user_id: user.id,
@@ -883,7 +876,7 @@ app.post('/api/auth/forgot', wrap(async (req, res) => {
   // Respons konsisten untuk mencegah email enumeration
   res.json({
     success: true,
-    message: 'Jika alamat email terdaftar di Markimate, kami telah mengirimkan tautan pemulihan kata sandi.'
+    message: 'If the email address is registered with Markimate, we have sent a password reset link.'
   });
 }));
 
@@ -894,10 +887,10 @@ app.post('/api/auth/reset', wrap(async (req, res) => {
   const clientIp = getClientIp(req);
 
   if (!rawToken) {
-    return res.status(400).json({ error: 'Tautan reset tidak valid.', code: 'INVALID_TOKEN' });
+    return res.status(400).json({ error: 'Reset link is invalid.', code: 'INVALID_TOKEN' });
   }
   if (!newPassword || newPassword.length < 10) {
-    return res.status(400).json({ error: 'Kata sandi minimal 10 karakter.', code: 'PASSWORD_TOO_SHORT' });
+    return res.status(400).json({ error: 'Password must be at least 10 characters.', code: 'PASSWORD_TOO_SHORT' });
   }
 
   const tokenHash = hashToken(rawToken);
@@ -905,14 +898,14 @@ app.post('/api/auth/reset', wrap(async (req, res) => {
 
   if (!resetRecord || resetRecord.used_at || new Date(resetRecord.expires_at) < new Date()) {
     return res.status(400).json({
-      error: 'Tautan reset kata sandi tidak valid atau telah kadaluarsa.',
-      code: 'INVALID_OR_EXPIRED_TOKEN'
+      error: 'Password reset link is invalid or has expired.',
+      code: 'INVALID_TOKEN'
     });
   }
 
   const user = await db.findOne('accounts', { id: resetRecord.user_id });
   if (!user || user.status !== 'active') {
-    return res.status(400).json({ error: 'Akun tidak ditemukan atau tidak aktif.', code: 'ACCOUNT_INACTIVE' });
+    return res.status(400).json({ error: 'Account not found or inactive.', code: 'ACCOUNT_INACTIVE' });
   }
 
   const now = new Date().toISOString();
@@ -939,7 +932,7 @@ app.post('/api/auth/reset', wrap(async (req, res) => {
   clearRefreshTokenCookie(res);
 
   // Kirim email konfirmasi ke user (tanpa link)
-  await sendPasswordChangedNotice({ to: user.email });
+  await sendPasswordChangedNotice({ to: user.email, locale: user.locale || 'id' });
 
   // Catat audit log
   await db.insert('audit_logs', {
@@ -951,7 +944,7 @@ app.post('/api/auth/reset', wrap(async (req, res) => {
 
   res.json({
     success: true,
-    message: 'Kata sandi berhasil diatur ulang. Silakan masuk kembali dengan kata sandi baru Anda.'
+    message: 'Your password has been reset successfully. Please sign in with your new password.'
   });
 }));
 
@@ -970,7 +963,7 @@ app.get('/api/auth/google/start', wrap(async (req, res) => {
 app.post('/api/auth/google/callback', wrap(async (req, res) => {
   const { code, state } = req.body || {};
   if (!code || !state) {
-    const err = new Error('Kode otorisasi dan parameter state wajib disertakan.');
+    const err = new Error('Authorization code and state parameters are required.');
     err.status = 400;
     err.code = 'INVALID_CALLBACK_PARAMS';
     throw err;
@@ -980,7 +973,7 @@ app.post('/api/auth/google/callback', wrap(async (req, res) => {
   const cookieData = parseGoogleOAuthCookie(req);
   if (!cookieData || cookieData.state !== state) {
     clearGoogleOAuthCookie(res);
-    const err = new Error('Sesi otentikasi Google kedaluwarsa atau parameter state tidak cocok. Silakan coba masuk kembali.');
+    const err = new Error('Authentication session expired or state mismatch. Please sign in again.');
     err.status = 400;
     err.code = 'INVALID_STATE';
     throw err;
@@ -994,7 +987,7 @@ app.post('/api/auth/google/callback', wrap(async (req, res) => {
     try {
       googleProfile = JSON.parse(req.headers['x-google-mock-profile']);
     } catch {
-      throw new Error('Header x-google-mock-profile tidak valid.');
+      throw new Error('Invalid x-google-mock-profile header.');
     }
   } else {
     const tokenData = await exchangeGoogleCode(code, codeVerifier, redirectUri);
@@ -1018,7 +1011,7 @@ app.post('/api/auth/google/link', wrap(async (req, res) => {
   const { pendingToken, password } = req.body || {};
   if (!pendingToken || !password) {
     return res.status(400).json({
-      error: 'Token penautan dan kata sandi Markimate wajib diisi.',
+      error: 'Pending token and password are required.',
       code: 'PARAMS_REQUIRED'
     });
   }
@@ -1028,20 +1021,20 @@ app.post('/api/auth/google/link', wrap(async (req, res) => {
 
   if (!linkRecord || linkRecord.used_at || new Date(linkRecord.expires_at) < new Date()) {
     return res.status(400).json({
-      error: 'Sesi penautan akun kedaluwarsa atau tidak valid. Silakan coba masuk kembali dengan Google.',
+      error: 'Account linking session expired or invalid. Please sign in with Google again.',
       code: 'INVALID_PENDING_TOKEN'
     });
   }
 
   const user = await db.findOne('accounts', { id: linkRecord.user_id });
   if (!user) {
-    return res.status(404).json({ error: 'Pengguna tidak ditemukan.', code: 'USER_NOT_FOUND' });
+    return res.status(404).json({ error: 'User not found.', code: 'USER_NOT_FOUND' });
   }
 
   const passwordMatch = user.password_hash && (await bcrypt.compare(password, user.password_hash));
   if (!passwordMatch) {
     return res.status(400).json({
-      error: 'Kata sandi Markimate yang Anda masukkan salah.',
+      error: 'Incorrect password.',
       code: 'INVALID_PASSWORD'
     });
   }
@@ -1085,15 +1078,15 @@ app.post('/api/account/password', auth, wrap(async (req, res) => {
   const clientIp = getClientIp(req);
 
   if (!curPass || !newPass) {
-    return res.status(400).json({ error: 'Kata sandi saat ini dan kata sandi baru wajib diisi.' });
+    return res.status(400).json({ error: 'Current password and new password are required.', code: 'PARAMS_REQUIRED' });
   }
   if (newPass.length < 10) {
-    return res.status(400).json({ error: 'Kata sandi baru minimal 10 karakter.' });
+    return res.status(400).json({ error: 'New password must be at least 10 characters.', code: 'PASSWORD_TOO_SHORT' });
   }
 
   const ok = await bcrypt.compare(curPass, req.user.password_hash || '');
   if (!ok) {
-    return res.status(400).json({ error: 'Kata sandi saat ini salah.' });
+    return res.status(400).json({ error: 'Current password is incorrect.', code: 'INVALID_PASSWORD' });
   }
 
   const now = new Date().toISOString();
@@ -1114,7 +1107,7 @@ app.post('/api/account/password', auth, wrap(async (req, res) => {
     }
   }
 
-  await sendPasswordChangedNotice({ to: req.user.email });
+  await sendPasswordChangedNotice({ to: req.user.email, locale: req.user.locale || 'id' });
 
   await db.insert('audit_logs', {
     user_id: req.user.id,
@@ -1123,7 +1116,7 @@ app.post('/api/account/password', auth, wrap(async (req, res) => {
     meta: { email: req.user.email }
   });
 
-  res.json({ success: true, message: 'Kata sandi berhasil diperbarui.' });
+  res.json({ success: true, message: 'Password updated successfully.' });
 }));
 
 app.post('/api/account/email', auth, wrap(async (req, res) => {
@@ -1133,27 +1126,27 @@ app.post('/api/account/email', auth, wrap(async (req, res) => {
   const clientIp = getClientIp(req);
 
   if (!newEm || !newEm.includes('@') || !newEm.includes('.')) {
-    return res.status(400).json({ error: 'Format alamat email baru tidak valid.' });
+    return res.status(400).json({ error: 'Please provide a valid new email address.', code: 'INVALID_EMAIL' });
   }
   if (newEm === req.user.email.toLowerCase()) {
-    return res.status(400).json({ error: 'Alamat email baru sama dengan alamat email saat ini.' });
+    return res.status(400).json({ error: 'New email address must be different from current email.', code: 'EMAIL_SAME' });
   }
   if (!pass) {
-    return res.status(400).json({ error: 'Kata sandi akun wajib diisi untuk verifikasi keamanan.' });
+    return res.status(400).json({ error: 'Current password is required.', code: 'PARAMS_REQUIRED' });
   }
 
   const ok = await bcrypt.compare(pass, req.user.password_hash || '');
   if (!ok) {
-    return res.status(400).json({ error: 'Kata sandi tidak sesuai.' });
+    return res.status(400).json({ error: 'Incorrect password.', code: 'INVALID_PASSWORD' });
   }
 
   // Rate limit: maks 3 permintaan ubah email per jam
-  if (await enforceRateLimit(res, `email_change:${req.user.id}`, 3600, 3, 'Terlalu banyak permintaan ubah email. Silakan coba lagi 1 jam lagi.')) return;
+  if (await enforceRateLimit(res, `email_change:${req.user.id}`, 3600, 3, 'Too many email change requests. Please try again in 1 hour.')) return;
 
   // Cek apakah email baru sudah terdaftar
   const existing = await db.findOne('accounts', { email: newEm });
   if (existing) {
-    return res.status(400).json({ error: 'Alamat email tidak dapat digunakan.' });
+    return res.status(400).json({ error: 'This email address is already in use.', code: 'EMAIL_EXISTS' });
   }
 
   const rawToken = newToken();
@@ -1168,8 +1161,9 @@ app.post('/api/account/email', auth, wrap(async (req, res) => {
   });
 
   // Kirim email verifikasi ke alamat baru & kirim notifikasi ke alamat lama
-  await sendEmailChangeVerification({ to: newEm, token: rawToken });
-  await sendEmailChangeNoticeToOldEmail({ to: req.user.email, newEmail: newEm });
+  const userLocale = req.user.locale || 'id';
+  await sendEmailChangeVerification({ to: newEm, token: rawToken, locale: userLocale });
+  await sendEmailChangeNoticeToOldEmail({ to: req.user.email, newEmail: newEm, locale: userLocale });
 
   await db.insert('audit_logs', {
     user_id: req.user.id,
@@ -1180,7 +1174,7 @@ app.post('/api/account/email', auth, wrap(async (req, res) => {
 
   res.json({
     success: true,
-    message: 'Tautan konfirmasi telah dikirimkan ke alamat email baru Anda. Silakan periksa inbox untuk menyelesaikan perubahan.'
+    message: 'A confirmation link has been sent to your new email address. Please check your inbox to complete the change.'
   });
 }));
 
@@ -1253,14 +1247,14 @@ app.get('/api/account/export', auth, wrap(async (req, res) => {
 app.post('/api/data-deletion/meta', express.urlencoded({ extended: false }), wrap(async (req, res) => {
   if (!process.env.META_APP_SECRET) {
     return res.status(503).json({
-      error: 'Layanan penghapusan data Meta belum dikonfigurasi (META_APP_SECRET tidak disetel).',
+      error: 'Meta data deletion service is not configured (META_APP_SECRET is not set).',
       code: 'SERVICE_UNAVAILABLE'
     });
   }
 
   const signedRequest = req.body?.signed_request || req.body?.signedRequest;
   if (!signedRequest) {
-    return res.status(400).json({ error: 'signed_request is required', code: 'SIGNED_REQUEST_REQUIRED' });
+    return res.status(400).json({ error: 'signed_request parameter is required.', code: 'SIGNED_REQUEST_REQUIRED' });
   }
 
   const result = await handleMetaDataDeletion(signedRequest, process.env.APP_URL);
@@ -1270,23 +1264,34 @@ app.post('/api/data-deletion/meta', express.urlencoded({ extended: false }), wra
 app.get('/api/data-deletion/status', wrap(async (req, res) => {
   const code = String(req.query.code || '').trim();
   if (!code) {
-    return res.status(400).json({ error: 'Kode konfirmasi wajib diisi.', code: 'CODE_REQUIRED' });
+    return res.status(400).json({ error: 'Confirmation code is required.', code: 'CODE_REQUIRED' });
   }
 
   const status = await getMetaDataDeletionStatus(code);
   if (!status) {
-    return res.status(404).json({ error: 'Kode konfirmasi penghapusan tidak ditemukan.', code: 'NOT_FOUND' });
+    return res.status(404).json({ error: 'Confirmation code not found.', code: 'NOT_FOUND' });
   }
 
   res.json(status);
 }));
 
 app.patch('/api/me', auth, wrap(async (req, res) => {
-  const { name, brandName, niche } = req.body || {};
+  const { name, brandName, niche, webApprover, locale } = req.body || {};
   const patch = {};
   if (name !== undefined) patch.name = String(name || '').trim();
   if (brandName !== undefined) patch.brand_name = String(brandName || '').trim();
   if (niche !== undefined) patch.niche = String(niche || '').trim();
+  if (webApprover !== undefined) patch.web_approver = !!webApprover;
+  if (locale !== undefined) {
+    const loc = String(locale || '').trim().toLowerCase();
+    if (!['id', 'en'].includes(loc)) {
+      return res.status(400).json({
+        error: 'Locale must be either id or en.',
+        code: 'INVALID_LOCALE'
+      });
+    }
+    patch.locale = loc;
+  }
 
   if (Object.keys(patch).length === 0) {
     return res.json({ success: true, user: publicUser(req.user) });
@@ -1339,7 +1344,7 @@ app.post('/api/workspaces', auth, wrap(async (req, res) => {
   const { name, niche, website } = req.body || {};
   const wsName = String(name || '').trim();
   if (!wsName) {
-    return res.status(400).json({ error: 'Nama workspace wajib diisi.', code: 'NAME_REQUIRED' });
+    return res.status(400).json({ error: 'Workspace name is required.', code: 'NAME_REQUIRED' });
   }
 
   // Cek batas maksimal 5 workspace untuk paket Free
@@ -1347,7 +1352,7 @@ app.post('/api/workspaces', auth, wrap(async (req, res) => {
   const isPaid = req.user.plan && req.user.plan !== 'free';
   if (!isPaid && currentWorkspaces.length >= 5) {
     return res.status(403).json({
-      error: 'Batas maksimal 5 workspace untuk paket Free telah tercapai. Upgrade ke paket berbayar untuk menambah workspace.',
+      error: 'Maximum workspace limit reached. Please upgrade to add more workspaces.',
       code: 'WORKSPACE_LIMIT_REACHED'
     });
   }
@@ -1421,7 +1426,7 @@ app.delete('/api/workspaces/:id', auth, requireWorkspace('owner'), wrap(async (r
   const userWorkspaces = await getUserWorkspaces(req.user.id);
   if (userWorkspaces.length <= 1) {
     return res.status(400).json({
-      error: 'Anda tidak dapat menghapus workspace terakhir Anda.',
+      error: 'You cannot delete your only workspace.',
       code: 'CANNOT_DELETE_LAST_WORKSPACE'
     });
   }
@@ -1437,7 +1442,7 @@ app.delete('/api/workspaces/:id', auth, requireWorkspace('owner'), wrap(async (r
     ip: getClientIp(req)
   });
 
-  res.json({ success: true, message: 'Workspace berhasil dihapus.' });
+  res.json({ success: true, message: 'Workspace deleted successfully.' });
 }));
 
 // Workspace API Keys
@@ -1489,7 +1494,7 @@ app.delete('/api/workspaces/:id/api-keys/:keyId', auth, requireWorkspace('admin'
   });
 
   if (!existingKey) {
-    return res.status(404).json({ error: 'API key tidak ditemukan.' });
+    return res.status(404).json({ error: 'API key not found.', code: 'NOT_FOUND' });
   }
 
   await db.update('workspace_api_keys', { id: existingKey.id }, {
@@ -1504,7 +1509,7 @@ app.delete('/api/workspaces/:id/api-keys/:keyId', auth, requireWorkspace('admin'
     meta: { prefix: existingKey.prefix }
   });
 
-  res.json({ success: true, message: 'API key berhasil dicabut.' });
+  res.json({ success: true, message: 'API key revoked successfully.' });
 }));
 
 // ---------- Anggota & Undangan Workspace (Langkah 6) ----------
@@ -1537,7 +1542,7 @@ app.patch('/api/workspaces/:id/members/:userId', auth, requireWorkspace('admin')
   const { role } = req.body || {};
 
   if (!['admin', 'viewer'].includes(role)) {
-    return res.status(400).json({ error: 'Role harus admin atau viewer.' });
+    return res.status(400).json({ error: 'Role must be admin or viewer.', code: 'INVALID_ROLE' });
   }
 
   const targetMember = await db.findOne('workspace_members', {
@@ -1546,21 +1551,21 @@ app.patch('/api/workspaces/:id/members/:userId', auth, requireWorkspace('admin')
   });
 
   if (!targetMember) {
-    return res.status(404).json({ error: 'Anggota tidak ditemukan di workspace ini.' });
+    return res.status(404).json({ error: 'Member not found in this workspace.', code: 'NOT_FOUND' });
   }
 
   // Role owner tidak bisa diubah lewat endpoint ini
   if (targetMember.role === 'owner') {
     return res.status(400).json({
-      error: 'Role owner tidak dapat diubah. Silakan gunakan fitur transfer kepemilikan workspace.',
-      code: 'CANNOT_CHANGE_OWNER_ROLE'
+      error: 'The workspace owner cannot be demoted. Please transfer ownership first.',
+      code: 'CANNOT_DEMOTE_OWNER'
     });
   }
 
   // Admin tidak bisa mengubah sesama admin jika bukan owner
   if (req.member.role === 'admin' && targetMember.role === 'admin') {
     return res.status(403).json({
-      error: 'Hanya owner yang dapat mengubah role sesama admin.',
+      error: 'Only workspace owner can change role of another admin.',
       code: 'FORBIDDEN_ROLE'
     });
   }
@@ -1592,13 +1597,13 @@ app.delete('/api/workspaces/:id/members/:userId', auth, requireWorkspace('viewer
   });
 
   if (!targetMember) {
-    return res.status(404).json({ error: 'Anggota tidak ditemukan di workspace ini.' });
+    return res.status(404).json({ error: 'Member not found in this workspace.', code: 'NOT_FOUND' });
   }
 
   if (targetMember.role === 'owner') {
     return res.status(400).json({
-      error: 'Owner tidak dapat keluar dari workspace sebelum mengalihkan kepemilikan.',
-      code: 'OWNER_CANNOT_LEAVE'
+      error: 'Owner cannot leave workspace before transferring ownership.',
+      code: 'TRANSFER_OWNERSHIP_FIRST'
     });
   }
 
@@ -1606,7 +1611,7 @@ app.delete('/api/workspaces/:id/members/:userId', auth, requireWorkspace('viewer
   if (!isSelf) {
     if (!['owner', 'admin'].includes(req.member.role)) {
       return res.status(403).json({
-        error: 'Hanya admin atau owner yang dapat mengeluarkan anggota.',
+        error: 'Only admin or owner can remove members.',
         code: 'FORBIDDEN_ROLE'
       });
     }
@@ -1614,7 +1619,7 @@ app.delete('/api/workspaces/:id/members/:userId', auth, requireWorkspace('viewer
     // Admin tidak bisa mengeluarkan sesama admin atau owner
     if (req.member.role === 'admin' && ['admin', 'owner'].includes(targetMember.role)) {
       return res.status(403).json({
-        error: 'Admin tidak dapat mengeluarkan sesama admin atau owner.',
+        error: 'Admin cannot remove another admin or owner.',
         code: 'FORBIDDEN_ROLE'
       });
     }
@@ -1666,13 +1671,13 @@ app.post('/api/workspaces/:id/invites', auth, requireWorkspace('admin'), wrap(as
   const targetEmail = String(email || '').trim().toLowerCase();
 
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(targetEmail)) {
-    return res.status(400).json({ error: 'Format alamat email tidak valid.' });
+    return res.status(400).json({ error: 'Please provide a valid email address.', code: 'INVALID_EMAIL' });
   }
 
   const assignedRole = role === 'admin' ? 'admin' : 'viewer';
 
   // Rate limit: 10 undangan per jam per workspace
-  if (await enforceRateLimit(res, `invite:ws:${req.workspace.id}`, 3600, 10, 'Batas pengiriman undangan tercapai (maksimal 10 per jam). Silakan coba lagi nanti.')) {
+  if (await enforceRateLimit(res, `invite:ws:${req.workspace.id}`, 3600, 10, 'Invite rate limit exceeded (maximum 10 per hour). Please try again later.')) {
     return;
   }
 
@@ -1682,7 +1687,7 @@ app.post('/api/workspaces/:id/invites', auth, requireWorkspace('admin'), wrap(as
   const activeCount = (existingInvites || []).filter(i => !i.accepted_at && !i.revoked_at && new Date(i.expires_at) > now).length;
   if (activeCount >= 20) {
     return res.status(400).json({
-      error: 'Batas maksimal 20 undangan aktif untuk workspace ini telah tercapai.',
+      error: 'Maximum active invitations (20) for this workspace reached.',
       code: 'MAX_INVITES_REACHED'
     });
   }
@@ -1696,7 +1701,7 @@ app.post('/api/workspaces/:id/invites', auth, requireWorkspace('admin'), wrap(as
     });
     if (isMember) {
       return res.status(400).json({
-        error: 'Pengguna dengan email ini sudah menjadi anggota workspace ini.',
+        error: 'A user with this email is already a member of this workspace.',
         code: 'ALREADY_MEMBER'
       });
     }
@@ -1724,7 +1729,8 @@ app.post('/api/workspaces/:id/invites', auth, requireWorkspace('admin'), wrap(as
       workspaceName: req.workspace.name,
       inviterName: req.user.name || req.user.brand_name || splitEmail(req.user.email),
       inviteLink,
-      role: assignedRole
+      role: assignedRole,
+      locale: targetAccount?.locale || req.body?.locale || req.user.locale || 'id'
     });
   } catch (err) {
     console.error('[INVITE-MAIL-ERR]', err.message);
@@ -1758,7 +1764,7 @@ app.delete('/api/workspaces/:id/invites/:inviteId', auth, requireWorkspace('admi
   });
 
   if (!inv) {
-    return res.status(404).json({ error: 'Undangan tidak ditemukan.' });
+    return res.status(404).json({ error: 'Invitation not found.', code: 'NOT_FOUND' });
   }
 
   await db.update('workspace_invites', { id: inv.id }, {
@@ -1773,14 +1779,14 @@ app.delete('/api/workspaces/:id/invites/:inviteId', auth, requireWorkspace('admi
     ip: getClientIp(req)
   });
 
-  res.json({ success: true, message: 'Undangan berhasil dibatalkan.' });
+  res.json({ success: true, message: 'Invitation revoked successfully.' });
 }));
 
 // Endpoint publik info undangan
 app.get('/api/invites/info', wrap(async (req, res) => {
   const rawToken = String(req.query.token || '').trim();
   if (!rawToken) {
-    return res.status(400).json({ valid: false, message: 'Token undangan tidak disertakan.' });
+    return res.status(400).json({ valid: false, error: 'Invitation token is required.', message: 'Invitation token is required.', code: 'TOKEN_REQUIRED' });
   }
 
   const tokenHash = hashToken(rawToken);
@@ -1789,7 +1795,9 @@ app.get('/api/invites/info', wrap(async (req, res) => {
   if (!inv || inv.revoked_at || inv.accepted_at || new Date(inv.expires_at) <= new Date()) {
     return res.json({
       valid: false,
-      message: 'Undangan ini tidak valid, telah digunakan, atau sudah kadaluarsa.'
+      error: 'This invitation is invalid, already used, or expired.',
+      message: 'This invitation is invalid, already used, or expired.',
+      code: 'INVALID_TOKEN'
     });
   }
 
@@ -1803,7 +1811,7 @@ app.get('/api/invites/info', wrap(async (req, res) => {
       email: inv.email,
       role: inv.role,
       workspaceName: ws?.name || 'Workspace',
-      inviterName: inviter?.name || inviter?.brand_name || splitEmail(inviter?.email) || 'Anggota Tim',
+      inviterName: inviter?.name || inviter?.brand_name || splitEmail(inviter?.email) || 'Team Member',
       expiresAt: inv.expires_at
     }
   });
@@ -1813,20 +1821,20 @@ app.get('/api/invites/info', wrap(async (req, res) => {
 app.post('/api/invites/accept', auth, wrap(async (req, res) => {
   const { token } = req.body || {};
   if (!token) {
-    return res.status(400).json({ error: 'Token undangan wajib disertakan.' });
+    return res.status(400).json({ error: 'Invitation token is required.', code: 'TOKEN_REQUIRED' });
   }
 
   const tokenHash = hashToken(token);
   const inv = await db.findOne('workspace_invites', { token_hash: tokenHash });
 
   if (!inv || inv.revoked_at || inv.accepted_at || new Date(inv.expires_at) <= new Date()) {
-    return res.status(400).json({ error: 'Undangan tidak valid atau sudah kadaluarsa.' });
+    return res.status(400).json({ error: 'Invitation is invalid or has expired.', code: 'INVALID_TOKEN' });
   }
 
   // Verifikasi kesesuaian email pengguna yang login dengan email undangan
   if (req.user.email.toLowerCase() !== inv.email.toLowerCase()) {
     return res.status(403).json({
-      error: `Undangan ini ditujukan untuk alamat email ${inv.email}. Anda saat ini masuk sebagai ${req.user.email}. Silakan masuk dengan akun yang sesuai.`,
+      error: `This invitation is for ${inv.email}. You are currently signed in as ${req.user.email}.`,
       code: 'EMAIL_MISMATCH'
     });
   }
@@ -1863,7 +1871,7 @@ app.post('/api/invites/accept', auth, wrap(async (req, res) => {
 
   res.json({
     success: true,
-    message: `Selamat! Anda berhasil bergabung ke workspace "${ws?.name || 'Workspace'}".`,
+    message: `Joined workspace "${ws?.name || 'Workspace'}" successfully.`,
     workspace: {
       id: ws?.id,
       name: ws?.name,
@@ -1877,12 +1885,12 @@ app.post('/api/workspaces/:id/transfer-ownership', auth, requireWorkspace('owner
   const { userId, password } = req.body || {};
 
   if (!userId || !password) {
-    return res.status(400).json({ error: 'ID user target dan kata sandi wajib diisi.' });
+    return res.status(400).json({ error: 'Target user ID and password are required.', code: 'PARAMS_REQUIRED' });
   }
 
   const passOk = await bcrypt.compare(password, req.user.password_hash || '');
   if (!passOk) {
-    return res.status(400).json({ error: 'Kata sandi salah.' });
+    return res.status(400).json({ error: 'Incorrect password.', code: 'INVALID_PASSWORD' });
   }
 
   const targetMember = await db.findOne('workspace_members', {
@@ -1891,11 +1899,11 @@ app.post('/api/workspaces/:id/transfer-ownership', auth, requireWorkspace('owner
   });
 
   if (!targetMember) {
-    return res.status(404).json({ error: 'Pengguna target bukan anggota workspace ini.' });
+    return res.status(404).json({ error: 'Target user is not a member of this workspace.', code: 'NOT_FOUND' });
   }
 
   if (targetMember.user_id === req.user.id) {
-    return res.status(400).json({ error: 'Anda sudah menjadi owner workspace ini.' });
+    return res.status(400).json({ error: 'You are already the owner of this workspace.', code: 'ALREADY_OWNER' });
   }
 
   // Update owner di tabel workspaces
@@ -2251,14 +2259,6 @@ app.post('/api/admin/users/:id/verify', adminAuth, wrap(async (req, res) => {
   });
 
   res.json({ success: true, user: publicUser(user) });
-}));
-app.patch('/api/me', auth, wrap(async (req, res) => {
-  const patch = {};
-  if (req.body.brandName !== undefined) patch.brand_name = String(req.body.brandName).trim();
-  if (req.body.niche !== undefined) patch.niche = String(req.body.niche);
-  if (req.body.webApprover !== undefined) patch.web_approver = !!req.body.webApprover;
-  const u = await db.update('accounts', { id: req.user.id }, patch);
-  res.json({ user: publicUser(u) });
 }));
 app.post('/api/me/api-key/rotate', auth, wrap(async (req, res) => {
   const u = await db.update('accounts', { id: req.user.id }, { api_key: genApiKey() });
@@ -3389,7 +3389,7 @@ app.get('/api/cron/run-scheduled', wrap(async (req, res) => {
   res.json({ ran: results.length, results, alerts: alertSummary, marginSentinel: marginSentinelSummary });
 }));
 
-app.use((req, res) => res.status(404).json({ error: 'Route tidak ditemukan.' }));
+app.use((req, res) => res.status(404).json({ error: 'Route not found.', code: 'NOT_FOUND' }));
 
 if (!process.env.VERCEL) app.listen(PORT, () => log(`Markimate backend di http://localhost:${PORT} (db: ${dbMode}, n8n: ${N8N_BASE_URL})`));
 export default app;

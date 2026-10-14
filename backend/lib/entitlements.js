@@ -105,7 +105,7 @@ export function requireModule(moduleName) {
       const wsId = req.workspace?.id || (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(hdrWs || '') ? hdrWs : null) || req.user?.id;
       if (!wsId) {
         return res.status(403).json({
-          error: 'Workspace tidak ditemukan.',
+          error: 'Workspace is required.',
           code: 'WORKSPACE_REQUIRED'
         });
       }
@@ -113,7 +113,7 @@ export function requireModule(moduleName) {
       const activeList = await getModules(wsId);
       if (!activeList.includes(moduleName)) {
         return res.status(403).json({
-          error: `Modul ini belum diaktifkan untuk workspace Anda.`,
+          error: 'This module is not active for the current workspace subscription.',
           code: 'MODULE_INACTIVE',
           module: moduleName
         });

@@ -340,6 +340,7 @@ export async function processGoogleAuth({ googleProfile, req, res }) {
     google_sub: sub,
     password_hash: null,
     status: 'active',
+    locale: 'id',
     email_verified_at: new Date().toISOString(),
     plan: 'free',
     created_at: new Date().toISOString(),

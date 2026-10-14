@@ -55,16 +55,16 @@ export async function getWorkspaceAuditLogs(workspaceId, limit = 100) {
  * Meminta penghapusan akun (pending_deletion selama 30 hari)
  */
 export async function requestAccountDeletion({ userId, password, confirm, ip, userAgent }) {
-  if (confirm !== 'HAPUS') {
-    throw Object.assign(new Error('Konfirmasi harus berupa kata "HAPUS".'), { status: 400, code: 'CONFIRM_MISMATCH' });
+  if (confirm !== 'HAPUS' && confirm !== 'DELETE') {
+    throw Object.assign(new Error('Confirmation must be "HAPUS" or "DELETE".'), { status: 400, code: 'CONFIRM_MISMATCH' });
   }
 
   const user = await db.findOne('accounts', { id: userId });
-  if (!user) throw Object.assign(new Error('User tidak ditemukan.'), { status: 404 });
+  if (!user) throw Object.assign(new Error('User not found.'), { status: 404, code: 'NOT_FOUND' });
 
   const isPasswordValid = await bcrypt.compare(String(password || ''), user.password_hash || '');
   if (!isPasswordValid) {
-    throw Object.assign(new Error('Kata sandi yang Anda masukkan salah.'), { status: 400, code: 'INVALID_PASSWORD' });
+    throw Object.assign(new Error('Incorrect password.'), { status: 400, code: 'INVALID_PASSWORD' });
   }
 
   // Cek apakah user masih merupakan owner di workspace yang memiliki anggota lain
@@ -84,7 +84,7 @@ export async function requestAccountDeletion({ userId, password, confirm, ip, us
   }
 
   if (blockedWorkspaces.length > 0) {
-    throw Object.assign(new Error('Anda harus mentransfer kepemilikan workspace terlebih dahulu sebelum menghapus akun.'), {
+    throw Object.assign(new Error('You must transfer workspace ownership before deleting your account.'), {
       status: 409,
       code: 'TRANSFER_OWNERSHIP_FIRST',
       workspaces: blockedWorkspaces
@@ -133,7 +133,8 @@ export async function requestAccountDeletion({ userId, password, confirm, ip, us
   // 4. Kirim email pemberitahuan jadwal penghapusan
   await sendAccountDeletionScheduledEmail({
     to: user.email,
-    scheduledDate: scheduledDateFormatted
+    scheduledDate: scheduledDateFormatted,
+    locale: user.locale || 'id'
   });
 
   // 5. Catat audit log
@@ -164,12 +165,12 @@ export async function cancelAccountDeletion({ userId, email, password, ip, userA
     user = await db.findOne('accounts', { email: em });
   }
 
-  if (!user) throw Object.assign(new Error('User tidak ditemukan.'), { status: 404 });
+  if (!user) throw Object.assign(new Error('User not found.'), { status: 404, code: 'NOT_FOUND' });
 
   if (password) {
     const isPasswordValid = await bcrypt.compare(String(password), user.password_hash || '');
     if (!isPasswordValid) {
-      throw Object.assign(new Error('Kata sandi salah.'), { status: 400, code: 'INVALID_PASSWORD' });
+      throw Object.assign(new Error('Incorrect password.'), { status: 400, code: 'INVALID_PASSWORD' });
     }
   }
 
@@ -194,7 +195,7 @@ export async function cancelAccountDeletion({ userId, email, password, ip, userA
  */
 export async function exportAccountData(userId) {
   const user = await db.findOne('accounts', { id: userId });
-  if (!user) throw Object.assign(new Error('User tidak ditemukan.'), { status: 404 });
+  if (!user) throw Object.assign(new Error('User not found.'), { status: 404, code: 'NOT_FOUND' });
 
   // 1. Profil pengguna (tanpa password_hash)
   const profile = {
@@ -350,7 +351,7 @@ export async function purgeDeletedAccounts() {
 
       // 7. Kirim email pemberitahuan penghapusan permanen selesai
       try {
-        await sendAccountPurgedEmail({ to: user.email });
+        await sendAccountPurgedEmail({ to: user.email, locale: user.locale || 'id' });
       } catch (err) {
         console.warn('[PURGE] Gagal mengirim email purged:', err.message);
       }
@@ -400,7 +401,7 @@ export function verifyMetaSignedRequest(signedRequest, appSecret) {
 export async function handleMetaDataDeletion(signedRequest, appUrl) {
   const secret = process.env.META_APP_SECRET;
   if (!secret) {
-    throw Object.assign(new Error('Layanan penghapusan data Meta belum dikonfigurasi (META_APP_SECRET tidak disetel).'), { status: 503, code: 'SERVICE_UNAVAILABLE' });
+    throw Object.assign(new Error('Meta data deletion service is not configured (META_APP_SECRET is not set).'), { status: 503, code: 'SERVICE_UNAVAILABLE' });
   }
   const payload = verifyMetaSignedRequest(signedRequest, secret);
   if (!payload) {

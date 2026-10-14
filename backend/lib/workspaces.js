@@ -21,7 +21,7 @@ export function requireUuidParam(paramName = 'id') {
     const val = req.params?.[paramName];
     if (!val || !isUuid(val)) {
       return res.status(404).json({
-        error: 'Data tidak ditemukan.',
+        error: 'Resource not found.',
         code: 'NOT_FOUND'
       });
     }
@@ -114,7 +114,7 @@ export function requireWorkspace(minRole = 'viewer') {
   return async (req, res, next) => {
     try {
       if (!req.user) {
-        return res.status(401).json({ error: 'Belum login.', code: 'UNAUTHORIZED' });
+        return res.status(401).json({ error: 'Authentication required.', code: 'UNAUTHORIZED' });
       }
 
       const isWorkspaceRoute = req.params?.workspaceId !== undefined || (req.params?.id !== undefined && /^\/api\/workspaces\//.test(req.originalUrl || req.baseUrl || req.path));
@@ -124,7 +124,7 @@ export function requireWorkspace(minRole = 'viewer') {
         const routeWsId = req.params?.workspaceId || req.params?.id;
         if (!isUuid(routeWsId)) {
           return res.status(404).json({
-            error: 'Workspace tidak ditemukan atau Anda tidak memiliki akses.',
+            error: 'Workspace not found or access denied.',
             code: 'WORKSPACE_NOT_FOUND'
           });
         }
@@ -139,7 +139,7 @@ export function requireWorkspace(minRole = 'viewer') {
       // agar penyerang tidak bisa menebak ID workspace lain
       if (!resolved) {
         return res.status(404).json({
-          error: 'Workspace tidak ditemukan atau Anda tidak memiliki akses.',
+          error: 'Workspace not found or access denied.',
           code: 'WORKSPACE_NOT_FOUND'
         });
       }
@@ -149,7 +149,7 @@ export function requireWorkspace(minRole = 'viewer') {
 
       if (userLevel < minLevel) {
         return res.status(403).json({
-          error: `Akses ditolak: tindakan ini memerlukan peran minimal ${minRole}.`,
+          error: `Access denied: action requires minimum role of ${minRole}.`,
           code: 'FORBIDDEN_ROLE',
           requiredRole: minRole,
           currentRole: member.role
@@ -161,7 +161,7 @@ export function requireWorkspace(minRole = 'viewer') {
       next();
     } catch (err) {
       console.error('[WORKSPACE-MIDDLEWARE-ERR]', err);
-      res.status(500).json({ error: 'Gagal memverifikasi akses workspace.', details: err.message });
+      res.status(500).json({ error: 'Failed to verify workspace access.', code: 'INTERNAL_ERROR', details: err.message });
     }
   };
 }

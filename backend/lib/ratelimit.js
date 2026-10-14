@@ -35,7 +35,7 @@ export async function enforceRateLimit(res, key, windowSec, max, customMessage =
   const allowed = await checkRateLimit(key, windowSec, max);
   if (!allowed) {
     res.status(429).json({
-      error: customMessage || 'Terlalu banyak permintaan. Silakan coba lagi beberapa saat.',
+      error: customMessage || 'Too many requests. Please wait a moment and try again.',
       code: 'RATE_LIMITED'
     });
     return true;

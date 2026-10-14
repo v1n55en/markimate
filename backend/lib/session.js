@@ -82,7 +82,8 @@ export function publicUser(row) {
     id: row.id,
     email: row.email,
     name: row.name || '',
-    brandName: row.brand_name || row.name || ''
+    brandName: row.brand_name || row.name || '',
+    locale: row.locale || 'id'
   };
 }
 

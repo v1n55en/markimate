@@ -14,15 +14,14 @@ export const isUuid = (v) => typeof v === 'string' && UUID_RE.test(v);
 export function buildSchemaContract() {
   const schemaContract = {};
 
-  const migrationFiles = [
-    path.join(ROOT_DIR, 'supabase.sql'),
-    path.join(ROOT_DIR, 'migrations', '006_seo_hardening.sql'),
-    path.join(ROOT_DIR, 'migrations', '007_credits.sql'),
-    path.join(ROOT_DIR, 'migrations', '008_rename_schema.sql'),
-    path.join(ROOT_DIR, 'migrations', '009_auth_workspace.sql'),
-    path.join(ROOT_DIR, 'migrations', '010_updated_at_all_tables.sql'),
-    path.join(ROOT_DIR, 'migrations', '011_google_auth_fixes.sql')
-  ];
+  const migrationsDir = path.join(ROOT_DIR, 'migrations');
+  const migrationFiles = [path.join(ROOT_DIR, 'supabase.sql')];
+  if (fs.existsSync(migrationsDir)) {
+    const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
+    for (const f of files) {
+      migrationFiles.push(path.join(migrationsDir, f));
+    }
+  }
 
   function ensureTable(tableName) {
     if (!schemaContract[tableName]) {
