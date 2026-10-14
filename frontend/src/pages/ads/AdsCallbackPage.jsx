@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { CheckCircle2, XCircle, RefreshCw, ArrowLeft } from 'lucide-react';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { finishConnect, isAdsMock } from '../../ads/adsApi';
 import { PLATFORMS_META } from '../../ads/mockData';
 import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
@@ -9,6 +10,7 @@ export default function AdsCallbackPage() {
   if (!isAdsMock()) {
     return <ModuleComingSoonCard roleKey="ads_report" />;
   }
+  const { lang, t } = useLanguage();
   const { platform } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -40,7 +42,7 @@ export default function AdsCallbackPage() {
         setStatus('success');
       } catch (err) {
         setStatus('error');
-        setErrorMessage(err.message || 'Gagal memproses otorisasi akun iklan.');
+        setErrorMessage(err.message || (lang.startsWith('id') ? 'Gagal memproses otorisasi akun iklan.' : 'Failed to process ad account authorization.'));
       }
     };
 
@@ -83,9 +85,9 @@ export default function AdsCallbackPage() {
                 style={{ animation: 'spin 1.2s linear infinite' }}
               />
             </div>
-            <h2 style={styles.title}>Mengautentikasi {platformMeta.name}…</h2>
+            <h2 style={styles.title}>{t('ads.callback.authenticating', { platform: platformMeta.name })}</h2>
             <p style={styles.text}>
-              Menghubungkan token otorisasi dan memvalidasi akses read-only dengan server Markimate. Harap tunggu sebentar.
+              {t('ads.callback.authenticatingDesc')}
             </p>
           </div>
         )}
@@ -96,18 +98,18 @@ export default function AdsCallbackPage() {
             <div style={styles.successIconBox}>
               <CheckCircle2 size={36} color="var(--accent-green)" />
             </div>
-            <h2 style={styles.title}>Berhasil Terhubung!</h2>
+            <h2 style={styles.title}>{t('ads.callback.successTitle')}</h2>
             <p style={styles.text}>
-              Akun <strong>{platformMeta.name}</strong> berhasil dihubungkan ke Markimate. Laporan performa kampanye akan otomatis disinkronkan.
+              {t('ads.callback.successDesc', { platform: platformMeta.name })}
             </p>
             <div style={styles.redirectBadge}>
-              Dialihkan kembali ke halaman koneksi dalam {countdown} detik…
+              {t('ads.callback.redirectCountdown', { seconds: countdown })}
             </div>
             <button
               onClick={() => navigate('/app/ads/connections')}
               style={styles.primaryBtn}
             >
-              Kembali ke Koneksi Sekarang
+              {t('ads.callback.goToConnections')}
             </button>
           </div>
         )}
@@ -118,12 +120,12 @@ export default function AdsCallbackPage() {
             <div style={styles.errorIconBox}>
               <XCircle size={36} color="var(--accent-red)" />
             </div>
-            <h2 style={styles.title}>Gagal Menghubungkan Platform</h2>
+            <h2 style={styles.title}>{t('ads.callback.errorTitle')}</h2>
             <p style={styles.errorText}>{errorMessage}</p>
             <div style={styles.actionRow}>
               <Link to="/app/ads/connections" style={styles.secondaryBtn}>
                 <ArrowLeft size={16} />
-                <span>Kembali</span>
+                <span>{lang.startsWith('id') ? 'Kembali' : 'Back'}</span>
               </Link>
               <button
                 onClick={() => {
@@ -134,7 +136,7 @@ export default function AdsCallbackPage() {
                 }}
                 style={styles.primaryBtn}
               >
-                Coba Lagi
+                {t('ads.callback.retryBtn')}
               </button>
             </div>
           </div>

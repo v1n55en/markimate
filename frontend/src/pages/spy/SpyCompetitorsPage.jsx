@@ -13,6 +13,8 @@ import {
   X,
   Clock,
 } from 'lucide-react';
+import { useLanguage } from '../../i18n/LanguageContext';
+import { formatDateTime } from '../../lib/format';
 import { listCompetitors, addCompetitor, removeCompetitor, scanNow, isSpyMock } from '../../spy/spyApi';
 import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
 
@@ -20,6 +22,7 @@ export default function SpyCompetitorsPage() {
   if (!isSpyMock()) {
     return <ModuleComingSoonCard roleKey="ads_spy" />;
   }
+  const { lang, t } = useLanguage();
   const [competitors, setCompetitors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [scanningId, setScanningId] = useState(null);
@@ -66,23 +69,23 @@ export default function SpyCompetitorsPage() {
     setScanningId(id);
     try {
       await scanNow(id);
-      flash(`Pemindaian Meta Ad Library untuk "${compName}" berhasil disinkronkan!`);
+      flash(t('spy.competitors.scanSuccess', { brand: compName }));
       await loadData();
     } catch {
-      flash('Gagal memindai kompetitor.');
+      flash(t('spy.competitors.scanFailed'));
     } finally {
       setScanningId(null);
     }
   };
 
   const handleDelete = async (id, compName) => {
-    if (!window.confirm(`Hapus pemantauan untuk ${compName}?`)) return;
+    if (!window.confirm(t('spy.competitors.deleteConfirm', { brand: compName }))) return;
     try {
       await removeCompetitor(id);
-      flash(`Kompetitor "${compName}" berhasil dihapus.`);
+      flash(t('spy.competitors.deleteSuccess', { brand: compName }));
       await loadData();
     } catch {
-      flash('Gagal menghapus kompetitor.');
+      flash(t('spy.competitors.deleteFailed'));
     }
   };
 
@@ -103,10 +106,10 @@ export default function SpyCompetitorsPage() {
       setHandle('');
       setPageUrl('');
       setShowAddModal(false);
-      flash(`Kompetitor "${name}" berhasil ditambahkan & dijadwalkan pemindaian.`);
+      flash(t('spy.competitors.addSuccess', { brand: name }));
       await loadData();
     } catch {
-      flash('Gagal menambahkan kompetitor.');
+      flash(t('spy.competitors.addFailed'));
     } finally {
       setAdding(false);
     }
@@ -122,25 +125,25 @@ export default function SpyCompetitorsPage() {
         <div style={styles.tabsLeft}>
           <Link to="/app/spy" style={styles.tabBtn}>
             <Eye size={15} />
-            <span>Ringkasan</span>
+            <span>{t('spy.tabOverview')}</span>
           </Link>
           <Link to="/app/spy/competitors" style={{ ...styles.tabBtn, ...styles.tabBtnActive }}>
             <Users size={15} />
-            <span>Kompetitor ({competitors.length})</span>
+            <span>{t('spy.tabCompetitors')} ({competitors.length})</span>
           </Link>
           <Link to="/app/spy/library" style={styles.tabBtn}>
             <Sparkles size={15} />
-            <span>Galeri Creative</span>
+            <span>{t('spy.tabLibrary')}</span>
           </Link>
           <Link to="/app/spy/insights" style={styles.tabBtn}>
             <TrendingUp size={15} />
-            <span>Insight AI</span>
+            <span>{t('spy.tabInsights')}</span>
           </Link>
         </div>
 
         <div style={styles.tabsRight}>
           <span style={styles.quotaPill}>
-            Kuota: <strong>{quotaUsed}/{quotaLimit}</strong> Kompetitor
+            {t('spy.competitors.quota', { used: quotaUsed, limit: quotaLimit })}
           </span>
         </div>
       </div>
@@ -148,9 +151,9 @@ export default function SpyCompetitorsPage() {
       {/* 2. Header & Action Row */}
       <div style={styles.actionHeaderRow}>
         <div>
-          <h1 style={styles.pageTitle}>Daftar Kompetitor yang Dipantau</h1>
+          <h1 style={styles.pageTitle}>{t('spy.competitors.heading')}</h1>
           <p style={styles.pageSubtitle}>
-            Markimate memindai Meta Ad Library secara berkala untuk mendeteksi setiap peluncuran iklan baru dan materi kreatif winning.
+            {t('spy.competitors.subheading')}
           </p>
         </div>
 
@@ -160,7 +163,7 @@ export default function SpyCompetitorsPage() {
           disabled={quotaUsed >= quotaLimit}
         >
           <Plus size={16} />
-          <span>Tambah Kompetitor</span>
+          <span>{t('spy.competitors.addBtn')}</span>
         </button>
       </div>
 
@@ -176,18 +179,18 @@ export default function SpyCompetitorsPage() {
       {loading ? (
         <div style={styles.loadingBox}>
           <RefreshCw size={24} className="spin" color="var(--accent-cyan)" />
-          <span>Memuat daftar kompetitor…</span>
+          <span>{t('spy.overview.scanningCreatives')}</span>
         </div>
       ) : competitors.length === 0 ? (
         <div style={styles.emptyCard} className="card">
           <Users size={36} color="var(--text-muted)" />
-          <h3>Belum Ada Kompetitor Dipantau</h3>
+          <h3>{t('spy.competitors.emptyTitle')}</h3>
           <p style={{ color: 'var(--text-muted)', maxWidth: '420px', margin: '0 0 1.25rem 0' }}>
-            Tambahkan nama brand atau URL halaman media sosial kompetitor Anda untuk mulai mengumpulkan creative library mereka.
+            {t('spy.competitors.emptyDesc')}
           </p>
           <button onClick={() => setShowAddModal(true)} style={styles.addBtn}>
             <Plus size={16} />
-            <span>Tambah Kompetitor Pertama</span>
+            <span>{t('spy.competitors.addFirstBtn')}</span>
           </button>
         </div>
       ) : (
@@ -196,12 +199,12 @@ export default function SpyCompetitorsPage() {
             <table style={styles.table}>
               <thead>
                 <tr style={styles.thRow}>
-                  <th style={styles.th}>Nama Brand & Platform</th>
-                  <th style={styles.th}>Iklan Aktif</th>
-                  <th style={styles.th}>Iklan Baru (Mg Ini)</th>
-                  <th style={styles.th}>Winning Ads</th>
-                  <th style={styles.th}>Pemindaian Terakhir</th>
-                  <th style={styles.th}>Aksi</th>
+                  <th style={styles.th}>{t('spy.competitors.thBrand')}</th>
+                  <th style={styles.th}>{t('spy.competitors.thActive')}</th>
+                  <th style={styles.th}>{t('spy.competitors.thNew')}</th>
+                  <th style={styles.th}>{t('spy.competitors.thWinning')}</th>
+                  <th style={styles.th}>{t('spy.competitors.thLastScan')}</th>
+                  <th style={styles.th}>{t('spy.competitors.thAction')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -214,14 +217,14 @@ export default function SpyCompetitorsPage() {
                           <strong style={styles.compName}>{comp.name}</strong>
                           <div style={styles.metaBadgeRow}>
                             <span style={styles.platformBadge}>{comp.platformLabel}</span>
-                            <span style={styles.countryTag}>Negara: {comp.country}</span>
+                            <span style={styles.countryTag}>{lang.startsWith('id') ? 'Negara:' : 'Country:'} {comp.country}</span>
                             {comp.pageUrl && (
                               <a
                                 href={comp.pageUrl}
                                 target="_blank"
                                 rel="noreferrer"
                                 style={styles.linkIcon}
-                                title="Buka Halaman"
+                                title={lang.startsWith('id') ? "Buka Halaman" : "Open Page"}
                               >
                                 <ExternalLink size={11} />
                               </a>
@@ -230,11 +233,11 @@ export default function SpyCompetitorsPage() {
                         </div>
                       </td>
                       <td style={styles.td}>
-                        <span style={styles.boldMetric}>{comp.activeAdsCount} Iklan</span>
+                        <span style={styles.boldMetric}>{comp.activeAdsCount} {lang.startsWith('id') ? 'Iklan' : 'Ads'}</span>
                       </td>
                       <td style={styles.td}>
                         <span style={{ ...styles.boldMetric, color: 'var(--accent-yellow)' }}>
-                          +{comp.newAdsThisWeek} Iklan
+                          +{comp.newAdsThisWeek} {lang.startsWith('id') ? 'Iklan' : 'Ads'}
                         </span>
                       </td>
                       <td style={styles.td}>
@@ -246,12 +249,7 @@ export default function SpyCompetitorsPage() {
                         <div style={styles.scanDateCell}>
                           <Clock size={12} color="var(--text-muted)" />
                           <span>
-                            {new Date(comp.lastScannedAt).toLocaleDateString('id-ID', {
-                              day: 'numeric',
-                              month: 'short',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
+                            {formatDateTime(comp.lastScannedAt, lang)}
                           </span>
                         </div>
                       </td>
@@ -261,18 +259,18 @@ export default function SpyCompetitorsPage() {
                             onClick={() => handleScan(comp.id, comp.name)}
                             disabled={isScanning}
                             style={styles.scanBtn}
-                            title="Scan sekarang"
+                            title={t('spy.competitors.scanNow')}
                           >
                             <RefreshCw
                               size={13}
                               className={isScanning ? 'spin' : ''}
                             />
-                            <span>{isScanning ? 'Memindai…' : 'Scan Sekarang'}</span>
+                            <span>{isScanning ? t('spy.competitors.scanning') : t('spy.competitors.scanNow')}</span>
                           </button>
                           <button
                             onClick={() => handleDelete(comp.id, comp.name)}
                             style={styles.deleteBtn}
-                            title="Hapus pemantauan"
+                            title={lang.startsWith('id') ? "Hapus pemantauan" : "Delete tracking"}
                           >
                             <Trash2 size={13} />
                           </button>
@@ -299,7 +297,7 @@ export default function SpyCompetitorsPage() {
               <div style={styles.modalIconBox}>
                 <Plus size={18} color="var(--accent-cyan)" />
               </div>
-              <h3 style={styles.modalTitle}>Tambah Kompetitor untuk Dipantau</h3>
+              <h3 style={styles.modalTitle}>{t('spy.competitors.modalTitle')}</h3>
               <button
                 onClick={() => setShowAddModal(false)}
                 style={styles.modalCloseBtn}
@@ -310,10 +308,10 @@ export default function SpyCompetitorsPage() {
 
             <form onSubmit={handleAddSubmit} style={styles.modalForm}>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Nama Brand / Toko Kompetitor *</label>
+                <label style={styles.label}>{t('spy.competitors.modalNameLabel')}</label>
                 <input
                   type="text"
-                  placeholder="Contoh: Erigo Official Store"
+                  placeholder={t('spy.competitors.modalNamePlaceholder')}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   style={styles.input}
@@ -323,10 +321,10 @@ export default function SpyCompetitorsPage() {
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>Username / Handle Media Sosial</label>
+                <label style={styles.label}>{t('spy.competitors.modalHandleLabel')}</label>
                 <input
                   type="text"
-                  placeholder="Contoh: @erigostore"
+                  placeholder={t('spy.competitors.modalHandlePlaceholder')}
                   value={handle}
                   onChange={(e) => setHandle(e.target.value)}
                   style={styles.input}
@@ -334,10 +332,10 @@ export default function SpyCompetitorsPage() {
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>URL Halaman Facebook / Meta Ad Library</label>
+                <label style={styles.label}>{t('spy.competitors.modalUrlLabel')}</label>
                 <input
                   type="url"
-                  placeholder="https://facebook.com/erigo..."
+                  placeholder="https://facebook.com/..."
                   value={pageUrl}
                   onChange={(e) => setPageUrl(e.target.value)}
                   style={styles.input}
@@ -346,15 +344,15 @@ export default function SpyCompetitorsPage() {
 
               <div style={styles.formRow}>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Platform Scan</label>
+                  <label style={styles.label}>{t('spy.competitors.modalPlatformLabel')}</label>
                   <select style={styles.select} disabled defaultValue="meta">
-                    <option value="meta">Meta Ad Library (Aktif)</option>
-                    <option value="tiktok">TikTok Creative Center (Segera Hadir)</option>
+                    <option value="meta">Meta Ad Library ({lang.startsWith('id') ? 'Aktif' : 'Active'})</option>
+                    <option value="tiktok">TikTok Creative Center ({lang.startsWith('id') ? 'Segera Hadir' : 'Coming Soon'})</option>
                   </select>
                 </div>
 
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Negara Target</label>
+                  <label style={styles.label}>{t('spy.competitors.modalCountryLabel')}</label>
                   <select
                     value={country}
                     onChange={(e) => setCountry(e.target.value)}
@@ -363,20 +361,20 @@ export default function SpyCompetitorsPage() {
                     <option value="ID">Indonesia (ID)</option>
                     <option value="MY">Malaysia (MY)</option>
                     <option value="SG">Singapura (SG)</option>
-                    <option value="ALL">Semua Negara</option>
+                    <option value="ALL">{lang.startsWith('id') ? 'Semua Negara' : 'All Countries'}</option>
                   </select>
                 </div>
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>Jadwal Pemindaian Otomatis</label>
+                <label style={styles.label}>{lang.startsWith('id') ? 'Jadwal Pemindaian Otomatis' : 'Automated Scan Schedule'}</label>
                 <select
                   value={schedule}
                   onChange={(e) => setSchedule(e.target.value)}
                   style={styles.select}
                 >
-                  <option value="weekly">Mingguan (Setiap Senin 09:00 WIB - Default)</option>
-                  <option value="daily">Harian (Tersedia di Paket Pro)</option>
+                  <option value="weekly">{lang.startsWith('id') ? 'Mingguan (Setiap Senin 09:00 WIB - Default)' : 'Weekly (Every Monday 09:00 WIB - Default)'}</option>
+                  <option value="daily">{lang.startsWith('id') ? 'Harian (Tersedia di Paket Pro)' : 'Daily (Available on Pro Plan)'}</option>
                 </select>
               </div>
 
@@ -386,14 +384,14 @@ export default function SpyCompetitorsPage() {
                   onClick={() => setShowAddModal(false)}
                   style={styles.cancelBtn}
                 >
-                  Batal
+                  {t('spy.competitors.modalCancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={adding}
                   style={styles.submitBtn}
                 >
-                  {adding ? 'Menyimpan…' : 'Simpan & Jadwalkan Scan'}
+                  {adding ? t('spy.competitors.modalSubmitting') : t('spy.competitors.modalSubmit')}
                 </button>
               </div>
             </form>

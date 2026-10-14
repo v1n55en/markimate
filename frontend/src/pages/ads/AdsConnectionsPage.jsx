@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ShieldCheck, RefreshCw, AlertCircle, RotateCcw } from 'lucide-react';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { listConnections, startConnect, disconnect, resetMockData, isAdsMock } from '../../ads/adsApi';
 import { PLATFORMS_META } from '../../ads/mockData';
 import PlatformCard from '../../components/ads/PlatformCard';
@@ -10,6 +11,7 @@ export default function AdsConnectionsPage() {
   if (!isAdsMock()) {
     return <ModuleComingSoonCard roleKey="ads_report" />;
   }
+  const { lang, t } = useLanguage();
   const [connections, setConnections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -23,7 +25,7 @@ export default function AdsConnectionsPage() {
       const res = await listConnections();
       setConnections(res.connections || []);
     } catch (err) {
-      setError(err.message || 'Gagal memuat koneksi platform.');
+      setError(err.message || t('ads.connections.loadError'));
     } finally {
       setLoading(false);
     }
@@ -49,7 +51,7 @@ export default function AdsConnectionsPage() {
         window.location.href = authUrl;
       }
     } catch (err) {
-      setError(err.message || 'Gagal memulai otorisasi koneksi platform.');
+      setError(err.message || t('ads.connections.authStartError'));
       setActionLoading(false);
     }
   };
@@ -59,11 +61,11 @@ export default function AdsConnectionsPage() {
     setError('');
     try {
       await disconnect(connectionId);
-      setSuccessNotice('Koneksi platform berhasil diputuskan.');
+      setSuccessNotice(t('ads.connections.disconnectSuccess'));
       setTimeout(() => setSuccessNotice(''), 4000);
       await loadData();
     } catch (err) {
-      setError(err.message || 'Gagal memutuskan koneksi platform.');
+      setError(err.message || t('ads.connections.disconnectError'));
     } finally {
       setActionLoading(false);
     }
@@ -71,7 +73,7 @@ export default function AdsConnectionsPage() {
 
   const handleResetMock = () => {
     resetMockData();
-    setSuccessNotice('Data simulasi mock berhasil dikembalikan ke status awal.');
+    setSuccessNotice(t('ads.connections.resetMockSuccess'));
     setTimeout(() => setSuccessNotice(''), 4000);
     loadData();
   };
@@ -83,9 +85,9 @@ export default function AdsConnectionsPage() {
       {/* Header */}
       <div style={styles.header}>
         <div>
-          <h1 style={styles.heading}>Koneksi Platform Iklan</h1>
+          <h1 style={styles.heading}>{t('ads.connections.heading')}</h1>
           <p style={styles.subheading}>
-            Hubungkan akun periklanan dan toko marketplace Anda untuk mengaktifkan sinkronisasi otomatis laporan bulanan
+            {t('ads.connections.subheading')}
           </p>
         </div>
 
@@ -93,10 +95,10 @@ export default function AdsConnectionsPage() {
           <button
             onClick={handleResetMock}
             style={styles.resetBtn}
-            title="Kembalikan koneksi dan laporan contoh ke kondisi awal"
+            title={t('ads.connections.resetMockTitle')}
           >
             <RotateCcw size={14} />
-            <span>Reset Data Mock</span>
+            <span>{t('ads.connections.resetMockBtn')}</span>
           </button>
         )}
       </div>
@@ -105,9 +107,9 @@ export default function AdsConnectionsPage() {
       <div style={styles.guaranteeBox}>
         <ShieldCheck size={20} color="var(--accent-green)" style={{ flexShrink: 0 }} />
         <div style={styles.guaranteeText}>
-          <strong>Jaminan Akses Read-Only & Perlindungan Privasi:</strong> Markimate hanya meminta izin baca (read-only) untuk mengagregasi data performa dan biaya kampanye. Kami tidak pernah memodifikasi setelan iklan, memotong saldo, atau membagikan metrik bisnis Anda kepada pihak luar.{' '}
+          <strong>{t('ads.connections.guaranteeTitle')}</strong> {t('ads.connections.guaranteeText')}{' '}
           <Link to="/privacy" style={styles.guaranteeLink} target="_blank">
-            Baca Kebijakan Privasi Lengkap →
+            {t('ads.connections.readPrivacyPolicy')}
           </Link>
         </div>
       </div>
@@ -130,7 +132,7 @@ export default function AdsConnectionsPage() {
         <div style={styles.loadingContainer}>
           <RefreshCw size={24} color="var(--accent-cyan)" style={{ animation: 'spin 1s linear infinite' }} />
           <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            Memuat status koneksi platform…
+            {t('ads.connections.loading')}
           </span>
         </div>
       ) : (

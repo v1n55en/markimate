@@ -15,6 +15,7 @@ import {
   Copy,
   Zap,
 } from 'lucide-react';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { listCreatives, getCreative, saveToSwipe, listCompetitors, isSpyMock } from '../../spy/spyApi';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
@@ -23,6 +24,7 @@ export default function SpyLibraryPage() {
   if (!isSpyMock()) {
     return <ModuleComingSoonCard roleKey="ads_spy" />;
   }
+  const { lang, t } = useLanguage();
   const { activeWorkspace } = useWorkspace();
   const [searchParams] = useSearchParams();
 
@@ -118,19 +120,19 @@ export default function SpyLibraryPage() {
         <div style={styles.tabsLeft}>
           <Link to="/app/spy" style={styles.tabBtn}>
             <Eye size={15} />
-            <span>Ringkasan</span>
+            <span>{t('spy.tabOverview')}</span>
           </Link>
           <Link to="/app/spy/competitors" style={styles.tabBtn}>
             <Users size={15} />
-            <span>Kompetitor ({competitors.length})</span>
+            <span>{t('spy.tabCompetitors')} ({competitors.length})</span>
           </Link>
           <Link to="/app/spy/library" style={{ ...styles.tabBtn, ...styles.tabBtnActive }}>
             <Sparkles size={15} />
-            <span>Galeri Creative ({creatives.length})</span>
+            <span>{t('spy.tabLibrary')} ({creatives.length})</span>
           </Link>
           <Link to="/app/spy/insights" style={styles.tabBtn}>
             <TrendingUp size={15} />
-            <span>Insight AI</span>
+            <span>{t('spy.tabInsights')}</span>
           </Link>
         </div>
 
@@ -146,14 +148,14 @@ export default function SpyLibraryPage() {
             <Search size={16} color="var(--text-muted)" />
             <input
               type="text"
-              placeholder="Cari kata kunci di teks iklan atau nama kompetitor…"
+              placeholder={lang.startsWith('id') ? "Cari kata kunci di teks iklan atau nama kompetitor…" : "Search keywords in ad copy or competitor name…"}
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               style={styles.searchInput}
             />
           </div>
           <button type="submit" style={styles.searchSubmitBtn}>
-            Cari
+            {lang.startsWith('id') ? 'Cari' : 'Search'}
           </button>
         </form>
 
@@ -164,7 +166,9 @@ export default function SpyLibraryPage() {
             onChange={(e) => setCompetitorFilter(e.target.value)}
             style={styles.filterSelect}
           >
-            <option value="all">Semua Kompetitor ({competitors.length})</option>
+            <option value="all">
+              {lang.startsWith('id') ? `Semua Kompetitor (${competitors.length})` : `All Competitors (${competitors.length})`}
+            </option>
             {competitors.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -178,7 +182,7 @@ export default function SpyLibraryPage() {
             onChange={(e) => setFormatFilter(e.target.value)}
             style={styles.filterSelect}
           >
-            <option value="all">Semua Format</option>
+            <option value="all">{lang.startsWith('id') ? 'Semua Format' : 'All Formats'}</option>
             <option value="video">Vertical Video (9:16)</option>
             <option value="carousel">Carousel Multi-Item</option>
             <option value="image">Single Image (Static)</option>
@@ -194,7 +198,7 @@ export default function SpyLibraryPage() {
             }}
           >
             <Flame size={13} />
-            <span>Hanya Winning (30+ Hari)</span>
+            <span>{t('spy.library.winningFilter')}</span>
           </button>
 
           <button
@@ -206,7 +210,7 @@ export default function SpyLibraryPage() {
             }}
           >
             <Clock size={13} />
-            <span>Iklan Baru Minggu Ini</span>
+            <span>{t('spy.library.newFilter')}</span>
           </button>
 
           <button
@@ -218,7 +222,7 @@ export default function SpyLibraryPage() {
             }}
           >
             <Bookmark size={13} />
-            <span>Swipe File Tersimpan</span>
+            <span>{t('spy.library.swipeFilter')}</span>
           </button>
         </div>
       </div>
@@ -227,14 +231,14 @@ export default function SpyLibraryPage() {
       {loading ? (
         <div style={styles.loadingBox}>
           <RefreshCw size={24} className="spin" color="var(--accent-cyan)" />
-          <span>Memuat galeri creative…</span>
+          <span>{lang.startsWith('id') ? 'Memuat galeri creative…' : 'Loading creative gallery…'}</span>
         </div>
       ) : creatives.length === 0 ? (
         <div style={styles.emptyCard} className="card">
           <Sparkles size={36} color="var(--text-muted)" />
-          <h3>Tidak Ada Creative Sesuai Filter</h3>
+          <h3>{t('spy.library.emptyCreatives')}</h3>
           <p style={{ color: 'var(--text-muted)', margin: '0 0 1rem 0' }}>
-            Coba ubah kata kunci pencarian atau reset filter untuk melihat semua iklan yang terpantau.
+            {lang.startsWith('id') ? 'Coba ubah kata kunci pencarian atau reset filter untuk melihat semua iklan yang terpantau.' : 'Try changing search keywords or resetting filters to see all tracked ads.'}
           </p>
           <button
             onClick={() => {
@@ -247,7 +251,7 @@ export default function SpyLibraryPage() {
             }}
             style={styles.resetBtn}
           >
-            Reset Semua Filter
+            {lang.startsWith('id') ? 'Reset Semua Filter' : 'Reset All Filters'}
           </button>
         </div>
       ) : (
@@ -257,22 +261,24 @@ export default function SpyLibraryPage() {
               <div
                 style={styles.thumbWrapper}
                 onClick={() => handleOpenDrawer(cr.id)}
-                title="Klik untuk melihat detail & analisa AI"
+                title={lang.startsWith('id') ? "Klik untuk melihat detail & analisa AI" : "Click to view details & AI analysis"}
               >
                 <img src={cr.thumbnailUrl} alt={cr.headline} style={styles.thumbImg} />
                 <div style={styles.thumbOverlayTags}>
                   {cr.isWinning ? (
                     <span style={styles.winningBadge}>
                       <Flame size={11} />
-                      Winning Ad ({cr.daysRunning} hari)
+                      {t('spy.overview.winningDays', { days: cr.daysRunning })}
                     </span>
                   ) : cr.isNew ? (
                     <span style={styles.newBadge}>
                       <Clock size={11} />
-                      Baru ({cr.daysRunning} hari)
+                      {lang.startsWith('id') ? `Baru (${cr.daysRunning} hari)` : `New (${cr.daysRunning} days)`}
                     </span>
                   ) : (
-                    <span style={styles.standardDaysBadge}>{cr.daysRunning} hari</span>
+                    <span style={styles.standardDaysBadge}>
+                      {lang.startsWith('id') ? `${cr.daysRunning} hari` : `${cr.daysRunning} days`}
+                    </span>
                   )}
                   <span style={styles.formatTag}>{cr.formatLabel}</span>
                 </div>
@@ -287,7 +293,7 @@ export default function SpyLibraryPage() {
                       ...styles.swipeIconBtn,
                       color: cr.isSavedToSwipe ? 'var(--accent-green)' : 'var(--text-muted)',
                     }}
-                    title={cr.isSavedToSwipe ? 'Tersimpan di Swipe File' : 'Simpan ke Swipe File'}
+                    title={cr.isSavedToSwipe ? t('spy.library.savedInSwipe') : t('spy.library.saveToSwipe')}
                   >
                     <Bookmark
                       size={16}
@@ -301,7 +307,7 @@ export default function SpyLibraryPage() {
 
                 {/* AI Hook Snippet */}
                 <div style={styles.hookBox}>
-                  <span style={styles.hookLabel}>🎯 Hook 3 Detik:</span>
+                  <span style={styles.hookLabel}>🎯 Hook 3 {lang.startsWith('id') ? 'Detik' : 'Sec'}:</span>
                   <p style={styles.hookText}>{cr.aiAnalysis?.hook}</p>
                 </div>
 
@@ -311,7 +317,7 @@ export default function SpyLibraryPage() {
                     style={styles.openDrawerBtn}
                   >
                     <Sparkles size={13} color="var(--accent-cyan)" />
-                    <span>Analisa Lengkap</span>
+                    <span>{lang.startsWith('id') ? 'Analisa Lengkap' : 'Full Analysis'}</span>
                   </button>
                   <span style={styles.ctaBadge}>CTA: {cr.cta}</span>
                 </div>
@@ -354,7 +360,7 @@ export default function SpyLibraryPage() {
                   {selectedCreative.isWinning && (
                     <span style={styles.winningBadge}>
                       <Flame size={12} />
-                      Winning Ad — Telah Tayang {selectedCreative.daysRunning} Hari
+                      {lang.startsWith('id') ? `Winning Ad — Telah Tayang ${selectedCreative.daysRunning} Hari` : `Winning Ad — Running for ${selectedCreative.daysRunning} Days`}
                     </span>
                   )}
                   <span style={styles.formatTag}>{selectedCreative.formatLabel}</span>
@@ -364,13 +370,13 @@ export default function SpyLibraryPage() {
               {/* Teks Iklan Lengkap */}
               <div style={styles.copyBox}>
                 <div style={styles.copyHeaderRow}>
-                  <span style={styles.copyLabel}>Teks Iklan (Copywriting)</span>
+                  <span style={styles.copyLabel}>{lang.startsWith('id') ? 'Teks Iklan (Copywriting)' : 'Ad Copy (Copywriting)'}</span>
                   <button
                     onClick={() => handleCopyCopy(selectedCreative.bodyText)}
                     style={styles.copyTextBtn}
                   >
                     <Copy size={13} />
-                    <span>{copiedNotice ? 'Tersalin!' : 'Salin Copy'}</span>
+                    <span>{copiedNotice ? t('spy.library.copied') : t('spy.library.copyAdText')}</span>
                   </button>
                 </div>
                 <p style={styles.copyTextFull}>{selectedCreative.bodyText}</p>
@@ -396,33 +402,33 @@ export default function SpyLibraryPage() {
               <div style={styles.aiBreakdownCard}>
                 <h4 style={styles.aiBreakdownTitle}>
                   <Zap size={16} color="var(--accent-cyan)" />
-                  Analisis Formula AI (Reverse-Engineering)
+                  {lang.startsWith('id') ? 'Analisis Formula AI (Reverse-Engineering)' : 'AI Formula Analysis (Reverse-Engineering)'}
                 </h4>
 
                 <div style={styles.aiPointsList}>
                   <div style={styles.aiPointBlock}>
-                    <strong style={styles.aiPointLabel}>🎯 Hook (3 Detik Pertama):</strong>
+                    <strong style={styles.aiPointLabel}>{lang.startsWith('id') ? '🎯 Hook (3 Detik Pertama):' : '🎯 Hook (First 3 Seconds):'}</strong>
                     <p style={styles.aiPointVal}>{selectedCreative.aiAnalysis?.hook}</p>
                   </div>
 
                   <div style={styles.aiPointBlock}>
-                    <strong style={styles.aiPointLabel}>📐 Angle & Pendekatan Psikologis:</strong>
+                    <strong style={styles.aiPointLabel}>{lang.startsWith('id') ? '📐 Angle & Pendekatan Psikologis:' : '📐 Angle & Psychological Approach:'}</strong>
                     <p style={styles.aiPointVal}>{selectedCreative.aiAnalysis?.angle}</p>
                   </div>
 
                   <div style={styles.aiPointBlock}>
-                    <strong style={styles.aiPointLabel}>🎁 Penawaran (Offer & Pricing):</strong>
+                    <strong style={styles.aiPointLabel}>{lang.startsWith('id') ? '🎁 Penawaran (Offer & Pricing):' : '🎁 Offer & Pricing:'}</strong>
                     <p style={styles.aiPointVal}>{selectedCreative.aiAnalysis?.offer}</p>
                   </div>
 
                   <div style={styles.aiPointBlock}>
-                    <strong style={styles.aiPointLabel}>👥 Target Audiens Perkiraan:</strong>
+                    <strong style={styles.aiPointLabel}>{lang.startsWith('id') ? '👥 Target Audiens Perkiraan:' : '👥 Estimated Target Audience:'}</strong>
                     <p style={styles.aiPointVal}>{selectedCreative.aiAnalysis?.audience}</p>
                   </div>
 
                   {selectedCreative.aiAnalysis?.whyWinning && (
                     <div style={styles.aiWinningHighlight}>
-                      <strong style={styles.aiPointLabel}>🔥 Mengapa Iklan Ini Berhasil (Winning Reason):</strong>
+                      <strong style={styles.aiPointLabel}>{lang.startsWith('id') ? '🔥 Mengapa Iklan Ini Berhasil (Winning Reason):' : '🔥 Why This Ad Wins (Winning Reason):'}</strong>
                       <p style={styles.aiPointVal}>{selectedCreative.aiAnalysis?.whyWinning}</p>
                     </div>
                   )}
@@ -453,22 +459,24 @@ export default function SpyLibraryPage() {
                 />
                 <span>
                   {selectedCreative.isSavedToSwipe
-                    ? 'Tersimpan di Swipe File'
-                    : 'Simpan ke Swipe File'}
+                    ? t('spy.library.savedInSwipe')
+                    : t('spy.library.saveToSwipe')}
                 </span>
               </button>
 
               <button
                 onClick={() =>
                   alert(
-                    'Fitur "Buat Variasi untuk Brand Saya" segera hadir terhubung ke role Copywriter & Ad Creative Generator!'
+                    lang.startsWith('id')
+                      ? 'Fitur "Buat Variasi untuk Brand Saya" segera hadir terhubung ke role Copywriter & Ad Creative Generator!'
+                      : 'Feature "Create Variation for My Brand" coming soon connected to Copywriter & Ad Creative Generator roles!'
                   )
                 }
                 style={styles.variantActionBtn}
-                title="Segera Hadir — Terhubung ke role Copywriter"
+                title={lang.startsWith('id') ? "Segera Hadir — Terhubung ke role Copywriter" : "Coming Soon — Connected to Copywriter role"}
               >
                 <Sparkles size={15} />
-                <span>Buat Variasi untuk Brand Saya</span>
+                <span>{lang.startsWith('id') ? 'Buat Variasi untuk Brand Saya' : 'Create Variation for My Brand'}</span>
               </button>
             </div>
           </div>

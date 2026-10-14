@@ -13,6 +13,7 @@ import {
   Users,
   Award,
 } from 'lucide-react';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { getReport, approveReport, isAdsMock } from '../../ads/adsApi';
 import { PLATFORMS_META } from '../../ads/mockData';
 import {
@@ -33,6 +34,7 @@ export default function AdsReportDetailPage({ user }) {
   if (!isAdsMock()) {
     return <ModuleComingSoonCard roleKey="ads_report" />;
   }
+  const { lang, t } = useLanguage();
   const { reportId } = useParams();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
@@ -50,7 +52,7 @@ export default function AdsReportDetailPage({ user }) {
       const data = await getReport(reportId);
       setReport(data);
     } catch (err) {
-      setError(err.message || 'Laporan iklan tidak ditemukan.');
+      setError(err.message || (lang.startsWith('id') ? 'Laporan iklan tidak ditemukan.' : 'Ad report not found.'));
     } finally {
       setLoading(false);
     }
@@ -69,7 +71,7 @@ export default function AdsReportDetailPage({ user }) {
       setApproveSuccess(true);
       setTimeout(() => setApproveSuccess(false), 4000);
     } catch (err) {
-      alert(err.message || 'Gagal menyetujui laporan.');
+      alert(err.message || (lang.startsWith('id') ? 'Gagal menyetujui laporan.' : 'Failed to approve report.'));
     } finally {
       setApproving(false);
     }
@@ -80,7 +82,7 @@ export default function AdsReportDetailPage({ user }) {
       <div style={styles.loadingContainer}>
         <RefreshCw size={26} color="var(--accent-cyan)" style={{ animation: 'spin 1s linear infinite' }} />
         <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-          Memuat data laporan {reportId}…
+          {lang.startsWith('id') ? `Memuat data laporan ${reportId}…` : `Loading report data ${reportId}…`}
         </span>
       </div>
     );
@@ -90,10 +92,10 @@ export default function AdsReportDetailPage({ user }) {
     return (
       <div style={styles.errorBox} className="card">
         <AlertCircle size={24} color="var(--accent-red)" />
-        <h3 style={{ margin: '0.5rem 0', color: 'var(--text-primary)' }}>Laporan Tidak Ditemukan</h3>
+        <h3 style={{ margin: '0.5rem 0', color: 'var(--text-primary)' }}>{t('ads.reports.notFoundTitle')}</h3>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{error}</p>
         <button onClick={() => navigate('/app/ads/reports')} style={styles.backBtn}>
-          Kembali ke Daftar Laporan
+          {t('ads.reports.backToList')}
         </button>
       </div>
     );
@@ -106,19 +108,19 @@ export default function AdsReportDetailPage({ user }) {
   const campaignColumns = [
     {
       key: 'name',
-      label: 'Nama Kampanye',
+      label: lang.startsWith('id') ? 'Nama Kampanye' : 'Campaign Name',
       render: (val, row) => (
         <div>
           <strong style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>{val}</strong>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-            Status: {row.status || 'Aktif'}
+            {lang.startsWith('id') ? 'Status:' : 'Status:'} {row.status || (lang.startsWith('id') ? 'Aktif' : 'Active')}
           </div>
         </div>
       ),
     },
     {
       key: 'platform',
-      label: 'Platform',
+      label: lang.startsWith('id') ? 'Platform' : 'Platform',
       render: (p) => {
         const meta = PLATFORMS_META[p] || { name: p, color: 'var(--text-secondary)' };
         return (
@@ -130,39 +132,39 @@ export default function AdsReportDetailPage({ user }) {
     },
     {
       key: 'spend',
-      label: 'Biaya (Spend)',
+      label: lang.startsWith('id') ? 'Biaya (Spend)' : 'Spend',
       align: 'right',
-      render: (v) => <span style={{ fontFamily: 'var(--font-mono)' }}>{formatIDR(v)}</span>,
+      render: (v) => <span style={{ fontFamily: 'var(--font-mono)' }}>{formatIDR(v, lang)}</span>,
     },
     {
       key: 'impressions',
-      label: 'Impresi',
+      label: lang.startsWith('id') ? 'Impresi' : 'Impressions',
       align: 'right',
-      render: (v) => formatCompact(v),
+      render: (v) => formatCompact(v, lang),
     },
     {
       key: 'clicks',
-      label: 'Klik',
+      label: lang.startsWith('id') ? 'Klik' : 'Clicks',
       align: 'right',
-      render: (v) => formatCompact(v),
+      render: (v) => formatCompact(v, lang),
     },
     {
       key: 'ctr',
       label: 'CTR',
       align: 'right',
-      render: (v) => <span style={{ color: 'var(--text-secondary)' }}>{formatPercent(v)}</span>,
+      render: (v) => <span style={{ color: 'var(--text-secondary)' }}>{formatPercent(v, false, lang)}</span>,
     },
     {
       key: 'results',
-      label: 'Hasil',
+      label: lang.startsWith('id') ? 'Hasil' : 'Results',
       align: 'right',
-      render: (v) => <strong style={{ color: 'var(--accent-cyan)' }}>{formatNumber(v)}</strong>,
+      render: (v) => <strong style={{ color: 'var(--accent-cyan)' }}>{formatNumber(v, lang)}</strong>,
     },
     {
       key: 'costPerResult',
-      label: 'Biaya/Hasil',
+      label: lang.startsWith('id') ? 'Biaya/Hasil' : 'Cost/Result',
       align: 'right',
-      render: (v) => <span style={{ fontFamily: 'var(--font-mono)' }}>{formatIDR(v)}</span>,
+      render: (v) => <span style={{ fontFamily: 'var(--font-mono)' }}>{formatIDR(v, lang)}</span>,
     },
     {
       key: 'roas',
@@ -178,7 +180,7 @@ export default function AdsReportDetailPage({ user }) {
       <div style={styles.topNav}>
         <Link to="/app/ads/reports" style={styles.backLink}>
           <ArrowLeft size={16} />
-          <span>Kembali ke Daftar Laporan</span>
+          <span>{t('ads.reports.backToList')}</span>
         </Link>
       </div>
 
@@ -209,9 +211,9 @@ export default function AdsReportDetailPage({ user }) {
           <h1 style={styles.reportTitle}>{report.title || `Laporan ${report.periodLabel}`}</h1>
 
           <div style={styles.metaRow}>
-            <span>Klien: <strong>{report.clientName}</strong></span>
+            <span>{lang.startsWith('id') ? 'Klien:' : 'Client:'} <strong>{report.clientName}</strong></span>
             <span>·</span>
-            <span>Periode: <strong>{report.periodLabel}</strong></span>
+            <span>{lang.startsWith('id') ? 'Periode:' : 'Period:'} <strong>{report.periodLabel}</strong></span>
           </div>
         </div>
 
@@ -225,7 +227,7 @@ export default function AdsReportDetailPage({ user }) {
               style={styles.slidesBtn}
             >
               <Presentation size={16} />
-              <span>Buka Google Slides</span>
+              <span>{t('ads.reports.openSlides')}</span>
             </a>
           )}
           {report.sheetsUrl && (
@@ -236,7 +238,7 @@ export default function AdsReportDetailPage({ user }) {
               style={styles.sheetsBtn}
             >
               <TableIcon size={16} />
-              <span>Buka Google Sheets</span>
+              <span>{t('ads.reports.openSheets')}</span>
             </a>
           )}
 
@@ -247,7 +249,7 @@ export default function AdsReportDetailPage({ user }) {
               style={styles.approveBtn}
             >
               <CheckCircle size={16} />
-              <span>{approving ? 'Memproses…' : 'Approve & Kirim ke Klien'}</span>
+              <span>{approving ? (lang.startsWith('id') ? 'Memproses…' : 'Processing…') : (lang.startsWith('id') ? 'Approve & Kirim ke Klien' : 'Approve & Send to Client')}</span>
             </button>
           )}
         </div>
@@ -256,14 +258,14 @@ export default function AdsReportDetailPage({ user }) {
       {approveSuccess && (
         <div style={styles.successNotification}>
           <CheckCircle size={18} color="var(--accent-green)" />
-          <span>Laporan berhasil disetujui (Approved) dan status telah diubah menjadi <strong>Terkirim</strong>.</span>
+          <span>{t('ads.reports.approveSuccess')}</span>
         </div>
       )}
 
       {/* 1. Ringkasan KPI + Delta vs Bulan Lalu */}
       {Object.keys(kpis).length > 0 && (
         <div style={styles.section}>
-          <h2 style={styles.sectionHeading}>1. Ringkasan Key Performance Indicator (KPI)</h2>
+          <h2 style={styles.sectionHeading}>{lang.startsWith('id') ? '1. Ringkasan Key Performance Indicator (KPI)' : '1. Key Performance Indicator (KPI) Summary'}</h2>
           <div style={styles.kpiGrid}>
             {Object.entries(kpis).map(([key, item]) => (
               <KpiCard
@@ -283,11 +285,11 @@ export default function AdsReportDetailPage({ user }) {
       {/* 2. Grafik Tren Performa (6 Bulan & Harian) */}
       {(report.trend?.length > 0 || report.daily?.length > 0) && (
         <div style={styles.section}>
-          <h2 style={styles.sectionHeading}>2. Analisis Tren Biaya & Konversi</h2>
+          <h2 style={styles.sectionHeading}>{lang.startsWith('id') ? '2. Analisis Tren Biaya & Konversi' : '2. Cost & Conversion Trend Analysis'}</h2>
           <TrendChart
             monthlyData={report.trend}
             dailyData={report.daily}
-            title="Tren Pertumbuhan Biaya vs Hasil"
+            title={lang.startsWith('id') ? 'Tren Pertumbuhan Biaya vs Hasil' : 'Cost Growth vs Results Trend'}
           />
         </div>
       )}
@@ -296,8 +298,10 @@ export default function AdsReportDetailPage({ user }) {
       {report.campaigns?.length > 0 && (
         <div style={styles.section}>
           <div style={styles.sectionTitleRow}>
-            <h2 style={styles.sectionHeading}>3. Rincian Performa Kampanye</h2>
-            <span style={styles.countBadge}>{report.campaigns.length} Kampanye Aktif</span>
+            <h2 style={styles.sectionHeading}>{lang.startsWith('id') ? '3. Rincian Performa Kampanye' : '3. Campaign Performance Details'}</h2>
+            <span style={styles.countBadge}>
+              {lang.startsWith('id') ? `${report.campaigns.length} Kampanye Aktif` : `${report.campaigns.length} Active Campaigns`}
+            </span>
           </div>
           <DataTable
             columns={campaignColumns}
@@ -309,7 +313,7 @@ export default function AdsReportDetailPage({ user }) {
       {/* 4. Breakdown Platform & Placement/Device */}
       {(report.platformBreakdown?.length > 0 || report.placement?.length > 0) && (
         <div style={styles.section}>
-          <h2 style={styles.sectionHeading}>4. Alokasi Penempatan (Placement) & Jaringan</h2>
+          <h2 style={styles.sectionHeading}>{lang.startsWith('id') ? '4. Alokasi Penempatan (Placement) & Jaringan' : '4. Placement & Network Allocation'}</h2>
           <div style={styles.dualGrid}>
             {/* Breakdown Jaringan / Platform */}
             {report.platformBreakdown?.length > 0 && (

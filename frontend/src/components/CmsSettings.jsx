@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Globe, Plug, CheckCircle2, AlertTriangle, Loader2, Key, Copy, RefreshCw, Lock, ExternalLink, Trash2 } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 import { api, API_BASE_URL } from '../api';
 
 const CMS_META = {
@@ -23,7 +24,7 @@ const CMS_META = {
   },
   sanity: {
     label: 'Sanity', color: '#f43f5e',
-    help: 'Buka sanity.io/manage → pilih project → API → Tokens → Add API token → izin "Editor" → salin token. Project ID ada di halaman project. Artikel disimpan sebagai dokumen (default type "post", isi di field "body" berupa Portable Text) — sesuaikan bila schema Studio-mu berbeda.',
+    help: 'Buka sanity.io/manage → pilih project → API → Tokens → Add API token → izin "Editor" → salin token. Project ID ada di halaman project. Artikel disimpan sebagai dokumen (default type "post", isi di field "body" berupa Portable Text) — sesuaikan bila skema Studio Anda berbeda.',
     fields: [
       { key: 'projectId', label: 'Project ID', placeholder: 'abc123xy' },
       { key: 'dataset', label: 'Dataset', placeholder: 'production' },
@@ -31,12 +32,12 @@ const CMS_META = {
       { key: 'studioUrl', label: 'URL Sanity Studio (opsional, untuk link edit)', placeholder: 'https://namastudio.sanity.studio' },
       { key: 'docType', label: 'Document type (opsional)', placeholder: 'post' },
       { key: 'bodyField', label: 'Field isi artikel (opsional)', placeholder: 'body' },
-      { key: 'publicUrlPattern', label: 'Pola URL artikel publik (opsional)', placeholder: 'https://situsmu.com/blog/{slug}' },
+      { key: 'publicUrlPattern', label: 'Pola URL artikel publik (opsional)', placeholder: 'https://situsanda.com/blog/{slug}' },
     ],
   },
   shopify: {
     label: 'Shopify Blog', color: '#5e8e3e',
-    help: 'Buka dev.shopify.com (Dev Dashboard) → Create app → Versions: pilih scope "read_content" & "write_content" → Release → Install app ke tokomu → salin Client ID & Client Secret (Settings). Punya custom app lama? Cukup isi Admin API access token (shpat_…). Domain toko pakai format namatoko.myshopify.com.',
+    help: 'Buka dev.shopify.com (Dev Dashboard) → Create app → Versions: pilih scope "read_content" & "write_content" → Release → Install app ke toko Anda → salin Client ID & Client Secret (Settings). Punya custom app lama? Cukup isi Admin API access token (shpat_…). Domain toko pakai format namatoko.myshopify.com.',
     fields: [
       { key: 'shop', label: 'Domain toko (.myshopify.com)', placeholder: 'namatoko.myshopify.com' },
       { key: 'clientId', label: 'Client ID (app Dev Dashboard)', placeholder: 'a1b2c3...' },
@@ -90,6 +91,7 @@ const DEFAULT_ARTICLE_SETTINGS = {
 };
 
 export default function CmsSettings({ me, refreshMe, goTo }) {
+  const { lang, t } = useLanguage();
   const user = me.user;
   const isPremium = user.plan === 'premium' || (me.plan && me.plan.id !== 'free');
   const canUseImages = me.plan ? me.plan.images !== false : isPremium;
@@ -212,8 +214,12 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
   return (
     <div>
       <header style={{ marginBottom: '1.5rem' }}>
-        <h1>Pengaturan CMS & API</h1>
-        <p style={{ color: 'var(--text-secondary)' }}>Hubungkan CMS milikmu. Kredensial disimpan aman di server Markimate dan hanya dipakai saat mengirim artikel ke situsmu.</p>
+        <h1>{lang.startsWith('id') ? 'Pengaturan CMS & API' : 'CMS & API Settings'}</h1>
+        <p style={{ color: 'var(--text-secondary)' }}>
+          {lang.startsWith('id')
+            ? 'Hubungkan CMS pilihan Anda. Kredensial disimpan aman di server Markimate dan hanya dipakai saat mengirim artikel ke situs Anda.'
+            : 'Connect your preferred CMS. Credentials are encrypted and securely stored on Markimate servers, only used when dispatching articles.'}
+        </p>
       </header>
 
       <div className="grid-2" style={{ alignItems: 'start' }}>
@@ -711,7 +717,11 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
           <div style={styles.toggleRow}>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>Web Approver {!isPremium && <Lock size={14} color="var(--text-muted)" />}</div>
-              <div style={styles.sub}>Artikel ditahan sebagai "Review Ready" — kamu tinjau & edit di Markimate sebelum dikirim ke CMS. Nonaktif = draf langsung dibuat di CMS.</div>
+              <div style={styles.sub}>
+                {lang.startsWith('id')
+                  ? 'Artikel ditahan sebagai "Review Ready" — Anda tinjau & edit di Markimate sebelum dikirim ke CMS. Nonaktif = draf langsung dibuat di CMS.'
+                  : 'Articles are held as "Review Ready" — you review and polish in Markimate before dispatching to CMS. Disabled = drafts created directly in CMS.'}
+              </div>
             </div>
             <label className="switch" title={isPremium ? '' : 'Fitur paket Pro'}>
               <input type="checkbox" checked={isPremium && user.webApprover !== false} disabled={!isPremium} onChange={e => toggleApprover(e.target.checked)} />
@@ -732,8 +742,14 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
         {/* 3Our API */}
         <div className="card">
           <h2 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Key size={16} color="var(--accent-cyan)" /> 3Our API</h2>
-          <p style={styles.sub}>Pakai Markimate dari sistemmu sendiri (Zapier, n8n, aplikasi internal). Semua riset & AI pakai infrastruktur 3Our — kamu tidak perlu API key SerpAPI/Gemini sendiri.</p>
-          <label className="form-label" style={{ marginTop: '0.75rem' }}>API key kamu</label>
+          <p style={styles.sub}>
+            {lang.startsWith('id')
+              ? 'Pakai Markimate dari sistem Anda sendiri (Zapier, n8n, aplikasi internal). Semua riset & AI pakai infrastruktur 3Our — Anda tidak perlu API key SerpAPI/Gemini sendiri.'
+              : 'Integrate Markimate with your own stack (Zapier, n8n, internal apps). All research & AI uses 3Our infrastructure — no personal SerpAPI/Gemini API key required.'}
+          </p>
+          <label className="form-label" style={{ marginTop: '0.75rem' }}>
+            {lang.startsWith('id') ? 'API key Anda' : 'Your API Key'}
+          </label>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <input className="form-input" readOnly value={user.apiKey || ''} style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }} />
             <button className="btn btn-secondary" onClick={copyKey} title="Salin">{copied ? <CheckCircle2 size={16} /> : <Copy size={16} />}</button>

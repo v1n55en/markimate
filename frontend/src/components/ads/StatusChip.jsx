@@ -1,30 +1,35 @@
 // Komponen chip status koneksi dan laporan iklan
+import { useLanguage } from '../../i18n/LanguageContext';
 
 const STATUS_CONFIGS = {
   // Status Koneksi Platform
   connected: {
-    label: 'Terhubung',
+    key: 'ads.status.connected',
+    fallback: 'Terhubung',
     bg: 'rgba(16, 185, 129, 0.12)',
     color: '#10b981',
     border: 'rgba(16, 185, 129, 0.25)',
     dot: '#10b981',
   },
   disconnected: {
-    label: 'Belum terhubung',
+    key: 'ads.status.disconnected',
+    fallback: 'Belum terhubung',
     bg: 'rgba(113, 113, 122, 0.12)',
     color: '#a1a1aa',
     border: 'rgba(113, 113, 122, 0.25)',
     dot: '#71717a',
   },
   expired: {
-    label: 'Perlu dihubungkan ulang',
+    key: 'ads.status.expired',
+    fallback: 'Perlu dihubungkan ulang',
     bg: 'rgba(239, 68, 68, 0.12)',
     color: '#ef4444',
     border: 'rgba(239, 68, 68, 0.25)',
     dot: '#ef4444',
   },
   pending_approval: {
-    label: 'Menunggu persetujuan platform',
+    key: 'ads.status.pendingApproval',
+    fallback: 'Menunggu persetujuan platform',
     bg: 'rgba(245, 158, 11, 0.12)',
     color: '#f59e0b',
     border: 'rgba(245, 158, 11, 0.25)',
@@ -33,35 +38,40 @@ const STATUS_CONFIGS = {
 
   // Status Laporan Bulanan
   'Diproses': {
-    label: 'Diproses',
+    key: 'ads.status.processing',
+    fallback: 'Diproses',
     bg: 'rgba(6, 182, 212, 0.12)',
     color: '#06b6d4',
     border: 'rgba(6, 182, 212, 0.25)',
     dot: '#06b6d4',
   },
   'Menunggu approve 3Our': {
-    label: 'Menunggu approve 3Our',
+    key: 'ads.status.waitingApproval',
+    fallback: 'Menunggu approve 3Our',
     bg: 'rgba(245, 158, 11, 0.12)',
     color: '#f59e0b',
     border: 'rgba(245, 158, 11, 0.25)',
     dot: '#f59e0b',
   },
   'Terkirim': {
-    label: 'Terkirim',
+    key: 'ads.status.sent',
+    fallback: 'Terkirim',
     bg: 'rgba(16, 185, 129, 0.12)',
     color: '#10b981',
     border: 'rgba(16, 185, 129, 0.25)',
     dot: '#10b981',
   },
   'Gagal': {
-    label: 'Gagal',
+    key: 'ads.status.failed',
+    fallback: 'Gagal',
     bg: 'rgba(239, 68, 68, 0.12)',
     color: '#ef4444',
     border: 'rgba(239, 68, 68, 0.25)',
     dot: '#ef4444',
   },
   'Dilewati – tidak ada iklan': {
-    label: 'Dilewati – tidak ada iklan',
+    key: 'ads.status.skipped',
+    fallback: 'Dilewati – tidak ada iklan',
     bg: 'rgba(113, 113, 122, 0.12)',
     color: '#a1a1aa',
     border: 'rgba(113, 113, 122, 0.25)',
@@ -70,8 +80,10 @@ const STATUS_CONFIGS = {
 };
 
 export default function StatusChip({ status, size = 'md' }) {
+  const { t } = useLanguage();
   const config = STATUS_CONFIGS[status] || {
-    label: status || 'Unknown',
+    key: '',
+    fallback: status || 'Unknown',
     bg: 'rgba(113, 113, 122, 0.12)',
     color: '#a1a1aa',
     border: 'rgba(113, 113, 122, 0.25)',
@@ -79,6 +91,7 @@ export default function StatusChip({ status, size = 'md' }) {
   };
 
   const isSmall = size === 'sm';
+  const label = config.key ? t(config.key) : config.fallback;
 
   return (
     <span
@@ -106,7 +119,7 @@ export default function StatusChip({ status, size = 'md' }) {
           boxShadow: `0 0 6px ${config.dot}`,
         }}
       />
-      {config.label}
+      {label}
     </span>
   );
 }

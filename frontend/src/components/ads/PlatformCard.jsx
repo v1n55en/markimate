@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ShieldCheck, Plus, Trash2, ExternalLink, RefreshCw, AlertCircle } from 'lucide-react';
+import { useLanguage } from '../../i18n/LanguageContext';
 import StatusChip from './StatusChip';
 
 export default function PlatformCard({
@@ -11,6 +12,7 @@ export default function PlatformCard({
   onDisconnect,
   loading = false,
 }) {
+  const { lang, t } = useLanguage();
   const [disconnectingId, setDisconnectingId] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [targetToDisconnect, setTargetToDisconnect] = useState(null);
@@ -76,14 +78,14 @@ export default function PlatformCard({
       {/* Daftar Akun Terhubung */}
       <div style={styles.accountsSection}>
         <div style={styles.accountsTitle}>
-          <span>Akun & Toko Terhubung</span>
+          <span>{t('ads.connections.connectedAccounts')}</span>
           <span style={styles.accountsCount}>({connections.filter(c => c.status === 'connected').length})</span>
         </div>
 
         {connections.length === 0 || !isConnected ? (
           <div style={styles.emptyAccount}>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Belum ada akun {config.name} yang terhubung.
+              {t('ads.connections.noAccountConnected', { platform: config.name })}
             </span>
           </div>
         ) : (
@@ -105,7 +107,7 @@ export default function PlatformCard({
                   <button
                     onClick={() => handleOpenDisconnect(conn)}
                     style={styles.disconnectBtn}
-                    title="Putuskan koneksi akun ini"
+                    title={t('ads.connections.disconnect')}
                     disabled={loading || disconnectingId === conn.id}
                   >
                     <Trash2 size={14} color="var(--accent-red)" />
@@ -120,11 +122,13 @@ export default function PlatformCard({
       <div style={styles.permissionBox}>
         <div style={styles.permissionHeader}>
           <ShieldCheck size={14} color="var(--accent-green)" />
-          <span style={styles.permissionTitle}>Akses Aman Read-Only</span>
+          <span style={styles.permissionTitle}>
+            {lang.startsWith('id') ? 'Akses Aman Read-Only' : 'Secure Read-Only Access'}
+          </span>
         </div>
         <p style={styles.permissionText}>{config.permissionsText}</p>
         <Link to="/privacy" style={styles.privacyLink} target="_blank">
-          Pelajari Kebijakan Privasi <ExternalLink size={11} />
+          {lang.startsWith('id') ? 'Pelajari Kebijakan Privasi' : 'Learn Privacy Policy'} <ExternalLink size={11} />
         </Link>
       </div>
 
@@ -144,20 +148,20 @@ export default function PlatformCard({
             ) : (
               <Plus size={16} />
             )}
-            <span>Hubungkan {config.name}</span>
+            <span>{t('ads.connections.connectAccount', { platform: config.name })}</span>
           </button>
         ) : (
           <div style={styles.connectedActionsRow}>
             <button
               onClick={() => onConnect(platformKey)}
               style={styles.secondaryAddBtn}
-              title="Hubungkan akun iklan tambahan di platform ini"
+              title={lang.startsWith('id') ? "Hubungkan akun iklan tambahan di platform ini" : "Connect additional ad account on this platform"}
               disabled={loading}
             >
               <Plus size={14} />
-              <span>Tambah Akun</span>
+              <span>{lang.startsWith('id') ? 'Tambah Akun' : 'Add Account'}</span>
             </button>
-            <span style={styles.activeSyncText}>Sinkronisasi aktif</span>
+            <span style={styles.activeSyncText}>{lang.startsWith('id') ? 'Sinkronisasi aktif' : 'Active synchronization'}</span>
           </div>
         )}
       </div>
@@ -168,12 +172,10 @@ export default function PlatformCard({
           <div style={styles.modalContent} className="card">
             <div style={styles.modalHeader}>
               <AlertCircle size={22} color="var(--accent-red)" />
-              <h4 style={styles.modalTitle}>Putuskan Koneksi Platform?</h4>
+              <h4 style={styles.modalTitle}>{t('ads.connections.confirmDisconnectTitle', { platform: config.name })}</h4>
             </div>
             <p style={styles.modalBody}>
-              Apakah Anda yakin ingin memutuskan integrasi akun{' '}
-              <strong>{targetToDisconnect?.name}</strong> ({targetToDisconnect?.externalId})?
-              Data pelaporan baru tidak akan dapat disinkronkan hingga Anda menghubungkannya kembali.
+              {t('ads.connections.confirmDisconnectDesc', { account: `${targetToDisconnect?.name} (${targetToDisconnect?.externalId})` })}
             </p>
             <div style={styles.modalActions}>
               <button
@@ -181,14 +183,14 @@ export default function PlatformCard({
                 style={styles.modalCancelBtn}
                 disabled={disconnectingId}
               >
-                Batal
+                {t('ads.connections.cancel')}
               </button>
               <button
                 onClick={handleConfirmDisconnect}
                 style={styles.modalConfirmBtn}
                 disabled={disconnectingId}
               >
-                {disconnectingId ? 'Memutuskan…' : 'Ya, Putuskan'}
+                {disconnectingId ? (lang.startsWith('id') ? 'Memutuskan…' : 'Disconnecting…') : (lang.startsWith('id') ? 'Ya, Putuskan' : 'Yes, Disconnect')}
               </button>
             </div>
           </div>

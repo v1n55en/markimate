@@ -8,6 +8,7 @@ import {
   Presentation,
   Table as TableIcon,
 } from 'lucide-react';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { listReports, isAdsMock } from '../../ads/adsApi';
 import { PLATFORMS_META } from '../../ads/mockData';
 import { formatIDR, formatNumber, formatRoas } from '../../ads/format';
@@ -19,6 +20,7 @@ export default function AdsReportsPage({ user }) {
   if (!isAdsMock()) {
     return <ModuleComingSoonCard roleKey="ads_report" />;
   }
+  const { lang, t } = useLanguage();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
 
@@ -65,7 +67,7 @@ export default function AdsReportsPage({ user }) {
   const columns = [
     {
       key: 'periodLabel',
-      label: 'Periode Laporan',
+      label: t('ads.reports.colPeriod'),
       render: (val, row) => (
         <div>
           <strong style={{ color: 'var(--text-primary)', fontSize: '0.875rem' }}>
@@ -81,7 +83,7 @@ export default function AdsReportsPage({ user }) {
       ? [
           {
             key: 'clientName',
-            label: 'Klien',
+            label: t('ads.reports.colClient'),
             render: (val) => (
               <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>
                 {val}
@@ -92,7 +94,7 @@ export default function AdsReportsPage({ user }) {
       : []),
     {
       key: 'platforms',
-      label: 'Platform Iklan',
+      label: t('ads.reports.colPlatforms'),
       render: (platforms = []) => (
         <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
           {platforms.map((pKey) => {
@@ -126,27 +128,27 @@ export default function AdsReportsPage({ user }) {
     },
     {
       key: 'spend',
-      label: 'Total Spend',
+      label: t('ads.reports.colSpend'),
       align: 'right',
       render: (val) => (
         <span style={{ fontWeight: '600', fontFamily: 'var(--font-mono)' }}>
-          {formatIDR(val)}
+          {formatIDR(val, lang)}
         </span>
       ),
     },
     {
       key: 'results',
-      label: 'Hasil / Konversi',
+      label: t('ads.reports.colResults'),
       align: 'right',
       render: (val) => (
         <span style={{ fontWeight: '600', color: 'var(--accent-cyan)' }}>
-          {formatNumber(val)}
+          {formatNumber(val, lang)}
         </span>
       ),
     },
     {
       key: 'roas',
-      label: 'ROAS',
+      label: t('ads.reports.colRoas'),
       align: 'right',
       render: (val) => (
         <span style={{ fontWeight: '700', color: 'var(--accent-green)' }}>
@@ -156,22 +158,22 @@ export default function AdsReportsPage({ user }) {
     },
     {
       key: 'status',
-      label: 'Status Laporan',
+      label: t('ads.reports.colStatus'),
       render: (val) => <StatusChip status={val} size="sm" />,
     },
     {
       key: 'actions',
-      label: 'Aksi',
+      label: t('ads.reports.colAction'),
       align: 'center',
       render: (_, row) => (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
           <button
             onClick={() => navigate(`/app/ads/reports/${row.id}`)}
             style={styles.viewDetailBtn}
-            title="Lihat detail laporan"
+            title={lang.startsWith('id') ? "Lihat detail laporan" : "View report details"}
           >
             <Eye size={14} />
-            <span>Lihat</span>
+            <span>{t('ads.reports.viewBtn')}</span>
           </button>
           {row.slidesUrl && (
             <a
@@ -179,7 +181,7 @@ export default function AdsReportsPage({ user }) {
               target="_blank"
               rel="noreferrer"
               style={styles.iconLink}
-              title="Buka Google Slides"
+              title={t('ads.reports.openSlides')}
             >
               <Presentation size={15} />
             </a>
@@ -190,7 +192,7 @@ export default function AdsReportsPage({ user }) {
               target="_blank"
               rel="noreferrer"
               style={styles.iconLink}
-              title="Buka Google Sheets"
+              title={t('ads.reports.openSheets')}
             >
               <TableIcon size={15} />
             </a>
@@ -205,9 +207,9 @@ export default function AdsReportsPage({ user }) {
       {/* Header */}
       <div style={styles.header}>
         <div>
-          <h1 style={styles.heading}>Daftar Laporan Iklan</h1>
+          <h1 style={styles.heading}>{t('ads.reports.heading')}</h1>
           <p style={styles.subheading}>
-            Arsip laporan performa bulanan terintegrasi dengan Google Slides & Sheets
+            {t('ads.reports.subheading')}
           </p>
         </div>
       </div>
@@ -217,14 +219,14 @@ export default function AdsReportsPage({ user }) {
         <div style={styles.filterRow}>
           <div style={styles.filterItem}>
             <label style={styles.filterLabel}>
-              <Filter size={13} /> Platform
+              <Filter size={13} /> {t('ads.reports.filterPlatform')}
             </label>
             <select
               value={platformFilter}
               onChange={(e) => setPlatformFilter(e.target.value)}
               style={styles.filterSelect}
             >
-              <option value="all">Semua Platform</option>
+              <option value="all">{t('ads.reports.allPlatforms')}</option>
               <option value="meta">Meta Ads</option>
               <option value="google">Google Ads</option>
               <option value="tiktok">TikTok Ads</option>
@@ -234,13 +236,13 @@ export default function AdsReportsPage({ user }) {
           </div>
 
           <div style={styles.filterItem}>
-            <label style={styles.filterLabel}>Tahun</label>
+            <label style={styles.filterLabel}>{t('ads.reports.filterYear')}</label>
             <select
               value={yearFilter}
               onChange={(e) => setYearFilter(e.target.value)}
               style={styles.filterSelect}
             >
-              <option value="all">Semua Tahun</option>
+              <option value="all">{t('ads.reports.allYears')}</option>
               <option value="2026">2026</option>
               <option value="2025">2025</option>
             </select>
@@ -248,11 +250,11 @@ export default function AdsReportsPage({ user }) {
 
           {isAdmin && (
             <form onSubmit={handleSearchSubmit} style={{ ...styles.filterItem, flex: 1 }}>
-              <label style={styles.filterLabel}>Cari Klien (Admin)</label>
+              <label style={styles.filterLabel}>{t('ads.reports.searchClient')}</label>
               <div style={styles.searchBox}>
                 <input
                   type="text"
-                  placeholder="Ketik nama klien…"
+                  placeholder={t('ads.reports.searchPlaceholder')}
                   value={clientSearch}
                   onChange={(e) => setClientSearch(e.target.value)}
                   style={styles.searchInput}
@@ -264,7 +266,7 @@ export default function AdsReportsPage({ user }) {
             </form>
           )}
 
-          <button onClick={loadData} style={styles.refreshBtn} title="Muat ulang laporan">
+          <button onClick={loadData} style={styles.refreshBtn} title={lang.startsWith('id') ? "Muat ulang laporan" : "Reload reports"}>
             <RefreshCw size={15} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
           </button>
         </div>
@@ -275,14 +277,14 @@ export default function AdsReportsPage({ user }) {
         <div style={styles.loadingBox}>
           <RefreshCw size={24} color="var(--accent-cyan)" style={{ animation: 'spin 1s linear infinite' }} />
           <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            Memuat daftar laporan…
+            {t('ads.summary.loading')}
           </span>
         </div>
       ) : (
         <DataTable
           columns={columns}
           data={reports}
-          emptyMessage="Tidak ada laporan yang cocok dengan kriteria filter."
+          emptyMessage={t('ads.reports.emptyReports')}
         />
       )}
     </div>

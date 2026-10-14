@@ -10,6 +10,7 @@ import {
   Flame,
   RefreshCw,
 } from 'lucide-react';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { listCompetitors, listCreatives, getInsights, isSpyMock } from '../../spy/spyApi';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
@@ -18,6 +19,7 @@ export default function SpyOverviewPage() {
   if (!isSpyMock()) {
     return <ModuleComingSoonCard roleKey="ads_spy" />;
   }
+  const { lang, t } = useLanguage();
   const { activeWorkspace } = useWorkspace();
   const [loading, setLoading] = useState(true);
   const [competitors, setCompetitors] = useState([]);
@@ -63,19 +65,19 @@ export default function SpyOverviewPage() {
         <div style={styles.tabsLeft}>
           <Link to="/app/spy" style={{ ...styles.tabBtn, ...styles.tabBtnActive }}>
             <Eye size={15} />
-            <span>Ringkasan</span>
+            <span>{t('spy.tabOverview')}</span>
           </Link>
           <Link to="/app/spy/competitors" style={styles.tabBtn}>
             <Users size={15} />
-            <span>Kompetitor ({competitors.length})</span>
+            <span>{t('spy.tabCompetitors')} ({competitors.length})</span>
           </Link>
           <Link to="/app/spy/library" style={styles.tabBtn}>
             <Sparkles size={15} />
-            <span>Galeri Creative</span>
+            <span>{t('spy.tabLibrary')}</span>
           </Link>
           <Link to="/app/spy/insights" style={styles.tabBtn}>
             <TrendingUp size={15} />
-            <span>Insight AI</span>
+            <span>{t('spy.tabInsights')}</span>
           </Link>
         </div>
 
@@ -91,16 +93,16 @@ export default function SpyOverviewPage() {
             <Eye size={22} color="var(--accent-cyan)" />
           </div>
           <div>
-            <h1 style={styles.pageTitle}>Ads Creative Spy</h1>
+            <h1 style={styles.pageTitle}>{t('spy.overview.title')}</h1>
             <p style={styles.pageSubtitle}>
-              Intelijen kompetitor otomatis berbasis Meta Ad Library & analisis pola hook AI. Pantau pergerakan iklan lawan dan kurasi referensi winning untuk brand Anda.
+              {t('spy.overview.subtitle')}
             </p>
           </div>
         </div>
         <div style={styles.headerActions}>
           <Link to="/app/spy/competitors" style={styles.primaryActionBtn}>
             <Users size={15} />
-            <span>Kelola Kompetitor</span>
+            <span>{t('spy.overview.manageCompetitors')}</span>
           </Link>
         </div>
       </div>
@@ -112,10 +114,10 @@ export default function SpyOverviewPage() {
             <Users size={16} color="var(--accent-cyan)" />
           </div>
           <div>
-            <span style={styles.kpiLabel}>Kompetitor Dipantau</span>
+            <span style={styles.kpiLabel}>{t('spy.overview.kpiMonitored')}</span>
             <div style={styles.kpiNumberRow}>
               <strong style={styles.kpiNumber}>{totalMonitored}</strong>
-              <span style={styles.kpiMax}>/ 5 Kuota</span>
+              <span style={styles.kpiMax}>{t('spy.overview.kpiQuota', { limit: 5 })}</span>
             </div>
           </div>
         </div>
@@ -125,12 +127,12 @@ export default function SpyOverviewPage() {
             <Sparkles size={16} color="var(--accent-yellow)" />
           </div>
           <div>
-            <span style={styles.kpiLabel}>Iklan Baru Minggu Ini</span>
+            <span style={styles.kpiLabel}>{t('spy.overview.kpiNewThisWeek')}</span>
             <div style={styles.kpiNumberRow}>
               <strong style={{ ...styles.kpiNumber, color: 'var(--accent-yellow)' }}>
                 +{newAdsCount}
               </strong>
-              <span style={styles.kpiMax}>Creative baru</span>
+              <span style={styles.kpiMax}>{t('spy.overview.kpiNewCreatives')}</span>
             </div>
           </div>
         </div>
@@ -140,12 +142,12 @@ export default function SpyOverviewPage() {
             <Flame size={16} color="var(--accent-red)" />
           </div>
           <div>
-            <span style={styles.kpiLabel}>Winning Ads Terdeteksi</span>
+            <span style={styles.kpiLabel}>{t('spy.overview.kpiWinningDetected')}</span>
             <div style={styles.kpiNumberRow}>
               <strong style={{ ...styles.kpiNumber, color: 'var(--accent-red)' }}>
                 {insights?.summary?.winningAdsIdentified || 9}
               </strong>
-              <span style={styles.kpiMax}>Tayang &gt; 30 hari</span>
+              <span style={styles.kpiMax}>{t('spy.overview.kpiRunningOver30')}</span>
             </div>
           </div>
         </div>
@@ -155,10 +157,10 @@ export default function SpyOverviewPage() {
             <Bookmark size={16} color="var(--accent-green)" />
           </div>
           <div>
-            <span style={styles.kpiLabel}>Disimpan ke Swipe File</span>
+            <span style={styles.kpiLabel}>{t('spy.overview.kpiSwipeSaved')}</span>
             <div style={styles.kpiNumberRow}>
               <strong style={{ ...styles.kpiNumber, color: 'var(--accent-green)' }}>3</strong>
-              <span style={styles.kpiMax}>Inspirasi tersimpan</span>
+              <span style={styles.kpiMax}>{t('spy.overview.kpiSavedInspirations')}</span>
             </div>
           </div>
         </div>
@@ -170,14 +172,14 @@ export default function SpyOverviewPage() {
           <div>
             <h3 style={styles.sectionTitle}>
               <Flame size={18} color="var(--accent-red)" />
-              Sorotan Iklan Winning (Tayang &gt; 30 Hari)
+              {t('spy.overview.winningSpotlightTitle')}
             </h3>
             <p style={styles.sectionSub}>
-              Iklan yang terus aktif dalam waktu lama merupakan indikator kuat bahwa iklan tersebut menghasilkan ROAS positif bagi pengiklan.
+              {t('spy.overview.winningSpotlightDesc')}
             </p>
           </div>
           <Link to="/app/spy/library?winning=true" style={styles.viewAllLink}>
-            <span>Buka Galeri Lengkap</span>
+            <span>{t('spy.overview.openFullGallery')}</span>
             <ArrowRight size={14} />
           </Link>
         </div>
@@ -185,7 +187,7 @@ export default function SpyOverviewPage() {
         {loading ? (
           <div style={styles.loadingBox}>
             <RefreshCw size={20} className="spin" />
-            <span>Memindai data creative…</span>
+            <span>{t('spy.overview.scanningCreatives')}</span>
           </div>
         ) : (
           <div style={styles.creativesGrid}>
@@ -196,7 +198,7 @@ export default function SpyOverviewPage() {
                   <div style={styles.thumbOverlayTags}>
                     <span style={styles.winningBadge}>
                       <Flame size={11} />
-                      Winning Ad ({cr.daysRunning} hari)
+                      {t('spy.overview.winningDays', { days: cr.daysRunning })}
                     </span>
                     <span style={styles.formatTag}>{cr.formatLabel}</span>
                   </div>
@@ -205,19 +207,19 @@ export default function SpyOverviewPage() {
                 <div style={styles.creativeMeta}>
                   <div style={styles.compBrandRow}>
                     <span style={styles.compBrandName}>{cr.competitorName}</span>
-                    <span style={styles.adDateTag}>Mulai {cr.startedDate}</span>
+                    <span style={styles.adDateTag}>{t('spy.overview.startedAt', { date: cr.startedDate })}</span>
                   </div>
                   <h4 style={styles.crHeadline}>{cr.headline}</h4>
                   <p style={styles.crSnippet}>{cr.bodyText}</p>
 
                   <div style={styles.aiSnippetBox}>
-                    <span style={styles.aiSnippetLabel}>🎯 Formula Hook:</span>
+                    <span style={styles.aiSnippetLabel}>{t('spy.overview.hookFormula')}</span>
                     <p style={styles.aiSnippetText}>{cr.aiAnalysis?.hook}</p>
                   </div>
 
                   <div style={styles.cardFooterRow}>
                     <Link to="/app/spy/library" style={styles.detailBtn}>
-                      <span>Detail & Analisa AI</span>
+                      <span>{t('spy.overview.detailAndAi')}</span>
                       <ArrowRight size={13} />
                     </Link>
                   </div>
@@ -236,13 +238,16 @@ export default function SpyOverviewPage() {
               <TrendingUp size={20} color="var(--accent-cyan)" />
             </div>
             <div style={{ flex: 1 }}>
-              <h3 style={styles.insightTitle}>Rangkuman Tren & Rekomendasi AI ({insights.periodLabel})</h3>
+              <h3 style={styles.insightTitle}>{t('spy.overview.trendAiSummaryTitle', { period: insights.periodLabel })}</h3>
               <p style={styles.insightSub}>
-                Pola dominan: Format {insights.summary.dominantFormat} dengan tema {insights.summary.dominantAngle}.
+                {t('spy.overview.trendAiDominantPattern', {
+                  format: insights.summary.dominantFormat,
+                  angle: insights.summary.dominantAngle
+                })}
               </p>
             </div>
             <Link to="/app/spy/insights" style={styles.insightActionBtn}>
-              <span>Lihat Analisis Lengkap</span>
+              <span>{t('spy.overview.viewFullAnalysis')}</span>
               <ArrowRight size={14} />
             </Link>
           </div>

@@ -16,12 +16,14 @@ import {
 } from 'lucide-react';
 import { getInsights, isSpyMock } from '../../spy/spyApi';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useLanguage } from '../../i18n/LanguageContext';
 import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
 
 export default function SpyInsightsPage() {
   if (!isSpyMock()) {
     return <ModuleComingSoonCard roleKey="ads_spy" />;
   }
+  const { t } = useLanguage();
   const { activeWorkspace } = useWorkspace();
   const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -53,7 +55,7 @@ export default function SpyInsightsPage() {
   }, [selectedWeek]);
 
   const handleDownloadReport = (format) => {
-    setExportNotice(`Dokumen AI Insights (${format.toUpperCase()}) sedang disiapkan untuk diunduh…`);
+    setExportNotice(t('spy.insights.exportingToast', { format: format.toUpperCase() }));
     setTimeout(() => {
       setExportNotice('');
       window.open(
@@ -70,19 +72,19 @@ export default function SpyInsightsPage() {
         <div style={styles.tabsLeft}>
           <Link to="/app/spy" style={styles.tabBtn}>
             <Eye size={15} />
-            <span>Ringkasan</span>
+            <span>{t('spy.tabOverview')}</span>
           </Link>
           <Link to="/app/spy/competitors" style={styles.tabBtn}>
             <Users size={15} />
-            <span>Kompetitor</span>
+            <span>{t('spy.tabCompetitors')}</span>
           </Link>
           <Link to="/app/spy/library" style={styles.tabBtn}>
             <Sparkles size={15} />
-            <span>Galeri Creative</span>
+            <span>{t('spy.tabLibrary')}</span>
           </Link>
           <Link to="/app/spy/insights" style={{ ...styles.tabBtn, ...styles.tabBtnActive }}>
             <TrendingUp size={15} />
-            <span>Insight AI</span>
+            <span>{t('spy.tabInsights')}</span>
           </Link>
         </div>
 
@@ -98,9 +100,9 @@ export default function SpyInsightsPage() {
             <TrendingUp size={22} color="var(--accent-cyan)" />
           </div>
           <div>
-            <h1 style={styles.pageTitle}>Insight & Pola Kreatif AI Mingguan</h1>
+            <h1 style={styles.pageTitle}>{t('spy.insights.heading')}</h1>
             <p style={styles.pageSubtitle}>
-              Sintesis otomatis dari seluruh materi iklan kompetitor di niche Anda: tema yang sedang tren, distribusi format, dan rekomendasi aksi konkrit.
+              {t('spy.insights.subheading')}
             </p>
           </div>
         </div>
@@ -113,9 +115,9 @@ export default function SpyInsightsPage() {
               onChange={(e) => setSelectedWeek(e.target.value)}
               style={styles.weekSelect}
             >
-              <option value="2026-W41">Minggu 41 (6 - 12 Okt 2026) — Terbaru</option>
-              <option value="2026-W40">Minggu 40 (29 Sep - 5 Okt 2026)</option>
-              <option value="2026-W39">Minggu 39 (22 - 28 Sep 2026)</option>
+              <option value="2026-W41">{t('spy.insights.weekLatest')}</option>
+              <option value="2026-W40">{t('spy.insights.week40')}</option>
+              <option value="2026-W39">{t('spy.insights.week39')}</option>
             </select>
           </div>
 
@@ -124,7 +126,7 @@ export default function SpyInsightsPage() {
             style={styles.exportBtn}
           >
             <Download size={14} />
-            <span>Unduh PDF / Slides</span>
+            <span>{t('spy.insights.exportBtn')}</span>
           </button>
         </div>
       </div>
@@ -140,7 +142,7 @@ export default function SpyInsightsPage() {
       {loading || !insights ? (
         <div style={styles.loadingBox}>
           <RefreshCw size={24} className="spin" color="var(--accent-cyan)" />
-          <span>Menganalisis data iklan kompetitor…</span>
+          <span>{t('spy.insights.analyzing')}</span>
         </div>
       ) : (
         <>
@@ -150,21 +152,21 @@ export default function SpyInsightsPage() {
             <div style={styles.summaryCard} className="card">
               <h3 style={styles.cardHeading}>
                 <Lightbulb size={16} color="var(--accent-yellow)" />
-                Ringkasan Eksekutif
+                {t('spy.insights.executiveSummaryTitle')}
               </h3>
               <div style={styles.summaryStatsRow}>
                 <div style={styles.statBox}>
-                  <span style={styles.statLabel}>Total Iklan Dipantau</span>
+                  <span style={styles.statLabel}>{t('spy.insights.totalAdsMonitored')}</span>
                   <strong style={styles.statVal}>{insights.summary.totalAdsMonitored}</strong>
                 </div>
                 <div style={styles.statBox}>
-                  <span style={styles.statLabel}>Iklan Baru Minggu Ini</span>
+                  <span style={styles.statLabel}>{t('spy.insights.newAdsThisWeek')}</span>
                   <strong style={{ ...styles.statVal, color: 'var(--accent-yellow)' }}>
                     +{insights.summary.newAdsThisWeek}
                   </strong>
                 </div>
                 <div style={styles.statBox}>
-                  <span style={styles.statLabel}>Winning Ads Terdeteksi</span>
+                  <span style={styles.statLabel}>{t('spy.insights.winningAdsIdentified')}</span>
                   <strong style={{ ...styles.statVal, color: 'var(--accent-red)' }}>
                     {insights.summary.winningAdsIdentified}
                   </strong>
@@ -172,10 +174,12 @@ export default function SpyInsightsPage() {
               </div>
 
               <div style={styles.summaryHighlight}>
-                <span style={styles.highlightLabel}>Formula Dominan Terbukti:</span>
+                <span style={styles.highlightLabel}>{t('spy.insights.dominantFormulaLabel')}</span>
                 <p style={styles.highlightText}>
-                  Format <strong>{insights.summary.dominantFormat}</strong> dengan tema{' '}
-                  <strong>{insights.summary.dominantAngle}</strong> mendominasi 72% dari total budget estimasi kompetitor.
+                  {t('spy.insights.dominantFormulaDesc', {
+                    format: insights.summary.dominantFormat,
+                    angle: insights.summary.dominantAngle,
+                  })}
                 </p>
               </div>
             </div>
@@ -184,7 +188,7 @@ export default function SpyInsightsPage() {
             <div style={styles.formatCard} className="card">
               <h3 style={styles.cardHeading}>
                 <PieChart size={16} color="var(--accent-cyan)" />
-                Distribusi Format Creative
+                {t('spy.insights.formatDistributionTitle')}
               </h3>
               <div style={styles.formatBarsList}>
                 {insights.formatBreakdown.map((fb, idx) => (
@@ -192,7 +196,7 @@ export default function SpyInsightsPage() {
                     <div style={styles.formatBarLabelRow}>
                       <span style={styles.formatName}>{fb.format}</span>
                       <span style={styles.formatPct}>
-                        {fb.percentage}% ({fb.count} iklan)
+                        {fb.percentage}% ({t('spy.insights.adsCount', { count: fb.count })})
                       </span>
                     </div>
                     <div style={styles.track}>
@@ -219,7 +223,7 @@ export default function SpyInsightsPage() {
           <div style={styles.sectionCard} className="card">
             <h3 style={styles.sectionTitle}>
               <Zap size={17} color="var(--accent-cyan)" />
-              3 Tema & Sudut Pandang (Angle) Dominan Minggu Ini
+              {t('spy.insights.dominantThemesTitle')}
             </h3>
             <div style={styles.themesGrid}>
               {insights.dominantThemes.map((th, idx) => (
@@ -241,14 +245,14 @@ export default function SpyInsightsPage() {
               <div>
                 <h3 style={styles.recsTitle}>
                   <Sparkles size={18} color="var(--accent-cyan)" />
-                  Rekomendasi Aksi Konkrit untuk {activeWorkspace?.name}
+                  {t('spy.insights.recommendationsTitle', { brand: activeWorkspace?.name || 'Brand' })}
                 </h3>
                 <p style={styles.recsSub}>
-                  Langkah taktis yang dapat segera diaplikasikan pada materi iklan berbayar Anda untuk mengungguli kompetitor.
+                  {t('spy.insights.recsSubtitle')}
                 </p>
               </div>
               <Link to="/app/spy/library" style={styles.toLibraryBtn}>
-                <span>Cari Inspirasi di Galeri</span>
+                <span>{t('spy.insights.findInspiration')}</span>
                 <ArrowRight size={14} />
               </Link>
             </div>
@@ -265,7 +269,7 @@ export default function SpyInsightsPage() {
                     </h4>
                     <p style={styles.recActionText}>{rec.action}</p>
                     <div style={styles.recImpactBox}>
-                      <span style={styles.recImpactLabel}>🎯 Estimasi Dampak:</span>
+                      <span style={styles.recImpactLabel}>🎯 {t('spy.insights.expectedImpact')}</span>
                       <span style={styles.recImpactVal}>{rec.impact}</span>
                     </div>
                   </div>

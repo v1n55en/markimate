@@ -14,6 +14,7 @@ import {
   AlertCircle,
   Plus,
 } from 'lucide-react';
+import { useLanguage } from '../../i18n/LanguageContext';
 import { getAdsSummary, listConnections, isAdsMock } from '../../ads/adsApi';
 import { PLATFORMS_META } from '../../ads/mockData';
 import { formatCompactIDR } from '../../ads/format';
@@ -25,6 +26,7 @@ export default function AdsSummaryPage() {
   if (!isAdsMock()) {
     return <ModuleComingSoonCard roleKey="ads_report" />;
   }
+  const { lang, t } = useLanguage();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -42,7 +44,7 @@ export default function AdsSummaryPage() {
       setSummary(sumData);
       setConnections(connData.connections || []);
     } catch (err) {
-      setError(err.message || 'Gagal memuat ringkasan performa iklan.');
+      setError(err.message || t('ads.summary.loadError'));
     } finally {
       setLoading(false);
     }
@@ -67,7 +69,7 @@ export default function AdsSummaryPage() {
       <div style={styles.loadingContainer}>
         <RefreshCw size={24} color="var(--accent-cyan)" style={{ animation: 'spin 1s linear infinite' }} />
         <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-          Memuat ringkasan Ads Report…
+          {t('ads.summary.loading')}
         </span>
       </div>
     );
@@ -78,7 +80,7 @@ export default function AdsSummaryPage() {
       <div style={styles.errorBox}>
         <AlertCircle size={20} color="var(--accent-red)" />
         <span style={{ color: 'var(--accent-red)', fontSize: '0.9rem' }}>{error}</span>
-        <button onClick={loadData} style={styles.retryBtn}>Coba Lagi</button>
+        <button onClick={loadData} style={styles.retryBtn}>{t('ads.summary.retry')}</button>
       </div>
     );
   }
@@ -92,21 +94,21 @@ export default function AdsSummaryPage() {
       {/* Page Header */}
       <div style={styles.header}>
         <div>
-          <h1 style={styles.heading}>Ringkasan Ads Report</h1>
+          <h1 style={styles.heading}>{t('ads.summary.heading')}</h1>
           <p style={styles.subheading}>
-            Konsolidasi performa iklan multi-platform periode{' '}
-            <strong style={{ color: 'var(--text-primary)' }}>{summary?.period || 'Bulan Terakhir'}</strong>
+            {t('ads.summary.subheading')}{' '}
+            <strong style={{ color: 'var(--text-primary)' }}>{summary?.period || t('ads.summary.defaultPeriod')}</strong>
           </p>
         </div>
 
         <div style={styles.headerActions}>
           <Link to="/app/ads/connections" style={styles.secondaryBtn}>
             <Link2 size={16} />
-            <span>Kelola Koneksi</span>
+            <span>{t('ads.summary.manageConnections')}</span>
           </Link>
           <Link to="/app/ads/reports" style={styles.primaryBtn}>
             <FileText size={16} />
-            <span>Semua Laporan</span>
+            <span>{t('ads.summary.allReports')}</span>
             <ArrowRight size={15} />
           </Link>
         </div>
@@ -118,16 +120,16 @@ export default function AdsSummaryPage() {
           <div style={styles.emptyIconBox}>
             <Link2 size={36} color="var(--accent-cyan)" />
           </div>
-          <h2 style={styles.emptyTitle}>Belum Ada Platform Iklan yang Terhubung</h2>
+          <h2 style={styles.emptyTitle}>{t('ads.summary.emptyTitle')}</h2>
           <p style={styles.emptySubtitle}>
-            Hubungkan akun Meta Ads, Google Ads, TikTok Ads, TikTok Shop GMV Max, atau Shopee Ads Anda untuk melihat agregasi metrik otomatis, analisis ROAS, dan pembuatan laporan berkala.
+            {t('ads.summary.emptyDesc')}
           </p>
           <button
             onClick={() => navigate('/app/ads/connections')}
             style={styles.connectNowBtn}
           >
             <Plus size={16} />
-            <span>Hubungkan Platform Sekarang</span>
+            <span>{t('ads.summary.connectNow')}</span>
           </button>
         </div>
       ) : (
@@ -135,7 +137,7 @@ export default function AdsSummaryPage() {
           {/* Grid 6 KPI Cards Gabungan */}
           <div style={styles.kpiGrid}>
             <KpiCard
-              title="Total Spend (Biaya Iklan)"
+              title={t('ads.summary.kpiTotalSpend')}
               value={totals.spend}
               format="currency"
               delta={deltas.spend}
@@ -143,7 +145,7 @@ export default function AdsSummaryPage() {
               icon={DollarSign}
             />
             <KpiCard
-              title="Total Impresi"
+              title={t('ads.summary.kpiTotalImpressions')}
               value={totals.impressions}
               format="compact"
               delta={deltas.impressions}
@@ -151,7 +153,7 @@ export default function AdsSummaryPage() {
               icon={Eye}
             />
             <KpiCard
-              title="Total Klik"
+              title={t('ads.summary.kpiTotalClicks')}
               value={totals.clicks}
               format="compact"
               delta={deltas.clicks}
@@ -159,7 +161,7 @@ export default function AdsSummaryPage() {
               icon={MousePointerClick}
             />
             <KpiCard
-              title="Total Hasil / Konversi"
+              title={t('ads.summary.kpiTotalResults')}
               value={totals.results}
               format="compact"
               delta={deltas.results}
@@ -167,7 +169,7 @@ export default function AdsSummaryPage() {
               icon={ShoppingBag}
             />
             <KpiCard
-              title="Total GMV (Nilai Penjualan)"
+              title={t('ads.summary.kpiTotalGmv')}
               value={totals.gmv}
               format="compactCurrency"
               delta={deltas.gmv}
@@ -175,7 +177,7 @@ export default function AdsSummaryPage() {
               icon={TrendingUp}
             />
             <KpiCard
-              title="ROAS Gabungan"
+              title={t('ads.summary.kpiBlendedRoas')}
               value={totals.roas}
               format="roas"
               delta={deltas.roas}
@@ -188,13 +190,13 @@ export default function AdsSummaryPage() {
           <div style={styles.section}>
             <div style={styles.sectionHeader}>
               <div>
-                <h2 style={styles.sectionTitle}>Performa Per Platform</h2>
+                <h2 style={styles.sectionTitle}>{t('ads.summary.platformSectionTitle')}</h2>
                 <p style={styles.sectionDesc}>
-                  Ringkasan metrik dari setiap ad account & toko yang aktif terhubung
+                  {t('ads.summary.platformSectionDesc')}
                 </p>
               </div>
               <Link to="/app/ads/connections" style={styles.textLink}>
-                Lihat detail koneksi →
+                {t('ads.summary.viewConnectionDetail')}
               </Link>
             </div>
 
@@ -226,7 +228,7 @@ export default function AdsSummaryPage() {
                         <div>
                           <h4 style={styles.platformCardName}>{meta.name}</h4>
                           <span style={styles.platformAccountSub}>
-                            {p.accountName || 'Akun Utama'}
+                            {p.accountName || (lang.startsWith('id') ? 'Akun Utama' : 'Main Account')}
                           </span>
                         </div>
                       </div>
@@ -236,19 +238,19 @@ export default function AdsSummaryPage() {
 
                     <div style={styles.platformMetrics}>
                       <div style={styles.platformMetricRow}>
-                        <span style={styles.metricLabel}>Spend Bulan Ini:</span>
+                        <span style={styles.metricLabel}>{t('ads.summary.spendThisMonth')}</span>
                         <strong style={styles.metricValue}>
-                          {formatCompactIDR(p.spend)}
+                          {formatCompactIDR(p.spend, lang)}
                         </strong>
                       </div>
                       <div style={styles.platformMetricRow}>
-                        <span style={styles.metricLabel}>Hasil Utama:</span>
+                        <span style={styles.metricLabel}>{t('ads.summary.primaryResult')}</span>
                         <strong style={{ ...styles.metricValue, color: 'var(--accent-cyan)' }}>
                           {p.results}
                         </strong>
                       </div>
                       <div style={styles.platformMetricRow}>
-                        <span style={styles.metricLabel}>Laporan Terakhir:</span>
+                        <span style={styles.metricLabel}>{t('ads.summary.lastReport')}</span>
                         <StatusChip status={p.lastReportStatus || 'Terkirim'} size="sm" />
                       </div>
                     </div>
@@ -258,7 +260,7 @@ export default function AdsSummaryPage() {
                         onClick={() => navigate('/app/ads/reports')}
                         style={styles.cardViewReportsBtn}
                       >
-                        <span>Lihat Laporan</span>
+                        <span>{t('ads.summary.viewReportBtn')}</span>
                         <ArrowRight size={13} />
                       </button>
                     </div>
@@ -275,14 +277,14 @@ export default function AdsSummaryPage() {
                 <FileText size={24} color="var(--accent-cyan)" />
               </div>
               <div>
-                <h4 style={styles.bannerTitle}>Otomatisasi Laporan Siap Pakai</h4>
+                <h4 style={styles.bannerTitle}>{t('ads.summary.bannerTitle')}</h4>
                 <p style={styles.bannerText}>
-                  Setiap awal bulan, Markimate dan mesin automasi 3Our menyusun laporan eksekutif lengkap ke Google Slides dan Google Sheets yang dapat langsung dibagikan atau dipresentasikan kepada stakeholder.
+                  {t('ads.summary.bannerDesc')}
                 </p>
               </div>
             </div>
             <Link to="/app/ads/reports" style={styles.bannerActionBtn}>
-              Buka Katalog Laporan
+              {t('ads.summary.bannerAction')}
             </Link>
           </div>
         </>
