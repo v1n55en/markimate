@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Users, CheckCircle2, AlertCircle, ArrowRight, ShieldCheck, LogIn, UserPlus } from 'lucide-react';
 import { api, getToken } from '../../api';
+import { useLanguage, LanguageSwitcher } from '../../context/LanguageContext';
+import { LocalizedLink, useLocalizedNavigate } from '../../lib/localized-router';
 import MarkimateLogo from '../../components/common/MarkimateLogo';
 
 export default function InvitePage() {
+  const { t, lang } = useLanguage();
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const navigate = useLocalizedNavigate();
   const token = searchParams.get('token') || '';
 
   const [loading, setLoading] = useState(true);
@@ -21,7 +24,7 @@ export default function InvitePage() {
   useEffect(() => {
     async function loadData() {
       if (!token) {
-        setError('Tautan undangan tidak memiliki token yang valid.');
+        setError(t('auth.errTokenMissing', 'Invitation link does not contain a valid token.'));
         setLoading(false);
         return;
       }
@@ -39,19 +42,19 @@ export default function InvitePage() {
         // Cek info undangan
         const infoRes = await api(`/api/invites/info?token=${encodeURIComponent(token)}`);
         if (!infoRes || !infoRes.valid) {
-          setError(infoRes?.message || 'Undangan tidak valid atau sudah kadaluarsa.');
+          setError(infoRes?.message || t('auth.inviteInvalid', 'Invitation is invalid or has expired.'));
         } else {
           setInviteInfo(infoRes.invite);
         }
       } catch (err) {
-        setError(err.message || 'Gagal memuat informasi undangan.');
+        setError(err.message || t('auth.inviteInvalid', 'Failed to load invitation information.'));
       } finally {
         setLoading(false);
       }
     }
 
     loadData();
-  }, [token]);
+  }, [token, t]);
 
   // Handler menerima undangan
   const handleAcceptInvite = async () => {
@@ -73,7 +76,7 @@ export default function InvitePage() {
         }, 2000);
       }
     } catch (err) {
-      setAcceptError(err.message || 'Gagal menerima undangan.');
+      setAcceptError(err.message || t('auth.inviteInvalid', 'Failed to accept invitation.'));
     } finally {
       setAccepting(false);
     }
@@ -85,21 +88,26 @@ export default function InvitePage() {
   return (
     <div className="auth-page-container">
       <div className="auth-card-box card">
+        {/* Language switcher */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+          <LanguageSwitcher size="small" />
+        </div>
+
         {/* Header / Brand */}
         <div className="auth-header">
-          <div className="auth-logo-box">
-            <MarkimateLogo />
-          </div>
-          <h1 className="auth-title">Undangan Bergabung</h1>
+          <LocalizedLink to="/" style={{ display: 'inline-block', textDecoration: 'none', marginBottom: '0.5rem' }}>
+            <MarkimateLogo size={36} />
+          </LocalizedLink>
+          <h1 className="auth-title">{t('auth.inviteTitle')}</h1>
           <p className="auth-subtitle">
-            Kolaborasi dalam satu platform pemasaran digital bersama tim Anda
+            {t('auth.inviteSubtitle')}
           </p>
         </div>
 
         {/* Loading State */}
         {loading && (
           <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--text-muted)' }}>
-            <p>Memeriksa informasi undangan...</p>
+            <p>{t('auth.inviteChecking')}</p>
           </div>
         )}
 
@@ -109,15 +117,15 @@ export default function InvitePage() {
             <div className="auth-alert auth-alert-error" style={{ marginBottom: '1.5rem' }}>
               <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
               <div>
-                <strong>Undangan Tidak Valid</strong>
+                <strong>{t('auth.inviteInvalid')}</strong>
                 <p style={{ margin: '4px 0 0 0' }}>{error}</p>
               </div>
             </div>
 
             <div style={{ textAlign: 'center' }}>
-              <Link to="/login" className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>
-                Kembali ke Halaman Masuk
-              </Link>
+              <LocalizedLink to="/login" className="btn btn-secondary" style={{ width: '100%', justifyContent: 'center' }}>
+                {t('auth.backToSignIn')}
+              </LocalizedLink>
             </div>
           </div>
         )}
@@ -138,10 +146,13 @@ export default function InvitePage() {
               <CheckCircle2 size={26} color="var(--accent-green)" />
             </div>
             <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-              Berhasil Bergabung!
+              {t('auth.inviteAcceptedTitle')}
             </h3>
             <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-              Anda sekarang adalah anggota dari workspace <strong>{inviteInfo?.workspaceName}</strong>. Mengalihkan ke dashboard...
+              {t('auth.inviteAcceptedDesc', {
+                workspaceName: inviteInfo?.workspaceName,
+                role: inviteInfo?.role === 'admin' ? t('auth.roleAdmin') : t('auth.roleViewer')
+              })}
             </p>
           </div>
         )}
@@ -170,7 +181,7 @@ export default function InvitePage() {
                   <Users size={18} color="var(--accent-cyan)" />
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Workspace Target</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('auth.inviteTargetWorkspace')}</div>
                   <div style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--text-primary)' }}>
                     {inviteInfo.workspaceName}
                   </div>
@@ -186,11 +197,11 @@ export default function InvitePage() {
                 borderTop: '1px solid var(--border-muted)'
               }}>
                 <div>
-                  <span style={{ color: 'var(--text-muted)', display: 'block' }}>Pengundang</span>
+                  <span style={{ color: 'var(--text-muted)', display: 'block' }}>{t('auth.inviteInviter')}</span>
                   <strong style={{ color: 'var(--text-secondary)' }}>{inviteInfo.inviterName}</strong>
                 </div>
                 <div>
-                  <span style={{ color: 'var(--text-muted)', display: 'block' }}>Peran Akses</span>
+                  <span style={{ color: 'var(--text-muted)', display: 'block' }}>{t('auth.inviteRole')}</span>
                   <span style={{
                     display: 'inline-block',
                     padding: '0.1rem 0.5rem',
@@ -199,13 +210,13 @@ export default function InvitePage() {
                     color: inviteInfo.role === 'admin' ? 'var(--accent-cyan)' : 'var(--text-secondary)',
                     fontWeight: '600'
                   }}>
-                    {inviteInfo.role === 'admin' ? 'Admin' : 'Viewer (Pengamat)'}
+                    {inviteInfo.role === 'admin' ? t('auth.roleAdmin') : t('auth.roleViewer')}
                   </span>
                 </div>
               </div>
 
               <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Undangan khusus untuk: <strong style={{ color: 'var(--text-primary)' }}>{inviteInfo.email}</strong>
+                {t('auth.inviteFor')} <strong style={{ color: 'var(--text-primary)' }}>{inviteInfo.email}</strong>
               </div>
             </div>
 
@@ -220,26 +231,26 @@ export default function InvitePage() {
             {!currentUser && (
               <div>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem', textAlign: 'center' }}>
-                  Silakan masuk atau daftar menggunakan email <strong>{inviteInfo.email}</strong> untuk menerima undangan ini.
+                  {t('auth.inviteLoginPrompt', { email: inviteInfo.email })}
                 </p>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  <Link
+                  <LocalizedLink
                     to={`/login?next=${encodeURIComponent(`/invite?token=${token}`)}`}
                     className="btn btn-primary"
                     style={{ width: '100%', justifyContent: 'center' }}
                   >
                     <LogIn size={16} />
-                    <span>Masuk ke Akun</span>
-                  </Link>
-                  <Link
+                    <span>{t('auth.btnSignIn')}</span>
+                  </LocalizedLink>
+                  <LocalizedLink
                     to={`/register?next=${encodeURIComponent(`/invite?token=${token}`)}`}
                     className="btn btn-secondary"
                     style={{ width: '100%', justifyContent: 'center' }}
                   >
                     <UserPlus size={16} />
-                    <span>Daftar Akun Baru</span>
-                  </Link>
+                    <span>{t('auth.tabRegister')}</span>
+                  </LocalizedLink>
                 </div>
               </div>
             )}
@@ -248,7 +259,7 @@ export default function InvitePage() {
             {currentUser && isEmailMatch && (
               <div>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', textAlign: 'center' }}>
-                  Anda masuk sebagai <strong>{currentUser.email}</strong>. Klik tombol di bawah untuk bergabung sekarang:
+                  {t('auth.inviteLoggedInAs', { email: currentUser.email })}
                 </p>
 
                 <button
@@ -259,7 +270,7 @@ export default function InvitePage() {
                   style={{ width: '100%', justifyContent: 'center', padding: '0.75rem' }}
                 >
                   <ShieldCheck size={18} />
-                  <span>{accepting ? 'Memproses...' : 'Terima Undangan Sekarang'}</span>
+                  <span>{accepting ? t('auth.btnProcessing') : t('auth.btnAcceptInvite')}</span>
                 </button>
               </div>
             )}
@@ -270,9 +281,12 @@ export default function InvitePage() {
                 <div className="auth-alert auth-alert-error" style={{ marginBottom: '1rem' }}>
                   <AlertCircle size={18} style={{ flexShrink: 0 }} />
                   <div style={{ fontSize: '0.825rem' }}>
-                    <strong>Email Tidak Sesuai</strong>
+                    <strong>{t('auth.inviteEmailMismatchTitle')}</strong>
                     <p style={{ margin: '4px 0 0 0' }}>
-                      Undangan ini ditujukan untuk <strong>{inviteInfo.email}</strong>, tetapi Anda sedang masuk sebagai <strong>{currentUser.email}</strong>.
+                      {t('auth.inviteEmailMismatchDesc', {
+                        inviteEmail: inviteInfo.email,
+                        currentEmail: currentUser.email
+                      })}
                     </p>
                   </div>
                 </div>
@@ -287,7 +301,7 @@ export default function InvitePage() {
                     className="btn btn-secondary"
                     style={{ width: '100%', justifyContent: 'center' }}
                   >
-                    <span>Ganti Akun & Masuk</span>
+                    <span>{t('auth.inviteSwitchAccount')}</span>
                   </button>
                 </div>
               </div>
@@ -297,9 +311,9 @@ export default function InvitePage() {
 
         {/* Footer */}
         <div className="auth-card-footer">
-          <Link to="/terms" className="auth-link">Syarat & Ketentuan</Link>
+          <LocalizedLink to="/terms" className="auth-link">{t('auth.termsOfService')}</LocalizedLink>
           <span>·</span>
-          <Link to="/privacy" className="auth-link">Kebijakan Privasi</Link>
+          <LocalizedLink to="/privacy" className="auth-link">{t('auth.privacyPolicy')}</LocalizedLink>
         </div>
       </div>
     </div>

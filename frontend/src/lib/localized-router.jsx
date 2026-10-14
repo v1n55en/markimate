@@ -4,12 +4,23 @@ import { useLanguage } from '../context/LanguageContext';
 import { storage } from './storage';
 
 /**
- * Daftar rute publik yang mendukung prefix /id
+ * Daftar rute publik & auth yang mendukung prefix /id
  */
-export const PUBLIC_PAGES = ['/', '/privacy', '/terms', '/data-deletion'];
+export const PUBLIC_PAGES = [
+  '/',
+  '/privacy',
+  '/terms',
+  '/data-deletion',
+  '/login',
+  '/register',
+  '/forgot',
+  '/reset',
+  '/verify',
+  '/invite'
+];
 
 /**
- * Cek apakah sebuah pathname merupakan rute publik (home, privacy, terms, data-deletion, roles/:key)
+ * Cek apakah sebuah pathname merupakan rute publik (home, privacy, terms, data-deletion, roles/:key, auth pages)
  */
 export function isPublicPath(pathname = '/') {
   const clean = getCleanPath(pathname);
@@ -25,6 +36,7 @@ export function isPublicPath(pathname = '/') {
  * - "/id/" -> "/"
  * - "/id/privacy" -> "/privacy"
  * - "/id/roles/seo" -> "/roles/seo"
+ * - "/id/login" -> "/login"
  * - "/privacy" -> "/privacy"
  */
 export function getCleanPath(pathname = '/') {
@@ -41,7 +53,7 @@ export function getCleanPath(pathname = '/') {
 export function getLocalizedPath(pathname = '/', targetLang = 'en') {
   const clean = getCleanPath(pathname);
 
-  // Jika bukan rute publik (misal /login, /register, /app/*), jangan beri prefix /id
+  // Jika bukan rute publik / auth, jangan beri prefix /id
   if (!isPublicPath(clean)) {
     return clean;
   }
@@ -60,6 +72,18 @@ export function getLocalizedPath(pathname = '/', targetLang = 'en') {
 export function useLocalizedPath() {
   const { lang } = useLanguage();
   return (toPath) => getLocalizedPath(toPath, lang);
+}
+
+/**
+ * Hook untuk programmatic navigation ter-lokalisasi
+ */
+export function useLocalizedNavigate() {
+  const navigate = useNavigate();
+  const localize = useLocalizedPath();
+  return (to, options) => {
+    const target = typeof to === 'string' ? localize(to) : to;
+    return navigate(target, options);
+  };
 }
 
 /**

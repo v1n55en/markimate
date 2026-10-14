@@ -1,11 +1,14 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { Lock, KeyRound, AlertCircle, ArrowLeft, Loader2, CheckCircle2 } from 'lucide-react';
 import { setToken, API_BASE_URL } from '../../api.js';
+import { useLanguage } from '../../context/LanguageContext';
+import { LocalizedLink, useLocalizedNavigate } from '../../lib/localized-router';
 
 export default function GoogleCallbackPage({ onLogin }) {
+  const { t, lang, setLang } = useLanguage();
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const navigate = useLocalizedNavigate();
 
   const [status, setStatus] = useState('processing'); // 'processing' | 'link_required' | 'success' | 'error'
   const [errorMessage, setErrorMessage] = useState('');
@@ -43,40 +46,43 @@ export default function GoogleCallbackPage({ onLogin }) {
           setPendingToken(data.pendingToken || '');
           return;
         }
-        throw new Error(data.error || 'Terjadi kesalahan saat memproses login Google.');
+        throw new Error(data.error || t('auth.googleDefaultError', 'An unexpected error occurred while connecting your account.'));
       }
 
       setStatus('success');
       if (data.accessToken) {
         setToken(data.accessToken);
       }
+      if (data.user?.locale && data.user.locale !== lang) {
+        setLang(data.user.locale);
+      }
       if (onLogin) {
         onLogin(data.user, data.accessToken);
       }
 
       setTimeout(() => {
-        navigate('/app', { replace: true });
+        navigate('/app/ads', { replace: true });
       }, 700);
     } catch (err) {
       setStatus('error');
-      setErrorMessage(err.message || 'Gagal menghubungkan dengan Google.');
+      setErrorMessage(err.message || t('auth.googleDefaultError', 'Failed to connect with Google.'));
     }
-  }, [navigate, onLogin]);
+  }, [navigate, onLogin, lang, setLang, t]);
 
   useEffect(() => {
     if (errorParam) {
       setStatus('error');
       setErrorMessage(
         errorParam === 'access_denied'
-          ? 'Otorisasi Google dibatalkan oleh pengguna.'
-          : `Gagal otorisasi Google: ${errorParam}`
+          ? t('auth.googleCancelled', 'Google authorization was cancelled by the user.')
+          : `${t('auth.googleFailedTitle')}: ${errorParam}`
       );
       return;
     }
 
     if (!code || !state) {
       setStatus('error');
-      setErrorMessage('Parameter otorisasi Google tidak lengkap.');
+      setErrorMessage(t('auth.googleParamMissing', 'Google authorization parameters are incomplete.'));
       return;
     }
 
@@ -84,7 +90,7 @@ export default function GoogleCallbackPage({ onLogin }) {
     exchangeStartedRef.current = true;
 
     handleExchange(code, state);
-  }, [code, state, errorParam, handleExchange]);
+  }, [code, state, errorParam, handleExchange, t]);
 
   const handleLinkSubmit = async (e) => {
     e.preventDefault();
@@ -105,22 +111,25 @@ export default function GoogleCallbackPage({ onLogin }) {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Gagal menautkan akun Google.');
+        throw new Error(data.error || t('auth.googleDefaultError', 'Failed to link Google account.'));
       }
 
       setStatus('success');
       if (data.accessToken) {
         setToken(data.accessToken);
       }
+      if (data.user?.locale && data.user.locale !== lang) {
+        setLang(data.user.locale);
+      }
       if (onLogin) {
         onLogin(data.user, data.accessToken);
       }
 
       setTimeout(() => {
-        navigate('/app', { replace: true });
+        navigate('/app/ads', { replace: true });
       }, 700);
     } catch (err) {
-      setErrorMessage(err.message || 'Gagal menautkan akun.');
+      setErrorMessage(err.message || t('auth.googleDefaultError', 'Failed to link account.'));
     } finally {
       setSubmittingLink(false);
     }
@@ -134,9 +143,9 @@ export default function GoogleCallbackPage({ onLogin }) {
             <div className="callback-icon-circle callback-icon-cyan">
               <Loader2 size={36} className="animate-spin" />
             </div>
-            <h2 className="callback-title">Menghubungkan Akun Google…</h2>
+            <h2 className="callback-title">{t('auth.googleConnecting')}</h2>
             <p className="callback-desc">
-              Sedang memverifikasi data dan menyiapkan sesi workspace Anda. Mohon tunggu sebentar.
+              {t('auth.googleConnectingDesc')}
             </p>
           </div>
         )}
@@ -146,9 +155,9 @@ export default function GoogleCallbackPage({ onLogin }) {
             <div className="callback-icon-circle callback-icon-green">
               <CheckCircle2 size={36} />
             </div>
-            <h2 className="callback-title">Berhasil Masuk!</h2>
+            <h2 className="callback-title">{t('auth.googleSuccess')}</h2>
             <p className="callback-desc">
-              Mengarahkan Anda ke dashboard Markimate…
+              {t('auth.googleSuccessDesc')}
             </p>
           </div>
         )}
@@ -160,13 +169,13 @@ export default function GoogleCallbackPage({ onLogin }) {
                 <Lock size={22} />
               </div>
               <div className="callback-header-text">
-                <h2>Tautkan Akun Google</h2>
-                <p>Verifikasi keamanan kepemilikan akun</p>
+                <h2>{t('auth.linkPasswordRequiredTitle')}</h2>
+                <p>{t('auth.linkPasswordRequiredSubtitle')}</p>
               </div>
             </div>
 
             <div className="callback-info-callout">
-              Email <strong>{emailToLink}</strong> sudah terdaftar di Markimate menggunakan kata sandi. Masukkan kata sandi akun Anda untuk menautkannya dengan akun Google ini demi mencegah pengambilalihan akun yang tidak sah.
+              {t('auth.linkPasswordRequiredCallout', { email: emailToLink })}
             </div>
 
             {errorMessage && (
@@ -178,12 +187,12 @@ export default function GoogleCallbackPage({ onLogin }) {
 
             <form onSubmit={handleLinkSubmit} className="auth-form">
               <div className="auth-field">
-                <label className="auth-field-label">Kata Sandi Markimate Anda</label>
+                <label className="auth-field-label">{t('auth.linkPasswordLabel')}</label>
                 <div className="auth-input-wrapper">
                   <input
                     type="password"
                     className="auth-input"
-                    placeholder="Masukkan kata sandi akun saat ini"
+                    placeholder={t('auth.linkPasswordPlaceholder')}
                     value={linkPassword}
                     onChange={(e) => setLinkPassword(e.target.value)}
                     required
@@ -202,19 +211,19 @@ export default function GoogleCallbackPage({ onLogin }) {
                 {submittingLink ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    <span>Memverifikasi…</span>
+                    <span>{t('auth.btnProcessing')}</span>
                   </>
                 ) : (
-                  <span>Konfirmasi & Tautkan Akun</span>
+                  <span>{t('auth.btnLinkAccount')}</span>
                 )}
               </button>
             </form>
 
             <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-              <Link to="/login" className="callback-cancel-link">
+              <LocalizedLink to="/login" className="callback-cancel-link">
                 <ArrowLeft size={14} />
-                <span>Batalkan dan kembali ke login</span>
-              </Link>
+                <span>{t('auth.btnCancelLink')}</span>
+              </LocalizedLink>
             </div>
           </div>
         )}
@@ -224,19 +233,19 @@ export default function GoogleCallbackPage({ onLogin }) {
             <div className="callback-icon-circle callback-icon-red">
               <AlertCircle size={36} />
             </div>
-            <h2 className="callback-title">Gagal Masuk dengan Google</h2>
+            <h2 className="callback-title">{t('auth.googleFailedTitle')}</h2>
             <p className="callback-desc">
-              {errorMessage || 'Terjadi kesalahan yang tidak terduga saat mencoba menghubungkan akun.'}
+              {errorMessage || t('auth.googleDefaultError')}
             </p>
             <div style={{ width: '100%' }}>
-              <Link
+              <LocalizedLink
                 to="/login"
                 className="btn btn-primary"
                 style={{ width: '100%', minHeight: '44px', textDecoration: 'none', fontWeight: 600 }}
               >
                 <ArrowLeft size={16} />
-                <span>Kembali ke Halaman Masuk</span>
-              </Link>
+                <span>{t('auth.backToSignIn')}</span>
+              </LocalizedLink>
             </div>
           </div>
         )}

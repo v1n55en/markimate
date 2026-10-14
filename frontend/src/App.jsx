@@ -241,7 +241,7 @@ function AppRoutes({ me, onLoginSuccess, onLogout, refreshMe }) {
       <Route path="/id/terms" element={<TermsPage />} />
       <Route path="/id/data-deletion" element={<DataDeletionPage />} />
 
-      {/* Rute Auth (Tanpa prefix /id) */}
+      {/* Rute Auth (Kanonik EN) */}
       <Route path="/verify" element={<VerifyPage onLoginSuccess={onLoginSuccess} />} />
       <Route path="/forgot" element={<ForgotPasswordPage />} />
       <Route path="/reset" element={<ResetPasswordPage />} />
@@ -260,6 +260,32 @@ function AppRoutes({ me, onLoginSuccess, onLogout, refreshMe }) {
       />
       <Route
         path="/register"
+        element={
+          me ? (
+            <Navigate to="/app/ads" replace />
+          ) : (
+            <AuthScreen onLoginSuccess={onLoginSuccess} initialMode="register" />
+          )
+        }
+      />
+
+      {/* Rute Auth Terlokalisasi (ID) (PRD F3 Langkah 5) */}
+      <Route path="/id/verify" element={<VerifyPage onLoginSuccess={onLoginSuccess} />} />
+      <Route path="/id/forgot" element={<ForgotPasswordPage />} />
+      <Route path="/id/reset" element={<ResetPasswordPage />} />
+      <Route path="/id/invite" element={<InvitePage />} />
+      <Route
+        path="/id/login"
+        element={
+          me ? (
+            <Navigate to="/app/ads" replace />
+          ) : (
+            <AuthScreen onLoginSuccess={onLoginSuccess} initialMode="login" />
+          )
+        }
+      />
+      <Route
+        path="/id/register"
         element={
           me ? (
             <Navigate to="/app/ads" replace />

@@ -1,18 +1,21 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { CheckCircle2, AlertTriangle, ArrowRight, Mail, RefreshCw } from 'lucide-react';
 import { api, setToken } from '../../api';
+import { useLanguage, LanguageSwitcher } from '../../context/LanguageContext';
+import { LocalizedLink, useLocalizedNavigate } from '../../lib/localized-router';
 import MarkimateLogo from '../../components/common/MarkimateLogo';
 
 export default function VerifyPage({ onLoginSuccess }) {
+  const { t, lang, setLang } = useLanguage();
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const navigate = useLocalizedNavigate();
   const token = searchParams.get('token');
 
   const [loading, setLoading] = useState(Boolean(token));
   const [verified, setVerified] = useState(false);
   const [userData, setUserData] = useState(null);
-  const [error, setError] = useState(token ? '' : 'Token verifikasi tidak ditemukan di tautan.');
+  const [error, setError] = useState(token ? '' : t('auth.errTokenMissing', 'Verification token is missing or invalid.'));
 
   // State untuk form kirim ulang
   const [resendEmail, setResendEmail] = useState('');
@@ -35,6 +38,9 @@ export default function VerifyPage({ onLoginSuccess }) {
         if (isMounted) {
           setVerified(true);
           setUserData(res.user);
+          if (res.user?.locale && res.user.locale !== lang) {
+            setLang(res.user.locale);
+          }
           if (res.token) {
             setToken(res.token);
             if (onLoginSuccess) {
@@ -44,7 +50,7 @@ export default function VerifyPage({ onLoginSuccess }) {
         }
       } catch (err) {
         if (isMounted) {
-          setError(err.message || 'Tautan verifikasi tidak valid atau sudah kadaluarsa.');
+          setError(err.message || t('auth.verifyErrorTitle', 'Verification link is invalid or has expired.'));
         }
       } finally {
         if (isMounted) setLoading(false);
@@ -53,7 +59,7 @@ export default function VerifyPage({ onLoginSuccess }) {
 
     doVerify();
     return () => { isMounted = false; };
-  }, [token, onLoginSuccess]);
+  }, [token, onLoginSuccess, lang, setLang, t]);
 
   const handleResend = async (e) => {
     e.preventDefault();
@@ -65,9 +71,9 @@ export default function VerifyPage({ onLoginSuccess }) {
         method: 'POST',
         body: { email: resendEmail }
       });
-      setResendNotice('Tautan verifikasi baru telah dikirimkan ke email Anda. Silakan cek inbox atau folder spam.');
+      setResendNotice(t('auth.resendSuccess', 'A new verification link has been sent. Please check your inbox or spam folder.'));
     } catch (err) {
-      setResendNotice(err.message || 'Gagal mengirim ulang email verifikasi.');
+      setResendNotice(err.message || t('auth.btnResend', 'Failed to resend verification email.'));
     } finally {
       setResending(false);
     }
@@ -76,13 +82,18 @@ export default function VerifyPage({ onLoginSuccess }) {
   return (
     <div className="auth-page-container">
       <div className="auth-card-box">
+        {/* Language switcher */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+          <LanguageSwitcher size="small" />
+        </div>
+
         {/* Header Logo */}
         <div className="auth-header">
-          <Link to="/" style={{ display: 'inline-block', textDecoration: 'none', marginBottom: '0.5rem' }}>
+          <LocalizedLink to="/" style={{ display: 'inline-block', textDecoration: 'none', marginBottom: '0.5rem' }}>
             <MarkimateLogo size={36} />
-          </Link>
+          </LocalizedLink>
           <h1 className="auth-title">Markimate</h1>
-          <p className="auth-subtitle">Verifikasi Alamat Email Akun Anda</p>
+          <p className="auth-subtitle">{t('auth.verifyTitle')}</p>
         </div>
 
         {/* Loading State */}
@@ -90,7 +101,7 @@ export default function VerifyPage({ onLoginSuccess }) {
           <div style={{ textAlign: 'center', padding: '2rem 1rem' }}>
             <RefreshCw size={36} color="var(--accent-cyan)" style={{ animation: 'spin 1s linear infinite' }} />
             <p style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-              Memverifikasi akun Anda, mohon tunggu sebentar…
+              {t('auth.verifySubtitle')}
             </p>
           </div>
         )}
@@ -111,17 +122,17 @@ export default function VerifyPage({ onLoginSuccess }) {
               <CheckCircle2 size={40} color="#10b981" />
             </div>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.5rem 0' }}>
-              Email Berhasil Diverifikasi!
+              {t('auth.verifySuccessTitle')}
             </h2>
             <p style={{ fontSize: '0.875rem', lineHeight: 1.6, color: 'var(--text-secondary)', margin: '0 0 1.5rem 0' }}>
-              Selamat datang{userData?.name ? `, ${userData.name}` : ''}! Akun Markimate Anda telah aktif. Paket <strong>Free Trial 7 Hari (300 credit)</strong> kini siap digunakan untuk automasi tim digital marketing Anda.
+              {t('auth.verifySuccessDesc')}
             </p>
 
             <button
-              onClick={() => navigate('/app/seo/keywords')}
+              onClick={() => navigate('/app/ads')}
               className="auth-btn-primary"
             >
-              <span>Mulai Gunakan Markimate</span>
+              <span>{t('auth.btnEnterDashboard')}</span>
               <ArrowRight size={18} />
             </button>
           </div>
@@ -143,7 +154,7 @@ export default function VerifyPage({ onLoginSuccess }) {
               <AlertTriangle size={32} color="#ef4444" />
             </div>
             <h2 style={{ textAlign: 'center', fontSize: '1.15rem', fontWeight: 700, color: '#f87171', margin: 0 }}>
-              Verifikasi Belum Berhasil
+              {t('auth.verifyErrorTitle')}
             </h2>
             <p style={{ textAlign: 'center', fontSize: '0.85rem', lineHeight: 1.5, color: 'var(--text-secondary)', margin: 0 }}>
               {error}
@@ -161,11 +172,11 @@ export default function VerifyPage({ onLoginSuccess }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Mail size={16} color="var(--accent-cyan)" />
                 <span style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
-                  Kirim Ulang Tautan Verifikasi
+                  {t('auth.btnResendVerification')}
                 </span>
               </div>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.45 }}>
-                Masukkan alamat email yang Anda gunakan saat mendaftar untuk menerima tautan verifikasi baru:
+                {t('auth.verifyResendInstruction')}
               </p>
 
               {resendNotice && (
@@ -176,7 +187,7 @@ export default function VerifyPage({ onLoginSuccess }) {
                 <input
                   type="email"
                   className="auth-input"
-                  placeholder="nama@bisnis.com"
+                  placeholder={t('auth.placeholderEmail')}
                   value={resendEmail}
                   onChange={(e) => setResendEmail(e.target.value)}
                   required
@@ -187,15 +198,16 @@ export default function VerifyPage({ onLoginSuccess }) {
                   disabled={resending}
                   style={{ minHeight: '40px', fontSize: '0.85rem' }}
                 >
-                  {resending ? 'Mengirimkan…' : 'Kirim Ulang Tautan'}
+                  {resending ? t('auth.btnResending') : t('auth.btnResendVerification')}
                 </button>
               </form>
             </div>
 
             <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
-              <Link to="/login" style={{ fontSize: '0.85rem', color: 'var(--accent-cyan)', textDecoration: 'none', fontWeight: 500 }}>
-                ← Kembali ke Halaman Masuk
-              </Link>
+              <LocalizedLink to="/login" style={{ fontSize: '0.85rem', color: 'var(--accent-cyan)', textDecoration: 'none', fontWeight: 500, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <ArrowRight size={14} style={{ transform: 'rotate(180deg)' }} />
+                <span>{t('auth.backToSignIn')}</span>
+              </LocalizedLink>
             </div>
           </div>
         )}

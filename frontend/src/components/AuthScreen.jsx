@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ShieldCheck, UserPlus, LogIn, ArrowRight, Coins, Mail } from 'lucide-react';
 import { api, setToken } from '../api';
 import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
+import { LocalizedLink } from '../lib/localized-router';
 import MarkimateLogo from './common/MarkimateLogo';
-import { storage } from '../lib/storage';
 
 export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { t, lang } = useLanguage();
+  const { t, lang, setLang } = useLanguage();
   const nextParam = searchParams.get('next') || '/app/ads';
 
   const [isLogin, setIsLogin] = useState(initialMode !== 'register');
@@ -41,10 +41,13 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
       });
       if (res && res.accessToken) {
         setToken(res.accessToken);
+        if (res.user?.locale && res.user.locale !== lang) {
+          setLang(res.user.locale);
+        }
         if (onLoginSuccess) onLoginSuccess(res);
       }
     } catch (err) {
-      setError(err.message || 'Gagal membatalkan penghapusan akun.');
+      setError(err.message || t('auth.errCancelDeletionFailed', 'Failed to cancel account deletion.'));
     } finally {
       setCancellingDeletion(false);
     }
@@ -60,11 +63,9 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
         method: 'POST',
         body: { email: em }
       });
-      setResendNotice(lang === 'id'
-        ? 'Tautan verifikasi baru telah dikirim. Silakan periksa inbox email atau folder spam Anda.'
-        : 'A new verification link has been sent. Please check your inbox or spam folder.');
+      setResendNotice(t('auth.resendSuccess', 'A new verification link has been sent. Please check your inbox or spam folder.'));
     } catch (err) {
-      setResendNotice(err.message || 'Gagal mengirim ulang email verifikasi.');
+      setResendNotice(err.message || t('auth.btnResend', 'Failed to resend verification email.'));
     } finally {
       setResending(false);
     }
@@ -78,20 +79,20 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
     setUnverifiedEmail('');
 
     if (!email || !password) {
-      setError(lang === 'id' ? 'Harap isi semua field wajib.' : 'Please fill in all required fields.');
+      setError(t('auth.errRequiredFields', 'Please fill in all required fields.'));
       return;
     }
     if (!isLogin) {
       if (!brandName) {
-        setError(lang === 'id' ? 'Harap isi nama brand bisnis Anda.' : 'Please enter your brand / workspace name.');
+        setError(t('auth.errBrandRequired', 'Please enter your brand / workspace name.'));
         return;
       }
       if (password.length < 10) {
-        setError(lang === 'id' ? 'Kata sandi minimal 10 karakter untuk keamanan akun Anda.' : 'Password must be at least 10 characters.');
+        setError(t('auth.errPasswordMinLength', 'Password must be at least 10 characters for account security.'));
         return;
       }
       if (!acceptTerms) {
-        setError(lang === 'id' ? 'Anda harus menyetujui Syarat & Ketentuan serta Kebijakan Privasi.' : 'You must accept the Terms of Service and Privacy Policy.');
+        setError(t('auth.errAcceptTerms', 'You must accept the Terms of Service and Privacy Policy.'));
         return;
       }
     }
@@ -101,19 +102,22 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
       if (isLogin) {
         const data = await api('/api/auth/login', { method: 'POST', body: { email, password } });
         setToken(data.token);
+        if (data.user?.locale && data.user.locale !== lang) {
+          setLang(data.user.locale);
+        }
         await onLoginSuccess(data.user);
         navigate(nextParam);
       } else {
         const data = await api('/api/auth/register', {
           method: 'POST',
-          body: { email, password, brandName, niche, name, acceptTerms: true }
+          body: { email, password, brandName, niche, name, acceptTerms: true, locale: lang }
         });
         if (data.status === 'verification_sent') {
           setVerificationSentEmail(data.email || email);
         }
       }
     } catch (err) {
-      setError(err.message || (lang === 'id' ? 'Gagal masuk. Periksa email dan kata sandi Anda.' : 'Sign in failed. Please check your email and password.'));
+      setError(err.message || t('auth.errSignInFailed', 'Sign in failed. Please check your email and password.'));
       if (err.code === 'EMAIL_NOT_VERIFIED') {
         setErrorCode('EMAIL_NOT_VERIFIED');
         setUnverifiedEmail(err.email || email);
@@ -125,17 +129,21 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
     }
   };
 
-  // Layar "Cek Email Kamu" setelah registrasi berhasil
+  // Layar "Cek Email Anda" setelah registrasi berhasil
   if (verificationSentEmail) {
     return (
       <div className="auth-page-container">
         <div className="auth-card-box">
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
+            <LanguageSwitcher size="small" />
+          </div>
+
           <div className="auth-header">
-            <Link to="/" style={styles.logoLink}>
+            <LocalizedLink to="/" style={styles.logoLink}>
               <div style={styles.logoContainer}>
                 <MarkimateLogo size={36} />
               </div>
-            </Link>
+            </LocalizedLink>
             <h1 style={styles.title}>Markimate</h1>
           </div>
 
@@ -154,15 +162,11 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
             </div>
 
             <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: '0 0 10px 0' }}>
-              {lang === 'id' ? 'Cek Inbox Email Anda' : 'Check Your Email'}
+              {t('auth.checkInboxTitle')}
             </h2>
 
             <p style={{ fontSize: '14px', lineHeight: 1.6, color: '#475569', margin: '0 0 20px 0' }}>
-              {lang === 'id' ? (
-                <>Kami telah mengirimkan tautan verifikasi ke <strong>{verificationSentEmail}</strong>. Buka email Anda dan klik tombol verifikasi untuk mengaktifkan akun serta mengklaim <strong>Free Trial 7 Hari (300 credit)</strong>.</>
-              ) : (
-                <>We sent a verification link to <strong>{verificationSentEmail}</strong>. Click the button in the email to activate your account and claim your <strong>7-Day Free Trial (300 credits)</strong>.</>
-              )}
+              {t('auth.checkInboxDesc', { email: verificationSentEmail })}
             </p>
 
             {resendNotice && (
@@ -196,9 +200,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
                 marginBottom: '16px'
               }}
             >
-              {resending
-                ? (lang === 'id' ? 'Mengirimkan…' : 'Sending…')
-                : (lang === 'id' ? 'Kirim Ulang Email Verifikasi' : 'Resend Verification Email')}
+              {resending ? t('auth.btnResending') : t('auth.btnResend')}
             </button>
 
             <button
@@ -217,14 +219,14 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
                 cursor: 'pointer'
               }}
             >
-              ← {lang === 'id' ? 'Kembali ke Halaman Masuk' : 'Back to Sign In'}
+              ← {t('auth.backToSignIn')}
             </button>
           </div>
 
           <div style={styles.footer}>
             <ShieldCheck size={14} color="var(--accent-green)" />
             <span style={styles.footerText}>
-              Markimate · powered by 3our · Verifikasi Email Wajib
+              Markimate · powered by 3our · {t('auth.emailVerificationRequired')}
             </span>
           </div>
         </div>
@@ -241,27 +243,27 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
         </div>
 
         <div style={styles.header}>
-          <Link to="/" style={styles.logoLink}>
+          <LocalizedLink to="/" style={styles.logoLink}>
             <div style={styles.logoContainer}>
               <MarkimateLogo size={32} />
             </div>
-          </Link>
+          </LocalizedLink>
           <h1 style={styles.title}>Markimate</h1>
           <p style={styles.subtitle}>
-            {lang === 'id' ? 'Semua Tim Digital Marketing dalam satu platform' : 'Full Digital Marketing Team in One Platform'} · <strong>powered by 3our</strong>
+            {t('auth.tagline')} · <strong>powered by 3our</strong>
           </p>
         </div>
 
         {/* Baris ajakan coba gratis 7 hari saat mode login */}
         {isLogin && (
           <div style={styles.trialPrompt}>
-            <span>{lang === 'id' ? 'Belum punya akun?' : "Don't have an account?"}</span>
+            <span>{t('auth.trialLoginPrompt')}</span>
             <button
               type="button"
               onClick={() => { setIsLogin(false); setError(''); setErrorCode(''); }}
               style={styles.trialPromptBtn}
             >
-              <span>{lang === 'id' ? 'Coba gratis 7 hari (300 credit) →' : 'Start 7-day free trial (300 credits) →'}</span>
+              <span>{t('auth.trialLoginPromptBtn')}</span>
             </button>
           </div>
         )}
@@ -273,7 +275,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
             onClick={() => { setIsLogin(true); setError(''); setErrorCode(''); }}
           >
             <LogIn size={15} />
-            {t('nav.login', 'Sign In')}
+            {t('auth.tabLogin', 'Sign In')}
           </button>
           <button 
             type="button"
@@ -281,7 +283,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
             onClick={() => { setIsLogin(false); setError(''); setErrorCode(''); }}
           >
             <UserPlus size={15} />
-            {lang === 'id' ? 'Daftar Baru' : 'Register'}
+            {t('auth.tabRegister', 'Register')}
           </button>
         </div>
 
@@ -308,7 +310,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
                       cursor: 'pointer'
                     }}
                   >
-                    {resending ? 'Mengirimkan…' : 'Kirim Ulang Email Verifikasi'}
+                    {resending ? t('auth.btnResending') : t('auth.btnResend')}
                   </button>
                 )}
               </div>
@@ -330,7 +332,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
                     cursor: 'pointer'
                   }}
                 >
-                  {cancellingDeletion ? 'Membatalkan…' : 'Batalkan Penghapusan & Masuk ke Akun'}
+                  {cancellingDeletion ? t('auth.btnCancellingDeletion') : t('auth.btnCancelDeletion')}
                 </button>
               </div>
             )}
@@ -341,9 +343,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
           <div style={styles.trialBox}>
             <Coins size={16} color="var(--accent-cyan)" />
             <div style={{ flex: 1, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              {lang === 'id'
-                ? 'Daftar sekarang & dapatkan Free Trial 7 Hari (300 credit) otomatis setelah verifikasi email, tanpa perlu kartu kredit.'
-                : 'Register now & instantly get a 7-Day Free Trial (300 credits) upon email verification, zero credit card required.'}
+              {t('auth.trialRegisterNote')}
             </div>
           </div>
         )}
@@ -352,11 +352,11 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
           {!isLogin && (
             <>
               <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label className="form-label" style={styles.label}>Nama Anda / PIC</label>
+                <label className="form-label" style={styles.label}>{t('auth.labelBrandPic')}</label>
                 <input 
                   type="text" 
                   className="form-input" 
-                  placeholder="Contoh: Budi Pratama" 
+                  placeholder={t('auth.placeholderBrandPic')} 
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   style={styles.input}
@@ -365,11 +365,11 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
               </div>
 
               <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label className="form-label" style={styles.label}>Nama Brand Bisnis</label>
+                <label className="form-label" style={styles.label}>{t('auth.labelBrandName')}</label>
                 <input 
                   type="text" 
                   className="form-input" 
-                  placeholder="Contoh: Kopi Makmur" 
+                  placeholder={t('auth.placeholderBrand')} 
                   value={brandName}
                   onChange={(e) => setBrandName(e.target.value)}
                   style={styles.input}
@@ -378,7 +378,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
               </div>
 
               <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label className="form-label" style={styles.label}>Niche Usaha / Kategori</label>
+                <label className="form-label" style={styles.label}>{t('auth.labelNiche')}</label>
                 <select 
                   className="form-select"
                   value={niche}
@@ -390,18 +390,18 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
                   <option value="Agency">Creative Agency / Jasa</option>
                   <option value="Tech">Software / Startup Teknologi</option>
                   <option value="Property">Properti & Real Estate</option>
-                  <option value="Other">Lainnya</option>
+                  <option value="Other">Lainnya / Other</option>
                 </select>
               </div>
             </>
           )}
 
           <div className="form-group" style={{ marginBottom: '1rem' }}>
-            <label className="form-label" style={styles.label}>Alamat Email</label>
+            <label className="form-label" style={styles.label}>{t('auth.labelEmail')}</label>
             <input 
               type="email" 
               className="form-input" 
-              placeholder="nama@bisnis.com" 
+              placeholder={t('auth.placeholderEmail')} 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={styles.input}
@@ -411,17 +411,17 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
 
           <div className="form-group" style={{ marginBottom: !isLogin ? '0.5rem' : '1.25rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-              <label className="form-label" style={{ ...styles.label, marginBottom: 0 }}>Kata Sandi</label>
+              <label className="form-label" style={{ ...styles.label, marginBottom: 0 }}>{t('auth.labelPassword')}</label>
               {isLogin && (
-                <Link to="/forgot" style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)', textDecoration: 'none' }}>
-                  {lang === 'id' ? 'Lupa kata sandi?' : 'Forgot password?'}
-                </Link>
+                <LocalizedLink to="/forgot" style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)', textDecoration: 'none' }}>
+                  {t('auth.forgotPasswordLink')}
+                </LocalizedLink>
               )}
             </div>
             <input 
               type="password" 
               className="form-input" 
-              placeholder={!isLogin ? 'Minimal 10 karakter' : '••••••••'} 
+              placeholder={!isLogin ? t('auth.placeholderPassword') : '••••••••'} 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={styles.input}
@@ -436,7 +436,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
                 alignItems: 'center',
                 gap: '4px'
               }}>
-                {password.length >= 10 ? '✓ Panjang kata sandi memenuhi syarat (≥10 karakter)' : '• Minimal 10 karakter untuk standar keamanan akun'}
+                {password.length >= 10 ? t('auth.passwordHintValid') : t('auth.passwordHintMin')}
               </div>
             )}
           </div>
@@ -452,14 +452,14 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
                   required
                 />
                 <span>
-                  Saya menyetujui{' '}
-                  <Link to="/terms" target="_blank" style={{ color: '#2563eb', textDecoration: 'underline' }}>
-                    Syarat & Ketentuan
-                  </Link>{' '}
-                  dan{' '}
-                  <Link to="/privacy" target="_blank" style={{ color: '#2563eb', textDecoration: 'underline' }}>
-                    Kebijakan Privasi
-                  </Link>{' '}
+                  {t('auth.agreeTermsPrefix')}{' '}
+                  <LocalizedLink to="/terms" target="_blank" style={{ color: '#2563eb', textDecoration: 'underline' }}>
+                    {t('auth.termsOfService')}
+                  </LocalizedLink>{' '}
+                  {t('auth.andText')}{' '}
+                  <LocalizedLink to="/privacy" target="_blank" style={{ color: '#2563eb', textDecoration: 'underline' }}>
+                    {t('auth.privacyPolicy')}
+                  </LocalizedLink>{' '}
                   Markimate.
                 </span>
               </label>
@@ -473,15 +473,15 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
             disabled={loading}
           >
             {loading ? (
-              <span style={styles.loader}>Memproses…</span>
+              <span style={styles.loader}>{t('auth.btnProcessing')}</span>
             ) : isLogin ? (
               <>
-                <span>Masuk Sekarang</span>
+                <span>{t('auth.btnSignIn')}</span>
                 <ArrowRight size={16} />
               </>
             ) : (
               <>
-                <span>Daftar & Kirim Verifikasi</span>
+                <span>{t('auth.btnSignUp')}</span>
                 <ArrowRight size={16} />
               </>
             )}
@@ -489,7 +489,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
         </form>
 
         <div className="auth-separator">
-          <span>{lang === 'id' ? 'atau lanjutkan dengan' : 'or continue with'}</span>
+          <span>{t('auth.orContinueWith')}</span>
         </div>
 
         <button
@@ -505,26 +505,24 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
           </svg>
           <span>
-            {isLogin
-              ? (lang === 'id' ? 'Masuk dengan Google' : 'Sign in with Google')
-              : (lang === 'id' ? 'Daftar dengan Google' : 'Sign up with Google')}
+            {isLogin ? t('auth.btnGoogleLogin') : t('auth.btnGoogleRegister')}
           </span>
         </button>
 
         <div style={styles.footerLinks}>
-          <Link to="/privacy" style={styles.footerLink}>Kebijakan Privasi</Link>
+          <LocalizedLink to="/privacy" style={styles.footerLink}>{t('auth.privacyPolicy')}</LocalizedLink>
           <span>·</span>
-          <Link to="/terms" style={styles.footerLink}>Syarat & Ketentuan</Link>
+          <LocalizedLink to="/terms" style={styles.footerLink}>{t('auth.termsOfService')}</LocalizedLink>
           <span>·</span>
-          <Link to="/data-deletion" style={styles.footerLink}>Penghapusan Data</Link>
+          <LocalizedLink to="/data-deletion" style={styles.footerLink}>{t('auth.dataDeletion')}</LocalizedLink>
           <span>·</span>
-          <Link to="/" style={styles.footerLink}>Beranda</Link>
+          <LocalizedLink to="/" style={styles.footerLink}>{t('auth.home')}</LocalizedLink>
         </div>
 
         <div style={styles.footer}>
           <ShieldCheck size={14} color="var(--accent-green)" />
           <span style={styles.footerText}>
-            Markimate · powered by 3our · Keamanan Data OAuth Read-Only
+            Markimate · powered by 3our · {t('auth.footerSecurityNote')}
           </span>
         </div>
       </div>
