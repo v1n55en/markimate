@@ -14,24 +14,20 @@ import {
   FileText,
   MessageCircle,
 } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 import { useWorkspace } from '../context/WorkspaceContext';
 import {
   MODULE_PRICES,
   MODULE_QUOTA,
-  formatIDR,
   calculatePricing,
 } from '../config/pricing';
+import { formatIDR, formatDate } from '../lib/format';
 import { ROLES } from '../config/roles';
 import { api } from '../api';
 import { storage } from '../lib/storage';
 
-const PAYMENT_METHODS = [
-  { id: 'qris', label: 'QRIS Instant', icon: QrCode, note: 'GoPay, OVO, DANA, ShopeePay, BCA' },
-  { id: 'va', label: 'Virtual Account', icon: Building2, note: 'BCA, Mandiri, BNI, BRI' },
-  { id: 'card', label: 'Kartu Kredit / Debit', icon: CreditCard, note: 'Visa, Mastercard' },
-];
-
 export default function BillingPage({ refreshMe }) {
+  const { lang, t } = useLanguage();
   const { activeWorkspace, updateWorkspace } = useWorkspace();
 
   const [billingCycle, setBillingCycle] = useState(
@@ -76,7 +72,7 @@ export default function BillingPage({ refreshMe }) {
   const handleToggleModule = (modKey) => {
     if (selectedModules.includes(modKey)) {
       if (selectedModules.length === 1) {
-        alert('Minimal harus memilih 1 modul untuk workspace.');
+        alert(t('billing.minOneModuleAlert'));
         return;
       }
       setSelectedModules((prev) => prev.filter((m) => m !== modKey));
@@ -110,7 +106,7 @@ export default function BillingPage({ refreshMe }) {
           setBillingDisabled(true);
           setNotice({
             ok: false,
-            text: err.message || 'Pembayaran langsung belum tersedia. Hubungi 3Our untuk aktivasi paket.',
+            text: err.message || (lang.startsWith('id') ? 'Pembayaran langsung belum tersedia. Hubungi 3Our untuk aktivasi paket.' : 'Direct checkout is not yet available. Contact 3Our for plan activation.'),
           });
           return;
         }
@@ -132,7 +128,7 @@ export default function BillingPage({ refreshMe }) {
         modules: selectedModules,
         amount: pricing.totalToPay,
         cycle: billingCycle,
-        status: 'Lunas',
+        status: t('billing.paidStatus'),
       };
 
       try {
@@ -145,7 +141,10 @@ export default function BillingPage({ refreshMe }) {
 
       setNotice({
         ok: true,
-        text: `Langganan berhasil diperbarui! Seluruh ${selectedModules.length} modul aktif di ${activeWorkspace.name}.`,
+        text: t('billing.subscriptionSuccessNotice', {
+          count: selectedModules.length,
+          workspace: activeWorkspace.name,
+        }),
       });
 
       if (refreshMe) {
@@ -160,7 +159,7 @@ export default function BillingPage({ refreshMe }) {
 
   const handleCancelModule = (modKey) => {
     if (selectedModules.length <= 1) {
-      alert('Tidak bisa membatalkan semua modul. Minimal 1 modul harus aktif.');
+      alert(t('billing.minOneModuleCancelAlert'));
       return;
     }
     const nextModules = selectedModules.filter((m) => m !== modKey);
@@ -168,7 +167,10 @@ export default function BillingPage({ refreshMe }) {
     updateWorkspace(activeWorkspace.id, { modules: nextModules });
     setNotice({
       ok: true,
-      text: `Modul "${modKey}" telah dinonaktifkan untuk ${activeWorkspace.name}.`,
+      text: t('billing.moduleDisabledNotice', {
+        module: modKey,
+        workspace: activeWorkspace.name,
+      }),
     });
   };
 
@@ -198,6 +200,12 @@ export default function BillingPage({ refreshMe }) {
     selectedModules.length === 3 &&
     ['seo', 'ads_report', 'ads_spy'].every((m) => selectedModules.includes(m));
 
+  const paymentMethods = [
+    { id: 'qris', label: 'QRIS Instant', icon: QrCode, note: 'GoPay, OVO, DANA, ShopeePay, BCA' },
+    { id: 'va', label: 'Virtual Account', icon: Building2, note: 'BCA, Mandiri, BNI, BRI' },
+    { id: 'card', label: lang.startsWith('id') ? 'Kartu Kredit / Debit' : 'Credit / Debit Card', icon: CreditCard, note: 'Visa, Mastercard' },
+  ];
+
   return (
     <div style={styles.container}>
       {/* 1. Header Halaman */}
@@ -208,11 +216,11 @@ export default function BillingPage({ refreshMe }) {
           </div>
           <div>
             <div style={styles.titleRow}>
-              <h1 style={styles.title}>Langganan & Paket Modular</h1>
-              <span style={styles.brandTag}>Workspace: {activeWorkspace?.name}</span>
+              <h1 style={styles.title}>{t('billing.title')}</h1>
+              <span style={styles.brandTag}>{t('billing.activeBrandLabel')} {activeWorkspace?.name}</span>
             </div>
             <p style={styles.subtitle}>
-              Pilih spesialis AI yang Anda butuhkan. Bayar satuan atau ambil bundle diskon. Semua biaya infrastruktur, scraping, dan komputasi AI sudah termasuk.
+              {t('billing.subtitle')}
             </p>
           </div>
         </div>
@@ -227,7 +235,7 @@ export default function BillingPage({ refreshMe }) {
               ...(billingCycle === 'monthly' ? styles.cycleBtnActive : {}),
             }}
           >
-            Bulanan
+            {t('billing.cycleMonthly')}
           </button>
           <button
             type="button"
@@ -237,8 +245,8 @@ export default function BillingPage({ refreshMe }) {
               ...(billingCycle === 'yearly' ? styles.cycleBtnActive : {}),
             }}
           >
-            <span>Tahunan</span>
-            <span style={styles.saveBadge}>Hemat 2 Bln</span>
+            <span>{t('billing.cycleYearly')}</span>
+            <span style={styles.saveBadge}>{t('billing.saveYearlyBadge')}</span>
           </button>
         </div>
       </div>
@@ -267,9 +275,9 @@ export default function BillingPage({ refreshMe }) {
         {/* Kolom Kiri: Pilihan Modul & Bundle */}
         <div style={styles.leftColumn}>
           <div style={styles.sectionHeadingRow}>
-            <h3 style={styles.sectionHeading}>Pilih Modul AI (Role Tersedia)</h3>
+            <h3 style={styles.sectionHeading}>{t('billing.chooseModulesTitle')}</h3>
             <span style={styles.sectionSubText}>
-              {selectedModules.length} dari 3 modul dipilih
+              {t('billing.selectedCount', { count: selectedModules.length, total: 3 })}
             </span>
           </div>
 
@@ -296,25 +304,35 @@ export default function BillingPage({ refreshMe }) {
                     {selectedModules.includes('seo') && <Check size={12} color="#000000" />}
                   </div>
                   <div>
-                    <strong style={styles.choiceName}>SEO Specialist</strong>
-                    <span style={styles.choiceCategory}>Konten & Organik</span>
+                    <strong style={styles.choiceName}>AI SEO Specialist</strong>
+                    <span style={styles.choiceCategory}>
+                      {lang.startsWith('id') ? 'Konten & Organik' : 'Content & Organic'}
+                    </span>
                   </div>
                 </div>
 
                 <div style={styles.choicePriceBlock}>
                   <span style={styles.choicePrice}>
-                    {formatIDR(MODULE_PRICES.seo)}
+                    {formatIDR(MODULE_PRICES.seo, lang)}
                   </span>
-                  <span style={styles.choicePeriod}>/ bulan</span>
+                  <span style={styles.choicePeriod}>{t('billing.perMonth')}</span>
                 </div>
               </div>
 
               <p style={styles.choiceDesc}>
-                Riset keyword otomatis, penulisan artikel mendalam 1.200+ kata, dan penerbitan ke WordPress/Wix.
+                {lang.startsWith('id')
+                  ? 'Riset keyword otomatis, penulisan artikel mendalam 1.200+ kata, dan penerbitan ke WordPress/Wix.'
+                  : 'Automated keyword research, in-depth 1,200+ word articles, and 1-click publishing to WordPress/Wix.'}
               </p>
               <div style={styles.choiceQuota}>
                 <Layers size={13} color="var(--accent-cyan)" />
-                <span>Kuota: {MODULE_QUOTA.seo}</span>
+                <span>
+                  {t('billing.quota', {
+                    quota: lang.startsWith('id')
+                      ? '1.500 credit / bulan (≈ 20 artikel SEO + gambar AI)'
+                      : '1,500 credits / month (≈ 20 SEO articles + AI images)'
+                  })}
+                </span>
               </div>
             </div>
 
@@ -343,26 +361,36 @@ export default function BillingPage({ refreshMe }) {
                   </div>
                   <div>
                     <strong style={styles.choiceName}>
-                      Ads Specialist — Report Semua Platform
+                      {lang.startsWith('id') ? 'Ads Specialist — Report Semua Platform' : 'AI Ads Performance Reporter'}
                     </strong>
-                    <span style={styles.choiceCategory}>Periklanan Berbayar</span>
+                    <span style={styles.choiceCategory}>
+                      {lang.startsWith('id') ? 'Periklanan Berbayar' : 'Paid Advertising'}
+                    </span>
                   </div>
                 </div>
 
                 <div style={styles.choicePriceBlock}>
                   <span style={styles.choicePrice}>
-                    {formatIDR(MODULE_PRICES.ads_report)}
+                    {formatIDR(MODULE_PRICES.ads_report, lang)}
                   </span>
-                  <span style={styles.choicePeriod}>/ bulan</span>
+                  <span style={styles.choicePeriod}>{t('billing.perMonth')}</span>
                 </div>
               </div>
 
               <p style={styles.choiceDesc}>
-                Konsolidasi laporan bulanan Meta, Google, TikTok, GMV Max, dan Shopee Ads dengan analitik ROAS AI.
+                {lang.startsWith('id')
+                  ? 'Konsolidasi laporan bulanan Meta, Google, TikTok, GMV Max, dan Shopee Ads dengan analitik ROAS AI.'
+                  : 'Monthly consolidation for Meta, Google, TikTok, GMV Max, and Shopee Ads with AI ROAS analytics.'}
               </p>
               <div style={styles.choiceQuota}>
                 <Layers size={13} color="var(--accent-cyan)" />
-                <span>Kuota: {MODULE_QUOTA.ads_report}</span>
+                <span>
+                  {t('billing.quota', {
+                    quota: lang.startsWith('id')
+                      ? '1.500 credit / bulan (Laporan akun iklan Meta & Google)'
+                      : '1,500 credits / month (Meta & Google ad account reporting)'
+                  })}
+                </span>
               </div>
             </div>
 
@@ -390,32 +418,44 @@ export default function BillingPage({ refreshMe }) {
                     )}
                   </div>
                   <div>
-                    <strong style={styles.choiceName}>Ads Creative Spy</strong>
-                    <span style={styles.choiceCategory}>Riset & Intelijen</span>
+                    <strong style={styles.choiceName}>
+                      {lang.startsWith('id') ? 'Ads Creative Spy' : 'AI Ads Creative Spy'}
+                    </strong>
+                    <span style={styles.choiceCategory}>
+                      {lang.startsWith('id') ? 'Riset & Intelijen' : 'Research & Intelligence'}
+                    </span>
                   </div>
                 </div>
 
                 <div style={styles.choicePriceBlock}>
                   <span style={styles.choicePrice}>
-                    {formatIDR(MODULE_PRICES.ads_spy)}
+                    {formatIDR(MODULE_PRICES.ads_spy, lang)}
                   </span>
-                  <span style={styles.choicePeriod}>/ bulan</span>
+                  <span style={styles.choicePeriod}>{t('billing.perMonth')}</span>
                 </div>
               </div>
 
               <p style={styles.choiceDesc}>
-                Pantau pergerakan iklan kompetitor di Meta Ad Library, kurasi creative winning, dan bongkar pola hook.
+                {lang.startsWith('id')
+                  ? 'Pantau pergerakan iklan kompetitor di Meta Ad Library, kurasi creative winning, dan bongkar pola hook.'
+                  : 'Monitor competitor ads across Meta Ad Library, curate winning creatives, and decode hook angles.'}
               </p>
               <div style={styles.choiceQuota}>
                 <Layers size={13} color="var(--accent-cyan)" />
-                <span>Kuota: {MODULE_QUOTA.ads_spy}</span>
+                <span>
+                  {t('billing.quota', {
+                    quota: lang.startsWith('id')
+                      ? '1.000 credit / bulan (Scan kompetitor Ad Library mingguan)'
+                      : '1,000 credits / month (Weekly competitor Ad Library scans)'
+                  })}
+                </span>
               </div>
             </div>
           </div>
 
           {/* Kartu Promo Paket Bundle Lainnya */}
           <div style={styles.bundleSection}>
-            <h3 style={styles.sectionHeading}>Pilihan Paket Spesial & Bundle</h3>
+            <h3 style={styles.sectionHeading}>{t('billing.specialBundlesTitle')}</h3>
 
             <div style={styles.bundlesGrid}>
               {/* Bundle Fokus 3 Card */}
@@ -427,77 +467,77 @@ export default function BillingPage({ refreshMe }) {
                 className="card"
               >
                 <div style={styles.bundleBadgeRow}>
-                  <span style={styles.popularBadge}>Diskon 20%</span>
+                  <span style={styles.popularBadge}>{lang.startsWith('id') ? 'Diskon 20%' : 'Save 20%'}</span>
                   {isFocus3Selected && (
-                    <span style={styles.bundleActiveTag}>Terpilih</span>
+                    <span style={styles.bundleActiveTag}>{t('billing.focus3ActiveBtn')}</span>
                   )}
                 </div>
-                <h4 style={styles.bundleTitle}>Paket Fokus 3</h4>
+                <h4 style={styles.bundleTitle}>{t('billing.focus3BundleTitle')}</h4>
                 <p style={styles.bundleDesc}>
-                  Gabungan 3 pilar: SEO Specialist + Ads Reporting + Creative Spy.
+                  {t('billing.focus3BundleDesc')}
                 </p>
                 <div style={styles.bundlePriceRow}>
-                  <span style={styles.strikePrice}>Rp 4.000.000</span>
-                  <strong style={styles.bundlePrice}>Rp 3.200.000</strong>
-                  <span style={styles.perMonth}>/ bln</span>
+                  <span style={styles.strikePrice}>{formatIDR(4000000, lang)}</span>
+                  <strong style={styles.bundlePrice}>{formatIDR(3200000, lang)}</strong>
+                  <span style={styles.perMonth}>{t('billing.perMonth')}</span>
                 </div>
                 <button
                   type="button"
                   onClick={handleSelectBundleFocus3}
                   style={styles.selectBundleBtn}
                 >
-                  {isFocus3Selected ? 'Paket Aktif Dipilih' : 'Pilih Bundle Fokus 3'}
+                  {isFocus3Selected ? t('billing.focus3ActiveBtn') : t('billing.focus3SelectBtn')}
                 </button>
               </div>
 
               {/* All-in-One Pre-order Card */}
               <div style={styles.bundleCard} className="card">
                 <div style={styles.bundleBadgeRow}>
-                  <span style={styles.preorderBadge}>Pre-Order Eksklusif</span>
+                  <span style={styles.preorderBadge}>{t('billing.preorderBadge')}</span>
                 </div>
-                <h4 style={styles.bundleTitle}>All-in-One AI Team</h4>
+                <h4 style={styles.bundleTitle}>{t('billing.allInOneTitle')}</h4>
                 <p style={styles.bundleDesc}>
-                  Seluruh 16 role tim marketing AI. Modul baru aktif otomatis saat rilis.
+                  {t('billing.allInOneDesc')}
                 </p>
                 <div style={styles.bundlePriceRow}>
-                  <strong style={styles.bundlePrice}>Rp 7.875.000</strong>
-                  <span style={styles.perMonth}>/ bln</span>
+                  <strong style={styles.bundlePrice}>{formatIDR(7875000, lang)}</strong>
+                  <span style={styles.perMonth}>{t('billing.perMonth')}</span>
                 </div>
                 <button
                   type="button"
-                  onClick={() =>
-                    alert(
-                      'Pre-order All-in-One AI Team berhasil dicatat! Tim 3Our akan segera mengaktifkan akses awal untuk workspace Anda.'
-                    )
-                  }
+                  onClick={() => alert(t('billing.preorderSuccess'))}
                   style={styles.preorderBtn}
                 >
                   <Sparkles size={14} />
-                  <span>Pre-Order Sekarang</span>
+                  <span>{t('billing.preorderBtn')}</span>
                 </button>
               </div>
 
               {/* Managed by 3Our Card */}
               <div style={styles.bundleCard} className="card">
                 <div style={styles.bundleBadgeRow}>
-                  <span style={styles.managedBadge}>Layanan Agensi</span>
+                  <span style={styles.managedBadge}>{t('billing.agencyServiceBadge')}</span>
                 </div>
-                <h4 style={styles.bundleTitle}>Managed by 3Our</h4>
+                <h4 style={styles.bundleTitle}>{t('billing.managedTitle')}</h4>
                 <p style={styles.bundleDesc}>
-                  Layanan penuh terkelola. Tim agensi 3Our mengoperasikan platform untuk Anda.
+                  {t('billing.managedDesc')}
                 </p>
                 <div style={styles.bundlePriceRow}>
                   <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    Konsultasi & Penawaran Kustom
+                    {t('billing.customQuote')}
                   </span>
                 </div>
                 <a
-                  href="https://wa.me/6285179642520?text=Halo%203Our,%20saya%20tertarik%20dengan%20paket%20Managed%20by%203Our%20Markimate"
+                  href={`https://wa.me/6285179642520?text=${encodeURIComponent(
+                    lang.startsWith('id')
+                      ? 'Halo 3Our, saya tertarik dengan paket Managed by 3Our Markimate'
+                      : 'Hello 3Our, I am interested in Markimate Managed by 3Our package'
+                  )}`}
                   target="_blank"
                   rel="noreferrer"
                   style={styles.contactSalesBtn}
                 >
-                  <span>Hubungi Tim Sales</span>
+                  <span>{t('billing.contactSales')}</span>
                   <ExternalLink size={13} />
                 </a>
               </div>
@@ -508,9 +548,10 @@ export default function BillingPage({ refreshMe }) {
         {/* Kolom Kanan: Ringkasan Biaya & Form Checkout */}
         <div style={styles.rightColumn}>
           <form onSubmit={handleCheckoutSubmit} style={styles.checkoutCard} className="card">
-            <h3 style={styles.checkoutTitle}>Ringkasan Tagihan</h3>
+            <h3 style={styles.checkoutTitle}>{t('billing.summaryTitle')}</h3>
             <span style={styles.checkoutSub}>
-              Siklus Pembayaran: <strong>{billingCycle === 'yearly' ? 'Tahunan' : 'Bulanan'}</strong>
+              {t('billing.paymentCycleLabel')}{' '}
+              <strong>{billingCycle === 'yearly' ? t('billing.cycleYearly') : t('billing.cycleMonthly')}</strong>
             </span>
 
             {/* List Modul yang Terpilih */}
@@ -519,19 +560,23 @@ export default function BillingPage({ refreshMe }) {
                 <div key={mKey} style={styles.summaryItemRow}>
                   <div style={styles.summaryItemInfo}>
                     <span style={styles.summaryItemName}>
-                      {ROLES.find((r) => r.key === mKey)?.name || mKey}
+                      {(() => {
+                        const r = ROLES.find((role) => role.key === mKey);
+                        if (!r) return mKey;
+                        return lang.startsWith('id') ? (r.name_id || r.name) : r.name;
+                      })()}
                     </span>
                     <button
                       type="button"
                       onClick={() => handleCancelModule(mKey)}
                       style={styles.cancelModuleBtn}
-                      title="Batalkan modul ini"
+                      title={t('billing.remove')}
                     >
-                      Hapus
+                      {t('billing.remove')}
                     </button>
                   </div>
                   <span style={styles.summaryItemPrice}>
-                    {formatIDR(MODULE_PRICES[mKey])}
+                    {formatIDR(MODULE_PRICES[mKey], lang)}
                   </span>
                 </div>
               ))}
@@ -543,11 +588,11 @@ export default function BillingPage({ refreshMe }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                   <Sparkles size={13} color="var(--accent-green)" />
                   <span style={{ color: 'var(--accent-green)', fontWeight: '600' }}>
-                    Diskon Bundle Fokus 3 (20%)
+                    {t('billing.discountLabel')}
                   </span>
                 </div>
                 <span style={{ color: 'var(--accent-green)', fontWeight: '700' }}>
-                  -{formatIDR(pricing.baseMonthly * pricing.discountPercent)}
+                  -{formatIDR(pricing.baseMonthly * pricing.discountPercent, lang)}
                 </span>
               </div>
             )}
@@ -558,11 +603,11 @@ export default function BillingPage({ refreshMe }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                   <CheckCircle2 size={13} color="var(--accent-green)" />
                   <span style={{ color: 'var(--accent-green)', fontWeight: '600' }}>
-                    Gratis 2 Bulan (Siklus Tahunan)
+                    {t('billing.yearlyFreeMonths')}
                   </span>
                 </div>
                 <span style={{ color: 'var(--accent-green)', fontWeight: '700' }}>
-                  -{formatIDR(pricing.savingsAnnual)}
+                  -{formatIDR(pricing.savingsAnnual, lang)}
                 </span>
               </div>
             )}
@@ -570,21 +615,21 @@ export default function BillingPage({ refreshMe }) {
             {/* Total Akhir */}
             <div style={styles.totalBlock}>
               <div>
-                <span style={styles.totalLabel}>Total Yang Dibayar</span>
+                <span style={styles.totalLabel}>{t('billing.totalLabel')}</span>
                 <span style={styles.totalBillingNote}>
-                  {billingCycle === 'yearly' ? 'Untuk 12 bulan penuh' : 'Per bulan'}
+                  {billingCycle === 'yearly' ? t('billing.totalAnnualNote') : t('billing.totalMonthlyNote')}
                 </span>
               </div>
               <strong style={styles.totalAmount}>
-                {formatIDR(pricing.totalToPay)}
+                {formatIDR(pricing.totalToPay, lang)}
               </strong>
             </div>
 
             {/* Pemilihan Metode Pembayaran */}
             <div style={styles.paymentMethodsBlock}>
-              <label style={styles.paymentMethodLabel}>Metode Pembayaran</label>
+              <label style={styles.paymentMethodLabel}>{t('billing.paymentMethodTitle')}</label>
               <div style={styles.methodsList}>
-                {PAYMENT_METHODS.map((m) => {
+                {paymentMethods.map((m) => {
                   const Icon = m.icon;
                   const isSelected = selectedMethod === m.id;
                   return (
@@ -616,7 +661,9 @@ export default function BillingPage({ refreshMe }) {
             {billingDisabled ? (
               <a
                 href={`https://wa.me/6285179642520?text=${encodeURIComponent(
-                  `Halo 3Our, saya ingin aktivasi paket ${pricing.appliedBundle || 'Markimate'} (${selectedModules.length} modul) untuk workspace ${activeWorkspace?.name || ''}.`
+                  lang.startsWith('id')
+                    ? `Halo 3Our, saya ingin aktivasi paket ${pricing.appliedBundle || 'Markimate'} (${selectedModules.length} modul) untuk workspace ${activeWorkspace?.name || ''}.`
+                    : `Hello 3Our, I would like to activate plan ${pricing.appliedBundle || 'Markimate'} (${selectedModules.length} modules) for workspace ${activeWorkspace?.name || ''}.`
                 )}`}
                 target="_blank"
                 rel="noreferrer"
@@ -628,7 +675,7 @@ export default function BillingPage({ refreshMe }) {
                 }}
               >
                 <MessageCircle size={16} />
-                <span>Hubungi kami untuk aktivasi (WhatsApp)</span>
+                <span>{t('billing.contactWhatsapp')}</span>
               </a>
             ) : (
               <button
@@ -637,12 +684,15 @@ export default function BillingPage({ refreshMe }) {
                 style={styles.checkoutSubmitBtn}
               >
                 {busy ? (
-                  <span>Memproses Checkout…</span>
+                  <span>{t('billing.checkoutProcessing')}</span>
                 ) : (
                   <>
                     <Crown size={16} />
                     <span>
-                      Bayar & Aktifkan {selectedModules.length} Modul ({formatIDR(pricing.totalToPay)})
+                      {t('billing.checkoutBtn', {
+                        count: selectedModules.length,
+                        total: formatIDR(pricing.totalToPay, lang)
+                      })}
                     </span>
                   </>
                 )}
@@ -653,7 +703,7 @@ export default function BillingPage({ refreshMe }) {
               <div style={styles.dummyNotice}>
                 <ShieldCheck size={14} color="var(--accent-cyan)" />
                 <span>
-                  Aktivasi paket saat ini dilakukan melalui kontak resmi 3Our Indonesia (+62 851-7964-2520 / info@3ourasia.id).
+                  {t('billing.agencyNotice')}
                 </span>
               </div>
             )}
@@ -666,10 +716,10 @@ export default function BillingPage({ refreshMe }) {
         <div style={styles.historyHeader}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
             <FileText size={16} color="var(--accent-cyan)" />
-            <h3 style={styles.historyTitle}>Riwayat Faktur & Tagihan</h3>
+            <h3 style={styles.historyTitle}>{t('billing.invoicesTitle')}</h3>
           </div>
           <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            Faktur untuk {activeWorkspace?.name}
+            {t('billing.invoicesWorkspace', { name: activeWorkspace?.name })}
           </span>
         </div>
 
@@ -677,12 +727,12 @@ export default function BillingPage({ refreshMe }) {
           <table style={styles.historyTable}>
             <thead>
               <tr style={styles.historyThRow}>
-                <th style={styles.historyTh}>No. Faktur</th>
-                <th style={styles.historyTh}>Tanggal</th>
-                <th style={styles.historyTh}>Modul / Paket</th>
-                <th style={styles.historyTh}>Total</th>
-                <th style={styles.historyTh}>Siklus</th>
-                <th style={styles.historyTh}>Status</th>
+                <th style={styles.historyTh}>{t('billing.invId')}</th>
+                <th style={styles.historyTh}>{t('billing.invDate')}</th>
+                <th style={styles.historyTh}>{t('billing.invModules')}</th>
+                <th style={styles.historyTh}>{t('billing.invAmount')}</th>
+                <th style={styles.historyTh}>{t('billing.invoiceCycle')}</th>
+                <th style={styles.historyTh}>{t('billing.invStatus')}</th>
               </tr>
             </thead>
             <tbody>
@@ -692,11 +742,7 @@ export default function BillingPage({ refreshMe }) {
                     <strong style={{ color: 'var(--text-primary)' }}>{item.invoiceNo}</strong>
                   </td>
                   <td style={styles.historyTd}>
-                    {new Date(item.date).toLocaleDateString('id-ID', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
+                    {formatDate(item.date, lang)}
                   </td>
                   <td style={styles.historyTd}>
                     {Array.isArray(item.modules)
@@ -705,7 +751,7 @@ export default function BillingPage({ refreshMe }) {
                   </td>
                   <td style={styles.historyTd}>
                     <strong style={{ color: 'var(--text-primary)' }}>
-                      {formatIDR(item.amount)}
+                      {formatIDR(item.amount, lang)}
                     </strong>
                   </td>
                   <td style={styles.historyTd}>
@@ -714,7 +760,7 @@ export default function BillingPage({ refreshMe }) {
                   <td style={styles.historyTd}>
                     <span style={styles.paidStatusBadge}>
                       <Check size={11} />
-                      {item.status}
+                      {t('billing.paidStatus')}
                     </span>
                   </td>
                 </tr>

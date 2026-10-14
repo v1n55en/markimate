@@ -36,5 +36,15 @@ export const common = {
   "details": "Rincian",
   "itemsCount": "{count} butir",
   "itemsCount_one": "{count} butir",
-  "itemsCount_other": "{count} butir"
+  "itemsCount_other": "{count} butir",
+  "booting": "Memuat Markimate…",
+  "planPro": "PAKET PRO",
+  "planFree": "PAKET FREE",
+  "upgradeToPro": "Upgrade ke Pro untuk membuka semua fitur",
+  "monthlyQuota": "Kuota artikel",
+  "monthlyArticlesProgress": "{used} dari {limit} artikel bulan ini",
+  "viewCreditWallet": "Lihat dompet credit & top-up",
+  "from": "Mulai dari",
+  "perMonth": "/bln",
+  "perYear": "/thn"
 };

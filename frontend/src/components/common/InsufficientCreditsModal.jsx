@@ -6,7 +6,7 @@ import { useLanguage } from '../../context/LanguageContext';
 export default function InsufficientCreditsModal() {
   const [modalData, setModalData] = useState(null);
   const navigate = useNavigate();
-  const { lang } = useLanguage();
+  const { t } = useLanguage();
 
   useEffect(() => {
     const handleInsufficient = (e) => {
@@ -55,13 +55,13 @@ export default function InsufficientCreditsModal() {
             <div>
               <h3 style={styles.title}>
                 {isDailyCap
-                  ? (lang === 'id' ? 'Batas Harian Tercapai' : 'Daily Limit Reached')
-                  : (lang === 'id' ? 'Credit Tidak Cukup' : 'Insufficient Credits')}
+                  ? t('app.insufficientCredits.dailyLimitTitle')
+                  : t('app.insufficientCredits.insufficientTitle')}
               </h3>
               <span style={styles.subtitle}>
                 {isDailyCap
-                  ? (lang === 'id' ? 'Anti-loop protection (500 credit/hari)' : 'Anti-loop protection (500 credits/day)')
-                  : (lang === 'id' ? 'Aksi AI memerlukan credit tambahan' : 'AI action requires additional credits')}
+                  ? t('app.insufficientCredits.dailyLimitSubtitle')
+                  : t('app.insufficientCredits.insufficientSubtitle')}
               </span>
             </div>
           </div>
@@ -74,35 +74,31 @@ export default function InsufficientCreditsModal() {
         <div style={styles.content}>
           {isDailyCap ? (
             <p style={styles.message}>
-              {lang === 'id'
-                ? `Pemakaian credit harian Anda telah mencapai batas maksimal (${modalData.dailyCap || 500} credit/hari). Silakan lanjutkan besok WIB atau hubungi admin jika butuh kuota lebih tinggi.`
-                : `Your daily credit usage has reached the maximum limit (${modalData.dailyCap || 500} credits/day). Please resume tomorrow or contact admin for higher limits.`}
+              {t('app.insufficientCredits.dailyLimitDesc')}
             </p>
           ) : (
             <>
               <p style={styles.message}>
-                {lang === 'id'
-                  ? 'Saldo dompet workspace Anda tidak mencukupi untuk menjalankan aksi ini.'
-                  : 'Your workspace wallet balance is insufficient to execute this action.'}
+                {t('app.insufficientCredits.walletInsufficientMsg')}
               </p>
 
               <div style={styles.statsCard}>
                 <div style={styles.statCol}>
-                  <span style={styles.statLabel}>{lang === 'id' ? 'Dibutuhkan' : 'Required'}</span>
+                  <span style={styles.statLabel}>{t('app.insufficientCredits.requiredLabel')}</span>
                   <span style={{ ...styles.statVal, color: 'var(--accent-yellow)' }}>
                     {need} <span style={styles.statUnit}>credits</span>
                   </span>
                 </div>
                 <div style={styles.statDivider} />
                 <div style={styles.statCol}>
-                  <span style={styles.statLabel}>{lang === 'id' ? 'Tersedia' : 'Available'}</span>
+                  <span style={styles.statLabel}>{t('app.insufficientCredits.availableLabel')}</span>
                   <span style={{ ...styles.statVal, color: have === 0 ? 'var(--accent-red)' : 'var(--text-secondary)' }}>
                     {have} <span style={styles.statUnit}>credits</span>
                   </span>
                 </div>
                 <div style={styles.statDivider} />
                 <div style={styles.statCol}>
-                  <span style={styles.statLabel}>{lang === 'id' ? 'Kekurangan' : 'Shortage'}</span>
+                  <span style={styles.statLabel}>{t('app.insufficientCredits.shortageLabel')}</span>
                   <span style={{ ...styles.statVal, color: 'var(--accent-red)' }}>
                     -{Math.max(0, need - have)} <span style={styles.statUnit}>credits</span>
                   </span>
@@ -114,9 +110,7 @@ export default function InsufficientCreditsModal() {
           <div style={styles.tipBox}>
             <Zap size={15} color="var(--accent-cyan)" />
             <span>
-              {lang === 'id'
-                ? 'Top-up paket credit berlaku 365 hari tanpa hangus bulanan, atau upgrade paket bulanan untuk reset saldo credit otomatis.'
-                : 'Top-up credit packages last for 365 days without monthly expiration, or upgrade to a monthly plan for auto credit reset.'}
+              {t('app.insufficientCredits.tipText')}
             </span>
           </div>
         </div>
@@ -125,11 +119,11 @@ export default function InsufficientCreditsModal() {
         <div style={styles.actions}>
           <button onClick={handleTopup} style={styles.primaryBtn}>
             <Coins size={16} />
-            <span>{lang === 'id' ? 'Top-Up Credit Sekarang' : 'Top-Up Credits Now'}</span>
+            <span>{t('app.insufficientCredits.btnTopup')}</span>
             <ArrowRight size={15} />
           </button>
           <button onClick={handleViewPlans} style={styles.secondaryBtn}>
-            <span>{lang === 'id' ? 'Lihat Paket Langganan' : 'View Subscription Plans'}</span>
+            <span>{t('app.insufficientCredits.btnViewPlans')}</span>
           </button>
         </div>
       </div>

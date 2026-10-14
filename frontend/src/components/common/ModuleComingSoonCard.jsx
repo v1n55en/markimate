@@ -21,7 +21,7 @@ const ROLE_ICONS = {
 };
 
 export default function ModuleComingSoonCard({ roleKey = 'ads_report' }) {
-  const { lang } = useLanguage();
+  const { t, lang } = useLanguage();
   const [showWaitlist, setShowWaitlist] = useState(false);
 
   const role = ROLES.find((r) => r.key === roleKey) || {
@@ -35,9 +35,9 @@ export default function ModuleComingSoonCard({ roleKey = 'ads_report' }) {
     features_id: ['Integrasi platform langsung', 'Analisis otomatis AI'],
   };
 
-  const roleName = lang === 'id' && role.name_id ? role.name_id : role.name;
-  const roleDesc = lang === 'id' && role.longDescription_id ? role.longDescription_id : (role.longDescription || role.description);
-  const features = (lang === 'id' && role.features_id ? role.features_id : role.features) || [];
+  const roleName = (lang.startsWith('id') && role.name_id) ? role.name_id : role.name;
+  const roleDesc = (lang.startsWith('id') && role.longDescription_id) ? role.longDescription_id : (role.longDescription || role.description);
+  const features = ((lang.startsWith('id') && role.features_id) ? role.features_id : role.features) || [];
   const IconComponent = ROLE_ICONS[roleKey] || Layers;
 
   return (
@@ -51,7 +51,7 @@ export default function ModuleComingSoonCard({ roleKey = 'ads_report' }) {
           <div style={styles.badgeRow}>
             <span style={styles.roadmapBadge}>
               <Clock size={13} />
-              <span>{lang === 'id' ? 'Segera Hadir di Produksi' : 'Coming Soon to Production'}</span>
+              <span>{t('app.comingSoon.badge')}</span>
             </span>
             <span style={styles.categoryBadge}>{role.category}</span>
           </div>
@@ -65,7 +65,7 @@ export default function ModuleComingSoonCard({ roleKey = 'ads_report' }) {
         {features.length > 0 && (
           <div style={styles.featuresSection}>
             <h3 style={styles.featuresTitle}>
-              {lang === 'id' ? 'Kapabilitas yang Sedang Dipersiapkan:' : 'Capabilities in Development:'}
+              {t('app.comingSoon.capabilitiesTitle')}
             </h3>
             <div style={styles.featuresGrid}>
               {features.map((feat, idx) => (
@@ -82,10 +82,8 @@ export default function ModuleComingSoonCard({ roleKey = 'ads_report' }) {
         <div style={styles.infoCallout}>
           <ShieldCheck size={16} color="var(--accent-cyan)" style={{ flexShrink: 0 }} />
           <div style={styles.infoText}>
-            <strong>{lang === 'id' ? 'Aman & Transparan: ' : 'Safe & Transparent: '}</strong>
-            {lang === 'id'
-              ? 'Selama tahap persiapan integrasi API platform, modul ini tidak menampilkan data rekaan dan tidak memotong saldo credit Anda.'
-              : 'During platform API integration development, this module does not display sample/mock data and will not consume your credits.'}
+            <strong>{t('app.comingSoon.safeTitle')}</strong>
+            {t('app.comingSoon.safeDesc')}
           </div>
         </div>
 
@@ -97,11 +95,11 @@ export default function ModuleComingSoonCard({ roleKey = 'ads_report' }) {
             style={styles.primaryBtn}
           >
             <Bell size={16} />
-            <span>{lang === 'id' ? 'Gabung Waitlist Early Access' : 'Join Early Access Waitlist'}</span>
+            <span>{t('app.comingSoon.joinWaitlist')}</span>
           </button>
 
           <Link to="/app" style={styles.secondaryBtn}>
-            <span>{lang === 'id' ? 'Kembali ke Overview' : 'Back to Overview'}</span>
+            <span>{t('app.comingSoon.backToOverview')}</span>
             <ArrowRight size={15} />
           </Link>
         </div>

@@ -1,7 +1,11 @@
 export const app = {
   "dashboard": {
     "welcome": "Ikhtisar Brand Workspace",
-    "subtitle": "Pantau dan orkestrasi seluruh anggota AI Digital Marketing Team aktifmu.",
+    "subtitle": "Pantau dan orkestrasi seluruh anggota AI Digital Marketing Team aktif Anda.",
+    "headerSub": "Pusat kendali tim digital marketing AI untuk brand ini. Kelola riset SEO, laporan performa iklan, dan pemantauan kompetitor dalam satu tempat.",
+    "activeCoreRolesCount": "dari 3 Role Utama Aktif",
+    "fromPrice": "Mulai dari",
+    "perMonth": "/bln",
     "brandSwitch": "Brand Workspace",
     "activeModulesCount": "Role AI Aktif",
     "statKeywords": "Keyword Dipantau",
@@ -47,10 +51,11 @@ export const app = {
     "creditsLabel": "Saldo Credit",
     "logout": "Keluar",
     "lockedBadge": "Terkunci",
-    "soonBadge": "Soon"
+    "soonBadge": "Segera"
   },
   "activatePage": {
     "title": "Aktivasi Modul Role",
+    "activateRoleTitle": "Aktifkan modul {name}",
     "badgeLocked": "Modul Belum Aktif",
     "desc": "Aktifkan spesialis AI ini untuk brand workspace yang sedang Anda buka.",
     "featuresTitle": "Fitur yang Termasuk",
@@ -63,13 +68,43 @@ export const app = {
     "activatedSuccess": "Modul Berhasil Diaktifkan!",
     "backToHub": "Kembali ke Workspace Hub",
     "waitlistTitle": "Role Ini Sedang Dalam Pengembangan",
-    "btnJoinWaitlist": "Gabung Waitlist Sekarang"
+    "btnJoinWaitlist": "Gabung Waitlist Sekarang",
+    "notFoundTitle": "Modul Tidak Ditemukan",
+    "notFoundDesc": "Modul role AI yang diminta tidak ditemukan dalam katalog sistem.",
+    "backToDashboard": "Kembali ke Dashboard",
+    "benefitAuto": "Otomasi AI terjadwal tanpa intervensi manual",
+    "benefitHitl": "Human-in-the-loop: tinjau & setujui sebelum terbit",
+    "benefitCancel": "Batal kapan saja tanpa kontrak tahunan terikat",
+    "unlimitedAccess": "Akses tak terbatas",
+    "activeBannerTitle": "Modul ini aktif untuk {name}!",
+    "fullAccessNotice": "Anda memiliki akses penuh ke fitur dan otomasi {role}."
+  },
+  "comingSoon": {
+    "badge": "Segera Hadir di Produksi",
+    "capabilitiesTitle": "Kapabilitas yang Sedang Dipersiapkan:",
+    "safeTitle": "Aman & Transparan: ",
+    "safeDesc": "Otomasi AI otonom penuh dengan kendali manual oleh manusia dan jejak audit eksekusi terperinci.",
+    "joinWaitlist": "Gabung Waitlist Early Access",
+    "backToOverview": "Kembali ke Overview"
   },
   "workspaceSelector": {
     "selectWorkspace": "Pilih Workspace",
     "createWorkspace": "Buat Workspace Baru",
     "manageWorkspaces": "Kelola Workspace",
-    "currentWorkspace": "Workspace Aktif"
+    "currentWorkspace": "Workspace Aktif",
+    "activeWorkspaceLabel": "Workspace Aktif",
+    "modulesCount": "{count} Modul",
+    "registeredBrands": "Daftar Brand / Klien",
+    "registeredCount": "{count} terdaftar",
+    "addNewBrand": "Tambah Brand Baru",
+    "modalDesc": "Pisahkan strategi konten, kampanye iklan, dan aset SEO untuk setiap brand bisnis atau klien Anda.",
+    "brandNameLabel": "Nama Brand Bisnis",
+    "brandNamePlaceholder": "Contoh: Kopi Makmur",
+    "nicheLabel": "Kategori Bisnis / Niche",
+    "btnCancel": "Batal",
+    "btnCreate": "Simpan & Buat Brand",
+    "failedCreate": "Gagal menambahkan brand.",
+    "saving": "Menyimpan..."
   },
   "moduleGuard": {
     "inactiveTitle": "Modul Belum Diaktifkan",
@@ -79,6 +114,19 @@ export const app = {
   "insufficientCredits": {
     "title": "Kredit Tidak Mencukupi",
     "desc": "Anda membutuhkan {required} kredit untuk tindakan ini. Saldo Anda saat ini adalah {balance} kredit.",
-    "topupBtn": "Isi Ulang Kredit Sekarang"
+    "dailyLimitTitle": "Batas Harian Tercapai",
+    "dailyLimitDesc": "Proteksi anti-loop aktif (maksimum 500 kredit/hari). Batas pengaman harian Anda akan direset besok pukul 00:00 WIB.",
+    "insufficientTitle": "Credit Tidak Cukup",
+    "insufficientDesc": "Aksi AI memerlukan credit tambahan. Isi ulang saldo atau upgrade paket langganan Anda untuk melanjutkan.",
+    "requiredLabel": "Dibutuhkan",
+    "availableLabel": "Tersedia",
+    "shortageLabel": "Kekurangan",
+    "btnTopup": "Top-Up Credit Sekarang",
+    "btnViewPlans": "Lihat Paket Langganan",
+    "topupBtn": "Isi Ulang Kredit Sekarang",
+    "dailyLimitSubtitle": "Anti-loop protection (500 credit/hari)",
+    "insufficientSubtitle": "Aksi AI memerlukan credit tambahan",
+    "tipText": "Top-up paket credit berlaku 365 hari tanpa hangus bulanan, atau upgrade paket bulanan untuk reset saldo credit otomatis.",
+    "walletInsufficientMsg": "Saldo dompet workspace Anda tidak mencukupi untuk menjalankan aksi ini."
   }
 };

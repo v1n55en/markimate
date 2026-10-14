@@ -84,9 +84,7 @@ export default function WorkspaceDashboardPage({ me }) {
               <span style={styles.nicheBadge}>{activeWorkspace?.niche || 'Digital Marketing'}</span>
             </div>
             <p style={styles.headerSub}>
-              {lang === 'id'
-                ? 'Pusat kendali tim digital marketing AI untuk brand ini. Kelola riset SEO, laporan performa iklan, dan pemantauan kompetitor dalam satu tempat.'
-                : 'Central mission control for your AI Digital Marketing Team. Coordinate SEO publishing, advertising reporting, and competitor creative intelligence.'}
+              {t('app.dashboard.headerSub')}
             </p>
           </div>
         </div>
@@ -96,7 +94,7 @@ export default function WorkspaceDashboardPage({ me }) {
             <Layers size={16} color="var(--accent-cyan)" />
             <span>
               <strong>{activeWorkspace?.modules?.length || 0}</strong>{' '}
-              {lang === 'id' ? 'dari 3 Role Utama Aktif' : 'of 3 Core AI Roles Active'}
+              {t('app.dashboard.activeCoreRolesCount')}
             </span>
           </div>
           <Link to="/app/billing" style={styles.headerUpgradeLink}>
@@ -179,7 +177,7 @@ export default function WorkspaceDashboardPage({ me }) {
                 Riset keyword otomatis, tulis artikel SEO 1.200+ kata, dan terbitkan langsung ke CMS WordPress/Wix.
               </p>
               <div style={styles.lockedPriceBox}>
-                <span>{lang === 'id' ? 'Mulai dari' : 'From'} <strong>{formatIDR(MODULE_PRICES.seo, lang)}</strong>{lang === 'id' ? '/bln' : '/mo'}</span>
+                <span>{t('app.dashboard.fromPrice')} <strong>{formatIDR(MODULE_PRICES.seo, lang)}</strong>{t('app.dashboard.perMonth')}</span>
                 <span style={styles.lockedQuotaText}>{MODULE_QUOTA.seo}</span>
               </div>
               <Link to="/app/modules/seo" style={styles.cardActivateBtn}>
@@ -273,7 +271,7 @@ export default function WorkspaceDashboardPage({ me }) {
                 Laporan konsolidasi 5 platform iklan & marketplace siap kirim ke Slides & Sheets untuk review bulanan.
               </p>
               <div style={styles.lockedPriceBox}>
-                <span>{lang === 'id' ? 'Mulai dari' : 'From'} <strong>{formatIDR(MODULE_PRICES.ads_report, lang)}</strong>{lang === 'id' ? '/bln' : '/mo'}</span>
+                <span>{t('app.dashboard.fromPrice')} <strong>{formatIDR(MODULE_PRICES.ads_report, lang)}</strong>{t('app.dashboard.perMonth')}</span>
                 <span style={styles.lockedQuotaText}>{MODULE_QUOTA.ads_report}</span>
               </div>
               <Link to="/app/modules/ads_report" style={styles.cardActivateBtn}>
@@ -360,7 +358,7 @@ export default function WorkspaceDashboardPage({ me }) {
                 Deteksi iklan kompetitor yang sedang tayang, analisa hook & penawaran, dan simpan ke swipe file brand Anda.
               </p>
               <div style={styles.lockedPriceBox}>
-                <span>{lang === 'id' ? 'Mulai dari' : 'From'} <strong>{formatIDR(MODULE_PRICES.ads_spy, lang)}</strong>{lang === 'id' ? '/bln' : '/mo'}</span>
+                <span>{t('app.dashboard.fromPrice')} <strong>{formatIDR(MODULE_PRICES.ads_spy, lang)}</strong>{t('app.dashboard.perMonth')}</span>
                 <span style={styles.lockedQuotaText}>{MODULE_QUOTA.ads_spy}</span>
               </div>
               <Link to="/app/modules/ads_spy" style={styles.cardActivateBtn}>

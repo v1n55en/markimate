@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { getCredits, getCreditLedger, formatIDR, api } from '../../api';
 import { useLanguage } from '../../context/LanguageContext';
+import { formatDate as fmtDate, formatDateTime, formatNumber } from '../../lib/format';
 
 export const TOPUP_PACKAGES = [
   {
@@ -204,13 +205,16 @@ export default function CreditWalletPage({ me, onTopupClick }) {
   const formatDate = (iso) => {
     if (!iso) return '-';
     try {
-      return new Date(iso).toLocaleDateString(lang === 'id' ? 'id-ID' : 'en-US', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+      return formatDateTime(iso, lang);
+    } catch {
+      return iso;
+    }
+  };
+
+  const formatSimpleDate = (iso) => {
+    if (!iso) return '-';
+    try {
+      return fmtDate(iso, lang);
     } catch {
       return iso;
     }
@@ -224,21 +228,19 @@ export default function CreditWalletPage({ me, onTopupClick }) {
           <div style={styles.badgeRow}>
             <span style={styles.headerBadge}>
               <Coins size={13} color="var(--accent-cyan)" />
-              {lang === 'id' ? 'Dompet Workspace' : 'Workspace Wallet'}
+              {t('billing.walletBadge')}
             </span>
             {isTrialActive && (
               <span style={styles.trialBadge}>
-                ⚡ {lang === 'id' ? `Trial Aktif: sisa ${trialDaysLeft} hari` : `Active Trial: ${trialDaysLeft}d left`}
+                ⚡ {t('billing.activeTrialDays', { days: trialDaysLeft })}
               </span>
             )}
           </div>
           <h1 style={styles.title}>
-            {lang === 'id' ? 'Manajemen Credit & Top-Up' : 'Credit Management & Top-Up'}
+            {t('billing.managementTitle')}
           </h1>
           <p style={styles.subtitle}>
-            {lang === 'id'
-              ? 'Credit digunakan secara fleksibel di seluruh modul AI Markimate (SEO, Gambar, Ads Report, & Spy). 1 Credit = Rp1.000.'
-              : 'Credits are flexibly used across all Markimate AI modules (SEO, Images, Ads Report, & Spy). 1 Credit = Rp1,000.'}
+            {t('billing.managementSubtitle')}
           </p>
         </div>
 
@@ -248,7 +250,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
             style={styles.cheatsheetToggleBtn}
           >
             <HelpCircle size={15} />
-            <span>{lang === 'id' ? 'Daftar Tarif Aksi' : 'Action Rates'}</span>
+            <span>{t('billing.actionRatesBtn')}</span>
           </button>
         </div>
       </div>
@@ -258,17 +260,17 @@ export default function CreditWalletPage({ me, onTopupClick }) {
         {/* Total Saldo */}
         <div style={{ ...styles.bucketCard, ...styles.bucketTotalCard }} className="card">
           <div style={styles.bucketCardTop}>
-            <span style={styles.bucketLabel}>{lang === 'id' ? 'TOTAL SALDO AKTIF' : 'TOTAL ACTIVE BALANCE'}</span>
+            <span style={styles.bucketLabel}>{t('billing.bucketTotal')}</span>
             <div style={styles.totalIconBox}>
               <Coins size={18} color="var(--accent-cyan)" />
             </div>
           </div>
           <div style={styles.bucketValRow}>
-            <span style={styles.totalVal}>{totalBalance.toLocaleString('id-ID')}</span>
-            <span style={styles.bucketUnit}>credits</span>
+            <span style={styles.totalVal}>{formatNumber(totalBalance, lang)}</span>
+            <span style={styles.bucketUnit}>{t('billing.creditsUnit')}</span>
           </div>
           <div style={styles.dailyCapRow}>
-            <span>{lang === 'id' ? 'Pemakaian hari ini:' : 'Used today:'}</span>
+            <span>{t('billing.usedToday')}</span>
             <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>
               {credits?.dailyUsed || 0} / {credits?.dailyCap || 500} cr
             </span>
@@ -278,19 +280,19 @@ export default function CreditWalletPage({ me, onTopupClick }) {
         {/* Bucket Trial */}
         <div style={styles.bucketCard} className="card">
           <div style={styles.bucketCardTop}>
-            <span style={styles.bucketLabel}>{lang === 'id' ? 'FREE TRIAL' : 'FREE TRIAL'}</span>
-            <span style={styles.bucketMiniTag}>7 {lang === 'id' ? 'hari' : 'days'}</span>
+            <span style={styles.bucketLabel}>{t('billing.bucketTrial')}</span>
+            <span style={styles.bucketMiniTag}>{t('billing.daysUnit', { days: 7 })}</span>
           </div>
           <div style={styles.bucketValRow}>
-            <span style={styles.bucketVal}>{trialBalance.toLocaleString('id-ID')}</span>
+            <span style={styles.bucketVal}>{formatNumber(trialBalance, lang)}</span>
             <span style={styles.bucketUnit}>cr</span>
           </div>
           <div style={styles.bucketExpRow}>
             <Clock size={12} color="var(--text-muted)" />
             <span>
               {trialEnds
-                ? (lang === 'id' ? `Berakhir: ${formatDate(trialEnds)}` : `Expires: ${formatDate(trialEnds)}`)
-                : (lang === 'id' ? 'Tidak aktif' : 'Inactive')}
+                ? t('billing.expires', { date: formatDate(trialEnds, lang) })
+                : t('billing.inactive')}
             </span>
           </div>
         </div>
@@ -298,19 +300,19 @@ export default function CreditWalletPage({ me, onTopupClick }) {
         {/* Bucket Langganan */}
         <div style={styles.bucketCard} className="card">
           <div style={styles.bucketCardTop}>
-            <span style={styles.bucketLabel}>{lang === 'id' ? 'LANGGANAN BULANAN' : 'SUBSCRIPTION'}</span>
-            <span style={styles.bucketMiniTag}>30 {lang === 'id' ? 'hari' : 'days'}</span>
+            <span style={styles.bucketLabel}>{t('billing.bucketSub')}</span>
+            <span style={styles.bucketMiniTag}>{t('billing.daysUnit', { days: 30 })}</span>
           </div>
           <div style={styles.bucketValRow}>
-            <span style={styles.bucketVal}>{subBalance.toLocaleString('id-ID')}</span>
+            <span style={styles.bucketVal}>{formatNumber(subBalance, lang)}</span>
             <span style={styles.bucketUnit}>cr</span>
           </div>
           <div style={styles.bucketExpRow}>
             <Clock size={12} color="var(--text-muted)" />
             <span>
               {subEnds
-                ? (lang === 'id' ? `Reset pada: ${formatDate(subEnds)}` : `Resets on: ${formatDate(subEnds)}`)
-                : (lang === 'id' ? 'Belum berlangganan paket' : 'No active plan')}
+                ? t('billing.resetsOn', { date: formatDate(subEnds, lang) })
+                : t('billing.noActivePlan')}
             </span>
           </div>
         </div>
@@ -318,19 +320,19 @@ export default function CreditWalletPage({ me, onTopupClick }) {
         {/* Bucket Top-up */}
         <div style={styles.bucketCard} className="card">
           <div style={styles.bucketCardTop}>
-            <span style={styles.bucketLabel}>{lang === 'id' ? 'TOP-UP SALDO' : 'TOP-UP PACKS'}</span>
-            <span style={styles.bucketMiniTag}>365 {lang === 'id' ? 'hari' : 'days'}</span>
+            <span style={styles.bucketLabel}>{t('billing.bucketTopup')}</span>
+            <span style={styles.bucketMiniTag}>{t('billing.daysUnit', { days: 365 })}</span>
           </div>
           <div style={styles.bucketValRow}>
-            <span style={styles.bucketVal}>{topupBalance.toLocaleString('id-ID')}</span>
+            <span style={styles.bucketVal}>{formatNumber(topupBalance, lang)}</span>
             <span style={styles.bucketUnit}>cr</span>
           </div>
           <div style={styles.bucketExpRow}>
             <Clock size={12} color="var(--text-muted)" />
             <span>
               {topupEnds
-                ? (lang === 'id' ? `Berlaku hingga: ${formatDate(topupEnds)}` : `Valid until: ${formatDate(topupEnds)}`)
-                : (lang === 'id' ? 'Masa aktif 365 hari' : 'Valid for 365 days')}
+                ? t('billing.validUntil', { date: formatDate(topupEnds, lang) })
+                : t('billing.valid365')}
             </span>
           </div>
         </div>
@@ -341,42 +343,42 @@ export default function CreditWalletPage({ me, onTopupClick }) {
         <div style={styles.cheatsheetCard} className="card">
           <div style={styles.cheatsheetHeader}>
             <h4 style={styles.cheatsheetTitle}>
-              {lang === 'id' ? 'Cheatsheet Tarif Credit per Aksi' : 'Credit Rates per AI Action'}
+              {t('billing.cheatsheetTitle')}
             </h4>
             <span style={styles.cheatsheetSub}>
-              {lang === 'id' ? 'Harga tetap, dipotong hanya bila aksi sukses.' : 'Fixed rate, charged only upon success.'}
+              {t('billing.cheatsheetSubtitle')}
             </span>
           </div>
           <div style={styles.rateGrid}>
             <div style={styles.rateItem}>
               <span style={styles.rateName}>seo.article</span>
               <span style={styles.rateVal}>60 cr</span>
-              <span style={styles.rateDesc}>{lang === 'id' ? 'Status Review Ready (409 dup = 0)' : 'Review Ready (409 dup = 0)'}</span>
+              <span style={styles.rateDesc}>{t('billing.rateDescSeoArticle')}</span>
             </div>
             <div style={styles.rateItem}>
               <span style={styles.rateName}>seo.image</span>
               <span style={styles.rateVal}>5 cr / img</span>
-              <span style={styles.rateDesc}>{lang === 'id' ? 'Upload gambar terpublikasi' : 'Uploaded published image'}</span>
+              <span style={styles.rateDesc}>{t('billing.rateDescSeoImage')}</span>
             </div>
             <div style={styles.rateItem}>
               <span style={styles.rateName}>seo.topics_run</span>
               <span style={styles.rateVal}>10 cr</span>
-              <span style={styles.rateDesc}>{lang === 'id' ? 'Riset tren & topik otomatis' : 'Auto trends & topic run'}</span>
+              <span style={styles.rateDesc}>{t('billing.rateDescSeoTopics')}</span>
             </div>
             <div style={styles.rateItem}>
               <span style={styles.rateName}>ads.report</span>
               <span style={styles.rateVal}>400 cr</span>
-              <span style={styles.rateDesc}>{lang === 'id' ? 'Laporan bulanan akun iklan' : 'Monthly ads report'}</span>
+              <span style={styles.rateDesc}>{t('billing.rateDescAdsReport')}</span>
             </div>
             <div style={styles.rateItem}>
               <span style={styles.rateName}>spy.scan</span>
               <span style={styles.rateVal}>40 cr</span>
-              <span style={styles.rateDesc}>{lang === 'id' ? 'Scan kompetitor ads baru' : 'New competitor ad scan'}</span>
+              <span style={styles.rateDesc}>{t('billing.rateDescSpyScan')}</span>
             </div>
             <div style={styles.rateItem}>
               <span style={styles.rateName}>spy.insight</span>
               <span style={styles.rateVal}>50 cr</span>
-              <span style={styles.rateDesc}>{lang === 'id' ? 'Analisis mingguan AI' : 'Weekly AI intelligence'}</span>
+              <span style={styles.rateDesc}>{t('billing.rateDescSpyInsight')}</span>
             </div>
           </div>
         </div>
@@ -386,12 +388,10 @@ export default function CreditWalletPage({ me, onTopupClick }) {
       <div style={styles.sectionHeaderRow}>
         <div>
           <h2 style={styles.sectionTitle}>
-            {lang === 'id' ? 'Beli Paket Top-Up Credit' : 'Purchase Credit Top-Up'}
+            {t('billing.topupSectionTitle')}
           </h2>
           <p style={styles.sectionDesc}>
-            {lang === 'id'
-              ? 'Credit top-up berlaku 365 hari dan otomatis digunakan setelah saldo trial/bulanan habis.'
-              : 'Top-up credits are valid for 365 days and consumed after trial/monthly balances.'}
+            {t('billing.topupSectionDesc')}
           </p>
         </div>
       </div>
@@ -430,11 +430,11 @@ export default function CreditWalletPage({ me, onTopupClick }) {
             )}
             <h3 style={styles.packName}>{pack.name}</h3>
             <div style={styles.packPriceRow}>
-              <span style={styles.packPrice}>{formatIDR(pack.price)}</span>
+              <span style={styles.packPrice}>{formatIDR(pack.price, lang)}</span>
             </div>
             <div style={styles.packCreditBox}>
               <Coins size={16} color="var(--accent-cyan)" />
-              <span style={styles.packCreditCount}>{pack.credits.toLocaleString('id-ID')} credits</span>
+              <span style={styles.packCreditCount}>{formatNumber(pack.credits, lang)} credits</span>
               {pack.bonus > 0 && (
                 <span style={styles.packBonusBadge}>+{pack.bonus} bonus</span>
               )}
@@ -449,7 +449,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
                 opacity: topupBusy === pack.id ? 0.7 : 1
               }}
             >
-              <span>{topupBusy === pack.id ? 'Memproses…' : (lang === 'id' ? `Beli ${pack.credits} Credit` : `Get ${pack.credits} Credits`)}</span>
+              <span>{topupBusy === pack.id ? t('billing.processing') : t('billing.buyCreditsBtn', { credits: pack.credits })}</span>
               <ArrowRight size={14} />
             </button>
           </div>
@@ -461,12 +461,10 @@ export default function CreditWalletPage({ me, onTopupClick }) {
         <div style={styles.ledgerHeaderRow}>
           <div>
             <h2 style={styles.sectionTitle}>
-              {lang === 'id' ? 'Riwayat Pemakaian & Mutasi' : 'Usage & Transaction Ledger'}
+              {t('billing.ledgerSectionTitle')}
             </h2>
             <p style={styles.sectionDesc}>
-              {lang === 'id'
-                ? 'Semua pemotongan credit dan penambahan saldo tercatat transparan di buku besar.'
-                : 'All credit deductions and grants are transparently tracked in the ledger.'}
+              {t('billing.ledgerSubtitle')}
             </p>
           </div>
 
@@ -477,7 +475,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
               onChange={(e) => setFilterModule(e.target.value)}
               style={styles.filterSelect}
             >
-              <option value="all">{lang === 'id' ? 'Semua Modul' : 'All Modules'}</option>
+              <option value="all">{t('billing.filterAllModules')}</option>
               <option value="seo">SEO Content</option>
               <option value="ads">Ads Reporter</option>
               <option value="spy">Ads Spy</option>
@@ -489,11 +487,11 @@ export default function CreditWalletPage({ me, onTopupClick }) {
               onChange={(e) => setFilterKind(e.target.value)}
               style={styles.filterSelect}
             >
-              <option value="all">{lang === 'id' ? 'Semua Jenis Mutasi' : 'All Transaction Types'}</option>
-              <option value="usage">{lang === 'id' ? 'Pemakaian Aksi' : 'Action Usage'}</option>
-              <option value="grant_trial">{lang === 'id' ? 'Grant Trial' : 'Trial Grant'}</option>
-              <option value="topup">{lang === 'id' ? 'Top-Up' : 'Top-Up'}</option>
-              <option value="expire">{lang === 'id' ? 'Kedaluwarsa' : 'Expired'}</option>
+              <option value="all">{t('billing.filterAllTypes')}</option>
+              <option value="usage">{t('billing.filterUsage')}</option>
+              <option value="grant_trial">{t('billing.filterGrantTrial')}</option>
+              <option value="topup">{t('billing.filterTopup')}</option>
+              <option value="expire">{t('billing.filterExpire')}</option>
             </select>
 
             {/* Download CSV */}
@@ -501,10 +499,10 @@ export default function CreditWalletPage({ me, onTopupClick }) {
               onClick={handleExportCsv}
               disabled={filteredLedger.length === 0}
               style={styles.exportBtn}
-              title={lang === 'id' ? 'Unduh sebagai file CSV' : 'Download as CSV file'}
+              title={t('billing.downloadCsvTitle')}
             >
               <Download size={14} />
-              <span>{lang === 'id' ? 'Ekspor CSV' : 'Export CSV'}</span>
+              <span>{t('billing.exportCsv')}</span>
             </button>
           </div>
         </div>
@@ -514,12 +512,12 @@ export default function CreditWalletPage({ me, onTopupClick }) {
           <table style={styles.table}>
             <thead>
               <tr style={styles.thRow}>
-                <th style={styles.th}>{lang === 'id' ? 'Waktu' : 'Date & Time'}</th>
-                <th style={styles.th}>{lang === 'id' ? 'Aksi / Mutasi' : 'Action / Type'}</th>
-                <th style={styles.th}>{lang === 'id' ? 'Bucket' : 'Bucket'}</th>
-                <th style={styles.th}>{lang === 'id' ? 'Catatan / Referensi' : 'Note / Reference'}</th>
-                <th style={{ ...styles.th, textAlign: 'right' }}>{lang === 'id' ? 'Perubahan' : 'Delta'}</th>
-                <th style={{ ...styles.th, textAlign: 'right' }}>{lang === 'id' ? 'Saldo Akhir' : 'Balance After'}</th>
+                <th style={styles.th}>{t('billing.thDateTime')}</th>
+                <th style={styles.th}>{t('billing.thAction')}</th>
+                <th style={styles.th}>{t('billing.thBucket')}</th>
+                <th style={styles.th}>{t('billing.thNote')}</th>
+                <th style={{ ...styles.th, textAlign: 'right' }}>{t('billing.thDelta')}</th>
+                <th style={{ ...styles.th, textAlign: 'right' }}>{t('billing.thBalanceAfter')}</th>
               </tr>
             </thead>
             <tbody>
@@ -527,8 +525,8 @@ export default function CreditWalletPage({ me, onTopupClick }) {
                 <tr>
                   <td colSpan={6} style={styles.emptyTd}>
                     {loading
-                      ? (lang === 'id' ? 'Memuat riwayat transaksi...' : 'Loading ledger history...')
-                      : (lang === 'id' ? 'Belum ada transaksi credit tercatat.' : 'No credit transactions found.')}
+                      ? t('billing.emptyLoading')
+                      : t('billing.emptyNoTx')}
                   </td>
                 </tr>
               ) : (
@@ -537,7 +535,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
                   const isZero = row.delta === 0;
                   return (
                     <tr key={row.id} style={styles.tr}>
-                      <td style={styles.tdTime}>{formatDate(row.created_at)}</td>
+                      <td style={styles.tdTime}>{formatDateTime(row.created_at, lang)}</td>
                       <td style={styles.tdAction}>
                         <div style={styles.actionBadgeRow}>
                           <span style={styles.actionKeyTag}>
@@ -564,7 +562,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
                         {isPositive ? `+${row.delta}` : `${row.delta}`} cr
                       </td>
                       <td style={styles.tdBalanceAfter}>
-                        {row.balance_after?.toLocaleString('id-ID')} cr
+                        {formatNumber(row.balance_after, lang)} cr
                       </td>
                     </tr>
                   );

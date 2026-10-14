@@ -33,6 +33,7 @@ import { isAdsMock } from '../ads/adsApi';
 import { isSpyMock } from '../spy/spyApi';
 
 import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
+import { formatNumber } from '../lib/format';
 
 export default function Sidebar({ user, onLogout, plan, usage }) {
   const location = useLocation();
@@ -128,7 +129,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
     activeSections.push({
       group: t('sidebar.sectionAds', 'AI Ads Performance Reporter'),
       moduleKey: 'ads_report',
-      badge: adsSoon ? (lang === 'id' ? 'Segera' : 'Soon') : null,
+      badge: adsSoon ? t('common.soon') : null,
       items: [
         {
           id: 'ads-summary',
@@ -159,7 +160,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
     activeSections.push({
       group: t('sidebar.sectionSpy', 'AI Ads Creative Spy'),
       moduleKey: 'ads_spy',
-      badge: spySoon ? (lang === 'id' ? 'Segera' : 'Soon') : null,
+      badge: spySoon ? t('common.soon') : null,
       items: [
         {
           id: 'spy-summary',
@@ -246,11 +247,11 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
           <button
             onClick={() => handleNavClick('/app/billing/credits')}
             style={styles.mobileCreditChip}
-            title={lang === 'id' ? 'Lihat dompet credit' : 'View credit wallet'}
+            title={t('common.viewCreditWallet')}
           >
             <Coins size={13} color={barColor} />
             <span style={{ ...styles.mobileCreditNum, color: totalCredits === 0 ? 'var(--accent-red)' : 'var(--text-primary)' }}>
-              {totalCredits}
+              {formatNumber(totalCredits, lang)}
             </span>
           </button>
           <button
@@ -325,7 +326,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
           onClick={() => handleNavClick('/app/billing/credits')}
           style={styles.creditChip}
           className="credit-wallet-chip"
-          title={lang === 'id' ? 'Klik untuk melihat dompet credit & top-up' : 'Click to view credit wallet & top-up'}
+          title={t('common.viewCreditWallet')}
           role="button"
           tabIndex={0}
         >
@@ -345,7 +346,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
                   color: totalCredits === 0 ? 'var(--accent-red)' : 'var(--text-primary)',
                 }}
               >
-                {totalCredits.toLocaleString('id-ID')}
+                {formatNumber(totalCredits, lang)}
               </span>
               <span style={styles.creditChipUnit}>cr</span>
             </div>
@@ -441,21 +442,21 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
                       <button
                         onClick={() => handleNavClick('/app/billing')}
                         style={styles.premiumBadge}
-                        title={lang === 'id' ? 'Kelola langganan' : 'Manage subscription'}
+                        title={t('billing.manageSubscription')}
                       >
                         <span style={{ fontSize: '0.72rem', fontWeight: 'bold' }}>
-                          👑 {lang === 'id' ? 'PAKET PRO' : 'PRO PLAN'}
+                          👑 {t('common.planPro')}
                         </span>
                       </button>
                     ) : (
                       <div style={styles.freeBadgeContainer}>
                         <span style={styles.freeBadge}>
-                          {lang === 'id' ? 'PAKET FREE' : 'FREE PLAN'}
+                          {t('common.planFree')}
                         </span>
                         <button
                           onClick={() => handleNavClick('/app/billing')}
                           style={styles.upgradeBtn}
-                          title={lang === 'id' ? 'Upgrade ke Pro untuk membuka semua fitur' : 'Upgrade to Pro'}
+                          title={t('common.upgradeToPro')}
                         >
                           👑 Upgrade
                         </button>
@@ -465,10 +466,10 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
                     {limit > 0 && (
                       <div
                         style={styles.usageBox}
-                        title={lang === 'id' ? `${used} dari ${limit} artikel bulan ini` : `${used} of ${limit} articles this month`}
+                        title={t('common.monthlyArticlesProgress', { used, limit })}
                       >
                         <div style={styles.usageLabel}>
-                          <span>{lang === 'id' ? 'Kuota artikel' : 'Monthly quota'}</span>
+                          <span>{t('common.monthlyQuota')}</span>
                           <span>{used}/{limit}</span>
                         </div>
                         <div style={styles.usageTrack}>
@@ -503,7 +504,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
                       key={role.key}
                       onClick={() => handleNavClick(role.path)}
                       style={styles.lockedNavLink}
-                      title={lang === 'id' ? `Aktifkan modul ${role.name}` : `Activate ${role.name}`}
+                      title={t('app.activatePage.activateRoleTitle', { name: role.name })}
                     >
                       <Icon size={16} color="var(--text-muted)" />
                       <span style={styles.lockedLabel}>{role.name}</span>
@@ -539,7 +540,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
             {soonExpanded && (
               <div style={styles.soonList}>
                 {soonRoles.map((role) => {
-                  const roleName = lang === 'id' && role.name_id ? role.name_id : role.name;
+                  const roleName = (lang.startsWith('id') && role.name_id) ? role.name_id : role.name;
                   return (
                     <button
                       key={role.key}
@@ -560,7 +561,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
           {/* 4. Pengaturan Akun & Langganan */}
           <div style={styles.sectionBlock}>
             <div style={styles.sectionHeader}>
-              <span style={styles.sectionGroupTitle}>{lang === 'id' ? 'Akun' : 'Account'}</span>
+              <span style={styles.sectionGroupTitle}>{t('settings.accountTab')}</span>
             </div>
             <div style={styles.itemsList}>
               <button

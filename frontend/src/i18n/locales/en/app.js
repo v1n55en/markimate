@@ -2,6 +2,10 @@ export const app = {
   "dashboard": {
     "welcome": "Workspace Overview",
     "subtitle": "Monitor and coordinate your active AI Digital Marketing Team members.",
+    "headerSub": "Central mission control for your AI Digital Marketing Team. Coordinate SEO publishing, advertising reporting, and competitor creative intelligence.",
+    "activeCoreRolesCount": "of 3 Core AI Roles Active",
+    "fromPrice": "From",
+    "perMonth": "/mo",
     "brandSwitch": "Brand Workspace",
     "activeModulesCount": "Active AI Roles",
     "statKeywords": "Keywords Monitored",
@@ -51,6 +55,7 @@ export const app = {
   },
   "activatePage": {
     "title": "Activate Role Module",
+    "activateRoleTitle": "Activate {name}",
     "badgeLocked": "Module Locked",
     "desc": "Enable this specialized AI role for your active brand workspace.",
     "featuresTitle": "Included Features",
@@ -63,13 +68,43 @@ export const app = {
     "activatedSuccess": "Module Activated Successfully!",
     "backToHub": "Back to Workspace Hub",
     "waitlistTitle": "This Role Is Currently in Development",
-    "btnJoinWaitlist": "Join Early Waitlist"
+    "btnJoinWaitlist": "Join Early Waitlist",
+    "notFoundTitle": "Module Not Found",
+    "notFoundDesc": "The requested AI role module is not recognized in the system catalog.",
+    "backToDashboard": "Back to Dashboard",
+    "benefitAuto": "Scheduled AI automation with zero manual prompts",
+    "benefitHitl": "Human-in-the-loop: review and approve before publishing",
+    "benefitCancel": "Cancel anytime with zero long-term lock-in",
+    "unlimitedAccess": "Unlimited access",
+    "activeBannerTitle": "This module is active for {name}!",
+    "fullAccessNotice": "You have full access to features and automations of {role}."
+  },
+  "comingSoon": {
+    "badge": "Coming Soon to Production",
+    "capabilitiesTitle": "Capabilities in Development:",
+    "safeTitle": "Safe & Transparent: ",
+    "safeDesc": "Full autonomous pipelines with manual human override and detailed execution audit trails.",
+    "joinWaitlist": "Join Early Access Waitlist",
+    "backToOverview": "Back to Overview"
   },
   "workspaceSelector": {
     "selectWorkspace": "Select Workspace",
     "createWorkspace": "Create New Workspace",
     "manageWorkspaces": "Manage Workspaces",
-    "currentWorkspace": "Active Workspace"
+    "currentWorkspace": "Active Workspace",
+    "activeWorkspaceLabel": "Active Workspace",
+    "modulesCount": "{count} Modules",
+    "registeredBrands": "Registered Brands / Clients",
+    "registeredCount": "{count} registered",
+    "addNewBrand": "Add New Brand",
+    "modalDesc": "Separate content strategies, ad campaigns, and SEO assets per business brand or client.",
+    "brandNameLabel": "Brand / Business Name",
+    "brandNamePlaceholder": "e.g. Makmur Coffee",
+    "nicheLabel": "Business Category / Niche",
+    "btnCancel": "Cancel",
+    "btnCreate": "Save & Create Brand",
+    "failedCreate": "Failed to create brand workspace.",
+    "saving": "Saving..."
   },
   "moduleGuard": {
     "inactiveTitle": "Module Not Activated",
@@ -79,6 +114,19 @@ export const app = {
   "insufficientCredits": {
     "title": "Insufficient Credits",
     "desc": "You need {required} credits to perform this action. Your current balance is {balance} credits.",
-    "topupBtn": "Top Up Credits Now"
+    "dailyLimitTitle": "Daily Limit Reached",
+    "dailyLimitDesc": "Anti-loop protection active (500 credits/day max). Your daily safety limit will reset tomorrow at 00:00 WIB.",
+    "insufficientTitle": "Insufficient Credits",
+    "insufficientDesc": "This action requires credits. Top up your wallet or upgrade your plan to continue.",
+    "requiredLabel": "Required",
+    "availableLabel": "Available",
+    "shortageLabel": "Shortage",
+    "btnTopup": "Top-Up Credits Now",
+    "btnViewPlans": "View Subscription Plans",
+    "topupBtn": "Top Up Credits Now",
+    "dailyLimitSubtitle": "Anti-loop protection (500 credits/day)",
+    "insufficientSubtitle": "AI action requires additional credits",
+    "tipText": "Top-up credit packages last for 365 days without monthly expiration, or upgrade to a monthly plan for auto credit reset.",
+    "walletInsufficientMsg": "Your workspace wallet balance is insufficient to execute this action."
   }
 };

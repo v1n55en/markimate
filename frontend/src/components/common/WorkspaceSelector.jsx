@@ -9,6 +9,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function WorkspaceSelector() {
   const {
@@ -17,6 +18,7 @@ export default function WorkspaceSelector() {
     switchWorkspace,
     createWorkspace,
   } = useWorkspace();
+  const { t } = useLanguage();
 
   const [isOpen, setIsOpen] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -61,7 +63,7 @@ export default function WorkspaceSelector() {
       setShowCreateModal(false);
       setIsOpen(false);
     } catch (err) {
-      setErrorMsg(err.message || 'Gagal menambahkan brand.');
+      setErrorMsg(err.message || t('app.workspaceSelector.failedCreate'));
     } finally {
       setSubmitting(false);
     }
@@ -72,10 +74,10 @@ export default function WorkspaceSelector() {
   return (
     <div className="workspace-selector-container" ref={dropdownRef}>
       <div style={styles.topLabelRow}>
-        <span style={styles.topLabel}>Workspace Aktif</span>
+        <span style={styles.topLabel}>{t('app.workspaceSelector.activeWorkspaceLabel')}</span>
         <span style={styles.modulesCountBadge}>
           <Layers size={10} />
-          {activeModulesCount} Modul
+          {t('app.workspaceSelector.modulesCount', { count: activeModulesCount })}
         </span>
       </div>
 
@@ -94,7 +96,7 @@ export default function WorkspaceSelector() {
         </div>
         <div style={styles.brandInfo}>
           <span style={styles.brandName} title={activeWorkspace?.name}>
-            {activeWorkspace?.name || 'Pilih Brand'}
+            {activeWorkspace?.name || t('app.workspaceSelector.selectWorkspace')}
           </span>
           <span style={styles.brandNiche}>
             {activeWorkspace?.niche || 'Digital Marketing'}
@@ -115,8 +117,8 @@ export default function WorkspaceSelector() {
       {isOpen && (
         <div className="workspace-popover-card card">
           <div style={styles.popoverHeader}>
-            <span style={styles.popoverTitle}>Daftar Brand / Klien</span>
-            <span style={styles.popoverSub}>{workspaces.length} terdaftar</span>
+            <span style={styles.popoverTitle}>{t('app.workspaceSelector.registeredBrands')}</span>
+            <span style={styles.popoverSub}>{t('app.workspaceSelector.registeredCount', { count: workspaces.length })}</span>
           </div>
 
           <div style={styles.workspacesList}>
@@ -142,7 +144,7 @@ export default function WorkspaceSelector() {
                       <span>{ws.niche || 'Brand'}</span>
                       <span>·</span>
                       <span style={{ color: 'var(--accent-cyan)' }}>
-                        {ws.role ? `${ws.role}` : 'Aktif'}
+                        {ws.role ? `${ws.role}` : t('common.active')}
                       </span>
                     </div>
                   </div>
@@ -161,7 +163,7 @@ export default function WorkspaceSelector() {
               style={styles.addBrandBtn}
             >
               <Plus size={14} />
-              <span>Tambah Brand Baru</span>
+              <span>{t('app.workspaceSelector.addNewBrand')}</span>
             </button>
           </div>
         </div>
@@ -181,7 +183,7 @@ export default function WorkspaceSelector() {
               <div style={styles.modalIcon}>
                 <Sparkles size={18} color="var(--accent-cyan)" />
               </div>
-              <h3 style={styles.modalTitle}>Tambah Brand Baru</h3>
+              <h3 style={styles.modalTitle}>{t('app.workspaceSelector.addNewBrand')}</h3>
               <button
                 type="button"
                 onClick={() => !submitting && setShowCreateModal(false)}
@@ -199,10 +201,10 @@ export default function WorkspaceSelector() {
 
             <form onSubmit={handleCreateSubmit} style={styles.modalForm}>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Nama Brand / Klien *</label>
+                <label style={styles.label}>{t('app.workspaceSelector.brandNameLabel')} *</label>
                 <input
                   type="text"
-                  placeholder="Contoh: Skincare Glow Official"
+                  placeholder={t('app.workspaceSelector.brandNamePlaceholder')}
                   value={newBrandName}
                   onChange={(e) => setNewBrandName(e.target.value)}
                   style={styles.input}
@@ -213,7 +215,7 @@ export default function WorkspaceSelector() {
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>Niche Industri</label>
+                <label style={styles.label}>{t('app.workspaceSelector.nicheLabel')}</label>
                 <select
                   value={newNiche}
                   onChange={(e) => setNewNiche(e.target.value)}
@@ -237,10 +239,10 @@ export default function WorkspaceSelector() {
                   style={styles.modalCancelBtn}
                   disabled={submitting}
                 >
-                  Batal
+                  {t('app.workspaceSelector.btnCancel')}
                 </button>
                 <button type="submit" style={styles.modalSubmitBtn} disabled={submitting}>
-                  {submitting ? 'Menyimpan...' : 'Simpan & Pilih Brand'}
+                  {submitting ? t('app.workspaceSelector.saving') : t('app.workspaceSelector.btnCreate')}
                 </button>
               </div>
             </form>

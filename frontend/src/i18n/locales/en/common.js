@@ -36,5 +36,15 @@ export const common = {
   "details": "Details",
   "itemsCount": "{count} items",
   "itemsCount_one": "{count} item",
-  "itemsCount_other": "{count} items"
+  "itemsCount_other": "{count} items",
+  "booting": "Loading Markimate…",
+  "planPro": "PRO PLAN",
+  "planFree": "FREE PLAN",
+  "upgradeToPro": "Upgrade to Pro to unlock all features",
+  "monthlyQuota": "Monthly quota",
+  "monthlyArticlesProgress": "{used} of {limit} articles this month",
+  "viewCreditWallet": "View credit wallet & top-up",
+  "from": "From",
+  "perMonth": "/mo",
+  "perYear": "/yr"
 };

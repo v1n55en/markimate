@@ -16,7 +16,7 @@ export const publicTranslations = {
   "hero": {
     "badge": "Markimate · powered by 3our",
     "title": "Semua Tim Digital Marketing dalam satu platform",
-    "subtitle": "Pilih role spesialis yang kamu butuhkan atau rekrut seluruh tim digital marketing AI — mulai dari sebagian kecil biaya tim in-house, dengan hasil kerja yang tetap kamu review dan setujui sebelum tayang.",
+    "subtitle": "Pilih role spesialis yang Anda butuhkan atau rekrut seluruh tim digital marketing AI — mulai dari sebagian kecil biaya tim in-house, dengan hasil kerja yang tetap Anda review dan setujui sebelum tayang.",
     "ctaPrimary": "Coba Gratis 7 Hari — 300 credit",
     "ctaSecondary": "Lihat Paket & Harga",
     "proof1": "3 Role Aktif Siap Digunakan",
@@ -53,11 +53,11 @@ export const publicTranslations = {
     "title": "Cara Kerja: 3 Langkah Simpel",
     "subtitle": "Markimate menggabungkan otomatisasi agentic AI cerdas dengan kendali penuh manusia agar bisnis Anda tetap otentik dan aman.",
     "step1Title": "1. Hubungkan & Atur",
-    "step1Desc": "Sambungkan CMS blog (WordPress, Wix, Sanity, Shopify) atau channel iklanmu (Meta, Google, TikTok, Shopee). Tentukan keyword atau brand guideline.",
+    "step1Desc": "Sambungkan CMS blog (WordPress, Wix, Sanity, Shopify) atau channel iklan Anda (Meta, Google, TikTok, Shopee). Tentukan keyword atau brand guideline.",
     "step2Title": "2. AI Bekerja Mandiri",
     "step2Desc": "Spesialis AI meriset tren, menulis draf artikel SEO berbobot, memantau iklan kompetitor 24/7, dan mengonsolidasi laporan performa bulanan secara otomatis.",
-    "step3Title": "3. Kamu Review & Setujui",
-    "step3Desc": "Buka drawer review, periksa hasil kerja AI, lakukan penyesuaian jika perlu, lalu publikasikan langsung dengan 1-klik. Nol halusinasi terbit tanpa persetujuanmu."
+    "step3Title": "3. Anda Review & Setujui",
+    "step3Desc": "Buka drawer review, periksa hasil kerja AI, lakukan penyesuaian jika perlu, lalu publikasikan langsung dengan 1-klik. Nol halusinasi terbit tanpa persetujuan Anda."
   },
   "benchmark": {
     "title": "Benchmark Biaya: Tim In-House vs Agensi vs Markimate",
@@ -172,7 +172,7 @@ export const publicTranslations = {
   },
   "finalCta": {
     "title": "Siap Tingkatkan Pemasaran dengan Tim AI?",
-    "subtitle": "Coba semua fitur dengan data dan website kamu sendiri selama 7 hari. 300 credit gratis, tanpa kartu kredit.",
+    "subtitle": "Coba semua fitur dengan data dan website Anda sendiri selama 7 hari. 300 credit gratis, tanpa kartu kredit.",
     "btnTrial": "Coba Gratis 7 Hari",
     "btnRoles": "Lihat 16 Role Tim"
   },

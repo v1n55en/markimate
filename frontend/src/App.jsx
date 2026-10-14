@@ -38,7 +38,7 @@ import AdsCallbackPage from './pages/ads/AdsCallbackPage';
 
 import { api, getToken, setToken, refreshSession, API_BASE_URL } from './api';
 import { WorkspaceProvider } from './context/WorkspaceContext';
-import { LanguageProvider } from './context/LanguageContext';
+import { LanguageProvider, useLanguage } from './context/LanguageContext';
 import { useInitialLanguageRedirect } from './lib/localized-router';
 import ModuleGuard from './components/common/ModuleGuard';
 import ModuleActivatePage from './pages/app/ModuleActivatePage';
@@ -313,8 +313,16 @@ function AppRoutes({ me, onLoginSuccess, onLogout, refreshMe }) {
   );
 }
 
-// Komponen Utama App
-export default function App() {
+function BootingScreen() {
+  const { t } = useLanguage();
+  return (
+    <div style={styles.loadingScreen}>
+      {t('common.booting')}
+    </div>
+  );
+}
+
+function AppContent() {
   const [me, setMe] = useState(null); // { user, plan, usage, cms }
   const [booting, setBooting] = useState(true);
 
@@ -433,23 +441,26 @@ export default function App() {
   };
 
   if (booting) {
-    return (
-      <div style={styles.loadingScreen}>
-        Memuat Markimate…
-      </div>
-    );
+    return <BootingScreen />;
   }
 
+  return (
+    <AppRoutes
+      me={me}
+      onLoginSuccess={handleLoginSuccess}
+      onLogout={handleLogout}
+      refreshMe={refreshMe}
+    />
+  );
+}
+
+// Komponen Utama App
+export default function App() {
   return (
     <BrowserRouter>
       <WorkspaceProvider>
         <LanguageProvider>
-          <AppRoutes
-            me={me}
-            onLoginSuccess={handleLoginSuccess}
-            onLogout={handleLogout}
-            refreshMe={refreshMe}
-          />
+          <AppContent />
         </LanguageProvider>
       </WorkspaceProvider>
     </BrowserRouter>

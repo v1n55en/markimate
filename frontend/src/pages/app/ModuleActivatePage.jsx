@@ -36,14 +36,12 @@ export default function ModuleActivatePage() {
     return (
       <div style={styles.notFoundContainer}>
         <div style={styles.notFoundCard} className="card">
-          <h2>{lang === 'id' ? 'Modul Tidak Ditemukan' : 'Module Not Found'}</h2>
+          <h2>{t('app.activatePage.notFoundTitle')}</h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-            {lang === 'id'
-              ? `Role atau modul dengan kunci "${key}" tidak terdaftar di sistem Markimate.`
-              : `Marketing AI role module "${key}" is not registered in Markimate.`}
+            {t('app.activatePage.notFoundDesc')}
           </p>
           <button onClick={() => navigate('/app')} style={styles.primaryBtn}>
-            {lang === 'id' ? 'Kembali ke Dashboard' : 'Back to Dashboard'}
+            {t('app.activatePage.backToDashboard')}
           </button>
         </div>
       </div>
@@ -53,7 +51,7 @@ export default function ModuleActivatePage() {
   const isAvailable = role.status === 'available';
   const isActive = isModuleActive(role.key);
   const price = MODULE_PRICES[role.key] || 0;
-  const quota = MODULE_QUOTA[role.key] || (lang === 'id' ? 'Akses tak terbatas' : 'Unlimited access');
+  const quota = MODULE_QUOTA[role.key] || t('app.activatePage.unlimitedAccess');
 
   const getModuleHomePath = (roleKey) => {
     if (roleKey === 'seo') return '/app/seo/keywords';
@@ -77,7 +75,7 @@ export default function ModuleActivatePage() {
       <div style={styles.topBar}>
         <button onClick={() => navigate(-1)} style={styles.backBtn}>
           <ChevronLeft size={16} />
-          <span>{lang === 'id' ? 'Kembali' : 'Back'}</span>
+          <span>{t('common.back')}</span>
         </button>
         <span style={styles.workspaceIndicator}>
           Workspace: <strong>{activeWorkspace?.name}</strong>
@@ -92,10 +90,10 @@ export default function ModuleActivatePage() {
               <CheckCircle2 size={20} color="var(--accent-green)" />
               <div>
                 <strong style={{ color: 'var(--text-primary)', display: 'block' }}>
-                  Modul ini aktif untuk {activeWorkspace?.name}!
+                  {t('app.activatePage.activeBannerTitle', { name: activeWorkspace?.name })}
                 </strong>
                 <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                  Kamu memiliki akses penuh ke fitur dan otomasi {role.name}.
+                  {t('app.activatePage.fullAccessNotice', { role: role.name })}
                 </span>
               </div>
             </div>
@@ -207,15 +205,15 @@ export default function ModuleActivatePage() {
                 <div style={styles.actionBenefits}>
                   <div style={styles.benefitRow}>
                     <Check size={14} color="var(--accent-green)" />
-                    <span>{lang === 'id' ? 'Otomasi AI terjadwal tanpa intervensi manual' : 'Scheduled AI automation with zero manual prompts'}</span>
+                    <span>{t('app.activatePage.benefitAuto')}</span>
                   </div>
                   <div style={styles.benefitRow}>
                     <Check size={14} color="var(--accent-green)" />
-                    <span>{lang === 'id' ? 'Human-in-the-loop: tinjau & setujui sebelum terbit' : 'Human-in-the-loop: review and approve before publishing'}</span>
+                    <span>{t('app.activatePage.benefitHitl')}</span>
                   </div>
                   <div style={styles.benefitRow}>
                     <Check size={14} color="var(--accent-green)" />
-                    <span>{lang === 'id' ? 'Batal kapan saja tanpa kontrak tahunan terikat' : 'Cancel anytime with zero long-term lock-in'}</span>
+                    <span>{t('app.activatePage.benefitCancel')}</span>
                   </div>
                 </div>
 

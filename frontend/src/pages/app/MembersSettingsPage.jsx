@@ -16,10 +16,13 @@ import {
 } from 'lucide-react';
 import { api } from '../../api';
 import { useWorkspace } from '../../context/WorkspaceContext';
+import { useLanguage } from '../../context/LanguageContext';
+import { formatDate } from '../../lib/format';
 
 export default function MembersSettingsPage({ me, refreshMe }) {
   const { activeWorkspace } = useWorkspace();
   const currentWorkspaceId = activeWorkspace?.id;
+  const { t, lang } = useLanguage();
 
   const [members, setMembers] = useState([]);
   const [invites, setInvites] = useState([]);
@@ -269,8 +272,8 @@ export default function MembersSettingsPage({ me, refreshMe }) {
                 style={{ width: '100%', boxSizing: 'border-box' }}
                 disabled={inviting}
               >
-                <option value="viewer">Viewer (Pengamat)</option>
-                <option value="admin">Admin</option>
+                <option value="viewer">{t('settings.members.roleViewer')}</option>
+                <option value="admin">{t('settings.members.roleAdmin')}</option>
               </select>
             </div>
 
@@ -334,7 +337,7 @@ export default function MembersSettingsPage({ me, refreshMe }) {
                       <div className="member-meta-row">
                         <span>{member.email}</span>
                         <span>·</span>
-                        <span>Bergabung {member.joinedAt ? new Date(member.joinedAt).toLocaleDateString('id-ID') : '-'}</span>
+                        <span>{member.joinedAt ? formatDate(member.joinedAt, lang) : '-'}</span>
                       </div>
                     </div>
                   </div>
@@ -348,8 +351,8 @@ export default function MembersSettingsPage({ me, refreshMe }) {
                         className="select"
                         style={{ padding: '0.35rem 0.65rem', fontSize: '0.78rem' }}
                       >
-                        <option value="viewer">Viewer</option>
-                        <option value="admin">Admin</option>
+                        <option value="viewer">{t('settings.members.roleViewer')}</option>
+                        <option value="admin">{t('settings.members.roleAdmin')}</option>
                       </select>
                     ) : (
                       <span style={{
@@ -366,10 +369,13 @@ export default function MembersSettingsPage({ me, refreshMe }) {
                           ? 'var(--accent-cyan)'
                           : member.role === 'admin'
                           ? '#60a5fa'
-                          : 'var(--text-secondary)',
-                        textTransform: 'uppercase'
+                          : 'var(--text-secondary)'
                       }}>
-                        {member.role}
+                        {member.role === 'owner'
+                          ? t('settings.members.roleOwner')
+                          : member.role === 'admin'
+                          ? t('settings.members.roleAdmin')
+                          : t('settings.members.roleViewer')}
                       </span>
                     )}
 
@@ -437,11 +443,11 @@ export default function MembersSettingsPage({ me, refreshMe }) {
                       <span>{inv.email}</span>
                     </div>
                     <div className="member-meta-row">
-                      <span style={{ textTransform: 'uppercase', color: 'var(--accent-cyan)', fontWeight: '600' }}>
-                        {inv.role}
+                      <span style={{ color: 'var(--accent-cyan)', fontWeight: '600' }}>
+                        {inv.role === 'admin' ? t('settings.members.roleAdmin') : t('settings.members.roleViewer')}
                       </span>
                       <span>·</span>
-                      <span>Berakhir {new Date(inv.expiresAt).toLocaleDateString('id-ID')}</span>
+                      <span>{inv.expiresAt ? formatDate(inv.expiresAt, lang) : '-'}</span>
                     </div>
                   </div>
                 </div>
@@ -458,7 +464,7 @@ export default function MembersSettingsPage({ me, refreshMe }) {
                       borderColor: 'rgba(239, 68, 68, 0.3)'
                     }}
                   >
-                    Batalkan
+                    {t('common.cancel')}
                   </button>
                 </div>
               </div>

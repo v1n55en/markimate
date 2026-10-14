@@ -9,15 +9,23 @@ import {
   ShieldCheck,
   Download,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  Globe
 } from 'lucide-react';
 import { api, getToken } from '../../api';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function AccountSettingsPage({ me, refreshMe }) {
   const user = me?.user || {};
+  const { t, lang, setLang } = useLanguage();
 
-  // Tab State: profile | password | email | export | danger
+  // Tab State: profile | language | password | email | export | danger
   const [activeTab, setActiveTab] = useState('profile');
+
+  // Form State: Bahasa
+  const [savingLanguage, setSavingLanguage] = useState(false);
+  const [languageSuccess, setLanguageSuccess] = useState('');
+  const [languageError, setLanguageError] = useState('');
 
   // Form State: Profil
   const [name, setName] = useState(user.name || '');
@@ -53,6 +61,27 @@ export default function AccountSettingsPage({ me, refreshMe }) {
   const [deleteError, setDeleteError] = useState('');
   const [deleteSuccess, setDeleteSuccess] = useState('');
   const [blockedWorkspaces, setBlockedWorkspaces] = useState([]);
+
+  // Handler: Simpan Bahasa (PATCH /api/me + sync LanguageContext)
+  const handleSaveLanguage = async (newLocale) => {
+    setLanguageError('');
+    setLanguageSuccess('');
+    try {
+      setSavingLanguage(true);
+      await api('/api/me', {
+        method: 'PATCH',
+        body: { locale: newLocale }
+      });
+      setLang(newLocale);
+      setLanguageSuccess(t('settings.language.saved'));
+      setTimeout(() => setLanguageSuccess(''), 4000);
+      if (refreshMe) await refreshMe();
+    } catch (err) {
+      setLanguageError(err.message || 'Gagal menyimpan preferensi bahasa.');
+    } finally {
+      setSavingLanguage(false);
+    }
+  };
 
   // Handler: Simpan Profil
   const handleSaveProfile = async (e) => {
@@ -257,7 +286,25 @@ export default function AccountSettingsPage({ me, refreshMe }) {
           }}
         >
           <User size={15} />
-          <span>Profil Pengguna</span>
+          <span>{t('settings.profile.title')}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('language')}
+          className="btn"
+          style={{
+            backgroundColor: activeTab === 'language' ? 'var(--bg-surface-hover)' : 'transparent',
+            color: activeTab === 'language' ? 'var(--accent-cyan)' : 'var(--text-secondary)',
+            borderColor: activeTab === 'language' ? 'var(--accent-cyan)' : 'transparent',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          <Globe size={15} />
+          <span>{t('settings.languageTab')}</span>
         </button>
 
         <button
@@ -275,7 +322,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
           }}
         >
           <KeyRound size={15} />
-          <span>Kata Sandi</span>
+          <span>{t('settings.passwordTab')}</span>
         </button>
 
         <button
@@ -293,7 +340,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
           }}
         >
           <Mail size={15} />
-          <span>Alamat Email</span>
+          <span>{t('settings.emailTab')}</span>
         </button>
 
         <button
@@ -311,7 +358,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
           }}
         >
           <Download size={15} />
-          <span>Ekspor Data</span>
+          <span>{t('settings.exportTab')}</span>
         </button>
 
         <button
@@ -329,9 +376,96 @@ export default function AccountSettingsPage({ me, refreshMe }) {
           }}
         >
           <Trash2 size={15} />
-          <span>Hapus Akun</span>
+          <span>{t('settings.dangerTab')}</span>
         </button>
       </div>
+
+      {/* Konten Tab: Bahasa */}
+      {activeTab === 'language' && (
+        <div className="security-card-container">
+          <div className="security-card-header">
+            <div>
+              <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                {t('settings.language.title')}
+              </h2>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
+                {t('settings.language.desc')}
+              </p>
+            </div>
+          </div>
+
+          <div style={{ padding: '1.5rem', boxSizing: 'border-box' }}>
+            {languageSuccess && (
+              <div className="auth-alert-box auth-alert-success" style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <CheckCircle2 size={16} />
+                <span>{languageSuccess}</span>
+              </div>
+            )}
+            {languageError && (
+              <div className="auth-alert-box auth-alert-error" style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <AlertCircle size={16} />
+                <span>{languageError}</span>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '480px' }}>
+              <button
+                type="button"
+                onClick={() => handleSaveLanguage('id')}
+                disabled={savingLanguage}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '1rem 1.25rem',
+                  borderRadius: 'var(--radius-md)',
+                  border: lang.startsWith('id') ? '2px solid var(--accent-cyan)' : '1px solid var(--border-color)',
+                  backgroundColor: lang.startsWith('id') ? 'rgba(6, 182, 212, 0.08)' : 'var(--bg-surface)',
+                  cursor: savingLanguage ? 'not-allowed' : 'pointer',
+                  textAlign: 'left'
+                }}
+              >
+                <div>
+                  <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+                    🇮🇩 {t('settings.language.labelId')}
+                  </strong>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    Bahasa Indonesia baku (kata ganti &quot;Anda&quot;)
+                  </span>
+                </div>
+                {lang.startsWith('id') && <CheckCircle2 size={18} color="var(--accent-cyan)" />}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSaveLanguage('en')}
+                disabled={savingLanguage}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '1rem 1.25rem',
+                  borderRadius: 'var(--radius-md)',
+                  border: lang.startsWith('en') ? '2px solid var(--accent-cyan)' : '1px solid var(--border-color)',
+                  backgroundColor: lang.startsWith('en') ? 'rgba(6, 182, 212, 0.08)' : 'var(--bg-surface)',
+                  cursor: savingLanguage ? 'not-allowed' : 'pointer',
+                  textAlign: 'left'
+                }}
+              >
+                <div>
+                  <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+                    🇺🇸 {t('settings.language.labelEn')}
+                  </strong>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    International English
+                  </span>
+                </div>
+                {lang.startsWith('en') && <CheckCircle2 size={18} color="var(--accent-cyan)" />}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Konten Tab 1: Profil */}
       {activeTab === 'profile' && (

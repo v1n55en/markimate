@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Shield, Smartphone, Laptop, Globe, LogOut, Trash2, RefreshCw, AlertCircle } from 'lucide-react';
 import { api } from '../../api';
+import { useLanguage } from '../../context/LanguageContext';
+import { formatDateTime } from '../../lib/format';
 
 export default function SecuritySettingsPage() {
   const [sessions, setSessions] = useState([]);
@@ -8,6 +10,7 @@ export default function SecuritySettingsPage() {
   const [error, setError] = useState('');
   const [actionNotice, setActionNotice] = useState('');
   const [revokingId, setRevokingId] = useState(null);
+  const { t, lang } = useLanguage();
 
   const loadSessions = async () => {
     try {
@@ -16,7 +19,7 @@ export default function SecuritySettingsPage() {
       const data = await api('/api/sessions');
       setSessions(data.sessions || []);
     } catch (err) {
-      setError(err.message || 'Gagal memuat daftar sesi perangkat.');
+      setError(err.message || 'Failed to load device sessions.');
     } finally {
       setLoading(false);
     }
@@ -30,28 +33,28 @@ export default function SecuritySettingsPage() {
     try {
       setRevokingId(sessionId);
       await api(`/api/sessions/${sessionId}`, { method: 'DELETE' });
-      setActionNotice('Sesi perangkat berhasil dicabut.');
+      setActionNotice(t('settings.security.revokeBtn'));
       setTimeout(() => setActionNotice(''), 3000);
       await loadSessions();
     } catch (err) {
-      setError(err.message || 'Gagal mencabut sesi perangkat.');
+      setError(err.message || 'Failed to revoke session.');
     } finally {
       setRevokingId(null);
     }
   };
 
   const handleLogoutAll = async () => {
-    if (!window.confirm('Apakah Anda yakin ingin keluar dari semua perangkat lain? Anda akan tetap masuk di perangkat ini.')) {
+    if (!window.confirm(t('settings.security.revokeAllBtn') + '?')) {
       return;
     }
     try {
       setLoading(true);
       await api('/api/auth/logout-all', { method: 'POST' });
-      setActionNotice('Semua sesi perangkat lain telah berhasil dicabut.');
+      setActionNotice(t('settings.security.revokeAllBtn'));
       setTimeout(() => setActionNotice(''), 3000);
       await loadSessions();
     } catch (err) {
-      setError(err.message || 'Gagal mencabut semua sesi.');
+      setError(err.message || 'Failed to logout from all devices.');
     } finally {
       setLoading(false);
     }
@@ -72,10 +75,10 @@ export default function SecuritySettingsPage() {
         <div className="security-title-group">
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Shield size={22} color="var(--accent-cyan)" />
-            <span>Keamanan & Sesi Masuk</span>
+            <span>{t('settings.security.title')}</span>
           </h1>
           <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>
-            Kelola sesi perangkat yang sedang aktif mengakses akun Markimate Anda.
+            {t('settings.security.sessionsTitle')}
           </p>
         </div>
 
@@ -83,12 +86,12 @@ export default function SecuritySettingsPage() {
           <button
             onClick={loadSessions}
             className="btn btn-secondary"
-            title="Perbarui daftar sesi"
+            title={t('common.refresh')}
             disabled={loading}
             style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
             <RefreshCw size={14} className={loading ? 'spin' : ''} />
-            <span>Muat Ulang</span>
+            <span>{t('common.refresh')}</span>
           </button>
           <button
             onClick={handleLogoutAll}
@@ -97,7 +100,7 @@ export default function SecuritySettingsPage() {
             style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
             <LogOut size={14} />
-            <span>Keluar dari Semua Perangkat Lain</span>
+            <span>{t('settings.security.revokeAllBtn')}</span>
           </button>
         </div>
       </div>
@@ -120,10 +123,10 @@ export default function SecuritySettingsPage() {
         <div className="security-card-header">
           <div>
             <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-              Perangkat yang Sedang Masuk
+              {t('settings.security.sessionsTitle')}
             </h2>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-              Sesi dilindungi dengan rotasi token dan httpOnly cookie aman (akses 15 menit)
+              {t('settings.security.currentSession')}
             </p>
           </div>
         </div>
@@ -131,11 +134,11 @@ export default function SecuritySettingsPage() {
         {loading ? (
           <div style={{ padding: '3rem 1rem', textAlign: 'center', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
             <RefreshCw size={24} color="var(--accent-cyan)" className="spin" />
-            <span style={{ fontSize: '0.875rem' }}>Memuat daftar sesi perangkat…</span>
+            <span style={{ fontSize: '0.875rem' }}>{t('common.loading')}</span>
           </div>
         ) : sessions.length === 0 ? (
           <div style={{ padding: '3rem 1rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            Tidak ada sesi aktif lain yang tercatat.
+            {t('common.none')}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -151,7 +154,7 @@ export default function SecuritySettingsPage() {
 
                   <div className="session-text-content">
                     <div className="session-ua-title">
-                      <span>{s.userAgent || 'Perangkat Web'}</span>
+                      <span>{s.userAgent || 'Web Device'}</span>
                       {s.current && (
                         <span style={{
                           fontSize: '0.7rem',
@@ -161,7 +164,7 @@ export default function SecuritySettingsPage() {
                           padding: '2px 8px',
                           borderRadius: '12px'
                         }}>
-                          Sesi Saat Ini
+                          {t('settings.security.currentSession')}
                         </span>
                       )}
                     </div>
@@ -170,7 +173,7 @@ export default function SecuritySettingsPage() {
                         <Globe size={12} /> IP: {s.ip}
                       </span>
                       <span>·</span>
-                      <span>Masuk: {new Date(s.createdAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>{formatDateTime(s.createdAt, lang)}</span>
                     </div>
                   </div>
                 </div>
@@ -178,7 +181,7 @@ export default function SecuritySettingsPage() {
                 <div className="session-actions-slot">
                   {s.current ? (
                     <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--accent-cyan)' }}>
-                      Aktif
+                      {t('common.active')}
                     </span>
                   ) : (
                     <button
@@ -191,10 +194,10 @@ export default function SecuritySettingsPage() {
                         color: 'var(--accent-red)',
                         borderColor: 'rgba(239, 68, 68, 0.35)'
                       }}
-                      title="Cabut sesi dari perangkat ini"
+                      title={t('settings.security.revokeBtn')}
                     >
                       <Trash2 size={13} />
-                      <span>{revokingId === s.id ? 'Mencabut…' : 'Cabut Sesi'}</span>
+                      <span>{revokingId === s.id ? '…' : t('settings.security.revokeBtn')}</span>
                     </button>
                   )}
                 </div>
