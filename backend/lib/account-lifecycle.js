@@ -385,7 +385,8 @@ export function verifyMetaSignedRequest(signedRequest, appSecret) {
   }
 
   const [encodedSig, payloadStr] = signedRequest.split('.', 2);
-  const secret = appSecret || process.env.META_APP_SECRET || 'test_meta_app_secret';
+  const secret = appSecret || process.env.META_APP_SECRET;
+  if (!secret) return null;
 
   // Decode base64url sig
   const sigBuffer = Buffer.from(encodedSig.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
@@ -409,7 +410,10 @@ export function verifyMetaSignedRequest(signedRequest, appSecret) {
  * Menangani Webhook Meta Data Deletion Callback (PRD §4 Langkah 8)
  */
 export async function handleMetaDataDeletion(signedRequest, appUrl) {
-  const secret = process.env.META_APP_SECRET || 'test_meta_app_secret';
+  const secret = process.env.META_APP_SECRET;
+  if (!secret) {
+    throw Object.assign(new Error('Layanan penghapusan data Meta belum dikonfigurasi (META_APP_SECRET tidak disetel).'), { status: 503, code: 'SERVICE_UNAVAILABLE' });
+  }
   const payload = verifyMetaSignedRequest(signedRequest, secret);
   if (!payload) {
     throw Object.assign(new Error('Invalid signed_request signature.'), { status: 400, code: 'INVALID_SIGNATURE' });

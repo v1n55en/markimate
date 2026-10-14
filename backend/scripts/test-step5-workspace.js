@@ -262,6 +262,95 @@ async function runStep5Tests() {
   assert.strictEqual(credWs2.data.balance.total, 0, 'Workspace 2 baru harus memiliki saldo 0 (tidak otomatis dapat trial)');
   console.log('   OK - Saldo dompet credit terisolasi antar workspace.');
 
+  // ==========================================
+  // 9. Pengujian 2.1: requireWorkspace mengutamakan :id URL dan menolak non-UUID
+  // ==========================================
+  console.log('9. Pengujian 2.1: requireWorkspace mengutamakan :id URL dibanding header...');
+  // 9a. ID URL bukan UUID harus 404 WORKSPACE_NOT_FOUND (tidak boleh fallback ke default)
+  const nonUuidDelete = await req('/api/workspaces/bukan-uuid-12345', {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${tokenA}`,
+      'X-Workspace-Id': wsA1.id
+    }
+  });
+  assert.strictEqual(nonUuidDelete.status, 404, 'Non-UUID workspace ID di URL harus 404');
+  assert.strictEqual(nonUuidDelete.data.code, 'WORKSPACE_NOT_FOUND');
+
+  // 9b. DELETE /api/workspaces/:id dengan X-Workspace-Id aktif menunjuk ke wsA1
+  // Harus menghapus wsA2 (sesuai URL), BUKAN wsA1 yang ada di header!
+  const deleteWs2Res = await req(`/api/workspaces/${wsA2.id}`, {
+    method: 'DELETE',
+    headers: {
+      Authorization: `Bearer ${tokenA}`,
+      'X-Workspace-Id': wsA1.id // Header menunjuk ke wsA1
+    }
+  });
+  assert.strictEqual(deleteWs2Res.status, 200, 'DELETE /api/workspaces/:id harus 200');
+
+  // Verifikasi wsA1 tetap hidup (tidak terhapus)
+  const checkWs1 = await db.findOne('workspaces', { id: wsA1.id });
+  assert.ok(checkWs1 && !checkWs1.deleted_at, 'Workspace aktif wsA1 TIDAK BOLEH terhapus!');
+
+  // Verifikasi wsA2 sudah terhapus
+  const checkWs2 = await db.findOne('workspaces', { id: wsA2.id });
+  assert.ok(checkWs2 && checkWs2.deleted_at, 'Workspace wsA2 harus ditandai deleted_at');
+  console.log('   OK - DELETE /api/workspaces/:id menghapus workspace di URL dan tidak menyentuh workspace aktif di header.');
+
+  // ==========================================
+  // 10. Pengujian 2.4: Isolasi CMS Connection per Workspace
+  // ==========================================
+  console.log('10. Pengujian 2.4: Koneksi CMS terisolasi ke workspace, tidak bocor via fallback user_id...');
+  // User A buat workspace ke-3 untuk tes CMS
+  const createWs3 = await req('/api/workspaces', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenA}` },
+    body: { name: 'Workspace CMS Isolated', niche: 'Tech' }
+  });
+  assert.strictEqual(createWs3.status, 200);
+  const wsA3 = createWs3.data.workspace;
+
+  // Pasang module entitlement seo untuk wsA1 dan wsA3 agar bisa akses CMS
+  await db.insert('module_entitlements', { workspace_id: wsA1.id, module: 'seo', active: true, source: 'free', starts_at: new Date().toISOString() });
+  await db.insert('module_entitlements', { workspace_id: wsA3.id, module: 'seo', active: true, source: 'free', starts_at: new Date().toISOString() });
+
+  // Simpan CMS di wsA1
+  const saveCmsRes = await req('/api/cms/wordpress', {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${tokenA}`,
+      'X-Workspace-Id': wsA1.id
+    },
+    body: {
+      url: 'https://example-ws1.com',
+      user: 'adminws1',
+      appPassword: 'pass-ws1-secret',
+      test: false
+    }
+  });
+  assert.strictEqual(saveCmsRes.status, 200, 'Simpan CMS di wsA1 harus 200');
+
+  // Cek CMS di wsA1 -> harus ada
+  const cmsWs1 = await req('/api/cms', {
+    headers: {
+      Authorization: `Bearer ${tokenA}`,
+      'X-Workspace-Id': wsA1.id
+    }
+  });
+  assert.strictEqual(cmsWs1.status, 200);
+  assert.strictEqual(cmsWs1.data.cms.length, 1, 'wsA1 harus punya 1 CMS');
+
+  // Cek CMS di wsA3 milik user yang sama -> HARUS KOSONG (tidak boleh bocor via fallback user_id)
+  const cmsWs3 = await req('/api/cms', {
+    headers: {
+      Authorization: `Bearer ${tokenA}`,
+      'X-Workspace-Id': wsA3.id
+    }
+  });
+  assert.strictEqual(cmsWs3.status, 200);
+  assert.strictEqual(cmsWs3.data.cms.length, 0, 'wsA3 tidak boleh melihat CMS milik wsA1!');
+  console.log('   OK - CMS connection terisolasi murni per workspace.');
+
   console.log('\n=== ALL STEP 5 WORKSPACE TESTS PASSED SUCCESSFULLY! ===\n');
   process.exit(0);
 }

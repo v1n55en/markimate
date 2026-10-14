@@ -263,22 +263,37 @@ async function runStep8Tests() {
     issued_at: Math.floor(Date.now() / 1000)
   };
 
-  // 9a. Panggil dengan signature valid
+  // 9a. Panggil dengan signature valid menggunakan form-encoded (application/x-www-form-urlencoded)
   const validSignedRequest = makeMetaSignedRequest(sampleMetaPayload, TEST_META_SECRET);
+  const formBody = new URLSearchParams({ signed_request: validSignedRequest }).toString();
   const metaSuccessRes = await req('/api/data-deletion/meta', {
     method: 'POST',
-    body: { signed_request: validSignedRequest }
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: formBody
   });
-  assert.strictEqual(metaSuccessRes.status, 200);
+  assert.strictEqual(metaSuccessRes.status, 200, 'Meta callback form-encoded harus berhasil 200');
   assert.ok(metaSuccessRes.data.confirmation_code, 'Harus mengembalikan confirmation_code');
   assert.ok(metaSuccessRes.data.url?.includes('/data-deletion?code='), 'Harus mengembalikan tracking URL');
   const confirmationCode = metaSuccessRes.data.confirmation_code;
 
-  // 9b. Panggil dengan signature salah -> harus ditolak 400
+  // 9b. Panggil saat META_APP_SECRET kosong -> harus 503 SERVICE_UNAVAILABLE (tanpa fallback)
+  const originalSecret = process.env.META_APP_SECRET;
+  delete process.env.META_APP_SECRET;
+  const metaNoSecretRes = await req('/api/data-deletion/meta', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: formBody
+  });
+  assert.strictEqual(metaNoSecretRes.status, 503, 'Tanpa META_APP_SECRET harus 503 SERVICE_UNAVAILABLE');
+  assert.strictEqual(metaNoSecretRes.data.code, 'SERVICE_UNAVAILABLE');
+  process.env.META_APP_SECRET = originalSecret; // kembalikan secret
+
+  // 9c. Panggil dengan signature salah -> harus ditolak 400
   const invalidSignedRequest = makeMetaSignedRequest(sampleMetaPayload, 'wrong_secret');
   const metaInvalidRes = await req('/api/data-deletion/meta', {
     method: 'POST',
-    body: { signed_request: invalidSignedRequest }
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ signed_request: invalidSignedRequest }).toString()
   });
   assert.strictEqual(metaInvalidRes.status, 400);
 

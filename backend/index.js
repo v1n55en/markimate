@@ -46,7 +46,9 @@ import {
   requireWorkspace,
   resolveWorkspaceForUser,
   getUserWorkspaces,
-  createWorkspaceApiKey
+  createWorkspaceApiKey,
+  requireUuidParam,
+  isUuid
 } from './lib/workspaces.js';
 import {
   getModules,
@@ -78,6 +80,12 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5001;
+if (process.env.NODE_ENV === 'production') {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+    console.error('[FATAL] Di lingkungan production, JWT_SECRET wajib diisi dan minimal 32 karakter.');
+    process.exit(1);
+  }
+}
 const JWT_SECRET = process.env.JWT_SECRET || 'ganti-di-env-JWT_SECRET';
 const N8N_BASE_URL = (process.env.N8N_BASE_URL || 'https://n8n.3ourasia.id').replace(/\/+$/, '');
 // Override opsional (nama baru MARKIMATE_N8N_*, dengan fallback ke SUPERMAT_N8N_* supaya backward compatible)
@@ -648,8 +656,30 @@ app.post('/api/auth/refresh', wrap(async (req, res) => {
     });
   }
 
-  // Reuse Detection: Token yang sudah direvoke dicoba dipakai lagi (indikasi pencurian sesi)
+  // Reuse Detection: Token yang sudah direvoke dicoba dipakai lagi
   if (record.revoked_at) {
+    const revokedAtTime = new Date(record.revoked_at).getTime();
+    const isWithinGrace = (Date.now() - revokedAtTime) <= 30 * 1000; // grace window 30 detik
+
+    // Langkah 2.3: Jika masih dalam grace window 30 detik dan memiliki penerus aktif, kembalikan sesi penerus
+    if (isWithinGrace && record.replaced_by) {
+      const successor = await db.findOne('refresh_tokens', { id: record.replaced_by });
+      if (successor && !successor.revoked_at && new Date(successor.expires_at) > new Date()) {
+        const user = await db.findOne('accounts', { id: record.user_id });
+        if (user && user.status === 'active') {
+          const accessToken = signAccessToken(user);
+          const ttlSec = (Number(process.env.ACCESS_TOKEN_TTL_MIN) || 15) * 60;
+          return res.json({
+            token: accessToken,
+            accessToken,
+            expiresIn: ttlSec,
+            user: publicUser(user)
+          });
+        }
+      }
+    }
+
+    // Reuse Detection di luar grace window 30 detik: indikasi pencurian sesi / replay attack
     const familyRecords = await db.findMany('refresh_tokens', { family_id: record.family_id });
     for (const r of familyRecords) {
       if (!r.revoked_at) {
@@ -792,7 +822,7 @@ app.get('/api/sessions', auth, wrap(async (req, res) => {
 }));
 
 // Cabut Sesi Perangkat Tertentu
-app.delete('/api/sessions/:id', auth, wrap(async (req, res) => {
+app.delete('/api/sessions/:id', auth, requireUuidParam('id'), wrap(async (req, res) => {
   const record = await db.findOne('refresh_tokens', { id: req.params.id, user_id: req.user.id });
   if (!record) return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
 
@@ -1220,7 +1250,14 @@ app.get('/api/account/export', auth, wrap(async (req, res) => {
 // ==========================================
 // Meta Data Deletion Callback (PRD F1 + F2 Langkah 8)
 // ==========================================
-app.post('/api/data-deletion/meta', wrap(async (req, res) => {
+app.post('/api/data-deletion/meta', express.urlencoded({ extended: false }), wrap(async (req, res) => {
+  if (!process.env.META_APP_SECRET) {
+    return res.status(503).json({
+      error: 'Layanan penghapusan data Meta belum dikonfigurasi (META_APP_SECRET tidak disetel).',
+      code: 'SERVICE_UNAVAILABLE'
+    });
+  }
+
   const signedRequest = req.body?.signed_request || req.body?.signedRequest;
   if (!signedRequest) {
     return res.status(400).json({ error: 'signed_request is required', code: 'SIGNED_REQUEST_REQUIRED' });
@@ -1445,7 +1482,7 @@ app.post('/api/workspaces/:id/api-keys', auth, requireWorkspace('admin'), wrap(a
   });
 }));
 
-app.delete('/api/workspaces/:id/api-keys/:keyId', auth, requireWorkspace('admin'), wrap(async (req, res) => {
+app.delete('/api/workspaces/:id/api-keys/:keyId', auth, requireWorkspace('admin'), requireUuidParam('keyId'), wrap(async (req, res) => {
   const existingKey = await db.findOne('workspace_api_keys', {
     id: req.params.keyId,
     workspace_id: req.workspace.id
@@ -1495,7 +1532,7 @@ app.get('/api/workspaces/:id/members', auth, requireWorkspace('viewer'), wrap(as
   res.json({ members: enriched });
 }));
 
-app.patch('/api/workspaces/:id/members/:userId', auth, requireWorkspace('admin'), wrap(async (req, res) => {
+app.patch('/api/workspaces/:id/members/:userId', auth, requireWorkspace('admin'), requireUuidParam('userId'), wrap(async (req, res) => {
   const targetUserId = req.params.userId;
   const { role } = req.body || {};
 
@@ -1545,7 +1582,7 @@ app.patch('/api/workspaces/:id/members/:userId', auth, requireWorkspace('admin')
   res.json({ success: true, member: { userId: targetUserId, role } });
 }));
 
-app.delete('/api/workspaces/:id/members/:userId', auth, requireWorkspace('viewer'), wrap(async (req, res) => {
+app.delete('/api/workspaces/:id/members/:userId', auth, requireWorkspace('viewer'), requireUuidParam('userId'), wrap(async (req, res) => {
   const targetUserId = req.params.userId;
   const isSelf = targetUserId === req.user.id;
 
@@ -1714,7 +1751,7 @@ app.post('/api/workspaces/:id/invites', auth, requireWorkspace('admin'), wrap(as
   });
 }));
 
-app.delete('/api/workspaces/:id/invites/:inviteId', auth, requireWorkspace('admin'), wrap(async (req, res) => {
+app.delete('/api/workspaces/:id/invites/:inviteId', auth, requireWorkspace('admin'), requireUuidParam('inviteId'), wrap(async (req, res) => {
   const inv = await db.findOne('workspace_invites', {
     id: req.params.inviteId,
     workspace_id: req.workspace.id
@@ -2523,14 +2560,12 @@ async function fetchCmsOptions(type, cfg) {
 }
 
 app.get('/api/cms', auth, requireWorkspace('viewer'), requireModule('seo'), wrap(async (req, res) => {
-  let conns = await db.findMany('cms_connections', { workspace_id: req.workspace.id });
-  if (!conns.length) conns = await db.findMany('cms_connections', { user_id: req.user.id });
-  res.json({ cms: conns.map(maskConn) });
+  const conns = await db.findMany('cms_connections', { workspace_id: req.workspace.id });
+  res.json({ cms: (conns || []).map(maskConn) });
 }));
 app.get('/api/cms/:type/options', auth, requireWorkspace('viewer'), requireModule('seo'), wrap(async (req, res) => {
   const type = String(req.params.type).toLowerCase();
-  let c = await db.findOne('cms_connections', { workspace_id: req.workspace.id, cms_type: type });
-  if (!c) c = await db.findOne('cms_connections', { user_id: req.user.id, cms_type: type });
+  const c = await db.findOne('cms_connections', { workspace_id: req.workspace.id, cms_type: type });
   if (!c) return res.json({ options: {} });
   const cfg = resolveConnConfig(c);
   const options = await fetchCmsOptions(type, cfg);
@@ -2539,8 +2574,7 @@ app.get('/api/cms/:type/options', auth, requireWorkspace('viewer'), requireModul
 app.put('/api/cms/:type', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
   const type = String(req.params.type).toLowerCase();
   if (!CMS_TYPES.includes(type)) throw Object.assign(new Error('CMS belum didukung: ' + type), { status: 400 });
-  let existing = await db.findOne('cms_connections', { workspace_id: req.workspace.id, cms_type: type });
-  if (!existing) existing = await db.findOne('cms_connections', { user_id: req.user.id, cms_type: type });
+  const existing = await db.findOne('cms_connections', { workspace_id: req.workspace.id, cms_type: type });
   const existingConfig = existing ? resolveConnConfig(existing) : {};
   
   const hasConfig = req.body.config !== undefined || (!req.body.articleSettings && Object.keys(req.body).length > 0);
@@ -2585,8 +2619,7 @@ app.put('/api/cms/:type', auth, requireWorkspace('admin'), requireModule('seo'),
 }));
 app.post('/api/cms/:type/test', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
   const type = String(req.params.type).toLowerCase();
-  let c = await db.findOne('cms_connections', { workspace_id: req.workspace.id, cms_type: type });
-  if (!c) c = await db.findOne('cms_connections', { user_id: req.user.id, cms_type: type });
+  const c = await db.findOne('cms_connections', { workspace_id: req.workspace.id, cms_type: type });
   if (!c) throw Object.assign(new Error('Kredensial belum disimpan.'), { status: 404 });
   const cfg = resolveConnConfig(c);
   const test = await testConnection(type, cfg);

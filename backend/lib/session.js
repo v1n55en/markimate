@@ -59,6 +59,11 @@ export function clearRefreshTokenCookie(res) {
 
 export function signAccessToken(user) {
   const ttlMin = Number(process.env.ACCESS_TOKEN_TTL_MIN) || 15;
+  if (process.env.NODE_ENV === 'production') {
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+      throw new Error('[FATAL] Di lingkungan production, JWT_SECRET wajib diisi dan minimal 32 karakter.');
+    }
+  }
   const jwtSecret = process.env.JWT_SECRET || 'ganti-di-env-JWT_SECRET';
   return jwt.sign(
     {

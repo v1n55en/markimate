@@ -144,16 +144,29 @@ async function runStep3Tests() {
   assert.strictEqual(meAfterRotate.status, 200, 'Akses dengan access token baru harus berhasil');
 
   // ==========================================
-  // 4. Token Reuse Detection (Security Test)
+  // 4. Token Reuse Detection & Grace Window 30s (Security Test Langkah 2.3)
   // ==========================================
-  console.log('4. Menguji deteksi penggunaan ulang token (Reuse Detection)...');
-  // Coba refresh sekali lagi menggunakan token LAMA (initialCookie) yang sudah diputar/revoked
+  console.log('4. Menguji grace window 30 detik dan deteksi penggunaan ulang token (Reuse Detection)...');
+  // 4a. Refresh segera (<30s) menggunakan token lama harus sukses (grace window untuk multi-tab)
+  const graceRes = await sessionRequest('/api/auth/refresh', {
+    method: 'POST',
+    cookie: initialCookie
+  });
+  assert.strictEqual(graceRes.status, 200, 'Refresh dalam grace window 30 detik harus mengembalikan 200 OK');
+  assert.ok(graceRes.data.accessToken, 'Harus mengembalikan access token sesi penerus');
+
+  // 4b. Coba refresh menggunakan token LAMA di luar grace window (> 30s)
+  const initialHash = (await import('../lib/tokens.js')).hashToken(loginRes.rtRawValue);
+  await db.update('refresh_tokens', { token_hash: initialHash }, {
+    revoked_at: new Date(Date.now() - 60 * 1000).toISOString()
+  });
+
   const reuseRes = await sessionRequest('/api/auth/refresh', {
     method: 'POST',
     cookie: initialCookie
   });
 
-  assert.strictEqual(reuseRes.status, 401, 'Percobaan reuse token harus ditolak 401');
+  assert.strictEqual(reuseRes.status, 401, 'Percobaan reuse token di luar 30 detik harus ditolak 401');
   assert.strictEqual(reuseRes.data?.code, 'TOKEN_REUSE_DETECTED', 'Harus mengembalikan kode TOKEN_REUSE_DETECTED');
 
   // Seluruh keluarga token (termasuk rotatedCookie) harus otomatis dicabut
@@ -235,8 +248,17 @@ async function runStep3Tests() {
   const sessionToRevoke = listAfterTwo.data.sessions.find(s => !s.current);
   assert.ok(sessionToRevoke, 'Harus menemukan sesi lain untuk dicabut');
 
+  // Pengujian 2.2: DELETE /api/sessions/:id dengan non-UUID harus 404 (bukan 500)
+  console.log('7a. Menguji DELETE /api/sessions/non-uuid (harus 404, bukan 500)...');
+  const invalidSessionIdRes = await sessionRequest('/api/sessions/invalid-id-bukan-uuid', {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${upgradedAccessToken}` }
+  });
+  assert.strictEqual(invalidSessionIdRes.status, 404, 'ID sesi non-UUID harus mengembalikan 404');
+  console.log('   OK - Validasi non-UUID pada DELETE /api/sessions/:id mengembalikan 404');
+
   // Cabut sesi kedua via DELETE /api/sessions/:id
-  console.log('7. Menguji pencabutan sesi perangkat tertentu (DELETE /api/sessions/:id)...');
+  console.log('7b. Menguji pencabutan sesi perangkat tertentu (DELETE /api/sessions/:id)...');
   const revokeOneRes = await sessionRequest(`/api/sessions/${sessionToRevoke.id}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${upgradedAccessToken}` }
@@ -249,6 +271,53 @@ async function runStep3Tests() {
     cookie: secondSessionCookie
   });
   assert.strictEqual(refreshSecondRes.status, 401, 'Sesi yang dicabut tidak boleh bisa refresh');
+
+  // ==========================================
+  // 7c. Pengujian 2.3: Grace Window 30 Detik untuk Refresh Bersamaan (Multi-Tab)
+  // ==========================================
+  console.log('7c. Menguji Grace Window 30 Detik untuk Refresh Bersamaan (Multi-Tab)...');
+  // Login sesi baru untuk pengujian tab bersamaan
+  const multiTabLogin = await sessionRequest('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email: testEmail, password: testPassword })
+  });
+  assert.strictEqual(multiTabLogin.status, 200);
+  const sharedCookie = multiTabLogin.rtCookie;
+
+  // Tab 1 melakukan refresh -> rotasi token (sharedCookie sekarang revoked & replaced_by diset)
+  const tab1Refresh = await sessionRequest('/api/auth/refresh', {
+    method: 'POST',
+    cookie: sharedCookie
+  });
+  assert.strictEqual(tab1Refresh.status, 200, 'Tab 1 refresh pertama harus berhasil 200');
+  const tab1AccessToken = tab1Refresh.data.accessToken;
+  assert.ok(tab1AccessToken, 'Tab 1 harus menerima access token baru');
+
+  // Tab 2 (booting bersamaan) memanggil refresh dengan token yang sama (sharedCookie) dalam 30s
+  const tab2Refresh = await sessionRequest('/api/auth/refresh', {
+    method: 'POST',
+    cookie: sharedCookie
+  });
+  assert.strictEqual(tab2Refresh.status, 200, 'Tab 2 dalam grace window 30s harus berhasil 200');
+  assert.ok(tab2Refresh.data.accessToken, 'Tab 2 harus menerima access token penerus');
+  console.log('   OK - Tab 2 refresh bersamaan tidak ter-logout berkat grace window 30s');
+
+  // Simulasi penggunaan token lama di luar grace window (> 30s) -> Replay Attack / Reuse Detection
+  const oldTokenRecord = await db.findOne('refresh_tokens', { token_hash: multiTabLogin.rtRawValue ? (await import('../lib/tokens.js')).hashToken(multiTabLogin.rtRawValue) : '' });
+  if (oldTokenRecord) {
+    // Mundurkan waktu revoked_at ke 60 detik lalu
+    await db.update('refresh_tokens', { id: oldTokenRecord.id }, {
+      revoked_at: new Date(Date.now() - 60 * 1000).toISOString()
+    });
+  }
+
+  const expiredReuseRefresh = await sessionRequest('/api/auth/refresh', {
+    method: 'POST',
+    cookie: sharedCookie
+  });
+  assert.strictEqual(expiredReuseRefresh.status, 401, 'Reuse di luar 30 detik harus ditolak 401');
+  assert.strictEqual(expiredReuseRefresh.data.code, 'TOKEN_REUSE_DETECTED', 'Harus mendeteksi TOKEN_REUSE_DETECTED');
+  console.log('   OK - Penggunaan token di luar grace window 30s berhasil mendeteksi TOKEN_REUSE_DETECTED');
 
   // ==========================================
   // 8. Logout Sesi (/api/auth/logout)

@@ -16,6 +16,19 @@ export const ROLE_LEVELS = {
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const isUuid = (v) => typeof v === 'string' && UUID_RE.test(v);
 
+export function requireUuidParam(paramName = 'id') {
+  return (req, res, next) => {
+    const val = req.params?.[paramName];
+    if (!val || !isUuid(val)) {
+      return res.status(404).json({
+        error: 'Data tidak ditemukan.',
+        code: 'NOT_FOUND'
+      });
+    }
+    next();
+  };
+}
+
 export async function resolveWorkspaceForUser(userId, requestedWsId) {
   // ID workspace legacy/mock (mis. "ws-3our-official") bukan UUID: abaikan & pakai workspace default
   if (requestedWsId && !isUuid(requestedWsId)) requestedWsId = null;
@@ -104,7 +117,22 @@ export function requireWorkspace(minRole = 'viewer') {
         return res.status(401).json({ error: 'Belum login.', code: 'UNAUTHORIZED' });
       }
 
-      const requestedWsId = req.headers['x-workspace-id'] || req.params.id || req.params.workspaceId || req.query.workspaceId || req.body?.workspaceId;
+      const isWorkspaceRoute = req.params?.workspaceId !== undefined || (req.params?.id !== undefined && /^\/api\/workspaces\//.test(req.originalUrl || req.baseUrl || req.path));
+      let requestedWsId;
+
+      if (isWorkspaceRoute) {
+        const routeWsId = req.params?.workspaceId || req.params?.id;
+        if (!isUuid(routeWsId)) {
+          return res.status(404).json({
+            error: 'Workspace tidak ditemukan atau Anda tidak memiliki akses.',
+            code: 'WORKSPACE_NOT_FOUND'
+          });
+        }
+        requestedWsId = routeWsId;
+      } else {
+        requestedWsId = req.headers['x-workspace-id'] || req.query?.workspaceId || req.body?.workspaceId;
+      }
+
       const resolved = await resolveWorkspaceForUser(req.user.id, requestedWsId);
 
       // Keamanan: Jika workspace tidak ditemukan atau user bukan anggota, kembalikan 404 (bukan 403)
