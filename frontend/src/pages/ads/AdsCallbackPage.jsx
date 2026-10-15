@@ -40,7 +40,7 @@ export default function AdsCallbackPage() {
         setStatus('success');
       } catch (err) {
         setStatus('error');
-        setErrorMessage(err.message || (lang.startsWith('id') ? 'Gagal memproses otorisasi akun iklan.' : 'Failed to process ad account authorization.'));
+        setErrorMessage(err.message || t('ads.callback.errorProcess'));
       }
     };
 
@@ -127,7 +127,7 @@ export default function AdsCallbackPage() {
             <div style={styles.actionRow}>
               <Link to="/app/ads/connections" style={styles.secondaryBtn}>
                 <ArrowLeft size={16} />
-                <span>{lang.startsWith('id') ? 'Kembali' : 'Back'}</span>
+                <span>{t('common.back', 'Back')}</span>
               </Link>
               <button
                 onClick={() => {

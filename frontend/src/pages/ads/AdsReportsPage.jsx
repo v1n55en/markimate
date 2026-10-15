@@ -168,7 +168,7 @@ export default function AdsReportsPage({ user }) {
           <button
             onClick={() => navigate(`/app/ads/reports/${row.id}`)}
             style={styles.viewDetailBtn}
-            title={lang.startsWith('id') ? "Lihat detail laporan" : "View report details"}
+            title={t('ads.reports.viewDetails')}
           >
             <Eye size={14} />
             <span>{t('ads.reports.viewBtn')}</span>
@@ -268,7 +268,7 @@ export default function AdsReportsPage({ user }) {
             </form>
           )}
 
-          <button onClick={loadData} style={styles.refreshBtn} title={lang.startsWith('id') ? "Muat ulang laporan" : "Reload reports"}>
+          <button onClick={loadData} style={styles.refreshBtn} title={t('ads.reports.reload')}>
             <RefreshCw size={15} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
           </button>
         </div>

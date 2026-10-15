@@ -10,6 +10,10 @@ export const publicTranslations = {
     "logout": "Sign Out",
     "dashboard": "Dashboard"
   },
+  "meta": {
+    "defaultTitle": "Markimate — Full Digital Marketing Team in One Platform | Powered by 3our",
+    "defaultDescription": "All-in-one AI digital marketing platform: Autonomous SEO trend mining, rank-ready content generation, 1-click CMS dispatch, and multi-channel ad reporting."
+  },
   "header": {
     "tagline": "powered by 3our"
   },

@@ -7,14 +7,14 @@ import { useLanguage } from '../../context/LanguageContext';
 import { formatDateTime, formatNumber } from '../../lib/format';
 import { api, GEO_OPTIONS, LN_OPTIONS, CMS_LABEL } from '../../api';
 
-const getWeekdays = (lang = 'id') => [
-  { value: 0, label: lang.startsWith('en') ? 'Sunday' : 'Minggu' },
-  { value: 1, label: lang.startsWith('en') ? 'Monday' : 'Senin' },
-  { value: 2, label: lang.startsWith('en') ? 'Tuesday' : 'Selasa' },
-  { value: 3, label: lang.startsWith('en') ? 'Wednesday' : 'Rabu' },
-  { value: 4, label: lang.startsWith('en') ? 'Thursday' : 'Kamis' },
-  { value: 5, label: lang.startsWith('en') ? 'Friday' : 'Jumat' },
-  { value: 6, label: lang.startsWith('en') ? 'Saturday' : 'Sabtu' },
+const getWeekdays = (t) => [
+  { value: 0, label: t('common.weekdays.sun') },
+  { value: 1, label: t('common.weekdays.mon') },
+  { value: 2, label: t('common.weekdays.tue') },
+  { value: 3, label: t('common.weekdays.wed') },
+  { value: 4, label: t('common.weekdays.thu') },
+  { value: 5, label: t('common.weekdays.fri') },
+  { value: 6, label: t('common.weekdays.sat') },
 ];
 
 export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
@@ -44,7 +44,7 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
 
   const [runResult, setRunResult] = useState(null);
 
-  const weekdays = useMemo(() => getWeekdays(lang), [lang]);
+  const weekdays = useMemo(() => getWeekdays(t), [t]);
 
   const loadSources = useCallback(async () => {
     setLoading(true); setError('');
@@ -89,7 +89,7 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
 
   const saveSource = async () => {
     if (!seedKeywords.length) {
-      setError(lang.startsWith('id') ? 'Masukkan minimal 1 seed keyword untuk riset Google Trends.' : 'Enter at least 1 seed keyword for Google Trends research.');
+      setError(t('seo.autoTopics.errSeedRequired'));
       return;
     }
     setSaving(true); setError('');
@@ -111,7 +111,7 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
         }
       });
       setSource(res.source);
-      setNotice(lang.startsWith('id') ? 'Pengaturan topik otomatis berhasil disimpan.' : 'Autonomous topics settings saved successfully.');
+      setNotice(t('seo.autoTopics.settingsSaved'));
       setTimeout(() => setNotice(''), 4000);
     } catch (e) {
       setError(e.message);
@@ -122,7 +122,7 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
 
   const runNow = async () => {
     if (!isPremium) {
-      setError(lang.startsWith('id') ? 'Topik otomatis dengan Google Trends hanya untuk paket Pro.' : 'Autonomous topics with Google Trends is only available on Pro plans.');
+      setError(t('seo.autoTopics.proRequired'));
       return;
     }
     if (!source?.id) {
@@ -147,9 +147,10 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
       setRunResult(res);
       refreshMe && refreshMe();
       setNotice(
-        lang.startsWith('id')
-          ? `Berhasil menemukan ${res.topics?.length || 0} topik baru dari Google Trends!`
-          : `Successfully discovered ${res.topics?.length || 0} new trending topics from Google Trends!`
+        t('seo.autoTopics.runSuccess', {
+          new: res.topics?.length || 0,
+          skipped: (res.skipped?.duplicate ?? 0) + (res.skipped?.lowVolume ?? 0)
+        })
       );
     } catch (e) {
       setError(e.message);
@@ -165,13 +166,11 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
           <TrendingUp size={24} color="var(--accent-cyan)" />
           <h1 style={{ margin: 0 }}>
-            {lang.startsWith('id') ? 'Topik Otomatis (Google Trends)' : 'Autonomous Topics (Google Trends)'}
+            {t('seo.autoTopics.pageTitle')}
           </h1>
         </div>
         <p style={{ color: 'var(--text-secondary)' }}>
-          {lang.startsWith('id')
-            ? 'Markimate memantau lonjakan tren pencarian Google secara berkala berdasarkan kata kunci fokus Anda, menyaring topik yang mirip dengan artikel lama di CMS, lalu menyiapkannya sebagai draf artikel siap review.'
-            : 'Markimate monitors real-time Google search trends based on your focus seed keywords, deduplicates against published CMS posts, and stages them as review-ready article drafts.'}
+          {t('seo.autoTopics.pageSubtitle')}
         </p>
       </header>
 
@@ -179,14 +178,10 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
         <div className="card" style={{ ...styles.alert, marginBottom: '1.5rem', borderColor: 'rgba(245, 158, 11, 0.4)' }}>
           <Lock size={18} color="var(--accent-yellow)" />
           <div style={{ flex: 1, fontSize: '0.88rem' }}>
-            {lang.startsWith('id') ? (
-              <>Fitur <b>Topik Otomatis</b> hanya aktif pada paket <b>Pro</b>. Sistem akan menjalankan cron mingguan di server untuk menemukan topik baru dan mengisi backlog artikel secara otomatis.</>
-            ) : (
-              <>The <b>Autonomous Topics</b> feature is active on <b>Pro</b> plans. The server executes a weekly background cron to surface trending topics and queue rank-ready articles.</>
-            )}
+            {t('seo.autoTopics.proBannerDesc')}
           </div>
           <button className="btn btn-primary" onClick={() => goTo && goTo('billing')}>
-            {lang.startsWith('id') ? 'Upgrade ke Pro' : 'Upgrade to Pro'}
+            {t('seo.autoTopics.upgradeToPro')}
           </button>
         </div>
       )}
@@ -210,10 +205,10 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-muted)', paddingBottom: '0.75rem' }}>
           <div>
             <h2 style={{ margin: 0, fontSize: '1.1rem' }}>
-              {lang.startsWith('id') ? 'Konfigurasi Riset Tren' : 'Trend Research Configuration'}
+              {t('seo.autoTopics.configTitle')}
             </h2>
             <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              {lang.startsWith('id') ? 'Tentukan fokus topik dan waktu eksekusi otomatis' : 'Specify focus seed keywords and autonomous scheduling'}
+              {t('seo.autoTopics.configSubtitle')}
             </div>
           </div>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem' }}>
@@ -223,7 +218,7 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
               onChange={e => setActive(e.target.checked)}
               disabled={!isPremium}
             />
-            <span>{active ? (lang.startsWith('id') ? 'Jadwal Aktif' : 'Schedule Active') : (lang.startsWith('id') ? 'Jadwal Dijeda' : 'Schedule Paused')}</span>
+            <span>{active ? t('seo.autoTopics.scheduleActive') : t('seo.autoTopics.schedulePaused')}</span>
           </label>
         </div>
 
@@ -231,12 +226,10 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
           {/* Seed Keywords Chips */}
           <div>
             <label className="form-label">
-              {lang.startsWith('id') ? 'Seed Keywords (Fokus Topik / Niche)' : 'Seed Keywords (Topic Focus / Niche)'}
+              {t('seo.autoTopics.seedLabel')}
             </label>
             <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
-              {lang.startsWith('id')
-                ? 'Masukkan kata kunci inti produk/bisnis Anda. Google Trends akan mencari query naik daun (rising queries) yang relevan dengan topik ini.'
-                : 'Enter core keywords for your business/product. Google Trends will discover high-velocity rising search queries matching these topics.'}
+              {t('seo.autoTopics.seedDesc')}
             </div>
 
             <div style={styles.chipsContainer}>
@@ -254,12 +247,12 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
               <input
                 className="form-input"
                 style={{ maxWidth: '320px' }}
-                placeholder={lang.startsWith('id') ? 'contoh: kopi arabika, kafe aesthetic...' : 'e.g. coffee beans, specialty cafe...'}
+                placeholder={t('seo.autoTopics.seedPlaceholder')}
                 value={seedInput}
                 onChange={e => setSeedInput(e.target.value)}
               />
               <button type="submit" className="btn btn-secondary" style={{ padding: '0 0.9rem' }}>
-                <Plus size={15} /> {lang.startsWith('id') ? 'Tambah Seed' : 'Add Seed'}
+                <Plus size={15} /> {t('seo.autoTopics.addSeed')}
               </button>
             </form>
           </div>
@@ -267,7 +260,7 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
             {/* Target CMS */}
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">{lang.startsWith('id') ? 'CMS Tujuan' : 'Target CMS'}</label>
+              <label className="form-label">{t('seo.autoTopics.targetCms')}</label>
               <select className="form-select" value={cmsType} onChange={e => setCmsType(e.target.value)}>
                 {anyCms.map(c => <option key={c} value={c}>{CMS_LABEL[c] || c}</option>)}
               </select>
@@ -275,14 +268,14 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
 
             {/* Negara & Bahasa */}
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">{lang.startsWith('id') ? 'Target Negara' : 'Target Region'}</label>
+              <label className="form-label">{t('seo.autoTopics.targetRegion')}</label>
               <select className="form-select" value={geo} onChange={e => setGeo(e.target.value)}>
                 {GEO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
 
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">{lang.startsWith('id') ? 'Bahasa Riset' : 'Research Language'}</label>
+              <label className="form-label">{t('seo.autoTopics.researchLang')}</label>
               <select className="form-select" value={ln} onChange={e => setLn(e.target.value)}>
                 {LN_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
@@ -292,14 +285,14 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
             {/* Hari & Jam Mingguan */}
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">{lang.startsWith('id') ? 'Hari Eksekusi Mingguan' : 'Weekly Execution Day'}</label>
+              <label className="form-label">{t('seo.autoTopics.weeklyDay')}</label>
               <select className="form-select" value={weekday} onChange={e => setWeekday(Number(e.target.value))}>
                 {weekdays.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
               </select>
             </div>
 
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">{lang.startsWith('id') ? 'Jam Eksekusi (WIB / GMT+7)' : 'Execution Hour (WIB / GMT+7)'}</label>
+              <label className="form-label">{t('seo.autoTopics.executionHour')}</label>
               <select className="form-select" value={hour} onChange={e => setHour(Number(e.target.value))}>
                 {Array.from({ length: 24 }).map((_, h) => (
                   <option key={h} value={h}>{String(h).padStart(2, '0')}:00 WIB</option>
@@ -309,7 +302,7 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
 
             {/* Topics per run */}
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">{lang.startsWith('id') ? 'Topik per Run (Maksimal)' : 'Topics per Run (Max)'}</label>
+              <label className="form-label">{t('seo.autoTopics.topicsPerRun')}</label>
               <input
                 type="number"
                 className="form-input"
@@ -322,7 +315,7 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
 
             {/* Min Volume */}
             <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">{lang.startsWith('id') ? 'Volume Pencarian Minimum' : 'Minimum Search Volume'}</label>
+              <label className="form-label">{t('seo.autoTopics.minVolume')}</label>
               <input
                 type="number"
                 className="form-input"
@@ -346,14 +339,10 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
               />
               <label htmlFor="autoGenerateToggle" style={{ cursor: 'pointer' }}>
                 <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>
-                  {lang.startsWith('id') ? 'Langsung tulis artikel & buat draf (Auto-generate)' : 'Directly generate articles & create drafts (Auto-generate)'}
+                  {t('seo.autoTopics.autoGenLabel')}
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  {lang.startsWith('id') ? (
-                    <>Jika dimatikan, topik akan masuk ke daftar <b>Suggested</b> di Kontrol Automasi agar Anda bisa menyetujui atau mengabaikannya terlebih dahulu.</>
-                  ) : (
-                    <>When disabled, trending topics appear in the <b>Suggested</b> queue for manual approval before AI writing begins.</>
-                  )}
+                  {t('seo.autoTopics.autoGenDesc')}
                 </div>
               </label>
             </div>
@@ -367,7 +356,7 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
               disabled={saving || !isPremium}
             >
               {saving ? <Loader2 size={15} className="spin-icon" /> : <Check size={15} />}
-              {lang.startsWith('id') ? 'Simpan Pengaturan' : 'Save Settings'}
+              {t('seo.autoTopics.saveSettings')}
             </button>
             <button
               className="btn btn-primary"
@@ -375,19 +364,19 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
               disabled={running || !isPremium}
             >
               {running ? <Loader2 size={15} className="spin-icon" /> : <Play size={15} />}
-              {lang.startsWith('id') ? 'Jalankan Sekarang' : 'Run Now'}
+              {t('seo.autoTopics.runNow')}
             </button>
             {source && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                 {source.last_run_at && (
                   <span>
-                    {lang.startsWith('id') ? 'Terakhir jalan:' : 'Last run:'}{' '}
+                    {t('seo.autoTopics.lastRun')}{' '}
                     {formatDateTime(source.last_run_at, lang)}
                   </span>
                 )}
                 {source.next_run_at && (
                   <span>
-                    · {lang.startsWith('id') ? 'Jadwal berikutnya:' : 'Next scheduled:'}{' '}
+                    · {t('seo.autoTopics.nextScheduled')}{' '}
                     {formatDateTime(source.next_run_at, lang)}
                   </span>
                 )}
@@ -404,7 +393,7 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Sparkles size={18} color="var(--accent-cyan)" />
               <h2 style={{ margin: 0, fontSize: '1.05rem' }}>
-                {lang.startsWith('id') ? 'Hasil Riset Tren Google' : 'Google Trends Research Results'}
+                {t('seo.autoTopics.resultsTitle')}
               </h2>
             </div>
             <button
@@ -412,22 +401,22 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
               style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
               onClick={() => goTo && goTo('keywords')}
             >
-              {lang.startsWith('id') ? 'Buka Kontrol Automasi' : 'Open Automation Control'}{' '}
+              {t('seo.autoTopics.openAutomation')}{' '}
               <ArrowRight size={13} />
             </button>
           </div>
 
           <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
             <div style={styles.statBox}>
-              <span style={styles.statLabel}>{lang.startsWith('id') ? 'Topik Baru' : 'New Topics'}</span>
+              <span style={styles.statLabel}>{t('seo.autoTopics.newTopics')}</span>
               <span style={styles.statValue}>{runResult.topics?.length || 0}</span>
             </div>
             <div style={styles.statBox}>
-              <span style={styles.statLabel}>{lang.startsWith('id') ? 'Dilewati (Duplikat)' : 'Skipped (Duplicate)'}</span>
+              <span style={styles.statLabel}>{t('seo.autoTopics.skippedDuplicate')}</span>
               <span style={styles.statValue}>{runResult.skipped?.duplicate ?? 0}</span>
             </div>
             <div style={styles.statBox}>
-              <span style={styles.statLabel}>{lang.startsWith('id') ? 'Dilewati (Volume Rendah)' : 'Skipped (Low Volume)'}</span>
+              <span style={styles.statLabel}>{t('seo.autoTopics.skippedLowVolume')}</span>
               <span style={styles.statValue}>{runResult.skipped?.lowVolume ?? 0}</span>
             </div>
           </div>
@@ -437,23 +426,23 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>{lang.startsWith('id') ? 'Keyword Rekomendasi' : 'Recommended Keyword'}</th>
-                    <th>{lang.startsWith('id') ? 'Seed Induk' : 'Seed Topic'}</th>
-                    <th>{lang.startsWith('id') ? 'Volume / KD' : 'Volume / KD'}</th>
-                    <th>{lang.startsWith('id') ? 'Potensi Traffic' : 'Traffic Potential'}</th>
+                    <th>{t('seo.autoTopics.thKeyword')}</th>
+                    <th>{t('seo.autoTopics.thSeed')}</th>
+                    <th>{t('seo.autoTopics.thVolumeKd')}</th>
+                    <th>{t('seo.autoTopics.thPotential')}</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {runResult.topics.map((t, idx) => (
+                  {runResult.topics.map((tItem, idx) => (
                     <tr key={idx}>
-                      <td style={{ fontWeight: 600 }}>{t.keyword}</td>
-                      <td><span style={styles.sub}>{t.seed}</span></td>
+                      <td style={{ fontWeight: 600 }}>{tItem.keyword}</td>
+                      <td><span style={styles.sub}>{tItem.seed}</span></td>
                       <td>
-                        {t.searchVolume ? formatNumber(Number(t.searchVolume), lang) : '–'}{' '}
-                        <span style={styles.sub}>/ KD {t.difficulty ?? '–'}</span>
+                        {tItem.searchVolume ? formatNumber(Number(tItem.searchVolume), lang) : '–'}{' '}
+                        <span style={styles.sub}>/ KD {tItem.difficulty ?? '–'}</span>
                       </td>
                       <td>
-                        {t.trafficPotential ? formatNumber(Number(t.trafficPotential), lang) : '–'}
+                        {tItem.trafficPotential ? formatNumber(Number(tItem.trafficPotential), lang) : '–'}
                       </td>
                     </tr>
                   ))}
@@ -462,9 +451,7 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
             </div>
           ) : (
             <div style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              {lang.startsWith('id')
-                ? 'Tidak ada topik baru yang lolos filter (semua topik sudah ada di CMS atau volume di bawah batas minimum).'
-                : 'No new topics passed filtering (all queries already published to CMS or below volume threshold).'}
+              {t('seo.autoTopics.emptyResults')}
             </div>
           )}
         </div>

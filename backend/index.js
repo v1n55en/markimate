@@ -245,10 +245,11 @@ async function apiKeyAuth(req, res, next) {
 const wrap = (fn) => (req, res) => fn(req, res).catch(e => {
   log(`[ERR] ${req.method} ${req.path}: ${e.message}`);
   const status = e.status || 500;
+  const defaultCode = status === 500 ? 'INTERNAL_ERROR' : (status === 401 ? 'UNAUTHORIZED' : (status === 403 ? 'FORBIDDEN' : (status === 404 ? 'NOT_FOUND' : 'BAD_REQUEST')));
   res.status(status).json({
     error: e.message,
+    code: e.code || defaultCode,
     n8n: e.n8n || undefined,
-    ...(e.code ? { code: e.code } : {}),
     ...(e.email ? { email: e.email } : {}),
     ...(e.pendingToken ? { pendingToken: e.pendingToken } : {}),
     ...(e.workspaces ? { workspaces: e.workspaces } : {}),

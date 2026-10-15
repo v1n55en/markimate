@@ -91,7 +91,7 @@ const DEFAULT_ARTICLE_SETTINGS = {
 };
 
 export default function CmsSettings({ me, refreshMe, goTo }) {
-  const { lang, t } = useLanguage();
+  const { t } = useLanguage();
   const user = me.user;
   const isPremium = user.plan === 'premium' || (me.plan && me.plan.id !== 'free');
   const canUseImages = me.plan ? me.plan.images !== false : isPremium;
@@ -207,18 +207,16 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
   };
   const toggleApprover = async (on) => { try { await api('/api/me', { method: 'PATCH', body: { webApprover: on } }); await refreshMe(); } catch (e) { alert(e.message); } };
   const copyKey = async () => { try { await navigator.clipboard.writeText(user.apiKey); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* abaikan */ } };
-  const rotateKey = async () => { if (!window.confirm('Buat API key baru? Key lama langsung tidak berlaku.')) return; setRotating(true); try { await api('/api/me/api-key/rotate', { method: 'POST' }); await refreshMe(); } finally { setRotating(false); } };
+  const rotateKey = async () => { if (!window.confirm(t('seo.cms.rotateConfirm'))) return; setRotating(true); try { await api('/api/me/api-key/rotate', { method: 'POST' }); await refreshMe(); } finally { setRotating(false); } };
 
   const curl = `curl -X POST ${API_BASE_URL}/api/v1/articles/generate \\\n  -H "X-API-Key: ${user.apiKey}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"keyword":"digital marketing kuliner","geo":"ID","ln":"id","cmsType":"wordpress"}'`;
 
   return (
     <div>
       <header style={{ marginBottom: '1.5rem' }}>
-        <h1>{lang.startsWith('id') ? 'Pengaturan CMS & API' : 'CMS & API Settings'}</h1>
+        <h1>{t('seo.cms.pageTitle')}</h1>
         <p style={{ color: 'var(--text-secondary)' }}>
-          {lang.startsWith('id')
-            ? 'Hubungkan CMS pilihan Anda. Kredensial disimpan aman di server Markimate dan hanya dipakai saat mengirim artikel ke situs Anda.'
-            : 'Connect your preferred CMS. Credentials are encrypted and securely stored on Markimate servers, only used when dispatching articles.'}
+          {t('seo.cms.pageSubtitle')}
         </p>
       </header>
 
@@ -466,8 +464,8 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                   <div style={styles.settingBlock}>
                     <div style={styles.settingHeader}>
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>Cek Topik Duplikat</div>
-                        <div style={styles.sub}>Cegah penulisan artikel berulang yang mirip dengan postingan di CMS</div>
+                        <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{t('seo.cms.dupCheckTitle')}</div>
+                        <div style={styles.sub}>{t('seo.cms.dupCheckSub')}</div>
                       </div>
                       <label className="switch">
                         <input
@@ -481,7 +479,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                     {setg.duplicateCheck?.enabled !== false && (
                       <div style={{ marginTop: '0.75rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                          <label className="form-label" style={{ margin: 0 }}>Ambang Kemiripan (Threshold)</label>
+                          <label className="form-label" style={{ margin: 0 }}>{t('seo.cms.dupThresholdLabel')}</label>
                           <span style={{ fontSize: '0.8rem', color: 'var(--accent-cyan)', fontWeight: 600 }}>
                             {Math.round((setg.duplicateCheck?.threshold || 0.7) * 100)}%
                           </span>
@@ -713,14 +711,12 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
       <div className="grid-2" style={{ marginTop: '1.5rem', alignItems: 'start' }}>
         {/* Persetujuan konten */}
         <div className="card">
-          <h2 style={{ fontSize: '1rem' }}>Persetujuan Konten</h2>
+          <h2 style={{ fontSize: '1rem' }}>{t('seo.cms.approverTitle')}</h2>
           <div style={styles.toggleRow}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>Web Approver {!isPremium && <Lock size={14} color="var(--text-muted)" />}</div>
+              <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>{t('seo.cms.approverLabel')} {!isPremium && <Lock size={14} color="var(--text-muted)" />}</div>
               <div style={styles.sub}>
-                {lang.startsWith('id')
-                  ? 'Artikel ditahan sebagai "Review Ready" — Anda tinjau & edit di Markimate sebelum dikirim ke CMS. Nonaktif = draf langsung dibuat di CMS.'
-                  : 'Articles are held as "Review Ready" — you review and polish in Markimate before dispatching to CMS. Disabled = drafts created directly in CMS.'}
+                {t('seo.cms.approverDesc')}
               </div>
             </div>
             <label className="switch" title={isPremium ? '' : 'Fitur paket Pro'}>
@@ -728,42 +724,40 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
               <span className="slider round"></span>
             </label>
           </div>
-          {!isPremium && <button className="btn btn-secondary" style={{ marginTop: '0.75rem' }} onClick={() => goTo && goTo('billing')}>👑 Upgrade ke Pro untuk mengaktifkan</button>}
+          {!isPremium && <button className="btn btn-secondary" style={{ marginTop: '0.75rem' }} onClick={() => goTo && goTo('billing')}>{t('seo.cms.approverUpgrade')}</button>}
           <hr style={styles.hr} />
           <form onSubmit={saveProfile}>
-            <h2 style={{ fontSize: '1rem' }}>Profil Brand (dipakai AI untuk CTA)</h2>
-            <div className="form-group"><label className="form-label">Nama brand</label><input className="form-input" value={profile.brandName} onChange={e => setProfile({ ...profile, brandName: e.target.value })} /></div>
-            <div className="form-group"><label className="form-label">Niche / bidang usaha</label><input className="form-input" value={profile.niche} onChange={e => setProfile({ ...profile, niche: e.target.value })} placeholder="contoh: coffee shop, klinik kecantikan" /></div>
-            <button className="btn btn-primary" type="submit">Simpan profil</button>
-            {profileMsg && <span style={{ ...styles.sub, marginLeft: '0.75rem' }}>{profileMsg}</span>}
+            <h2 style={{ fontSize: '1rem' }}>{t('seo.cms.brandProfileTitle')}</h2>
+            <div className="form-group"><label className="form-label">{t('seo.cms.brandNameLabel')}</label><input className="form-input" value={profile.brandName} onChange={e => setProfile({ ...profile, brandName: e.target.value })} /></div>
+            <div className="form-group"><label className="form-label">{t('seo.cms.brandNicheLabel')}</label><input className="form-input" value={profile.niche} onChange={e => setProfile({ ...profile, niche: e.target.value })} placeholder={t('seo.cms.brandNichePlaceholder')} /></div>
+            <button className="btn btn-primary" type="submit">{t('seo.cms.brandSaveBtn')}</button>
+            {profileMsg && <span style={{ ...styles.sub, marginLeft: '0.75rem' }}>{profileMsg === 'Profil disimpan.' ? t('seo.cms.brandSavedMsg') : profileMsg}</span>}
           </form>
         </div>
 
         {/* 3Our API */}
         <div className="card">
-          <h2 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Key size={16} color="var(--accent-cyan)" /> 3Our API</h2>
+          <h2 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Key size={16} color="var(--accent-cyan)" /> {t('seo.cms.apiTitle')}</h2>
           <p style={styles.sub}>
-            {lang.startsWith('id')
-              ? 'Pakai Markimate dari sistem Anda sendiri (Zapier, n8n, aplikasi internal). Semua riset & AI pakai infrastruktur 3Our — Anda tidak perlu API key SerpAPI/Gemini sendiri.'
-              : 'Integrate Markimate with your own stack (Zapier, n8n, internal apps). All research & AI uses 3Our infrastructure — no personal SerpAPI/Gemini API key required.'}
+            {t('seo.cms.apiSubtitle')}
           </p>
           <label className="form-label" style={{ marginTop: '0.75rem' }}>
-            {lang.startsWith('id') ? 'API key Anda' : 'Your API Key'}
+            {t('seo.cms.apiKeyLabel')}
           </label>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <input className="form-input" readOnly value={user.apiKey || ''} style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }} />
-            <button className="btn btn-secondary" onClick={copyKey} title="Salin">{copied ? <CheckCircle2 size={16} /> : <Copy size={16} />}</button>
-            <button className="btn btn-secondary" onClick={rotateKey} disabled={rotating} title="Buat key baru"><RefreshCw size={16} className={rotating ? 'spin-icon' : ''} /></button>
+            <button className="btn btn-secondary" onClick={copyKey} title={t('seo.cms.copyTitle')}>{copied ? <CheckCircle2 size={16} /> : <Copy size={16} />}</button>
+            <button className="btn btn-secondary" onClick={rotateKey} disabled={rotating} title={t('seo.cms.rotateTitle')}><RefreshCw size={16} className={rotating ? 'spin-icon' : ''} /></button>
           </div>
-          {!isPremium && <div style={{ ...styles.sub, marginTop: '0.5rem' }}>Paket Free mengikuti kuota {me.usage?.limit} artikel/bulan yang sama.</div>}
-          <label className="form-label" style={{ marginTop: '1rem' }}>Contoh: buat artikel</label>
+          {!isPremium && <div style={{ ...styles.sub, marginTop: '0.5rem' }}>{t('seo.cms.freeQuotaNote', { limit: me.usage?.limit })}</div>}
+          <label className="form-label" style={{ marginTop: '1rem' }}>{t('seo.cms.exampleTitle')}</label>
           <pre style={styles.pre}>{curl}</pre>
           <div style={{ ...styles.sub, lineHeight: 1.7 }}>
             <div><code>POST /api/v1/articles/generate</code> → <code>{'{ status, id, article }'}</code></div>
             <div><code>POST /api/v1/articles/:id/publish</code> body <code>{'{ action: "draft" | "publish", article? }'}</code> → kirim ke CMS yang tersimpan</div>
             <div><code>GET /api/v1/articles</code> → daftar artikel</div>
           </div>
-          <a href="https://3ourasia.id" target="_blank" rel="noreferrer" className="btn btn-secondary" style={{ marginTop: '1rem', fontSize: '0.8rem' }}><ExternalLink size={14} /> Butuh integrasi khusus? Hubungi 3Our</a>
+          <a href="https://3ourasia.id" target="_blank" rel="noreferrer" className="btn btn-secondary" style={{ marginTop: '1rem', fontSize: '0.8rem' }}><ExternalLink size={14} /> {t('seo.cms.customIntegration')}</a>
         </div>
       </div>
     </div>

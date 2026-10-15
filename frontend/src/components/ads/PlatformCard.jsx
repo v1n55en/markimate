@@ -12,7 +12,7 @@ export default function PlatformCard({
   onDisconnect,
   loading = false,
 }) {
-  const { lang, t } = useLanguage();
+  const { t } = useLanguage();
   const [disconnectingId, setDisconnectingId] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [targetToDisconnect, setTargetToDisconnect] = useState(null);
@@ -123,12 +123,12 @@ export default function PlatformCard({
         <div style={styles.permissionHeader}>
           <ShieldCheck size={14} color="var(--accent-green)" />
           <span style={styles.permissionTitle}>
-            {lang.startsWith('id') ? 'Akses Aman Read-Only' : 'Secure Read-Only Access'}
+            {t('ads.connections.secureAccess')}
           </span>
         </div>
         <p style={styles.permissionText}>{config.permissionsText}</p>
         <Link to="/privacy" style={styles.privacyLink} target="_blank">
-          {lang.startsWith('id') ? 'Pelajari Kebijakan Privasi' : 'Learn Privacy Policy'} <ExternalLink size={11} />
+          {t('ads.connections.learnPrivacy')} <ExternalLink size={11} />
         </Link>
       </div>
 
@@ -155,13 +155,13 @@ export default function PlatformCard({
             <button
               onClick={() => onConnect(platformKey)}
               style={styles.secondaryAddBtn}
-              title={lang.startsWith('id') ? "Hubungkan akun iklan tambahan di platform ini" : "Connect additional ad account on this platform"}
+              title={t('ads.connections.addAccountTitle')}
               disabled={loading}
             >
               <Plus size={14} />
-              <span>{lang.startsWith('id') ? 'Tambah Akun' : 'Add Account'}</span>
+              <span>{t('ads.connections.addAccount')}</span>
             </button>
-            <span style={styles.activeSyncText}>{lang.startsWith('id') ? 'Sinkronisasi aktif' : 'Active synchronization'}</span>
+            <span style={styles.activeSyncText}>{t('ads.connections.activeSync')}</span>
           </div>
         )}
       </div>
@@ -190,7 +190,7 @@ export default function PlatformCard({
                 style={styles.modalConfirmBtn}
                 disabled={disconnectingId}
               >
-                {disconnectingId ? (lang.startsWith('id') ? 'Memutuskan…' : 'Disconnecting…') : (lang.startsWith('id') ? 'Ya, Putuskan' : 'Yes, Disconnect')}
+                {disconnectingId ? t('ads.connections.disconnecting') : t('ads.connections.yesDisconnect')}
               </button>
             </div>
           </div>

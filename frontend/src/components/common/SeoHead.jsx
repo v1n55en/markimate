@@ -14,7 +14,7 @@ export default function SeoHead({
   ogImage = '/favicon.png',
   type = 'website'
 }) {
-  const { lang } = useLanguage();
+  const { lang, t } = useLanguage();
   const location = useLocation();
 
   useEffect(() => {
@@ -33,17 +33,14 @@ export default function SeoHead({
 
     const enUrl = `${siteUrl}${enPath === '/' ? '' : enPath}`;
     const idUrl = `${siteUrl}${idPath}`;
-    const canonicalUrl = lang.startsWith('id') ? idUrl : enUrl;
+    const isId = lang === 'id';
+    const canonicalUrl = isId ? idUrl : enUrl;
 
     const pageTitle = title
       ? (title.includes('Markimate') ? title : `${title} — Markimate`)
-      : (lang.startsWith('id')
-          ? 'Markimate — Tim Digital Marketing AI Terpadu | Powered by 3our'
-          : 'Markimate — Full Digital Marketing Team in One Platform | Powered by 3our');
+      : t('meta.defaultTitle');
 
-    const metaDesc = description || (lang.startsWith('id')
-      ? 'Platform otomasi tim digital marketing AI terpadu: Riset tren SEO, penulisan artikel rank-ready, auto-publish CMS, dan analitik multi-channel.'
-      : 'All-in-one AI digital marketing platform: Autonomous SEO trend mining, rank-ready content generation, 1-click CMS dispatch, and multi-channel ad reporting.');
+    const metaDesc = description || t('meta.defaultDescription');
 
     // 1. Update Title & HTML lang attribute
     document.title = pageTitle;
@@ -88,8 +85,8 @@ export default function SeoHead({
     setMetaTag('property', 'og:description', metaDesc);
     setMetaTag('property', 'og:type', type);
     setMetaTag('property', 'og:url', canonicalUrl);
-    setMetaTag('property', 'og:locale', lang.startsWith('id') ? 'id_ID' : 'en_US');
-    setMetaTag('property', 'og:locale:alternate', lang.startsWith('id') ? 'en_US' : 'id_ID');
+    setMetaTag('property', 'og:locale', isId ? 'id_ID' : 'en_US');
+    setMetaTag('property', 'og:locale:alternate', isId ? 'en_US' : 'id_ID');
     setMetaTag('property', 'og:site_name', 'Markimate');
 
     const fullImageUrl = ogImage.startsWith('http') ? ogImage : `${siteUrl}${ogImage.startsWith('/') ? '' : '/'}${ogImage}`;

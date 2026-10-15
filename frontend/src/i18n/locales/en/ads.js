@@ -1,6 +1,7 @@
 export const ads = {
   "title": "Paid Advertising Intelligence",
   "subtitle": "Unified advertising performance reporting and autonomous audit reports.",
+  "mainAccount": "Main Account",
   "kpi": {
     "spend": "Total Ad Spend",
     "roas": "Average ROAS",
@@ -62,7 +63,40 @@ export const ads = {
     "disconnect": "Disconnect",
     "confirmDisconnectTitle": "Disconnect {platform} Connection?",
     "confirmDisconnectDesc": "Are you sure you want to disconnect {account}? Automated metrics sync and monthly report generation for this account will stop.",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "secureAccess": "Secure Read-Only Access",
+    "learnPrivacy": "Learn Privacy Policy",
+    "addAccountTitle": "Connect additional ad account on this platform",
+    "addAccount": "Add Account",
+    "activeSync": "Active synchronization",
+    "disconnecting": "Disconnecting…",
+    "yesDisconnect": "Yes, Disconnect"
+  },
+  "detail": {
+    "notFound": "Ad report not found.",
+    "approveError": "Failed to approve report.",
+    "loading": "Loading report data {reportId}…",
+    "colCampaign": "Campaign Name",
+    "status": "Status:",
+    "active": "Active",
+    "colPlatform": "Platform",
+    "colSpend": "Spend",
+    "colImpressions": "Impressions",
+    "colClicks": "Clicks",
+    "colResults": "Results",
+    "colCostResult": "Cost/Result",
+    "client": "Client:",
+    "period": "Period:",
+    "processing": "Processing…",
+    "approveAndSend": "Approve & Send to Client",
+    "section1Title": "1. Key Performance Indicator (KPI) Summary",
+    "section2Title": "2. Cost & Conversion Trend Analysis",
+    "trendChartTitle": "Cost Growth vs Results Trend",
+    "section3Title": "3. Campaign Performance Details",
+    "campaignsCount": "{count} Active Campaigns",
+    "campaignsCount_one": "{count} Active Campaign",
+    "campaignsCount_other": "{count} Active Campaigns",
+    "section4Title": "4. Placement & Network Allocation"
   },
   "reports": {
     "title": "Performance Reports",
@@ -85,6 +119,8 @@ export const ads = {
     "colStatus": "Report Status",
     "colAction": "Actions",
     "viewBtn": "View",
+    "viewDetails": "View report details",
+    "reload": "Reload reports",
     "emptyReports": "No ad reports match the selected filters.",
     "notFoundTitle": "Report Not Found",
     "backToList": "Back to Reports List",
@@ -106,6 +142,7 @@ export const ads = {
     "redirectCountdown": "Redirecting to connections page in {seconds} seconds…",
     "goToConnections": "Go to Connections Page Now",
     "errorTitle": "Authorization Failed",
+    "errorProcess": "Failed to process ad account authorization.",
     "retryBtn": "Try Connecting Again"
   },
   "status": {

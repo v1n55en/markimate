@@ -230,7 +230,7 @@ export default function AdsSummaryPage() {
                         <div>
                           <h4 style={styles.platformCardName}>{meta.name}</h4>
                           <span style={styles.platformAccountSub}>
-                            {p.accountName || (lang.startsWith('id') ? 'Akun Utama' : 'Main Account')}
+                            {p.accountName || t('ads.mainAccount')}
                           </span>
                         </div>
                       </div>

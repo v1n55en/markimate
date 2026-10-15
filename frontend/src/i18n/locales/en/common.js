@@ -46,5 +46,14 @@ export const common = {
   "viewCreditWallet": "View credit wallet & top-up",
   "from": "From",
   "perMonth": "/mo",
-  "perYear": "/yr"
+  "perYear": "/yr",
+  "weekdays": {
+    "sun": "Sunday",
+    "mon": "Monday",
+    "tue": "Tuesday",
+    "wed": "Wednesday",
+    "thu": "Thursday",
+    "fri": "Friday",
+    "sat": "Saturday"
+  }
 };

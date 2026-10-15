@@ -12,7 +12,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
-import { ROLES } from '../../config/roles';
+import { ROLES, getLocalizedRole } from '../../config/roles';
 import WaitlistModal from './WaitlistModal';
 
 const ROLE_ICONS = {
@@ -24,7 +24,7 @@ export default function ModuleComingSoonCard({ roleKey = 'ads_report' }) {
   const { t, lang } = useLanguage();
   const [showWaitlist, setShowWaitlist] = useState(false);
 
-  const role = ROLES.find((r) => r.key === roleKey) || {
+  const rawRole = ROLES.find((r) => r.key === roleKey) || {
     key: roleKey,
     name: 'AI Marketing Specialist',
     name_id: 'AI Marketing Specialist',
@@ -35,9 +35,10 @@ export default function ModuleComingSoonCard({ roleKey = 'ads_report' }) {
     features_id: ['Integrasi platform langsung', 'Analisis otomatis AI'],
   };
 
-  const roleName = (lang.startsWith('id') && role.name_id) ? role.name_id : role.name;
-  const roleDesc = (lang.startsWith('id') && role.longDescription_id) ? role.longDescription_id : (role.longDescription || role.description);
-  const features = ((lang.startsWith('id') && role.features_id) ? role.features_id : role.features) || [];
+  const role = getLocalizedRole(rawRole, lang);
+  const roleName = role.name;
+  const roleDesc = role.longDescription || role.description;
+  const features = role.features || [];
   const IconComponent = ROLE_ICONS[roleKey] || Layers;
 
   return (

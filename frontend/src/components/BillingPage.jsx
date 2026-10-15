@@ -22,7 +22,7 @@ import {
   calculatePricing,
 } from '../config/pricing';
 import { formatIDR, formatDate } from '../lib/format';
-import { ROLES } from '../config/roles';
+import { ROLES, getLocalizedRole } from '../config/roles';
 import { api } from '../api';
 import { storage } from '../lib/storage';
 
@@ -106,7 +106,7 @@ export default function BillingPage({ refreshMe }) {
           setBillingDisabled(true);
           setNotice({
             ok: false,
-            text: err.message || (lang.startsWith('id') ? 'Pembayaran langsung belum tersedia. Hubungi 3Our untuk aktivasi paket.' : 'Direct checkout is not yet available. Contact 3Our for plan activation.'),
+            text: err.message || t('billing.checkoutUnavailable'),
           });
           return;
         }
@@ -203,7 +203,7 @@ export default function BillingPage({ refreshMe }) {
   const paymentMethods = [
     { id: 'qris', label: 'QRIS Instant', icon: QrCode, note: 'GoPay, OVO, DANA, ShopeePay, BCA' },
     { id: 'va', label: 'Virtual Account', icon: Building2, note: 'BCA, Mandiri, BNI, BRI' },
-    { id: 'card', label: lang.startsWith('id') ? 'Kartu Kredit / Debit' : 'Credit / Debit Card', icon: CreditCard, note: 'Visa, Mastercard' },
+    { id: 'card', label: t('billing.creditDebitCard'), icon: CreditCard, note: 'Visa, Mastercard' },
   ];
 
   return (
@@ -306,7 +306,7 @@ export default function BillingPage({ refreshMe }) {
                   <div>
                     <strong style={styles.choiceName}>AI SEO Specialist</strong>
                     <span style={styles.choiceCategory}>
-                      {lang.startsWith('id') ? 'Konten & Organik' : 'Content & Organic'}
+                      {t('billing.catContentOrganic')}
                     </span>
                   </div>
                 </div>
@@ -320,17 +320,13 @@ export default function BillingPage({ refreshMe }) {
               </div>
 
               <p style={styles.choiceDesc}>
-                {lang.startsWith('id')
-                  ? 'Riset keyword otomatis, penulisan artikel mendalam 1.200+ kata, dan penerbitan ke WordPress/Wix.'
-                  : 'Automated keyword research, in-depth 1,200+ word articles, and 1-click publishing to WordPress/Wix.'}
+                {t('billing.seoModuleDesc')}
               </p>
               <div style={styles.choiceQuota}>
                 <Layers size={13} color="var(--accent-cyan)" />
                 <span>
                   {t('billing.quota', {
-                    quota: lang.startsWith('id')
-                      ? '1.500 credit / bulan (≈ 20 artikel SEO + gambar AI)'
-                      : '1,500 credits / month (≈ 20 SEO articles + AI images)'
+                    quota: t('billing.seoQuota')
                   })}
                 </span>
               </div>
@@ -361,10 +357,10 @@ export default function BillingPage({ refreshMe }) {
                   </div>
                   <div>
                     <strong style={styles.choiceName}>
-                      {lang.startsWith('id') ? 'Ads Specialist — Report Semua Platform' : 'AI Ads Performance Reporter'}
+                      {t('billing.adsModuleTitle')}
                     </strong>
                     <span style={styles.choiceCategory}>
-                      {lang.startsWith('id') ? 'Periklanan Berbayar' : 'Paid Advertising'}
+                      {t('billing.catPaidAds')}
                     </span>
                   </div>
                 </div>
@@ -378,17 +374,13 @@ export default function BillingPage({ refreshMe }) {
               </div>
 
               <p style={styles.choiceDesc}>
-                {lang.startsWith('id')
-                  ? 'Konsolidasi laporan bulanan Meta, Google, TikTok, GMV Max, dan Shopee Ads dengan analitik ROAS AI.'
-                  : 'Monthly consolidation for Meta, Google, TikTok, GMV Max, and Shopee Ads with AI ROAS analytics.'}
+                {t('billing.adsModuleDesc')}
               </p>
               <div style={styles.choiceQuota}>
                 <Layers size={13} color="var(--accent-cyan)" />
                 <span>
                   {t('billing.quota', {
-                    quota: lang.startsWith('id')
-                      ? '1.500 credit / bulan (Laporan akun iklan Meta & Google)'
-                      : '1,500 credits / month (Meta & Google ad account reporting)'
+                    quota: t('billing.adsQuota')
                   })}
                 </span>
               </div>
@@ -419,10 +411,10 @@ export default function BillingPage({ refreshMe }) {
                   </div>
                   <div>
                     <strong style={styles.choiceName}>
-                      {lang.startsWith('id') ? 'Ads Creative Spy' : 'AI Ads Creative Spy'}
+                      {t('billing.spyModuleTitle')}
                     </strong>
                     <span style={styles.choiceCategory}>
-                      {lang.startsWith('id') ? 'Riset & Intelijen' : 'Research & Intelligence'}
+                      {t('billing.catResearchIntel')}
                     </span>
                   </div>
                 </div>
@@ -436,17 +428,13 @@ export default function BillingPage({ refreshMe }) {
               </div>
 
               <p style={styles.choiceDesc}>
-                {lang.startsWith('id')
-                  ? 'Pantau pergerakan iklan kompetitor di Meta Ad Library, kurasi creative winning, dan bongkar pola hook.'
-                  : 'Monitor competitor ads across Meta Ad Library, curate winning creatives, and decode hook angles.'}
+                {t('billing.spyModuleDesc')}
               </p>
               <div style={styles.choiceQuota}>
                 <Layers size={13} color="var(--accent-cyan)" />
                 <span>
                   {t('billing.quota', {
-                    quota: lang.startsWith('id')
-                      ? '1.000 credit / bulan (Scan kompetitor Ad Library mingguan)'
-                      : '1,000 credits / month (Weekly competitor Ad Library scans)'
+                    quota: t('billing.spyQuota')
                   })}
                 </span>
               </div>
@@ -467,7 +455,7 @@ export default function BillingPage({ refreshMe }) {
                 className="card"
               >
                 <div style={styles.bundleBadgeRow}>
-                  <span style={styles.popularBadge}>{lang.startsWith('id') ? 'Diskon 20%' : 'Save 20%'}</span>
+                  <span style={styles.popularBadge}>{t('billing.save20Percent')}</span>
                   {isFocus3Selected && (
                     <span style={styles.bundleActiveTag}>{t('billing.focus3ActiveBtn')}</span>
                   )}
@@ -529,9 +517,7 @@ export default function BillingPage({ refreshMe }) {
                 </div>
                 <a
                   href={`https://wa.me/6285179642520?text=${encodeURIComponent(
-                    lang.startsWith('id')
-                      ? 'Halo 3Our, saya tertarik dengan paket Managed by 3Our Markimate'
-                      : 'Hello 3Our, I am interested in Markimate Managed by 3Our package'
+                    t('billing.managedTitle') + ' - Markimate'
                   )}`}
                   target="_blank"
                   rel="noreferrer"
@@ -561,9 +547,8 @@ export default function BillingPage({ refreshMe }) {
                   <div style={styles.summaryItemInfo}>
                     <span style={styles.summaryItemName}>
                       {(() => {
-                        const r = ROLES.find((role) => role.key === mKey);
-                        if (!r) return mKey;
-                        return lang.startsWith('id') ? (r.name_id || r.name) : r.name;
+                        const locRole = getLocalizedRole(mKey, lang);
+                        return locRole ? locRole.name : mKey;
                       })()}
                     </span>
                     <button
@@ -661,9 +646,7 @@ export default function BillingPage({ refreshMe }) {
             {billingDisabled ? (
               <a
                 href={`https://wa.me/6285179642520?text=${encodeURIComponent(
-                  lang.startsWith('id')
-                    ? `Halo 3Our, saya ingin aktivasi paket ${pricing.appliedBundle || 'Markimate'} (${selectedModules.length} modul) untuk workspace ${activeWorkspace?.name || ''}.`
-                    : `Hello 3Our, I would like to activate plan ${pricing.appliedBundle || 'Markimate'} (${selectedModules.length} modules) for workspace ${activeWorkspace?.name || ''}.`
+                  `Markimate: ${pricing.appliedBundle || 'Custom'} (${selectedModules.length} modules) - ${activeWorkspace?.name || ''}`
                 )}`}
                 target="_blank"
                 rel="noreferrer"

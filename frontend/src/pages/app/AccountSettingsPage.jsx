@@ -419,8 +419,8 @@ export default function AccountSettingsPage({ me, refreshMe }) {
                   justifyContent: 'space-between',
                   padding: '1rem 1.25rem',
                   borderRadius: 'var(--radius-md)',
-                  border: lang.startsWith('id') ? '2px solid var(--accent-cyan)' : '1px solid var(--border-color)',
-                  backgroundColor: lang.startsWith('id') ? 'rgba(6, 182, 212, 0.08)' : 'var(--bg-surface)',
+                  border: lang === 'id' ? '2px solid var(--accent-cyan)' : '1px solid var(--border-color)',
+                  backgroundColor: lang === 'id' ? 'rgba(6, 182, 212, 0.08)' : 'var(--bg-surface)',
                   cursor: savingLanguage ? 'not-allowed' : 'pointer',
                   textAlign: 'left'
                 }}
@@ -433,7 +433,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
                     Bahasa Indonesia baku (kata ganti &quot;Anda&quot;)
                   </span>
                 </div>
-                {lang.startsWith('id') && <CheckCircle2 size={18} color="var(--accent-cyan)" />}
+                {lang === 'id' && <CheckCircle2 size={18} color="var(--accent-cyan)" />}
               </button>
 
               <button
@@ -446,8 +446,8 @@ export default function AccountSettingsPage({ me, refreshMe }) {
                   justifyContent: 'space-between',
                   padding: '1rem 1.25rem',
                   borderRadius: 'var(--radius-md)',
-                  border: lang.startsWith('en') ? '2px solid var(--accent-cyan)' : '1px solid var(--border-color)',
-                  backgroundColor: lang.startsWith('en') ? 'rgba(6, 182, 212, 0.08)' : 'var(--bg-surface)',
+                  border: lang === 'en' ? '2px solid var(--accent-cyan)' : '1px solid var(--border-color)',
+                  backgroundColor: lang === 'en' ? 'rgba(6, 182, 212, 0.08)' : 'var(--bg-surface)',
                   cursor: savingLanguage ? 'not-allowed' : 'pointer',
                   textAlign: 'left'
                 }}
@@ -460,7 +460,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
                     International English
                   </span>
                 </div>
-                {lang.startsWith('en') && <CheckCircle2 size={18} color="var(--accent-cyan)" />}
+                {lang === 'en' && <CheckCircle2 size={18} color="var(--accent-cyan)" />}
               </button>
             </div>
           </div>

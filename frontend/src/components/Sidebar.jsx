@@ -27,7 +27,7 @@ import {
 import WorkspaceSelector from './common/WorkspaceSelector';
 import MarkimateLogo from './common/MarkimateLogo';
 import { useWorkspace } from '../context/WorkspaceContext';
-import { ROLES } from '../config/roles';
+import { ROLES, getLocalizedRole } from '../config/roles';
 import { getCredits } from '../api';
 import { isAdsMock } from '../ads/adsApi';
 import { isSpyMock } from '../spy/spyApi';
@@ -540,16 +540,16 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
             {soonExpanded && (
               <div style={styles.soonList}>
                 {soonRoles.map((role) => {
-                  const roleName = (lang.startsWith('id') && role.name_id) ? role.name_id : role.name;
+                  const localized = getLocalizedRole(role, lang);
                   return (
                     <button
                       key={role.key}
                       onClick={() => handleNavClick(`/app/modules/${role.key}`)}
                       style={styles.soonItemBtn}
-                      title={role.description}
+                      title={localized.description}
                     >
                       <Clock size={13} color="var(--text-muted)" style={{ flexShrink: 0 }} />
-                      <span style={styles.soonItemName}>{roleName}</span>
+                      <span style={styles.soonItemName}>{localized.name}</span>
                       <span style={styles.soonCategoryTag}>{role.category}</span>
                     </button>
                   );

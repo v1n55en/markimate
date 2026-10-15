@@ -62,11 +62,9 @@ export default function AnalyticsDashboard({ me }) {
   return (
     <div>
       <header style={{ marginBottom: '1.5rem' }}>
-        <h1>{lang.startsWith('id') ? 'Analitik & Insights' : 'Analytics & Insights'}</h1>
+        <h1>{t('seo.analytics.title')}</h1>
         <p style={{ color: 'var(--text-secondary)' }}>
-          {lang.startsWith('id')
-            ? `Ringkasan produksi konten ${user.brandName} di Markimate. Data performa Google Search Console per artikel akan menyusul.`
-            : `Content production summary for ${user.brandName} in Markimate. Google Search Console performance data per article coming soon.`}
+          {t('seo.analytics.subtitle')}
         </p>
       </header>
 
@@ -74,48 +72,48 @@ export default function AnalyticsDashboard({ me }) {
         <Kpi
           icon={FileText}
           color="var(--accent-cyan)"
-          label={lang.startsWith('id') ? 'Artikel dibuat' : 'Articles created'}
+          label={t('seo.analytics.articlesCreated')}
           value={stats.written}
-          sub={`${used}/${limit || '∞'} ${lang.startsWith('id') ? 'kuota bulan ini' : 'quota this month'}`}
+          sub={t('seo.analytics.quotaMonth', { used, limit: limit || '∞' })}
         />
         <Kpi
           icon={CheckCircle2}
           color="var(--accent-green)"
-          label={lang.startsWith('id') ? 'Terbit di CMS' : 'Published to CMS'}
+          label={t('seo.analytics.publishedCms')}
           value={stats.published}
-          sub={`${stats.drafts} ${lang.startsWith('id') ? 'masih draf' : 'still drafts'}`}
+          sub={t('seo.analytics.stillDrafts', { count: stats.drafts })}
         />
         <Kpi
           icon={Clock}
           color="var(--accent-yellow)"
-          label={lang.startsWith('id') ? 'Menunggu review' : 'Awaiting review'}
+          label={t('seo.analytics.awaitingReview')}
           value={stats.review}
-          sub={stats.errors ? `${stats.errors} error` : (lang.startsWith('id') ? 'tidak ada error' : 'no errors')}
+          sub={stats.errors ? t('seo.analytics.errorsCount', { count: stats.errors }) : t('seo.analytics.noErrors')}
         />
         <Kpi
           icon={TrendingUp}
           color="var(--accent-blue)"
-          label={lang.startsWith('id') ? 'Total volume target' : 'Total target volume'}
+          label={t('seo.analytics.totalTargetVolume')}
           value={formatNumber(stats.volume, lang)}
-          sub={`${formatNumber(stats.words, lang)} ${lang.startsWith('id') ? 'kata ditulis' : 'words written'}`}
+          sub={t('seo.analytics.wordsWritten', { count: formatNumber(stats.words, lang) })}
         />
       </div>
 
       <div className="grid-2" style={{ alignItems: 'start' }}>
         <div className="card">
           <h2 style={{ fontSize: '1rem' }}>
-            {lang.startsWith('id') ? 'Artikel per minggu (8 minggu)' : 'Articles per week (8 weeks)'}
+            {t('seo.analytics.articlesPerWeek')}
           </h2>
           <div style={styles.chart}>
             {stats.weeks.map(w => (
-              <div key={w.label} style={styles.barCol} title={`${w.count} ${lang.startsWith('id') ? 'artikel' : 'articles'}`}>
+              <div key={w.label} style={styles.barCol} title={t('seo.analytics.articlesCount', { count: w.count })}>
                 <div style={{ ...styles.bar, height: `${Math.max(4, (w.count / maxWeek) * 140)}px` }} />
                 <span style={styles.barLabel}>{w.label}</span>
               </div>
             ))}
           </div>
           <div style={{ ...styles.sub, marginTop: '0.75rem' }}>
-            {lang.startsWith('id') ? 'Distribusi CMS:' : 'CMS Distribution:'}{' '}
+            {t('seo.analytics.cmsDistribution')}{' '}
             {Object.keys(stats.byCms).length
               ? Object.entries(stats.byCms).map(([c, n]) => `${CMS_LABEL[c] || c} ${n}`).join(' · ')
               : '–'}
@@ -126,14 +124,14 @@ export default function AnalyticsDashboard({ me }) {
           <div style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--border-muted)' }}>
             <h2 style={{ margin: 0, fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Search size={16} />
-              {lang.startsWith('id') ? 'Keyword dengan volume tertinggi' : 'Highest volume keywords'}
+              {t('seo.analytics.highestVolumeKeywords')}
             </h2>
           </div>
           <div className="table-container">
             <table className="table">
               <thead>
                 <tr>
-                  <th>{lang.startsWith('id') ? 'Keyword target' : 'Target keyword'}</th>
+                  <th>{t('seo.analytics.targetKeyword')}</th>
                   <th>Volume</th>
                   <th>KD</th>
                   <th>Status</th>
@@ -143,14 +141,14 @@ export default function AnalyticsDashboard({ me }) {
                 {loading && (
                   <tr>
                     <td colSpan={4} style={styles.empty}>
-                      {lang.startsWith('id') ? 'Memuat…' : 'Loading…'}
+                      {t('common.loading')}
                     </td>
                   </tr>
                 )}
                 {!loading && !top.length && (
                   <tr>
                     <td colSpan={4} style={styles.empty}>
-                      {lang.startsWith('id') ? 'Belum ada data riset. Jalankan keyword dulu.' : 'No research data yet. Run keyword generation first.'}
+                      {t('seo.analytics.noResearchData')}
                     </td>
                   </tr>
                 )}
@@ -176,9 +174,7 @@ export default function AnalyticsDashboard({ me }) {
       <div className="card" style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', alignItems: 'center', opacity: 0.8 }}>
         <AlertTriangle size={16} color="var(--text-muted)" />
         <span style={styles.sub}>
-          {lang.startsWith('id')
-            ? 'Integrasi Google Search Console (klik & impresi per artikel) sedang disiapkan oleh 3Our dan akan muncul di halaman ini untuk pelanggan Pro.'
-            : 'Google Search Console integration (clicks & impressions per article) is being prepared by 3Our and will be available on this page for Pro subscribers.'}
+          {t('seo.analytics.gscNotice')}
         </span>
       </div>
     </div>

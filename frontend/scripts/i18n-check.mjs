@@ -139,47 +139,53 @@ if (unusedKeys.length > 0) {
   warningCount += unusedKeys.length;
 }
 
-// (c) Legacy Ternary Check: lang === 'id' / lang === 'en'
-console.log('\n4. Checking for Legacy lang === "id" / lang === "en" Ternaries...');
-const allowedTernaryFiles = [
+// (c) Forbidden Ternary & Language Switching Anti-pattern Check
+console.log('\n4. Checking for Forbidden Ternary / Anti-pattern Expressions...');
+const allowedTernaryFiles = new Set([
   path.resolve(srcDir, 'context/LanguageContext.jsx'),
-  path.resolve(srcDir, 'lib/format.js')
-];
+  path.resolve(srcDir, 'lib/format.js'),
+  path.resolve(srcDir, 'ads/format.js'),
+  path.resolve(srcDir, 'config/roles.js'),
+  path.resolve(srcDir, 'config/pricing.js'),
+  path.resolve(srcDir, 'components/common/SeoHead.jsx'),
+  path.resolve(srcDir, 'pages/public/PrivacyPage.jsx'),
+  path.resolve(srcDir, 'pages/public/TermsPage.jsx'),
+  path.resolve(srcDir, 'pages/app/AccountSettingsPage.jsx')
+]);
 
 let ternaryCount = 0;
 const ternaryDetails = [];
-const ternaryRegex = /lang\s*===\s*['"](id|en)['"]/g;
+const forbiddenPatterns = [
+  { name: "lang ===/!== 'id'|'en'", regex: /\blang\s*(===|!==)\s*['"](id|en)['"]/ },
+  { name: "lang.startsWith('id'|'en')", regex: /\blang\.startsWith\(\s*['"](id|en)['"]\s*\)/ },
+  { name: "[lang] bracket indexing", regex: /\[\s*lang\s*\]/ }
+];
 
 for (const file of allSrcFiles) {
-  if (allowedTernaryFiles.includes(path.resolve(file))) continue;
+  if (allowedTernaryFiles.has(path.resolve(file))) continue;
   const content = fs.readFileSync(file, 'utf8');
   const lines = content.split('\n');
   const relPath = path.relative(srcDir, file);
 
   lines.forEach((line, idx) => {
-    if (ternaryRegex.test(line)) {
-      ternaryCount++;
-      ternaryDetails.push({ file: relPath, line: idx + 1, snippet: line.trim() });
+    for (const pattern of forbiddenPatterns) {
+      if (pattern.regex.test(line)) {
+        ternaryCount++;
+        ternaryDetails.push({ file: relPath, line: idx + 1, pattern: pattern.name, snippet: line.trim() });
+        break;
+      }
     }
   });
 }
 
 if (ternaryCount > 0) {
-  console.log(`ℹ️  Found ${ternaryCount} legacy "lang === 'id' / 'en'" expressions across files:`);
-  const filesMap = {};
+  console.error(`❌ FATAL: Found ${ternaryCount} forbidden ternary / [lang] expression(s) outside whitelisted files:`);
   ternaryDetails.forEach(d => {
-    filesMap[d.file] = (filesMap[d.file] || 0) + 1;
+    console.error(`   - [${d.file}:${d.line}] (${d.pattern}): ${d.snippet}`);
   });
-  for (const [f, cnt] of Object.entries(filesMap)) {
-    console.log(`   - ${f} (${cnt} occurrences) -> slated for migration in Steps 4-7`);
-  }
-
-  if (isStrict) {
-    console.error(`\n❌ STRICT MODE: ${ternaryCount} unmigrated ternaries found.`);
-    errorCount += ternaryCount;
-  }
+  errorCount += ternaryCount;
 } else {
-  console.log('   OK - Zero legacy ternaries in src/!');
+  console.log('   OK - Zero forbidden ternaries or [lang] indexing outside whitelisted files!');
 }
 
 console.log('\n====================================================');

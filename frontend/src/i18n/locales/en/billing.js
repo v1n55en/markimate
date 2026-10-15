@@ -118,5 +118,21 @@ export const billing = {
   "minOneModuleAlert": "At least 1 module must be selected for the workspace.",
   "minOneModuleCancelAlert": "Cannot disable all modules. At least 1 module must remain active.",
   "moduleDisabledNotice": "Module \"{module}\" has been disabled for {workspace}.",
-  "subscriptionSuccessNotice": "Subscription updated successfully! All {count} modules are active in {workspace}."
+  "subscriptionSuccessNotice": "Subscription updated successfully! All {count} modules are active in {workspace}.",
+  "checkoutUnavailable": "Direct checkout is not yet available. Contact 3Our for plan activation.",
+  "creditDebitCard": "Credit / Debit Card",
+  "catContentOrganic": "Content & Organic",
+  "catPaidAds": "Paid Advertising",
+  "catResearchIntel": "Research & Intelligence",
+  "seoModuleDesc": "Autonomous SEO content specialist with Web Approver.",
+  "adsModuleDesc": "Autonomous multi-channel ad performance audit and reporting.",
+  "spyModuleDesc": "Competitor ad library tracking & AI angle analysis.",
+  "seoQuota": "30 articles / mo",
+  "adsQuota": "Unlimited reports",
+  "spyQuota": "5 competitors",
+  "adsModuleTitle": "AI Ads Performance Reporter",
+  "spyModuleTitle": "AI Ads Creative Spy",
+  "save20Percent": "Save 20%",
+  "focus3Notice": "Focus 3 Bundle: 3 core roles at Rp3,200,000/mo (Save 20%)",
+  "paymentHelp": "For corporate invoicing or bank transfer, please contact our support team."
 };

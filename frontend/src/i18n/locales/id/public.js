@@ -10,6 +10,10 @@ export const publicTranslations = {
     "logout": "Keluar",
     "dashboard": "Dashboard"
   },
+  "meta": {
+    "defaultTitle": "Markimate — Tim Digital Marketing AI Terpadu | Powered by 3our",
+    "defaultDescription": "Platform otomasi tim digital marketing AI terpadu: Riset tren SEO, penulisan artikel rank-ready, auto-publish CMS, dan analitik multi-channel."
+  },
   "header": {
     "tagline": "powered by 3our"
   },

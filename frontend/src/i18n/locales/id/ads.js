@@ -1,6 +1,7 @@
 export const ads = {
   "title": "Intelijen Iklan Berbayar",
   "subtitle": "Laporan terpadu kinerja periklanan dan audit berkala otomatis.",
+  "mainAccount": "Akun Utama",
   "kpi": {
     "spend": "Total Biaya Iklan",
     "roas": "ROAS Rata-rata",
@@ -62,7 +63,40 @@ export const ads = {
     "disconnect": "Putuskan",
     "confirmDisconnectTitle": "Putuskan Koneksi {platform}?",
     "confirmDisconnectDesc": "Apakah Anda yakin ingin memutuskan koneksi akun {account}? Sinkronisasi metrik otomatis dan pembuatan laporan bulanan untuk akun ini akan dihentikan.",
-    "cancel": "Batal"
+    "cancel": "Batal",
+    "secureAccess": "Akses Aman Read-Only",
+    "learnPrivacy": "Pelajari Kebijakan Privasi",
+    "addAccountTitle": "Hubungkan akun iklan tambahan di platform ini",
+    "addAccount": "Tambah Akun",
+    "activeSync": "Sinkronisasi aktif",
+    "disconnecting": "Memutuskan…",
+    "yesDisconnect": "Ya, Putuskan"
+  },
+  "detail": {
+    "notFound": "Laporan iklan tidak ditemukan.",
+    "approveError": "Gagal menyetujui laporan.",
+    "loading": "Memuat data laporan {reportId}…",
+    "colCampaign": "Nama Kampanye",
+    "status": "Status:",
+    "active": "Aktif",
+    "colPlatform": "Platform",
+    "colSpend": "Biaya (Spend)",
+    "colImpressions": "Impresi",
+    "colClicks": "Klik",
+    "colResults": "Hasil",
+    "colCostResult": "Biaya/Hasil",
+    "client": "Klien:",
+    "period": "Periode:",
+    "processing": "Memproses…",
+    "approveAndSend": "Approve & Kirim ke Klien",
+    "section1Title": "1. Ringkasan Key Performance Indicator (KPI)",
+    "section2Title": "2. Analisis Tren Biaya & Konversi",
+    "trendChartTitle": "Tren Pertumbuhan Biaya vs Hasil",
+    "section3Title": "3. Rincian Performa Kampanye",
+    "campaignsCount": "{count} Kampanye Aktif",
+    "campaignsCount_one": "{count} Kampanye Aktif",
+    "campaignsCount_other": "{count} Kampanye Aktif",
+    "section4Title": "4. Alokasi Penempatan (Placement) & Jaringan"
   },
   "reports": {
     "title": "Laporan Kinerja",
@@ -85,6 +119,8 @@ export const ads = {
     "colStatus": "Status Laporan",
     "colAction": "Aksi",
     "viewBtn": "Lihat",
+    "viewDetails": "Lihat detail laporan",
+    "reload": "Muat ulang laporan",
     "emptyReports": "Tidak ada laporan iklan yang sesuai dengan filter.",
     "notFoundTitle": "Laporan Tidak Ditemukan",
     "backToList": "Kembali ke Daftar Laporan",
@@ -106,6 +142,7 @@ export const ads = {
     "redirectCountdown": "Mengalihkan ke halaman koneksi dalam {seconds} detik…",
     "goToConnections": "Buka Halaman Koneksi Sekarang",
     "errorTitle": "Otorisasi Gagal",
+    "errorProcess": "Gagal memproses otorisasi akun iklan.",
     "retryBtn": "Coba Hubungkan Kembali"
   },
   "status": {

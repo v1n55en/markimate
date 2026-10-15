@@ -50,7 +50,7 @@ export default function AdsReportDetailPage({ user }) {
       const data = await getReport(reportId);
       setReport(data);
     } catch (err) {
-      setError(err.message || (lang.startsWith('id') ? 'Laporan iklan tidak ditemukan.' : 'Ad report not found.'));
+      setError(err.message || t('ads.detail.notFound'));
     } finally {
       setLoading(false);
     }
@@ -69,7 +69,7 @@ export default function AdsReportDetailPage({ user }) {
       setApproveSuccess(true);
       setTimeout(() => setApproveSuccess(false), 4000);
     } catch (err) {
-      alert(err.message || (lang.startsWith('id') ? 'Gagal menyetujui laporan.' : 'Failed to approve report.'));
+      alert(err.message || t('ads.detail.approveError'));
     } finally {
       setApproving(false);
     }
@@ -84,7 +84,7 @@ export default function AdsReportDetailPage({ user }) {
       <div style={styles.loadingContainer}>
         <RefreshCw size={26} color="var(--accent-cyan)" style={{ animation: 'spin 1s linear infinite' }} />
         <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-          {lang.startsWith('id') ? `Memuat data laporan ${reportId}…` : `Loading report data ${reportId}…`}
+          {t('ads.detail.loading', { reportId })}
         </span>
       </div>
     );
@@ -110,19 +110,19 @@ export default function AdsReportDetailPage({ user }) {
   const campaignColumns = [
     {
       key: 'name',
-      label: lang.startsWith('id') ? 'Nama Kampanye' : 'Campaign Name',
+      label: t('ads.detail.colCampaign'),
       render: (val, row) => (
         <div>
           <strong style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>{val}</strong>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-            {lang.startsWith('id') ? 'Status:' : 'Status:'} {row.status || (lang.startsWith('id') ? 'Aktif' : 'Active')}
+            {t('ads.detail.status')} {row.status || t('ads.detail.active')}
           </div>
         </div>
       ),
     },
     {
       key: 'platform',
-      label: lang.startsWith('id') ? 'Platform' : 'Platform',
+      label: t('ads.detail.colPlatform'),
       render: (p) => {
         const meta = PLATFORMS_META[p] || { name: p, color: 'var(--text-secondary)' };
         return (
@@ -134,19 +134,19 @@ export default function AdsReportDetailPage({ user }) {
     },
     {
       key: 'spend',
-      label: lang.startsWith('id') ? 'Biaya (Spend)' : 'Spend',
+      label: t('ads.detail.colSpend'),
       align: 'right',
       render: (v) => <span style={{ fontFamily: 'var(--font-mono)' }}>{formatIDR(v, lang)}</span>,
     },
     {
       key: 'impressions',
-      label: lang.startsWith('id') ? 'Impresi' : 'Impressions',
+      label: t('ads.detail.colImpressions'),
       align: 'right',
       render: (v) => formatCompact(v, lang),
     },
     {
       key: 'clicks',
-      label: lang.startsWith('id') ? 'Klik' : 'Clicks',
+      label: t('ads.detail.colClicks'),
       align: 'right',
       render: (v) => formatCompact(v, lang),
     },
@@ -158,13 +158,13 @@ export default function AdsReportDetailPage({ user }) {
     },
     {
       key: 'results',
-      label: lang.startsWith('id') ? 'Hasil' : 'Results',
+      label: t('ads.detail.colResults'),
       align: 'right',
       render: (v) => <strong style={{ color: 'var(--accent-cyan)' }}>{formatNumber(v, lang)}</strong>,
     },
     {
       key: 'costPerResult',
-      label: lang.startsWith('id') ? 'Biaya/Hasil' : 'Cost/Result',
+      label: t('ads.detail.colCostResult'),
       align: 'right',
       render: (v) => <span style={{ fontFamily: 'var(--font-mono)' }}>{formatIDR(v, lang)}</span>,
     },
@@ -213,9 +213,9 @@ export default function AdsReportDetailPage({ user }) {
           <h1 style={styles.reportTitle}>{report.title || `Laporan ${report.periodLabel}`}</h1>
 
           <div style={styles.metaRow}>
-            <span>{lang.startsWith('id') ? 'Klien:' : 'Client:'} <strong>{report.clientName}</strong></span>
+            <span>{t('ads.detail.client')} <strong>{report.clientName}</strong></span>
             <span>·</span>
-            <span>{lang.startsWith('id') ? 'Periode:' : 'Period:'} <strong>{report.periodLabel}</strong></span>
+            <span>{t('ads.detail.period')} <strong>{report.periodLabel}</strong></span>
           </div>
         </div>
 
@@ -251,7 +251,7 @@ export default function AdsReportDetailPage({ user }) {
               style={styles.approveBtn}
             >
               <CheckCircle size={16} />
-              <span>{approving ? (lang.startsWith('id') ? 'Memproses…' : 'Processing…') : (lang.startsWith('id') ? 'Approve & Kirim ke Klien' : 'Approve & Send to Client')}</span>
+              <span>{approving ? t('ads.detail.processing') : t('ads.detail.approveAndSend')}</span>
             </button>
           )}
         </div>
@@ -267,7 +267,7 @@ export default function AdsReportDetailPage({ user }) {
       {/* 1. Ringkasan KPI + Delta vs Bulan Lalu */}
       {Object.keys(kpis).length > 0 && (
         <div style={styles.section}>
-          <h2 style={styles.sectionHeading}>{lang.startsWith('id') ? '1. Ringkasan Key Performance Indicator (KPI)' : '1. Key Performance Indicator (KPI) Summary'}</h2>
+          <h2 style={styles.sectionHeading}>{t('ads.detail.section1Title')}</h2>
           <div style={styles.kpiGrid}>
             {Object.entries(kpis).map(([key, item]) => (
               <KpiCard
@@ -287,11 +287,11 @@ export default function AdsReportDetailPage({ user }) {
       {/* 2. Grafik Tren Performa (6 Bulan & Harian) */}
       {(report.trend?.length > 0 || report.daily?.length > 0) && (
         <div style={styles.section}>
-          <h2 style={styles.sectionHeading}>{lang.startsWith('id') ? '2. Analisis Tren Biaya & Konversi' : '2. Cost & Conversion Trend Analysis'}</h2>
+          <h2 style={styles.sectionHeading}>{t('ads.detail.section2Title')}</h2>
           <TrendChart
             monthlyData={report.trend}
             dailyData={report.daily}
-            title={lang.startsWith('id') ? 'Tren Pertumbuhan Biaya vs Hasil' : 'Cost Growth vs Results Trend'}
+            title={t('ads.detail.trendChartTitle')}
           />
         </div>
       )}
@@ -300,9 +300,9 @@ export default function AdsReportDetailPage({ user }) {
       {report.campaigns?.length > 0 && (
         <div style={styles.section}>
           <div style={styles.sectionTitleRow}>
-            <h2 style={styles.sectionHeading}>{lang.startsWith('id') ? '3. Rincian Performa Kampanye' : '3. Campaign Performance Details'}</h2>
+            <h2 style={styles.sectionHeading}>{t('ads.detail.section3Title')}</h2>
             <span style={styles.countBadge}>
-              {lang.startsWith('id') ? `${report.campaigns.length} Kampanye Aktif` : `${report.campaigns.length} Active Campaigns`}
+              {t('ads.detail.campaignsCount', { count: report.campaigns.length })}
             </span>
           </div>
           <DataTable
@@ -315,7 +315,7 @@ export default function AdsReportDetailPage({ user }) {
       {/* 4. Breakdown Platform & Placement/Device */}
       {(report.platformBreakdown?.length > 0 || report.placement?.length > 0) && (
         <div style={styles.section}>
-          <h2 style={styles.sectionHeading}>{lang.startsWith('id') ? '4. Alokasi Penempatan (Placement) & Jaringan' : '4. Placement & Network Allocation'}</h2>
+          <h2 style={styles.sectionHeading}>{t('ads.detail.section4Title')}</h2>
           <div style={styles.dualGrid}>
             {/* Breakdown Jaringan / Platform */}
             {report.platformBreakdown?.length > 0 && (

@@ -118,5 +118,21 @@ export const billing = {
   "minOneModuleAlert": "Minimal harus memilih 1 modul untuk workspace.",
   "minOneModuleCancelAlert": "Tidak bisa membatalkan semua modul. Minimal 1 modul harus aktif.",
   "moduleDisabledNotice": "Modul \"{module}\" telah dinonaktifkan untuk {workspace}.",
-  "subscriptionSuccessNotice": "Langganan berhasil diperbarui! Seluruh {count} modul aktif di {workspace}."
+  "subscriptionSuccessNotice": "Langganan berhasil diperbarui! Seluruh {count} modul aktif di {workspace}.",
+  "checkoutUnavailable": "Pembayaran langsung belum tersedia. Hubungi 3Our untuk aktivasi paket.",
+  "creditDebitCard": "Kartu Kredit / Debit",
+  "catContentOrganic": "Konten & Organik",
+  "catPaidAds": "Periklanan Berbayar",
+  "catResearchIntel": "Riset & Intelijen",
+  "seoModuleDesc": "Agent pembuat artikel SEO otomatis & CMS publisher dengan Web Approver.",
+  "adsModuleDesc": "Pelaporan performa iklan lintas platform Meta, Google, TikTok, Shopee.",
+  "spyModuleDesc": "Pemantauan materi iklan kompetitor dari Meta Ad Library & riset hook.",
+  "seoQuota": "30 artikel / bln",
+  "adsQuota": "Laporan tanpa batas",
+  "spyQuota": "5 kompetitor",
+  "adsModuleTitle": "Ads Specialist — Report Semua Platform",
+  "spyModuleTitle": "Ads Creative Spy",
+  "save20Percent": "Diskon 20%",
+  "focus3Notice": "Paket Focus 3: 3 role utama seharga Rp3.200.000/bln (Hemat 20%)",
+  "paymentHelp": "Butuh invoice perusahaan atau transfer bank manual? Hubungi tim support kami."
 };

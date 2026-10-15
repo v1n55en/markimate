@@ -46,5 +46,14 @@ export const common = {
   "viewCreditWallet": "Lihat dompet credit & top-up",
   "from": "Mulai dari",
   "perMonth": "/bln",
-  "perYear": "/thn"
+  "perYear": "/thn",
+  "weekdays": {
+    "sun": "Minggu",
+    "mon": "Senin",
+    "tue": "Selasa",
+    "wed": "Rabu",
+    "thu": "Kamis",
+    "fri": "Jumat",
+    "sat": "Sabtu"
+  }
 };

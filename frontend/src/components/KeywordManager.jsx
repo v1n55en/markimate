@@ -387,7 +387,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
           <div className="form-group" style={{ minWidth: '160px', marginBottom: 0 }}>
             <label className="form-label">{t('seo.targetCmsLabel')}</label>
             <select className="form-select" value={form.cms} onChange={e => setForm({ ...form, cms: e.target.value })} disabled={!anyCms.length}>
-              {anyCms.length ? anyCms.map(c => <option key={c} value={c}>{CMS_LABEL[c] || c}{connectedCms.includes(c) ? '' : (lang.startsWith('id') ? ' (belum terverifikasi)' : ' (unverified)')}</option>) : <option>{lang.startsWith('id') ? 'Belum ada CMS' : 'No CMS yet'}</option>}
+              {anyCms.length ? anyCms.map(c => <option key={c} value={c}>{CMS_LABEL[c] || c}{connectedCms.includes(c) ? '' : t('seo.keywords.cmsUnverified')}</option>) : <option>{t('seo.keywords.noCmsYet')}</option>}
             </select>
           </div>
           <div className="form-group" style={{ minWidth: '180px', marginBottom: 0 }}>
@@ -501,7 +501,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                     </td>
                     <td>
                       {isAutoTrends ? (
-                        <span style={styles.sourceTrendsBadge} title={lang.startsWith('id') ? "Dihasilkan otomatis dari Google Trends mingguan" : "Generated automatically from weekly Google Trends"}>
+                        <span style={styles.sourceTrendsBadge} title={t('seo.keywords.trendsSourceTitle')}>
                           <TrendingUp size={12} /> Trends
                         </span>
                       ) : kw.source === 'api' ? (
@@ -606,7 +606,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                         )}
 
                         {kw.status !== 'AI Writing...' && kw.status !== 'Pending' && !isSuggested && (
-                          <button className="btn btn-secondary" style={styles.smallBtn} disabled={!!b} onClick={() => runKeyword(kw.id)} title={lang.startsWith('id') ? "Tulis ulang artikel" : "Rewrite article"}>
+                          <button className="btn btn-secondary" style={styles.smallBtn} disabled={!!b} onClick={() => runKeyword(kw.id)} title={t('seo.keywords.rewriteArticle')}>
                             <RefreshCw size={13} />
                           </button>
                         )}
@@ -708,7 +708,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                     <div style={{ marginBottom: '1.25rem', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-muted)' }}>
                       <img src={heroImageObj.url} alt={draft.title} style={{ width: '100%', maxHeight: '360px', objectFit: 'cover' }} />
                       <div style={styles.renderedImgCaption}>
-                        <span style={styles.badgeSuccessSmall}>{lang.startsWith('id') ? '✓ Hero Image di CMS' : '✓ Hero Image in CMS'}</span>
+                        <span style={styles.badgeSuccessSmall}>{t('seo.keywords.heroInCms')}</span>
                         <span>{heroPromptObj?.alt || draft.title}</span>
                       </div>
                     </div>
@@ -801,16 +801,14 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                         <Coins size={16} color="var(--accent-cyan)" />
                         {t('seo.imageCost', {
                           detail: imagesEnabled
-                            ? (lang.startsWith('id')
-                              ? `${draft.imagePrompts?.length || 0} gambar × 5 = ${(draft.imagePrompts?.length || 0) * 5} credit`
-                              : `${draft.imagePrompts?.length || 0} images × 5 = ${(draft.imagePrompts?.length || 0) * 5} credits`)
-                            : (lang.startsWith('id') ? '0 credit (dimatikan)' : '0 credits (disabled)')
+                            ? t('seo.keywords.imageCostActive', { count: draft.imagePrompts?.length || 0, cost: (draft.imagePrompts?.length || 0) * 5 })
+                            : t('seo.keywords.imageCostDisabled')
                         })}
                       </div>
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
                         {imagesEnabled
-                          ? (lang.startsWith('id') ? 'Gambar akan di-generate via Gemini Imagen dan diunggah ke CMS saat publikasi.' : 'Images will be generated via Gemini Imagen and uploaded to CMS upon publish.')
-                          : (lang.startsWith('id') ? 'Gambar AI dimatikan untuk publikasi ini. Placeholder gambar akan dilewati dan tidak ada credit gambar yang dipotong.' : 'AI images disabled for this publish. Image placeholders will be bypassed and no image credits deducted.')}
+                          ? t('seo.keywords.imageDescActive')
+                          : t('seo.keywords.imageDescDisabled')}
                       </div>
                     </div>
                     <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}>
@@ -825,9 +823,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                   </div>
 
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                    {lang.startsWith('id')
-                      ? 'Prompt gambar dibuat oleh AI saat perancangan artikel. Gambar asli akan di-generate dan diunggah ke CMS saat publikasi.'
-                      : 'Image prompts created by AI during article drafting. Final images will be generated and uploaded to CMS upon publish.'}
+                    {t('seo.keywords.imagePromptsNotice')}
                   </div>
 
                   {(!draft.imagePrompts || !draft.imagePrompts.length) ? (
@@ -844,11 +840,11 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                               <ImageIcon size={16} color="var(--accent-cyan)" />
                               <span style={{ fontWeight: 600 }}>
                                 {isHero
-                                  ? (lang.startsWith('id') ? 'Gambar 0 — Hero Banner' : 'Image 0 — Hero Banner')
-                                  : (lang.startsWith('id') ? `Gambar ${img.idx} — Inline` : `Image ${img.idx} — Inline`)}
+                                  ? t('seo.keywords.imgHeroBanner')
+                                  : t('seo.keywords.imgInline', { idx: img.idx })}
                               </span>
                               <span style={styles.badgeMuted}>{img.aspect || (isHero ? '16:9' : '4:3')}</span>
-                              {uploadedImg?.url && <span style={styles.badgeSuccessSmall}>{lang.startsWith('id') ? '✓ Terunggah' : '✓ Uploaded'}</span>}
+                              {uploadedImg?.url && <span style={styles.badgeSuccessSmall}>{t('seo.keywords.uploadedBadge')}</span>}
                             </div>
                             {!isHero && (
                               <button
@@ -904,10 +900,10 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
 
             {/* Drawer Footer Actions */}
             <div style={styles.drawerFooter}>
-              <button className="btn btn-secondary" onClick={regenerate} disabled={!!drawerBusy} title={lang.startsWith('id') ? "Tulis ulang seluruh artikel" : "Regenerate full article"}>
+              <button className="btn btn-secondary" onClick={regenerate} disabled={!!drawerBusy} title={t('seo.keywords.regenerateFullTitle')}>
                 <RefreshCw size={15} /> {t('seo.drawerBtnRegenerate')}
               </button>
-              <button className="btn btn-secondary" onClick={saveDraftLocally} disabled={!!drawerBusy} title={lang.startsWith('id') ? "Simpan perubahan draf ke Markimate" : "Save draft changes"}>
+              <button className="btn btn-secondary" onClick={saveDraftLocally} disabled={!!drawerBusy} title={t('seo.keywords.saveDraftChangesTitle')}>
                 {drawerBusy === 'save' ? <Loader2 size={15} className="spin-icon" /> : <Check size={15} />} {t('seo.drawerBtnSaveDraft')}
               </button>
               <div style={{ flex: 1 }} />

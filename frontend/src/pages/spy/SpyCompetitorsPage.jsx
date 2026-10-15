@@ -219,14 +219,14 @@ export default function SpyCompetitorsPage() {
                           <strong style={styles.compName}>{comp.name}</strong>
                           <div style={styles.metaBadgeRow}>
                             <span style={styles.platformBadge}>{comp.platformLabel}</span>
-                            <span style={styles.countryTag}>{lang.startsWith('id') ? 'Negara:' : 'Country:'} {comp.country}</span>
+                            <span style={styles.countryTag}>{t('spy.competitors.country')} {comp.country}</span>
                             {comp.pageUrl && (
                               <a
                                 href={comp.pageUrl}
                                 target="_blank"
                                 rel="noreferrer"
                                 style={styles.linkIcon}
-                                title={lang.startsWith('id') ? "Buka Halaman" : "Open Page"}
+                                title={t('spy.competitors.openPage')}
                               >
                                 <ExternalLink size={11} />
                               </a>
@@ -235,16 +235,16 @@ export default function SpyCompetitorsPage() {
                         </div>
                       </td>
                       <td style={styles.td}>
-                        <span style={styles.boldMetric}>{comp.activeAdsCount} {lang.startsWith('id') ? 'Iklan' : 'Ads'}</span>
+                        <span style={styles.boldMetric}>{t('spy.competitors.adsCount', { count: comp.activeAdsCount })}</span>
                       </td>
                       <td style={styles.td}>
                         <span style={{ ...styles.boldMetric, color: 'var(--accent-yellow)' }}>
-                          +{comp.newAdsThisWeek} {lang.startsWith('id') ? 'Iklan' : 'Ads'}
+                          +{t('spy.competitors.adsCount', { count: comp.newAdsThisWeek })}
                         </span>
                       </td>
                       <td style={styles.td}>
                         <span style={{ ...styles.boldMetric, color: 'var(--accent-red)' }}>
-                          {comp.winningAdsCount} Ads
+                          {t('spy.competitors.adsCount', { count: comp.winningAdsCount })}
                         </span>
                       </td>
                       <td style={styles.td}>
@@ -272,7 +272,7 @@ export default function SpyCompetitorsPage() {
                           <button
                             onClick={() => handleDelete(comp.id, comp.name)}
                             style={styles.deleteBtn}
-                            title={lang.startsWith('id') ? "Hapus pemantauan" : "Delete tracking"}
+                            title={t('spy.competitors.deleteTracking')}
                           >
                             <Trash2 size={13} />
                           </button>
@@ -348,8 +348,8 @@ export default function SpyCompetitorsPage() {
                 <div style={styles.formGroup}>
                   <label style={styles.label}>{t('spy.competitors.modalPlatformLabel')}</label>
                   <select style={styles.select} disabled defaultValue="meta">
-                    <option value="meta">Meta Ad Library ({lang.startsWith('id') ? 'Aktif' : 'Active'})</option>
-                    <option value="tiktok">TikTok Creative Center ({lang.startsWith('id') ? 'Segera Hadir' : 'Coming Soon'})</option>
+                    <option value="meta">Meta Ad Library ({t('common.active')})</option>
+                    <option value="tiktok">TikTok Creative Center ({t('common.soon')})</option>
                   </select>
                 </div>
 
@@ -363,20 +363,20 @@ export default function SpyCompetitorsPage() {
                     <option value="ID">Indonesia (ID)</option>
                     <option value="MY">Malaysia (MY)</option>
                     <option value="SG">Singapura (SG)</option>
-                    <option value="ALL">{lang.startsWith('id') ? 'Semua Negara' : 'All Countries'}</option>
+                    <option value="ALL">{t('spy.competitors.allCountries')}</option>
                   </select>
                 </div>
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>{lang.startsWith('id') ? 'Jadwal Pemindaian Otomatis' : 'Automated Scan Schedule'}</label>
+                <label style={styles.label}>{t('spy.competitors.scanSchedule')}</label>
                 <select
                   value={schedule}
                   onChange={(e) => setSchedule(e.target.value)}
                   style={styles.select}
                 >
-                  <option value="weekly">{lang.startsWith('id') ? 'Mingguan (Setiap Senin 09:00 WIB - Default)' : 'Weekly (Every Monday 09:00 WIB - Default)'}</option>
-                  <option value="daily">{lang.startsWith('id') ? 'Harian (Tersedia di Paket Pro)' : 'Daily (Available on Pro Plan)'}</option>
+                  <option value="weekly">{t('spy.competitors.scheduleWeekly')}</option>
+                  <option value="daily">{t('spy.competitors.scheduleDaily')}</option>
                 </select>
               </div>
 
