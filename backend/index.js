@@ -655,7 +655,12 @@ app.post('/api/auth/refresh', wrap(async (req, res) => {
 
     // Langkah 2.3: Jika masih dalam grace window 30 detik dan memiliki penerus aktif, kembalikan sesi penerus
     if (isWithinGrace && record.replaced_by) {
-      const successor = await db.findOne('refresh_tokens', { id: record.replaced_by });
+      let successor = await db.findOne('refresh_tokens', { id: record.replaced_by });
+      let depth = 0;
+      while (successor && successor.revoked_at && successor.replaced_by && depth < 5) {
+        successor = await db.findOne('refresh_tokens', { id: successor.replaced_by });
+        depth++;
+      }
       if (successor && !successor.revoked_at && new Date(successor.expires_at) > new Date()) {
         const user = await db.findOne('accounts', { id: record.user_id });
         if (user && user.status === 'active') {
@@ -1313,10 +1318,7 @@ app.get('/api/me', auth, wrap(async (req, res) => {
   const activeWorkspace = resolved?.workspace || (workspaces[0] ? { id: workspaces[0].id } : { id: req.user.id });
   const activeWsId = activeWorkspace.id;
 
-  let conns = await db.findMany('cms_connections', { workspace_id: activeWsId });
-  if (!conns || conns.length === 0) {
-    conns = await db.findMany('cms_connections', { user_id: activeWsId });
-  }
+  const conns = await db.findMany('cms_connections', { workspace_id: activeWsId });
 
   const runs = await usageOf(activeWsId);
   const currentWs = workspaces.find(w => w.id === activeWsId) || workspaces[0] || null;
@@ -2663,8 +2665,7 @@ const kwPublic = (k) => ({
 const nextRun = (schedule) => { if (schedule === 'daily') return new Date(Date.now() + 86400e3).toISOString(); if (schedule === 'weekly') return new Date(Date.now() + 7 * 86400e3).toISOString(); return null; };
 
 app.get('/api/keywords', auth, requireWorkspace('viewer'), requireModule('seo'), wrap(async (req, res) => {
-  let list = await db.findMany('keywords', { workspace_id: req.workspace.id }, { orderBy: 'created_at' });
-  if (!list.length) list = await db.findMany('keywords', { user_id: req.user.id }, { orderBy: 'created_at' });
+  const list = await db.findMany('keywords', { workspace_id: req.workspace.id }, { orderBy: 'created_at' });
   res.json({ keywords: list.map(kwPublic) });
 }));
 app.post('/api/keywords', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
@@ -2686,9 +2687,8 @@ app.post('/api/keywords', auth, requireWorkspace('admin'), requireModule('seo'),
   });
   res.json({ keyword: kwPublic(row) });
 }));
-app.patch('/api/keywords/:id', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
-  let k = await db.findOne('keywords', { id: req.params.id, workspace_id: req.workspace.id });
-  if (!k) k = await db.findOne('keywords', { id: req.params.id, user_id: req.user.id });
+app.patch('/api/keywords/:id', auth, requireWorkspace('admin'), requireModule('seo'), requireUuidParam('id'), wrap(async (req, res) => {
+  const k = await db.findOne('keywords', { id: req.params.id, workspace_id: req.workspace.id });
   if (!k) throw Object.assign(new Error('Tidak ditemukan.'), { status: 404 });
   const patch = {}; const b = req.body || {};
   if (b.article) {
@@ -2708,9 +2708,8 @@ app.patch('/api/keywords/:id', auth, requireWorkspace('admin'), requireModule('s
   if (b.status) patch.status = String(b.status);
   res.json({ keyword: kwPublic(await db.update('keywords', { id: k.id }, patch)) });
 }));
-app.delete('/api/keywords/:id', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
-  let k = await db.findOne('keywords', { id: req.params.id, workspace_id: req.workspace.id });
-  if (!k) k = await db.findOne('keywords', { id: req.params.id, user_id: req.user.id });
+app.delete('/api/keywords/:id', auth, requireWorkspace('admin'), requireModule('seo'), requireUuidParam('id'), wrap(async (req, res) => {
+  const k = await db.findOne('keywords', { id: req.params.id, workspace_id: req.workspace.id });
   if (!k) throw Object.assign(new Error('Tidak ditemukan.'), { status: 404 });
   await db.remove('keywords', { id: k.id });
   res.json({ ok: true });
@@ -2730,8 +2729,7 @@ async function generateFor(user, k) {
 
   await db.update('keywords', { id: k.id }, { status: 'AI Writing...', error: '' });
 
-  let conn = k.cms_type ? await db.findOne('cms_connections', { workspace_id: wsId, cms_type: k.cms_type }) : null;
-  if (!conn && k.cms_type) conn = await db.findOne('cms_connections', { user_id: user.id, cms_type: k.cms_type });
+  const conn = k.cms_type ? await db.findOne('cms_connections', { workspace_id: wsId, cms_type: k.cms_type }) : null;
   const connConfig = conn ? resolveConnConfig(conn) : null;
   const artSet = conn ? normalizeArticleSettings(conn.article_settings) : normalizeArticleSettings({});
 
@@ -2825,8 +2823,7 @@ async function generateFor(user, k) {
 
 async function publishFor(user, k, action, articleOverride) {
   const wsId = k.workspace_id || user.id;
-  let conn = await db.findOne('cms_connections', { workspace_id: wsId, cms_type: k.cms_type });
-  if (!conn) conn = await db.findOne('cms_connections', { user_id: user.id, cms_type: k.cms_type });
+  const conn = await db.findOne('cms_connections', { workspace_id: wsId, cms_type: k.cms_type });
   if (!conn) throw Object.assign(new Error(`Kredensial ${k.cms_type} belum disimpan di Pengaturan CMS.`), { status: 400 });
   const connConfig = resolveConnConfig(conn);
   const artSet = normalizeArticleSettings(conn.article_settings);
@@ -2934,9 +2931,8 @@ async function publishFor(user, k, action, articleOverride) {
 }
 const webApproverOn = (u) => (process.env.CREDITS_ENABLED !== 'false' ? u.web_approver !== false : (planOf(u).webApprover && u.web_approver !== false));
 
-app.post('/api/keywords/:id/run', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
-  let k = await db.findOne('keywords', { id: req.params.id, workspace_id: req.workspace.id });
-  if (!k) k = await db.findOne('keywords', { id: req.params.id, user_id: req.user.id });
+app.post('/api/keywords/:id/run', auth, requireWorkspace('admin'), requireModule('seo'), requireUuidParam('id'), wrap(async (req, res) => {
+  const k = await db.findOne('keywords', { id: req.params.id, workspace_id: req.workspace.id });
   if (!k) throw Object.assign(new Error('Tidak ditemukan.'), { status: 404 });
   let row = await generateFor(req.user, k);
   if (row.status !== 'Duplicate' && !webApproverOn(req.user)) {
@@ -2945,9 +2941,8 @@ app.post('/api/keywords/:id/run', auth, requireWorkspace('admin'), requireModule
   }
   res.json({ keyword: kwPublic(row) });
 }));
-app.post('/api/keywords/:id/publish', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
-  let k = await db.findOne('keywords', { id: req.params.id, workspace_id: req.workspace.id });
-  if (!k) k = await db.findOne('keywords', { id: req.params.id, user_id: req.user.id });
+app.post('/api/keywords/:id/publish', auth, requireWorkspace('admin'), requireModule('seo'), requireUuidParam('id'), wrap(async (req, res) => {
+  const k = await db.findOne('keywords', { id: req.params.id, workspace_id: req.workspace.id });
   if (!k) throw Object.assign(new Error('Tidak ditemukan.'), { status: 404 });
   if (!k.article && !k.post_id) throw Object.assign(new Error('Belum ada artikel. Jalankan dulu.'), { status: 400 });
   const action = req.body.action === 'publish' ? 'publish' : 'draft';
@@ -2987,8 +2982,7 @@ async function runTopicSource(user, source) {
     throw Object.assign(new Error('Topik otomatis hanya untuk paket berbayar (Pro).'), { status: 402 });
   }
 
-  let conn = await db.findOne('cms_connections', { workspace_id: wsId, cms_type: source.cms_type });
-  if (!conn) conn = await db.findOne('cms_connections', { user_id: user.id, cms_type: source.cms_type });
+  const conn = await db.findOne('cms_connections', { workspace_id: wsId, cms_type: source.cms_type });
   if (!conn) {
     throw Object.assign(new Error(`Koneksi CMS ${source.cms_type} belum disimpan.`), { status: 400 });
   }
@@ -3087,8 +3081,7 @@ async function runTopicSource(user, source) {
 }
 
 app.get('/api/seo/topic-sources', auth, requireWorkspace('viewer'), requireModule('seo'), wrap(async (req, res) => {
-  let sources = await db.findMany('seo_topic_sources', { workspace_id: req.workspace.id }, { orderBy: 'created_at' });
-  if (!sources.length) sources = await db.findMany('seo_topic_sources', { user_id: req.user.id }, { orderBy: 'created_at' });
+  const sources = await db.findMany('seo_topic_sources', { workspace_id: req.workspace.id }, { orderBy: 'created_at' });
   res.json({ sources });
 }));
 
@@ -3109,10 +3102,8 @@ app.put('/api/seo/topic-sources', auth, requireWorkspace('admin'), requireModule
   const nextRunAt = calcNextWeeklyRun(weekday, hour);
 
   let existing = b.id ? await db.findOne('seo_topic_sources', { id: b.id, workspace_id: req.workspace.id }) : null;
-  if (!existing && b.id) existing = await db.findOne('seo_topic_sources', { id: b.id, user_id: req.user.id });
   if (!existing) {
     existing = await db.findOne('seo_topic_sources', { workspace_id: req.workspace.id, cms_type: cmsType });
-    if (!existing) existing = await db.findOne('seo_topic_sources', { user_id: req.user.id, cms_type: cmsType });
   }
 
   let source;
@@ -3145,17 +3136,15 @@ app.put('/api/seo/topic-sources', auth, requireWorkspace('admin'), requireModule
   res.json({ source });
 }));
 
-app.delete('/api/seo/topic-sources/:id', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
-  let source = await db.findOne('seo_topic_sources', { id: req.params.id, workspace_id: req.workspace.id });
-  if (!source) source = await db.findOne('seo_topic_sources', { id: req.params.id, user_id: req.user.id });
+app.delete('/api/seo/topic-sources/:id', auth, requireWorkspace('admin'), requireModule('seo'), requireUuidParam('id'), wrap(async (req, res) => {
+  const source = await db.findOne('seo_topic_sources', { id: req.params.id, workspace_id: req.workspace.id });
   if (!source) throw Object.assign(new Error('Sumber topik tidak ditemukan.'), { status: 404 });
   await db.remove('seo_topic_sources', { id: source.id });
   res.json({ ok: true });
 }));
 
-app.post('/api/seo/topic-sources/:id/run', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
-  let source = await db.findOne('seo_topic_sources', { id: req.params.id, workspace_id: req.workspace.id });
-  if (!source) source = await db.findOne('seo_topic_sources', { id: req.params.id, user_id: req.user.id });
+app.post('/api/seo/topic-sources/:id/run', auth, requireWorkspace('admin'), requireModule('seo'), requireUuidParam('id'), wrap(async (req, res) => {
+  const source = await db.findOne('seo_topic_sources', { id: req.params.id, workspace_id: req.workspace.id });
   if (!source) throw Object.assign(new Error('Sumber topik tidak ditemukan.'), { status: 404 });
   const result = await runTopicSource(req.user, source);
   res.json(result);

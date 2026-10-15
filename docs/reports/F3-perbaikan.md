@@ -223,5 +223,44 @@ Mode eksekusi: **Autopilot**.
 - Perbaikan celah keamanan dan token chain (dijadwalkan di Langkah D).
 - Rapikan test backend (dijadwalkan di Langkah E).
 
+---
+
+## Langkah D — Keamanan Fix Pack: Isolasi Workspace CMS, requireUuidParam, dan Token Grace Chain
+
+### 1. Ringkasan Perubahan
+- **Penegakan Isolasi Workspace (Hapus Fallback `user_id`)**:
+  - `GET /api/me`: Menghapus fallback query `db.findMany('cms_connections', { user_id: activeWsId })`. CMS connections kini terikat 100% pada `workspace_id`.
+  - `GET /api/keywords`, `PATCH /api/keywords/:id`, `DELETE /api/keywords/:id`, `POST /api/keywords/:id/run`, `POST /api/keywords/:id/publish`: Menghapus fallback query ke `user_id`. Semua operasi kata kunci sepenuhnya terisolasi dalam workspace aktif (`workspace_id`).
+  - `generateFor` dan `publishFor`: Menghapus fallback `findOne('cms_connections', { user_id: user.id, cms_type })`. Menggunakan koneksi CMS workspace yang valid.
+  - `runTopicSource`, `GET /api/seo/topic-sources`, `PUT /api/seo/topic-sources`, `DELETE /api/seo/topic-sources/:id`, `POST /api/seo/topic-sources/:id/run`: Menghapus seluruh fallback pencarian berdasarkan `user_id`. Topic sources terisolasi dalam workspace.
+- **Validasi Ketat UUID (`requireUuidParam('id')`)**:
+  - Menambahkan middleware `requireUuidParam('id')` pada 6 endpoint sensitif:
+    1. `PATCH /api/keywords/:id`
+    2. `DELETE /api/keywords/:id`
+    3. `POST /api/keywords/:id/run`
+    4. `POST /api/keywords/:id/publish`
+    5. `DELETE /api/seo/topic-sources/:id`
+    6. `POST /api/seo/topic-sources/:id/run`
+  - Mencegah input non-UUID (SQL injection, path traversal, atau invalid ID) sebelum query database diproses.
+- **Refresh Token Grace Chain Traversal**:
+  - Pada `POST /api/auth/refresh`: Jika token yang digunakan berada dalam grace window (30 detik) dan `record.replaced_by` sudah direvoke kembali akibat rotasi paralel/berantai, sistem kini menelusuri chain `successor` (hingga `max depth 5`) untuk menemukan token successor aktif yang belum direvoke.
+  - Mencegah *false positive* `TOKEN_REUSE_DETECTED` saat browser meluncurkan permintaan refresh paralel secara bersamaan.
+
+### 2. File yang Berubah
+- `backend/index.js`
+
+### 3. Cara Pengujian
+1. Jalankan unit test backend: `cd backend && npm test`
+2. Jalankan validasi i18n & build frontend: `cd frontend && npm run i18n:check && npm run build`
+3. Verifikasi ketiadaan fallback `user_id` pada query CMS dan SEO di `backend/index.js`.
+
+### 4. Hasil Pengujian
+- `cd backend && npm test`: **LOLOS 100% (Semua tes unit dan integrasi berhasil)**
+- `cd frontend && npm run i18n:check`: **LOLOS (1612 keys, 0 errors)**
+- `cd frontend && npm run build`: **LOLOS (Build Vite berhasil, 40 HTML statis & sitemap ter-generate)**
+
+### 5. Hal yang Sengaja Tidak Dikerjakan di Langkah Ini
+- Isolasi database test backend dan perapian mock unit vs integration (dijadwalkan di Langkah E).
+
 
 
