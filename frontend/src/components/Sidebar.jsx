@@ -34,6 +34,7 @@ import { isSpyMock } from '../spy/spyApi';
 
 import { useLanguage, LanguageToggle } from '../context/LanguageContext';
 import { formatNumber } from '../lib/format';
+import { SiteLink } from '../lib/hosts';
 
 export default function Sidebar({ user, onLogout, plan, usage }) {
   const location = useLocation();
@@ -239,10 +240,10 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
     <>
       {/* Mobile Hamburger Button */}
       <div style={styles.mobileBar} className="mobile-top-bar">
-        <div style={styles.mobileBrand}>
+        <SiteLink to="/" style={{ ...styles.mobileBrand, textDecoration: 'none' }}>
           <MarkimateLogo size={20} />
           <span style={styles.mobileTitle}>Markimate</span>
-        </div>
+        </SiteLink>
         <div style={styles.mobileBarRight}>
           <button
             onClick={() => handleNavClick('/app/billing/credits')}
@@ -282,7 +283,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
       >
         {/* Branding Header */}
         <div style={styles.brand}>
-          <div style={styles.brandLeft}>
+          <SiteLink to="/" style={{ ...styles.brandLeft, textDecoration: 'none' }}>
             <div style={styles.logoBox}>
               <MarkimateLogo size={24} />
             </div>
@@ -292,7 +293,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
               </div>
               <span style={styles.brandVersion}>powered by 3our</span>
             </div>
-          </div>
+          </SiteLink>
           {mobileOpen && (
             <button
               onClick={() => setMobileOpen(false)}

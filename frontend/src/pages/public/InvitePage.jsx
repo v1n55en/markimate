@@ -4,6 +4,7 @@ import { Users, CheckCircle2, AlertCircle, ArrowRight, ShieldCheck, LogIn, UserP
 import { api, getToken } from '../../api';
 import { useLanguage } from '../../context/LanguageContext';
 import { LocalizedLink, useLocalizedNavigate } from '../../lib/localized-router';
+import { SiteLink } from '../../lib/hosts';
 import MarkimateLogo from '../../components/common/MarkimateLogo';
 
 export default function InvitePage() {
@@ -90,9 +91,9 @@ export default function InvitePage() {
       <div className="auth-card-box card">
         {/* Header / Brand */}
         <div className="auth-header">
-          <LocalizedLink to="/" style={{ display: 'inline-block', textDecoration: 'none', marginBottom: '0.5rem' }}>
+          <SiteLink to="/" style={{ display: 'inline-block', textDecoration: 'none', marginBottom: '0.5rem' }}>
             <MarkimateLogo size={36} />
-          </LocalizedLink>
+          </SiteLink>
           <h1 className="auth-title">{t('auth.inviteTitle')}</h1>
           <p className="auth-subtitle">
             {t('auth.inviteSubtitle')}
@@ -306,9 +307,9 @@ export default function InvitePage() {
 
         {/* Footer */}
         <div className="auth-card-footer">
-          <LocalizedLink to="/terms" className="auth-link">{t('auth.termsOfService')}</LocalizedLink>
+          <SiteLink to="/terms" className="auth-link">{t('auth.termsOfService')}</SiteLink>
           <span>·</span>
-          <LocalizedLink to="/privacy" className="auth-link">{t('auth.privacyPolicy')}</LocalizedLink>
+          <SiteLink to="/privacy" className="auth-link">{t('auth.privacyPolicy')}</SiteLink>
         </div>
       </div>
     </div>

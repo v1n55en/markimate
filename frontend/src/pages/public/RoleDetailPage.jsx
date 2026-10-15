@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { LocalizedLink } from '../../lib/localized-router';
+import { AppLink } from '../../lib/hosts';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -164,13 +165,13 @@ export default function RoleDetailPage() {
                   </div>
                 )}
                 <div style={styles.pricingCtas}>
-                  <LocalizedLink to="/register" style={styles.primaryActionBtn}>
+                  <AppLink to="/register" style={styles.primaryActionBtn}>
                     <span>{t('bundles.ctaSelect', 'Start Subscription')}</span>
                     <ArrowRight size={15} />
-                  </LocalizedLink>
-                  <LocalizedLink to="/register" style={styles.secondaryActionBtn}>
+                  </AppLink>
+                  <AppLink to="/register" style={styles.secondaryActionBtn}>
                     {t('finalCta.btnTrial', 'Start 7-Day Free Trial')}
-                  </LocalizedLink>
+                  </AppLink>
                 </div>
                 <div style={styles.guaranteeText}>
                   <ShieldCheck size={14} color="var(--accent-green)" />

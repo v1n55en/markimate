@@ -3,6 +3,7 @@ import { Mail, ArrowLeft, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-r
 import { api } from '../../api';
 import { useLanguage } from '../../context/LanguageContext';
 import { LocalizedLink } from '../../lib/localized-router';
+import { SiteLink } from '../../lib/hosts';
 import MarkimateLogo from '../../components/common/MarkimateLogo';
 
 export default function ForgotPasswordPage() {
@@ -40,9 +41,9 @@ export default function ForgotPasswordPage() {
       <div className="auth-card-box">
         {/* Header Logo */}
         <div className="auth-header">
-          <LocalizedLink to="/" style={{ display: 'inline-block', textDecoration: 'none', marginBottom: '0.5rem' }}>
+          <SiteLink to="/" style={{ display: 'inline-block', textDecoration: 'none', marginBottom: '0.5rem' }}>
             <MarkimateLogo size={36} />
-          </LocalizedLink>
+          </SiteLink>
           <h1 className="auth-title">Markimate</h1>
           <p className="auth-subtitle">{t('auth.forgotTitle')}</p>
         </div>

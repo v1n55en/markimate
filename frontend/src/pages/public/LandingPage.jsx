@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { LocalizedLink } from '../../lib/localized-router';
+import { AppLink } from '../../lib/hosts';
 import {
   Sparkles,
   ArrowRight,
@@ -108,10 +109,10 @@ export default function LandingPage() {
           </p>
 
           <div style={styles.heroCtas}>
-            <LocalizedLink to="/register" style={styles.primaryCta}>
+            <AppLink to="/register" style={styles.primaryCta}>
               <span>{t('hero.ctaPrimary', { credits: TRIAL.credits, days: TRIAL.days }, `Start Free — ${TRIAL.credits} credits, ${TRIAL.days} days`)}</span>
               <ArrowRight size={16} />
-            </LocalizedLink>
+            </AppLink>
             <a href="#pricing" style={styles.secondaryCta}>
               {t('hero.ctaSecondary', 'View Plans & Pricing')}
             </a>
@@ -122,9 +123,9 @@ export default function LandingPage() {
             <span>
               {t('hero.trialBanner', { days: TRIAL.days, credits: TRIAL.credits }, `${TRIAL.days}-Day Free Trial — ${TRIAL.credits} credits, all modules unlocked, zero credit card required`)}
             </span>
-            <LocalizedLink to="/register" style={styles.trialLink}>
+            <AppLink to="/register" style={styles.trialLink}>
               {t('hero.claimNow', 'Claim Now →')}
-            </LocalizedLink>
+            </AppLink>
           </div>
 
           <div style={styles.heroProof}>
@@ -467,9 +468,9 @@ export default function LandingPage() {
                   {t('bundles.pricingTrialDesc', { credits: TRIAL.credits }, `1 credit = IDR 1,000. Get ${TRIAL.credits} free credits instantly to test AI SEO articles with images and all modules freely.`)}
                 </div>
               </div>
-              <LocalizedLink to="/register" style={styles.trialCtaBtn}>
+              <AppLink to="/register" style={styles.trialCtaBtn}>
                 {t('bundles.pricingTrialBtn', 'Start Free Trial')}
-              </LocalizedLink>
+              </AppLink>
             </div>
           </div>
 
@@ -493,9 +494,9 @@ export default function LandingPage() {
                 <li>{t('bundles.modularFeat3', 'AI Ads Creative Spy: 1,000 cr / mo (5 competitors)')}</li>
                 <li>{t('bundles.modularFeat4', 'Credits usable across all active modules')}</li>
               </ul>
-              <LocalizedLink to="/register" style={styles.planBtnSecondary}>
+              <AppLink to="/register" style={styles.planBtnSecondary}>
                 {t('bundles.ctaSelect', 'Select Plan')}
-              </LocalizedLink>
+              </AppLink>
             </div>
 
             {/* Paket 2: Bundle Fokus 3 (Paling Populer) */}
@@ -517,9 +518,9 @@ export default function LandingPage() {
                 <li>{t('bundles.fokus3Feat4', 'Export to Google Slides & Google Sheets')}</li>
                 <li>{t('bundles.fokus3Feat5', 'Priority 3Our specialist support')}</li>
               </ul>
-              <LocalizedLink to="/register" style={styles.planBtnPrimary}>
+              <AppLink to="/register" style={styles.planBtnPrimary}>
                 {t('bundles.ctaSelect', 'Select Plan')}
-              </LocalizedLink>
+              </AppLink>
             </div>
 
             {/* Paket 3: All-in-One Pre-order */}
@@ -540,9 +541,9 @@ export default function LandingPage() {
                 <li>{t('bundles.allInOneFeat3', '2x article & competitor tracking quotas')}</li>
                 <li>{t('bundles.allInOneFeat4', 'Lifetime price-lock guarantee')}</li>
               </ul>
-              <LocalizedLink to="/register" style={styles.planBtnSecondary}>
+              <AppLink to="/register" style={styles.planBtnSecondary}>
                 {t('bundles.ctaPreorder', 'Pre-Order Access')}
-              </LocalizedLink>
+              </AppLink>
             </div>
 
             {/* Paket 4: Managed by 3Our */}
@@ -677,10 +678,10 @@ export default function LandingPage() {
               {t('finalCta.subtitle', { days: TRIAL.days, credits: TRIAL.credits }, `Try all features with your own real data and website for ${TRIAL.days} days. ${TRIAL.credits} free credits, zero credit card required.`)}
             </p>
             <div style={styles.ctaBannerBtns}>
-              <LocalizedLink to="/register" style={styles.primaryCta}>
+              <AppLink to="/register" style={styles.primaryCta}>
                 <span>{t('finalCta.btnTrial', { days: TRIAL.days }, `Start ${TRIAL.days}-Day Free Trial`)}</span>
                 <ArrowRight size={16} />
-              </LocalizedLink>
+              </AppLink>
               <a href="#roles" style={styles.secondaryCta}>
                 {t('finalCta.btnRoles', { count: ROLES.length }, `Browse ${ROLES.length} Roles`)}
               </a>

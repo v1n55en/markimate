@@ -4,6 +4,7 @@ import { CheckCircle2, AlertCircle, Search, ExternalLink, ArrowLeft, Trash2 } fr
 import { api } from '../../api';
 import SeoHead from '../../components/common/SeoHead';
 import { LocalizedLink } from '../../lib/localized-router';
+import { AppLink } from '../../lib/hosts';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatDateTime } from '../../lib/format';
 
@@ -48,7 +49,7 @@ export default function DataDeletionPage() {
       />
       <div className="auth-card-wrapper" style={{ maxWidth: '640px' }}>
         <div style={{ marginBottom: '1.5rem' }}>
-          <LocalizedLink
+          <AppLink
             to="/login"
             style={{
               display: 'inline-flex',
@@ -61,7 +62,7 @@ export default function DataDeletionPage() {
           >
             <ArrowLeft size={16} />
             <span>{t('dataDeletion.backToLogin', 'Back to Sign In')}</span>
-          </LocalizedLink>
+          </AppLink>
         </div>
 
         <div className="auth-card">

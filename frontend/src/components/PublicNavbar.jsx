@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, LogIn, Menu, X } from 'lucide-react';
 import { useLanguage, LanguageToggle } from '../context/LanguageContext';
 import { LocalizedLink, useLocalizedPath } from '../lib/localized-router';
+import { AppLink } from '../lib/hosts';
 import MarkimateLogo from './common/MarkimateLogo';
 
 export default function PublicNavbar() {
@@ -34,14 +35,14 @@ export default function PublicNavbar() {
         {/* Desktop CTA Group */}
         <div style={styles.ctaGroup} className="hide-on-mobile">
           <LanguageToggle />
-          <LocalizedLink to="/login" style={styles.loginBtn}>
+          <AppLink to="/login" style={styles.loginBtn}>
             <LogIn size={15} />
             <span>{t('nav.login', 'Sign In')}</span>
-          </LocalizedLink>
-          <LocalizedLink to="/register" style={styles.registerBtn}>
+          </AppLink>
+          <AppLink to="/register" style={styles.registerBtn}>
             <span>{t('nav.register', 'Start 7-Day Free Trial')}</span>
             <ArrowRight size={15} />
-          </LocalizedLink>
+          </AppLink>
         </div>
 
         {/* Mobile Action Controls: Single Language Toggle + Hamburger */}
@@ -93,22 +94,22 @@ export default function PublicNavbar() {
           </nav>
 
           <div style={styles.mobileDrawerCtas}>
-            <LocalizedLink
+            <AppLink
               to="/login"
               style={styles.mobileLoginBtn}
               onClick={() => setMobileMenuOpen(false)}
             >
               <LogIn size={16} />
               <span>{t('nav.login', 'Sign In')}</span>
-            </LocalizedLink>
-            <LocalizedLink
+            </AppLink>
+            <AppLink
               to="/register"
               style={styles.mobileRegisterBtn}
               onClick={() => setMobileMenuOpen(false)}
             >
               <span>{t('nav.register', 'Start 7-Day Free Trial')}</span>
               <ArrowRight size={16} />
-            </LocalizedLink>
+            </AppLink>
           </div>
         </div>
       )}

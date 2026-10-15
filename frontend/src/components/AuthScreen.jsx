@@ -4,6 +4,7 @@ import { ShieldCheck, UserPlus, LogIn, ArrowRight, Coins, Mail } from 'lucide-re
 import { api, setToken } from '../api';
 import { useLanguage } from '../context/LanguageContext';
 import { LocalizedLink } from '../lib/localized-router';
+import { SiteLink } from '../lib/hosts';
 import MarkimateLogo from './common/MarkimateLogo';
 
 export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
@@ -207,11 +208,11 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
       <div className="auth-glow-purple" aria-hidden="true" />
       <div className="auth-card-box">
         <div className="auth-header">
-          <LocalizedLink to="/" className="auth-logo-link">
+          <SiteLink to="/" className="auth-logo-link">
             <div className="auth-logo-container">
               <MarkimateLogo size={32} />
             </div>
-          </LocalizedLink>
+          </SiteLink>
           <h1 className="auth-title">Markimate</h1>
           <p className="auth-subtitle">
             {t('auth.tagline')} · <strong>powered by 3our</strong>
@@ -444,13 +445,13 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
         </button>
 
         <div className="auth-footer-links">
-          <LocalizedLink to="/privacy" className="auth-footer-link">{t('auth.privacyPolicy')}</LocalizedLink>
+          <SiteLink to="/privacy" className="auth-footer-link">{t('auth.privacyPolicy')}</SiteLink>
           <span>·</span>
-          <LocalizedLink to="/terms" className="auth-footer-link">{t('auth.termsOfService')}</LocalizedLink>
+          <SiteLink to="/terms" className="auth-footer-link">{t('auth.termsOfService')}</SiteLink>
           <span>·</span>
-          <LocalizedLink to="/data-deletion" className="auth-footer-link">{t('auth.dataDeletion')}</LocalizedLink>
+          <SiteLink to="/data-deletion" className="auth-footer-link">{t('auth.dataDeletion')}</SiteLink>
           <span>·</span>
-          <LocalizedLink to="/" className="auth-footer-link">{t('auth.home')}</LocalizedLink>
+          <SiteLink to="/" className="auth-footer-link">{t('auth.home')}</SiteLink>
         </div>
 
         <div className="auth-footer-security">

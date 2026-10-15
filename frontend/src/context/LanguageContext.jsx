@@ -31,12 +31,43 @@ function resolvePath(obj, path) {
   return curr;
 }
 
+function getLanguageCookie() {
+  if (typeof document === 'undefined') return null;
+  try {
+    const match = document.cookie.match(/(?:^|;\s*)mk_lang=([^;]+)/);
+    if (match) {
+      const val = decodeURIComponent(match[1]).trim();
+      if (val === 'en' || val === 'id') return val;
+    }
+  } catch {}
+  return null;
+}
+
+export function setLanguageCookie(val) {
+  if (typeof document === 'undefined') return;
+  if (val !== 'en' && val !== 'id') return;
+  let cookieStr = `mk_lang=${val}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  if (typeof window !== 'undefined' && window.location) {
+    const hostname = window.location.hostname || '';
+    if (hostname === 'markimate.com' || hostname.endsWith('.markimate.com')) {
+      cookieStr += '; Domain=.markimate.com; Secure';
+    } else if (window.location.protocol === 'https:') {
+      cookieStr += '; Secure';
+    }
+  }
+  try {
+    document.cookie = cookieStr;
+  } catch {}
+}
+
 /**
  * Resolusi bahasa:
  * 1. Prefix URL publik (/id/... -> id)
  * 2. accounts.locale dari user tersimpan jika sedang login
- * 3. Pilihan tersimpan (markimate_lang di localStorage)
- * 4. Default: en (English)
+ * 3. Cookie lintas subdomain mk_lang
+ * 4. Pilihan tersimpan (markimate_lang di localStorage)
+ * 5. Bahasa browser (navigator.language)
+ * 6. Default: en (English)
  */
 function detectInitialLanguage() {
   if (typeof window !== 'undefined' && window.location) {
@@ -56,10 +87,18 @@ function detectInitialLanguage() {
     }
   } catch {}
 
+  const cookieLang = getLanguageCookie();
+  if (cookieLang === 'en' || cookieLang === 'id') return cookieLang;
+
   try {
     const saved = storage.getItem(STORAGE_KEY) || storage.getItem(LEGACY_STORAGE_KEY);
     if (saved === 'en' || saved === 'id') return saved;
   } catch {}
+
+  if (typeof navigator !== 'undefined' && navigator.language) {
+    const navLang = navigator.language.toLowerCase();
+    if (navLang.startsWith('id')) return 'id';
+  }
 
   // Default bahasa aplikasi Markimate adalah English (en)
   return 'en';
@@ -105,6 +144,7 @@ export function LanguageProvider({ children }) {
   useEffect(() => {
     try {
       storage.setItem(STORAGE_KEY, lang);
+      setLanguageCookie(lang);
       document.documentElement.lang = lang;
     } catch {}
   }, [lang]);
@@ -114,6 +154,7 @@ export function LanguageProvider({ children }) {
     try {
       storage.setItem('markimate_lang_selected', 'true');
       storage.setItem(STORAGE_KEY, newLang);
+      setLanguageCookie(newLang);
       document.documentElement.lang = newLang;
     } catch {}
     setLangState(newLang);

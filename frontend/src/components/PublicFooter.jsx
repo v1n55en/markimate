@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Mail, MapPin, Phone, ShieldCheck } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { LocalizedLink } from '../lib/localized-router';
+import { AppLink } from '../lib/hosts';
 import MarkimateLogo from './common/MarkimateLogo';
 
 export default function PublicFooter() {
@@ -46,9 +47,9 @@ export default function PublicFooter() {
               <LocalizedLink to="/data-deletion" style={styles.link}>
                 <span>{t('footer.dataDeletion', 'Data Deletion')}</span>
               </LocalizedLink>
-              <LocalizedLink to="/login" style={styles.link}>
+              <AppLink to="/login" style={styles.link}>
                 <span>{t('footer.loginPortal', 'Client Portal Login')}</span>
-              </LocalizedLink>
+              </AppLink>
             </div>
           </div>
         </div>

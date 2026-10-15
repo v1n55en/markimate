@@ -1,4 +1,108 @@
 {
+  "redirects": [
+    {
+      "source": "/login",
+      "has": [{ "type": "host", "value": "markimate.com" }],
+      "destination": "https://app.markimate.com/login",
+      "permanent": true
+    },
+    {
+      "source": "/register",
+      "has": [{ "type": "host", "value": "markimate.com" }],
+      "destination": "https://app.markimate.com/register",
+      "permanent": true
+    },
+    {
+      "source": "/forgot",
+      "has": [{ "type": "host", "value": "markimate.com" }],
+      "destination": "https://app.markimate.com/forgot",
+      "permanent": true
+    },
+    {
+      "source": "/reset",
+      "has": [{ "type": "host", "value": "markimate.com" }],
+      "destination": "https://app.markimate.com/reset",
+      "permanent": true
+    },
+    {
+      "source": "/verify",
+      "has": [{ "type": "host", "value": "markimate.com" }],
+      "destination": "https://app.markimate.com/verify",
+      "permanent": true
+    },
+    {
+      "source": "/invite",
+      "has": [{ "type": "host", "value": "markimate.com" }],
+      "destination": "https://app.markimate.com/invite",
+      "permanent": true
+    },
+    {
+      "source": "/auth/:path*",
+      "has": [{ "type": "host", "value": "markimate.com" }],
+      "destination": "https://app.markimate.com/auth/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/app/:path*",
+      "has": [{ "type": "host", "value": "markimate.com" }],
+      "destination": "https://app.markimate.com/app/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/id",
+      "has": [{ "type": "host", "value": "app.markimate.com" }],
+      "destination": "https://markimate.com/id",
+      "permanent": true
+    },
+    {
+      "source": "/id/:path*",
+      "has": [{ "type": "host", "value": "app.markimate.com" }],
+      "destination": "https://markimate.com/id/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/roles/:path*",
+      "has": [{ "type": "host", "value": "app.markimate.com" }],
+      "destination": "https://markimate.com/roles/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/privacy",
+      "has": [{ "type": "host", "value": "app.markimate.com" }],
+      "destination": "https://markimate.com/privacy",
+      "permanent": true
+    },
+    {
+      "source": "/terms",
+      "has": [{ "type": "host", "value": "app.markimate.com" }],
+      "destination": "https://markimate.com/terms",
+      "permanent": true
+    },
+    {
+      "source": "/data-deletion",
+      "has": [{ "type": "host", "value": "app.markimate.com" }],
+      "destination": "https://markimate.com/data-deletion",
+      "permanent": true
+    },
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "app.markimate.com" }],
+      "destination": "/app",
+      "permanent": true
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "app.markimate.com" }],
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/:path*",
