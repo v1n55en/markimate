@@ -20,7 +20,7 @@ export default function SeoHead({
   useEffect(() => {
     if (typeof document === 'undefined') return;
 
-    const rawSiteUrl = import.meta.env.VITE_SITE_URL || 'https://markimate-three.vercel.app';
+    const rawSiteUrl = import.meta.env.VITE_SITE_URL || 'https://markimate.com';
     const siteUrl = rawSiteUrl.replace(/\/+$/, '');
 
     // Tentukan clean pathname kanonik

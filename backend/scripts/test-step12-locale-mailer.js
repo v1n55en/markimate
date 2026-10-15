@@ -164,8 +164,8 @@ async function runStep12Tests() {
   baseUrl = `http://localhost:${process.env.PORT}`;
 
   const ts = Date.now();
-  const enUserEmail = `locale.en.${ts}@testmarkimate.io`;
-  const defaultUserEmail = `locale.def.${ts}@testmarkimate.io`;
+  const enUserEmail = `locale.en.${ts}@example.com`;
+  const defaultUserEmail = `locale.def.${ts}@example.com`;
   const password = 'StrongPassword123!';
 
   // 2.1 Registrasi dengan locale: 'en'

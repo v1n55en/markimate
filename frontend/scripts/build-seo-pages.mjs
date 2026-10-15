@@ -8,7 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const distDir = path.resolve(__dirname, '../dist');
 
-const rawSiteUrl = process.env.VITE_SITE_URL || 'https://markimate-three.vercel.app';
+const rawSiteUrl = process.env.VITE_SITE_URL || 'https://markimate.com';
 const SITE_URL = rawSiteUrl.replace(/\/+$/, '');
 
 function escapeHtml(str = '') {
@@ -222,8 +222,19 @@ async function run() {
   const sitemapPath = path.join(distDir, 'sitemap.xml');
   fs.writeFileSync(sitemapPath, sitemapXml, 'utf8');
 
+  const robotsTxt = `User-agent: *
+Allow: /
+Disallow: /app/
+Disallow: /api/
+
+Sitemap: ${SITE_URL}/sitemap.xml
+`;
+  const robotsPath = path.join(distDir, 'robots.txt');
+  fs.writeFileSync(robotsPath, robotsTxt, 'utf8');
+
   console.log(`✓ Successfully generated ${staticPages.length * 2} static HTML files.`);
   console.log(`✓ Successfully generated ${sitemapPath} with ${sitemapEntries.length * 2} URLs.`);
+  console.log(`✓ Successfully generated ${robotsPath} with sitemap: ${SITE_URL}/sitemap.xml`);
 }
 
 run().catch((err) => {

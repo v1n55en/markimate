@@ -107,9 +107,9 @@ Markimate dirancang dengan model modular berbasis peran spesialis:
 | `MARKIMATE_API_KEY` | API Key penghubung backend ↔ n8n (fallback: `SUPERMAT_API_KEY`) | |
 | `N8N_BASE_URL` | URL instance n8n | |
 | `CRON_SECRET` | Bearer token untuk trigger jadwal cron | |
-| `APP_URL` | Domain frontend publik untuk link email & callback OAuth | `https://markimate-three.vercel.app` (prod) / `http://localhost:5173` (dev) |
+| `APP_URL` | Domain frontend publik untuk link email & callback OAuth | `https://app.markimate.com` (prod) / `http://localhost:5173` (dev) |
 | `RESEND_API_KEY` | API Key Resend untuk pengiriman email transaksional | Opsional di dev (fallback ke Dev Logger) |
-| `MAIL_FROM` | Alamat pengirim email resmi Markimate | `Markimate <noreply@mail.markimate.io>` |
+| `MAIL_FROM` | Alamat pengirim email resmi Markimate | `Markimate <noreply@mail.markimate.com>` |
 | `MAIL_DEV_LOG` | Tampilkan tautan verifikasi/reset di log terminal console | `true` untuk dev lokal |
 | `ACCESS_TOKEN_TTL_MIN` | Masa berlaku access token JWT di memori (menit) | `15` (default) |
 | `REFRESH_TOKEN_TTL_DAYS` | Masa berlaku refresh token httpOnly cookie (hari) | `30` (default) |

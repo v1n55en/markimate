@@ -11,11 +11,13 @@ const GOOGLE_AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const GOOGLE_TOKENINFO_ENDPOINT = 'https://oauth2.googleapis.com/tokeninfo';
 
+import { getAppUrl } from './config.js';
+
 /**
  * Menentukan redirect URI yang valid menggunakan allowlist exact match (Langkah 1.8).
  */
 export function getGoogleRedirectUri(req) {
-  const appUrl = (process.env.APP_URL || 'https://markimate-three.vercel.app').replace(/\/+$/, '');
+  const appUrl = getAppUrl();
   const allowed = new Set([
     `${appUrl}/auth/google/callback`,
     'http://localhost:5173/auth/google/callback'

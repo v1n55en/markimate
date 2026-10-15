@@ -9,6 +9,7 @@ import {
   sendAccountDeletionScheduledEmail,
   sendAccountPurgedEmail
 } from './mailer.js';
+import { getAppUrl } from './config.js';
 
 /**
  * Mencatat peristiwa ke tabel audit_logs
@@ -423,7 +424,7 @@ export async function handleMetaDataDeletion(signedRequest, appUrl) {
     }
   });
 
-  const baseUrl = (appUrl || process.env.APP_URL || 'https://markimate-three.vercel.app').replace(/\/+$/, '');
+  const baseUrl = (appUrl || getAppUrl()).replace(/\/+$/, '');
   return {
     url: `${baseUrl}/data-deletion?code=${confirmationCode}`,
     confirmation_code: confirmationCode

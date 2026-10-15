@@ -1,5 +1,6 @@
 // Modul Pengiriman Email Transaksional Markimate Bilingual (EN & ID) (PRD F3 Langkah 2)
 import dotenv from 'dotenv';
+import { getAppUrl } from './config.js';
 dotenv.config();
 
 const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
@@ -96,7 +97,7 @@ export async function sendMail({ to, subject, html, text, actionUrl, actionText,
 
   const lang = normalizeLocale(locale);
   const isDevLog = process.env.MAIL_DEV_LOG === 'true' || process.env.NODE_ENV === 'test';
-  const mailFrom = process.env.MAIL_FROM || process.env.EMAIL_FROM || 'Markimate <noreply@mail.markimate.io>';
+  const mailFrom = process.env.MAIL_FROM || process.env.EMAIL_FROM || 'Markimate <noreply@mail.markimate.com>';
   const resendApiKey = process.env.RESEND_API_KEY;
 
   const contentHtml = html || (text ? `<p>${text.replace(/\n/g, '<br/>')}</p>` : '');
@@ -149,7 +150,7 @@ export async function sendMail({ to, subject, html, text, actionUrl, actionText,
 export async function sendVerificationEmail({ to, token, locale = 'id' }) {
   const lang = normalizeLocale(locale);
   const isEn = lang === 'en';
-  const appUrl = (process.env.APP_URL || 'https://markimate-three.vercel.app').replace(/\/+$/, '');
+  const appUrl = getAppUrl();
   const verifyUrl = `${appUrl}/verify?token=${encodeURIComponent(token)}`;
 
   const subject = isEn
@@ -185,7 +186,7 @@ export async function sendVerificationEmail({ to, token, locale = 'id' }) {
 export async function sendPasswordResetEmail({ to, token, locale = 'id' }) {
   const lang = normalizeLocale(locale);
   const isEn = lang === 'en';
-  const appUrl = (process.env.APP_URL || 'https://markimate-three.vercel.app').replace(/\/+$/, '');
+  const appUrl = getAppUrl();
   const resetUrl = `${appUrl}/reset?token=${encodeURIComponent(token)}`;
 
   const subject = isEn
@@ -253,7 +254,7 @@ export async function sendPasswordChangedNotice({ to, locale = 'id' }) {
 export async function sendEmailChangeVerification({ to, token, locale = 'id' }) {
   const lang = normalizeLocale(locale);
   const isEn = lang === 'en';
-  const appUrl = (process.env.APP_URL || 'https://markimate-three.vercel.app').replace(/\/+$/, '');
+  const appUrl = getAppUrl();
   const verifyUrl = `${appUrl}/verify?token=${encodeURIComponent(token)}`;
 
   const subject = isEn

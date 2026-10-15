@@ -43,6 +43,7 @@ import {
   clearRefreshTokenCookie,
   signAccessToken
 } from './lib/session.js';
+import { getAppUrl } from './lib/config.js';
 import {
   requireWorkspace,
   resolveWorkspaceForUser,
@@ -1723,7 +1724,7 @@ app.post('/api/workspaces/:id/invites', auth, requireWorkspace('admin'), wrap(as
     expires_at: expiresAt
   });
 
-  const appUrl = (process.env.APP_URL || 'https://markimate-three.vercel.app').replace(/\/+$/, '');
+  const appUrl = getAppUrl();
   const inviteLink = `${appUrl}/invite?token=${encodeURIComponent(rawToken)}`;
 
   try {
