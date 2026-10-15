@@ -103,27 +103,6 @@ export function LocalizedLink({ to, onClick, children, ...props }) {
  * - Menggunakan replace: true
  */
 export function useInitialLanguageRedirect() {
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    // Hanya evaluasi di root "/"
-    if (location.pathname !== '/') return;
-
-    // Jika user sudah pernah memilih bahasa secara eksplisit, jangan redirect otomatis
-    const userSelected = storage.getItem('markimate_lang_selected') || storage.getItem('markimate_lang');
-    if (userSelected) return;
-
-    // Cek bahasa browser
-    const browserLangs = navigator.languages || [navigator.language || ''];
-    const isIndonesian = browserLangs.some(
-      (l) => typeof l === 'string' && l.toLowerCase().startsWith('id')
-    );
-
-    if (isIndonesian) {
-      navigate('/id', { replace: true });
-    }
-  }, [location.pathname, navigate]);
+  // EN adalah bahasa default aplikasi Markimate.
+  // Kunjungan ke root "/" tetap menyajikan EN default tanpa dipaksa redirect ke /id.
 }

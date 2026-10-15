@@ -32,12 +32,11 @@ function resolvePath(obj, path) {
 }
 
 /**
- * Resolusi bahasa sesuai urutan prioritas PRD §2.2:
+ * Resolusi bahasa:
  * 1. Prefix URL publik (/id/... -> id)
- * 2. accounts.locale dari user tersimpan
+ * 2. accounts.locale dari user tersimpan jika sedang login
  * 3. Pilihan tersimpan (markimate_lang di localStorage)
- * 4. Bahasa browser (navigator.languages diawali 'id' -> id)
- * 5. Default: en
+ * 4. Default: en (English)
  */
 function detectInitialLanguage() {
   if (typeof window !== 'undefined' && window.location) {
@@ -62,15 +61,7 @@ function detectInitialLanguage() {
     if (saved === 'en' || saved === 'id') return saved;
   } catch {}
 
-  if (typeof navigator !== 'undefined') {
-    const langs = navigator.languages || [navigator.language || ''];
-    for (const l of langs) {
-      if (typeof l === 'string' && l.toLowerCase().startsWith('id')) {
-        return 'id';
-      }
-    }
-  }
-
+  // Default bahasa aplikasi Markimate adalah English (en)
   return 'en';
 }
 
@@ -89,48 +80,27 @@ export function LanguageProvider({ children }) {
     // Di luar Router context
   }
 
-  // Sinkronisasi bahasa dengan URL publik saat navigasi tanpa merusak pilihan pengguna
+  // Sinkronisasi bahasa dengan URL publik saat navigasi
   useEffect(() => {
     if (!location?.pathname) return;
     const pathname = location.pathname;
 
     // 1. Path publik dengan prefix /id selalu aktifkan 'id'
     if (pathname === '/id' || pathname.startsWith('/id/')) {
-      if (lang !== 'id') setLangState('id');
+      setLangState('id');
+      document.documentElement.lang = 'id';
       return;
     }
 
-    // 2. Path publik tanpa prefix (/ ... /privacy, /terms, /data-deletion, /roles/*)
+    // 2. Path publik kanonik tanpa prefix (/ ... /privacy, /terms, /data-deletion, /roles/*) selalu 'en'
     if (isPublicPath(pathname)) {
-      const selected = storage.getItem('markimate_lang_selected') === 'true';
-      const savedLang = storage.getItem(STORAGE_KEY) || lang;
-
-      // Jika user SUDAH memilih 'id', arahkan ke URL padanannya (/id/...)
-      if (selected && savedLang === 'id') {
-        const idPath = getLocalizedPath(pathname, 'id');
-        if (idPath !== pathname && navigate) {
-          navigate(idPath + (location.search || '') + (location.hash || ''), { replace: true });
-        }
-        if (lang !== 'id') setLangState('id');
-      } else if (selected && savedLang === 'en') {
-        if (lang !== 'en') setLangState('en');
-      } else {
-        // Belum pernah memilih secara manual:
-        // Jika browser bahasa ID, arahkan ke /id/...
-        if (lang === 'id') {
-          const idPath = getLocalizedPath(pathname, 'id');
-          if (idPath !== pathname && navigate) {
-            navigate(idPath + (location.search || '') + (location.hash || ''), { replace: true });
-          }
-        } else {
-          if (lang !== 'en') setLangState('en');
-        }
-      }
+      setLangState('en');
+      document.documentElement.lang = 'en';
       return;
     }
 
-    // 3. Path Auth (/login, /register, dll) dan App (/app/*) TIDAK PERNAH mengubah bahasa
-  }, [location?.pathname, lang, navigate]);
+    // 3. Path Auth (/login, /register, dll) dan App (/app/*) TIDAK mengubah bahasa URL
+  }, [location?.pathname]);
 
   useEffect(() => {
     try {
@@ -272,7 +242,7 @@ export function Trans({ i18nKey, values = {}, components = {}, fallback = '' }) 
  * Komponen LanguageToggle (Satu pill kecil per layar, touch target >= 44px via ::after, class .lang-toggle)
  */
 export function LanguageToggle({ className = '' }) {
-  const { lang, toggleLang } = useLanguage();
+  const { lang, setLang } = useLanguage();
   let location;
   let navigate;
   try {
@@ -284,11 +254,13 @@ export function LanguageToggle({ className = '' }) {
 
   const handleToggle = () => {
     const nextLang = lang === 'en' ? 'id' : 'en';
-    toggleLang();
+    setLang(nextLang);
 
     if (location && navigate && isPublicPath(location.pathname)) {
       const nextPath = getLocalizedPath(location.pathname, nextLang);
-      navigate(nextPath + (location.search || '') + (location.hash || ''));
+      if (nextPath !== location.pathname) {
+        navigate(nextPath + (location.search || '') + (location.hash || ''));
+      }
     }
   };
 
