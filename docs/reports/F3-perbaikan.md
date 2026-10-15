@@ -181,4 +181,47 @@ Mode eksekusi: **Autopilot**.
 - Pembersihan inline style layout di `AuthScreen.jsx` (dijadwalkan di Langkah C).
 - Perbaikan celah keamanan dan token chain (dijadwalkan di Langkah D).
 
+---
+
+## Langkah C — Pembersihan Layout & Optimasi Mobile AuthScreen
+
+### 1. Ringkasan Perubahan
+- **Pembersihan 65+ Inline Style Layout di `AuthScreen.jsx`**:
+  - Menghapus seluruh inline styles layout dari objek `const styles = { ... }` (436 baris kode) dan memindahkannya ke class CSS standar mobile-first di `index.css`.
+  - Menggunakan class `.auth-page-container`, `.auth-card-box`, `.auth-header`, `.auth-title`, `.auth-subtitle`, `.auth-tab-container`, `.auth-tab`, `.auth-field`, `.auth-field-label`, `.auth-input`, `.auth-btn-primary`, `.auth-separator`, `.btn-google-auth`, dan `.auth-footer-links`.
+- **Glow Dekoratif Responsif Layar Mobile**:
+  - Glow latar `.auth-glow-cyan` dan `.auth-glow-purple` dibatasi dengan `width: min(350px, 90vw); max-width: 90vw;` sehingga tidak menyebabkan scroll horizontal pada layar kecil (360px–390px).
+- **Aksesibilitas Touch Target Minimal 44×44px**:
+  - Tautan lupa sandi (`.auth-forgot-link`) diberikan `min-height: 44px` dan area klik pseudo-element `::after { min-width: 44px; min-height: 44px; }`.
+  - Tombol tab ("Masuk" / "Daftar Baru"), tombol ajakan trial, tombol kirim ulang verifikasi, dan tombol kembali memiliki `min-height: 44px`.
+- **Layar Cek Email Terverifikasi**:
+  - Layar konfirmasi email setelah registrasi direfaktor menggunakan class `.auth-verify-icon-box`, `.auth-verify-title`, `.auth-verify-desc`, `.auth-verify-resend-btn`, dan `.auth-verify-back-btn`.
+
+### 2. File yang Berubah
+- `frontend/src/components/AuthScreen.jsx`
+- `frontend/src/index.css`
+
+### 3. Cara Pengujian
+1. Jalankan unit test backend: `cd backend && npm test`
+2. Jalankan validasi parity i18n dan production build: `cd frontend && npm run i18n:check && npm run build`
+3. Pengujian browser subagent pada viewport 390x844 (iPhone 14) untuk rute `/login` dan `/register`.
+
+### 4. Hasil Pengujian
+- `cd backend && npm test`: **LOLOS 100% (Semua tes unit dan integrasi lulus)**
+- `cd frontend && npm run i18n:check`: **LOLOS (1612 keys, 0 errors)**
+- `cd frontend && npm run build`: **LOLOS (Build Vite 2.14s, 40 HTML statis dan sitemap ter-generate)**
+- **Checklist Mobile 390px (iPhone 14) & 360px**:
+  - [x] Tidak ada scroll horizontal (`document.documentElement.scrollWidth <= window.innerWidth`).
+  - [x] Area sentuh link "Lupa kata sandi?" dan tombol tab >= 44×44px.
+  - [x] Form input bersih, ukuran font 16px (mencegah auto-zoom di iOS Safari).
+  - [x] Tab beralih ke "Daftar Baru" dengan animasi mulus dan form registrasi terisi rapi tanpa overflow.
+- **Screenshot 390px**:
+  - Login View: `login_view_390px_1792038062420.png`
+  - Register View: `register_view_390px_1792038083509.png`
+
+### 5. Hal yang Sengaja Tidak Dikerjakan di Langkah Ini
+- Perbaikan celah keamanan dan token chain (dijadwalkan di Langkah D).
+- Rapikan test backend (dijadwalkan di Langkah E).
+
+
 

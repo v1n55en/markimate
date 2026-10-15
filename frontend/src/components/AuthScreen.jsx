@@ -137,48 +137,33 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
   if (verificationSentEmail) {
     return (
       <div className="auth-page-container">
+        <div className="auth-glow-cyan" aria-hidden="true" />
+        <div className="auth-glow-purple" aria-hidden="true" />
         <div className="auth-card-box">
           <div className="auth-header">
-            <LocalizedLink to="/" style={styles.logoLink}>
-              <div style={styles.logoContainer}>
+            <LocalizedLink to="/" className="auth-logo-link">
+              <div className="auth-logo-container">
                 <MarkimateLogo size={36} />
               </div>
             </LocalizedLink>
-            <h1 style={styles.title}>Markimate</h1>
+            <h1 className="auth-title">Markimate</h1>
           </div>
 
           <div style={{ textAlign: 'center', padding: '12px 0 24px 0' }}>
-            <div style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '50%',
-              backgroundColor: '#eff6ff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 16px auto'
-            }}>
+            <div className="auth-verify-icon-box">
               <Mail size={32} color="#2563eb" />
             </div>
 
-            <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', margin: '0 0 10px 0' }}>
+            <h2 className="auth-verify-title">
               {t('auth.checkInboxTitle')}
             </h2>
 
-            <p style={{ fontSize: '14px', lineHeight: 1.6, color: '#475569', margin: '0 0 20px 0' }}>
+            <p className="auth-verify-desc">
               {t('auth.checkInboxDesc', { email: verificationSentEmail })}
             </p>
 
             {resendNotice && (
-              <div style={{
-                backgroundColor: '#f0fdf4',
-                border: '1px solid #bbf7d0',
-                color: '#15803d',
-                padding: '10px 14px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                marginBottom: '16px'
-              }}>
+              <div className="auth-alert-box auth-alert-success" style={{ marginBottom: '16px' }}>
                 {resendNotice}
               </div>
             )}
@@ -187,18 +172,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
               type="button"
               onClick={() => handleResendVerification(verificationSentEmail)}
               disabled={resending}
-              style={{
-                width: '100%',
-                padding: '12px 18px',
-                backgroundColor: '#0f172a',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                marginBottom: '16px'
-              }}
+              className="auth-verify-resend-btn"
             >
               {resending ? t('auth.btnResending') : t('auth.btnResend')}
             </button>
@@ -210,22 +184,15 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
                 setIsLogin(true);
                 setError('');
               }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#3b82f6',
-                fontSize: '14px',
-                fontWeight: 500,
-                cursor: 'pointer'
-              }}
+              className="auth-verify-back-btn"
             >
               ← {t('auth.backToSignIn')}
             </button>
           </div>
 
-          <div style={styles.footer}>
+          <div className="auth-footer-security">
             <ShieldCheck size={14} color="var(--accent-green)" />
-            <span style={styles.footerText}>
+            <span>
               Markimate · powered by 3our · {t('auth.emailVerificationRequired')}
             </span>
           </div>
@@ -236,37 +203,39 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
 
   return (
     <div className="auth-page-container">
+      <div className="auth-glow-cyan" aria-hidden="true" />
+      <div className="auth-glow-purple" aria-hidden="true" />
       <div className="auth-card-box">
-        <div style={styles.header}>
-          <LocalizedLink to="/" style={styles.logoLink}>
-            <div style={styles.logoContainer}>
+        <div className="auth-header">
+          <LocalizedLink to="/" className="auth-logo-link">
+            <div className="auth-logo-container">
               <MarkimateLogo size={32} />
             </div>
           </LocalizedLink>
-          <h1 style={styles.title}>Markimate</h1>
-          <p style={styles.subtitle}>
+          <h1 className="auth-title">Markimate</h1>
+          <p className="auth-subtitle">
             {t('auth.tagline')} · <strong>powered by 3our</strong>
           </p>
         </div>
 
-        {/* Baris ajakan coba gratis 7 hari saat mode login */}
+        {/* Baris ajakan coba gratis saat mode login */}
         {isLogin && (
-          <div style={styles.trialPrompt}>
+          <div className="auth-trial-prompt">
             <span>{t('auth.trialLoginPrompt')}</span>
             <button
               type="button"
               onClick={() => { setIsLogin(false); setError(''); setErrorCode(''); }}
-              style={styles.trialPromptBtn}
+              className="auth-trial-prompt-btn"
             >
               <span>{t('auth.trialLoginPromptBtn')}</span>
             </button>
           </div>
         )}
 
-        <div style={styles.tabContainer}>
+        <div className="auth-tab-container">
           <button 
             type="button"
-            style={{...styles.tab, ...(isLogin ? styles.tabActive : {})}} 
+            className={`auth-tab ${isLogin ? 'auth-tab-active' : ''}`} 
             onClick={() => { setIsLogin(true); setError(''); setErrorCode(''); }}
           >
             <LogIn size={15} />
@@ -274,7 +243,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
           </button>
           <button 
             type="button"
-            style={{...styles.tab, ...(!isLogin ? styles.tabActive : {})}} 
+            className={`auth-tab ${!isLogin ? 'auth-tab-active' : ''}`} 
             onClick={() => { setIsLogin(false); setError(''); setErrorCode(''); }}
           >
             <UserPlus size={15} />
@@ -283,7 +252,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
         </div>
 
         {error && (
-          <div style={styles.errorAlert}>
+          <div className="auth-error-alert" style={{ marginBottom: '1rem', flexDirection: 'column', alignItems: 'flex-start' }}>
             <div>{error}</div>
             {errorCode === 'EMAIL_NOT_VERIFIED' && (
               <div style={{ marginTop: '10px' }}>
@@ -294,16 +263,8 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
                     type="button"
                     onClick={() => handleResendVerification(unverifiedEmail)}
                     disabled={resending}
-                    style={{
-                      padding: '6px 12px',
-                      backgroundColor: '#2563eb',
-                      color: '#ffffff',
-                      border: 'none',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      fontWeight: 600,
-                      cursor: 'pointer'
-                    }}
+                    className="btn btn-primary"
+                    style={{ minHeight: '36px', fontSize: '12px', padding: '6px 14px' }}
                   >
                     {resending ? t('auth.btnResending') : t('auth.btnResend')}
                   </button>
@@ -316,16 +277,8 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
                   type="button"
                   onClick={handleCancelDeletion}
                   disabled={cancellingDeletion}
-                  style={{
-                    padding: '6px 14px',
-                    backgroundColor: '#16a34a',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    cursor: 'pointer'
-                  }}
+                  className="btn btn-secondary"
+                  style={{ minHeight: '36px', fontSize: '12px', padding: '6px 14px' }}
                 >
                   {cancellingDeletion ? t('auth.btnCancellingDeletion') : t('auth.btnCancelDeletion')}
                 </button>
@@ -335,50 +288,47 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
         )}
 
         {!isLogin && (
-          <div style={styles.trialBox}>
+          <div className="auth-trial-box">
             <Coins size={16} color="var(--accent-cyan)" />
-            <div style={{ flex: 1, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            <div className="auth-trial-box-text">
               {t('auth.trialRegisterNote')}
             </div>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={styles.form}>
+        <form onSubmit={handleSubmit} className="auth-form">
           {!isLogin && (
             <>
-              <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label className="form-label" style={styles.label}>{t('auth.labelBrandPic')}</label>
+              <div className="auth-field">
+                <label className="auth-field-label">{t('auth.labelBrandPic')}</label>
                 <input 
                   type="text" 
-                  className="form-input" 
+                  className="auth-input" 
                   placeholder={t('auth.placeholderBrandPic')} 
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  style={styles.input}
                   required 
                 />
               </div>
 
-              <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label className="form-label" style={styles.label}>{t('auth.labelBrandName')}</label>
+              <div className="auth-field">
+                <label className="auth-field-label">{t('auth.labelBrandName')}</label>
                 <input 
                   type="text" 
-                  className="form-input" 
+                  className="auth-input" 
                   placeholder={t('auth.placeholderBrand')} 
                   value={brandName}
                   onChange={(e) => setBrandName(e.target.value)}
-                  style={styles.input}
                   required 
                 />
               </div>
 
-              <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label className="form-label" style={styles.label}>{t('auth.labelNiche')}</label>
+              <div className="auth-field">
+                <label className="auth-field-label">{t('auth.labelNiche')}</label>
                 <select 
-                  className="form-select"
+                  className="auth-input"
                   value={niche}
                   onChange={(e) => setNiche(e.target.value)}
-                  style={styles.select}
                 >
                   <option value="F&B">F&B (Kuliner / Kafe / Resto)</option>
                   <option value="Retail">Retail & Fashion (E-commerce)</option>
@@ -391,84 +341,73 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
             </>
           )}
 
-          <div className="form-group" style={{ marginBottom: '1rem' }}>
-            <label className="form-label" style={styles.label}>{t('auth.labelEmail')}</label>
+          <div className="auth-field">
+            <label className="auth-field-label">{t('auth.labelEmail')}</label>
             <input 
               type="email" 
-              className="form-input" 
+              className="auth-input" 
               placeholder={t('auth.placeholderEmail')} 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              style={styles.input}
               required 
             />
           </div>
 
-          <div className="form-group" style={{ marginBottom: !isLogin ? '0.5rem' : '1.25rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-              <label className="form-label" style={{ ...styles.label, marginBottom: 0 }}>{t('auth.labelPassword')}</label>
+          <div className="auth-field">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label className="auth-field-label">{t('auth.labelPassword')}</label>
               {isLogin && (
-                <LocalizedLink to="/forgot" style={{ fontSize: '0.78rem', color: 'var(--accent-cyan)', textDecoration: 'none' }}>
+                <LocalizedLink to="/forgot" className="auth-forgot-link">
                   {t('auth.forgotPasswordLink')}
                 </LocalizedLink>
               )}
             </div>
             <input 
               type="password" 
-              className="form-input" 
+              className="auth-input" 
               placeholder={!isLogin ? t('auth.placeholderPassword') : '••••••••'} 
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              style={styles.input}
               required 
             />
             {!isLogin && (
-              <div style={{
-                fontSize: '11px',
-                color: password.length >= 10 ? '#10b981' : '#64748b',
-                marginTop: '4px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}>
+              <div className="auth-password-hint" style={{ color: password.length >= 10 ? 'var(--accent-green)' : 'var(--text-muted)' }}>
                 {password.length >= 10 ? t('auth.passwordHintValid') : t('auth.passwordHintMin')}
               </div>
             )}
           </div>
 
           {!isLogin && (
-            <div style={{ marginBottom: '1.25rem', marginTop: '0.75rem' }}>
-              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer', fontSize: '13px', color: '#475569' }}>
-                <input
-                  type="checkbox"
-                  checked={acceptTerms}
-                  onChange={(e) => setAcceptTerms(e.target.checked)}
-                  style={{ marginTop: '2px', accentColor: '#2563eb' }}
-                  required
-                />
-                <span>
-                  {t('auth.agreeTermsPrefix')}{' '}
-                  <LocalizedLink to="/terms" target="_blank" style={{ color: '#2563eb', textDecoration: 'underline' }}>
-                    {t('auth.termsOfService')}
-                  </LocalizedLink>{' '}
-                  {t('auth.andText')}{' '}
-                  <LocalizedLink to="/privacy" target="_blank" style={{ color: '#2563eb', textDecoration: 'underline' }}>
-                    {t('auth.privacyPolicy')}
-                  </LocalizedLink>{' '}
-                  Markimate.
-                </span>
+            <div className="auth-checkbox-row" style={{ marginTop: '0.25rem' }}>
+              <input
+                type="checkbox"
+                id="accept-terms"
+                className="auth-checkbox-input"
+                checked={acceptTerms}
+                onChange={(e) => setAcceptTerms(e.target.checked)}
+                required
+              />
+              <label htmlFor="accept-terms" style={{ cursor: 'pointer', fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+                {t('auth.agreeTermsPrefix')}{' '}
+                <LocalizedLink to="/terms" target="_blank" style={{ color: 'var(--accent-cyan)', textDecoration: 'underline' }}>
+                  {t('auth.termsOfService')}
+                </LocalizedLink>{' '}
+                {t('auth.andText')}{' '}
+                <LocalizedLink to="/privacy" target="_blank" style={{ color: 'var(--accent-cyan)', textDecoration: 'underline' }}>
+                  {t('auth.privacyPolicy')}
+                </LocalizedLink>{' '}
+                Markimate.
               </label>
             </div>
           )}
 
           <button 
             type="submit" 
-            className="btn btn-primary" 
-            style={styles.submitBtn}
+            className="auth-btn-primary" 
             disabled={loading}
           >
             {loading ? (
-              <span style={styles.loader}>{t('auth.btnProcessing')}</span>
+              <span>{t('auth.btnProcessing')}</span>
             ) : isLogin ? (
               <>
                 <span>{t('auth.btnSignIn')}</span>
@@ -504,19 +443,19 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
           </span>
         </button>
 
-        <div style={styles.footerLinks}>
-          <LocalizedLink to="/privacy" style={styles.footerLink}>{t('auth.privacyPolicy')}</LocalizedLink>
+        <div className="auth-footer-links">
+          <LocalizedLink to="/privacy" className="auth-footer-link">{t('auth.privacyPolicy')}</LocalizedLink>
           <span>·</span>
-          <LocalizedLink to="/terms" style={styles.footerLink}>{t('auth.termsOfService')}</LocalizedLink>
+          <LocalizedLink to="/terms" className="auth-footer-link">{t('auth.termsOfService')}</LocalizedLink>
           <span>·</span>
-          <LocalizedLink to="/data-deletion" style={styles.footerLink}>{t('auth.dataDeletion')}</LocalizedLink>
+          <LocalizedLink to="/data-deletion" className="auth-footer-link">{t('auth.dataDeletion')}</LocalizedLink>
           <span>·</span>
-          <LocalizedLink to="/" style={styles.footerLink}>{t('auth.home')}</LocalizedLink>
+          <LocalizedLink to="/" className="auth-footer-link">{t('auth.home')}</LocalizedLink>
         </div>
 
-        <div style={styles.footer}>
+        <div className="auth-footer-security">
           <ShieldCheck size={14} color="var(--accent-green)" />
-          <span style={styles.footerText}>
+          <span>
             Markimate · powered by 3our · {t('auth.footerSecurityNote')}
           </span>
         </div>
@@ -524,218 +463,3 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
     </div>
   );
 }
-
-const styles = {
-  container: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 'clamp(1rem, 3vw, 2rem) clamp(0.75rem, 3vw, 1.5rem)',
-    position: 'relative',
-    overflow: 'hidden',
-    backgroundColor: 'var(--bg-base)',
-  },
-  glowCyan: {
-    position: 'absolute',
-    top: '20%',
-    left: '25%',
-    width: '350px',
-    height: '350px',
-    borderRadius: '50%',
-    background: 'radial-gradient(circle, rgba(6, 182, 212, 0.12) 0%, rgba(0, 0, 0, 0) 70%)',
-    pointerEvents: 'none',
-  },
-  glowPurple: {
-    position: 'absolute',
-    bottom: '20%',
-    right: '25%',
-    width: '400px',
-    height: '400px',
-    borderRadius: '50%',
-    background: 'radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, rgba(0, 0, 0, 0) 70%)',
-    pointerEvents: 'none',
-  },
-  authCard: {
-    maxWidth: '460px',
-    width: '100%',
-    padding: 'clamp(1.5rem, 4vw, 2.25rem) clamp(1rem, 3.5vw, 2rem)',
-    borderRadius: '16px',
-    backgroundColor: 'var(--bg-surface)',
-    border: '1px solid var(--border-muted)',
-    boxShadow: 'var(--shadow-lg)',
-    zIndex: 10,
-  },
-  header: {
-    textAlign: 'center',
-    marginBottom: '1.25rem',
-  },
-  logoLink: {
-    display: 'inline-block',
-  },
-  logoContainer: {
-    display: 'inline-flex',
-    padding: '0.75rem',
-    borderRadius: '12px',
-    backgroundColor: 'rgba(6, 182, 212, 0.1)',
-    border: '1px solid rgba(6, 182, 212, 0.2)',
-    marginBottom: '0.75rem',
-  },
-  title: {
-    fontSize: '1.35rem',
-    fontWeight: '700',
-    color: 'var(--text-primary)',
-    marginBottom: '0.35rem',
-  },
-  subtitle: {
-    fontSize: '0.825rem',
-    color: 'var(--text-secondary)',
-    lineHeight: 1.45,
-  },
-  trialPrompt: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-    gap: '0.4rem',
-    backgroundColor: 'rgba(6, 182, 212, 0.08)',
-    border: '1px solid rgba(6, 182, 212, 0.25)',
-    borderRadius: '8px',
-    padding: '0.6rem 0.85rem',
-    marginBottom: '1rem',
-    fontSize: '0.78rem',
-    color: 'var(--text-secondary)',
-  },
-  trialPromptBtn: {
-    background: 'none',
-    border: 'none',
-    padding: 0,
-    color: 'var(--accent-cyan)',
-    fontSize: '0.78rem',
-    fontWeight: '600',
-    cursor: 'pointer',
-    textDecoration: 'underline',
-  },
-  tabContainer: {
-    display: 'flex',
-    gap: '0.4rem',
-    padding: '0.25rem',
-    backgroundColor: '#09090b',
-    border: '1px solid var(--border-muted)',
-    borderRadius: '8px',
-    marginBottom: '1.25rem',
-  },
-  tab: {
-    flex: 1,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.4rem',
-    padding: '0.45rem 0.75rem',
-    fontSize: '0.825rem',
-    fontWeight: '500',
-    backgroundColor: 'transparent',
-    border: 'none',
-    color: 'var(--text-secondary)',
-    cursor: 'pointer',
-    borderRadius: '6px',
-    transition: 'all var(--transition-fast)',
-  },
-  tabActive: {
-    backgroundColor: 'var(--bg-surface-hover)',
-    color: 'var(--text-primary)',
-    border: '1px solid var(--border-muted)',
-  },
-  errorAlert: {
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    border: '1px solid rgba(239, 68, 68, 0.2)',
-    color: 'var(--accent-red)',
-    padding: '0.65rem 0.85rem',
-    borderRadius: '8px',
-    fontSize: '0.8rem',
-    marginBottom: '1rem',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  label: {
-    display: 'block',
-    fontSize: '0.78rem',
-    fontWeight: '500',
-    color: 'var(--text-secondary)',
-    marginBottom: '0.35rem',
-  },
-  input: {
-    width: '100%',
-    padding: '0.6rem 0.75rem',
-    borderRadius: '6px',
-    backgroundColor: 'var(--bg-base)',
-    border: '1px solid var(--border-muted)',
-    color: 'var(--text-primary)',
-    fontSize: '16px',
-    outline: 'none',
-  },
-  select: {
-    width: '100%',
-    padding: '0.6rem 0.75rem',
-    borderRadius: '6px',
-    backgroundColor: 'var(--bg-base)',
-    border: '1px solid var(--border-muted)',
-    color: 'var(--text-primary)',
-    fontSize: '16px',
-    outline: 'none',
-  },
-  submitBtn: {
-    width: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.5rem',
-    padding: '0.7rem',
-    borderRadius: '8px',
-    backgroundColor: 'var(--accent-cyan)',
-    border: 'none',
-    color: '#000000',
-    fontSize: '0.85rem',
-    fontWeight: '700',
-    cursor: 'pointer',
-  },
-  loader: {
-    display: 'inline-block',
-  },
-  footerLinks: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.65rem',
-    marginTop: '1.25rem',
-    fontSize: '0.75rem',
-    color: 'var(--text-muted)',
-  },
-  footerLink: {
-    color: 'var(--text-muted)',
-    textDecoration: 'none',
-  },
-  footer: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.45rem',
-    marginTop: '1rem',
-  },
-  footerText: {
-    fontSize: '0.725rem',
-    color: 'var(--text-muted)',
-  },
-  trialBox: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.65rem',
-    padding: '0.65rem 0.85rem',
-    borderRadius: '8px',
-    backgroundColor: 'rgba(6, 182, 212, 0.08)',
-    border: '1px solid rgba(6, 182, 212, 0.3)',
-    marginBottom: '1rem',
-  },
-};
