@@ -108,3 +108,50 @@ Sesuai panduan `AGENTS.md` (mode autopilot) untuk instruksi domain resmi Markima
 ### 4. Hal yang Sengaja Tidak Dikerjakan di Langkah Ini
 - Pengujian interaksi browser dan verifikasi live deployment (dikerjakan di Langkah 3).
 
+---
+
+## Langkah 3 — Pengujian & Verifikasi Alur Lintas Subdomain
+
+### 1. Ringkasan Pengujian
+- **Verifikasi Unit Test**:
+  - `node frontend/scripts/test-hosts.mjs`: Menguji perilaku `isProdDomain`, `appUrl`, dan `siteUrl` pada host produksi (`markimate.com`, `app.markimate.com`), preview Vercel (`markimate-three.vercel.app`), dan environment development lokal (`localhost`). Hasil: **Lolos 100%**.
+- **Verifikasi Header HTTP & Redirect Server Produksi**:
+  - `curl -I https://markimate.com/login`:
+    - Respons: `HTTP/2 308`
+    - Header Location: `https://app.markimate.com/login` (Terverifikasi me-redirect auth ke subdomain app).
+  - `curl -I https://app.markimate.com/privacy`:
+    - Respons: `HTTP/2 308`
+    - Header Location: `https://markimate.com/privacy` (Terverifikasi me-redirect halaman marketing ke situs kanonik).
+  - `curl -I https://app.markimate.com/app`:
+    - Respons: `HTTP/2 200`
+    - Header `x-robots-tag: noindex, nofollow` (Terverifikasi aktif memblokir web crawler dari dashboard aplikasi).
+  - `curl -I https://markimate.com/`:
+    - Respons: `HTTP/2 200`
+    - Tidak ada `x-robots-tag` (Terverifikasi dapat diindeks penuh oleh search engine).
+  - `curl -I https://www.markimate.com`:
+    - Respons: `HTTP/2 308`
+    - Header Location: `https://markimate.com/` (Terverifikasi redirect kanonik WWW ke non-WWW).
+- **Pengujian Browser Mobile 390px (iPhone 14 DevTools Toolbar)**:
+  - Dilakukan pengujian otomatis menggunakan browser agent pada resolusi 390×844:
+    - [x] Tidak ada scroll horizontal pada seluruh halaman (`document.documentElement.scrollWidth <= window.innerWidth`).
+    - [x] `markimate.com`: Navbar, toggle bahasa, hero CTA, card pricing, dan footer tertata rapi.
+    - [x] `app.markimate.com/login`: Form login tampil proporsional, font input minimal 16px (mencegah auto-zoom iOS), touch target tombol $\ge 44\text{px}$.
+    - [x] `app.markimate.com/register`: Form registrasi, pilihan kategori bisnis, checkbox syarat & ketentuan, tombol submit berukuran penuh.
+    - [x] `app.markimate.com/forgot`: Form permintaan tautan pemulihan kata sandi dapat diisi dan dikirim dengan mudah.
+    - [x] Mode landscape & portrait stabil.
+  - Artefak screenshot 390px tersimpan di artifact directory:
+    - Homepage 390px: `markimate_home_390_1792045154112.png`
+    - Login Screen 390px: `login_page_390_1792045168695.png`
+    - Register Screen 390px: `register_page_390_1792045183733.png` & `register_page_bottom_390_1792045192093.png`
+    - Forgot Password 390px: `forgot_page_390_1792045202910.png`
+    - Rekaman video alur: `domain_app_verification_1792045134051.webp`
+
+### 2. Status Gerbang Kualitas
+1. Backend Tests (`cd backend && npm test`): **LOLOS 100% (Semua suite lolos)**
+2. Frontend i18n & Build (`cd frontend && npm run i18n:check && npm run build`): **LOLOS 100% (0 error, parity lengkap, 40 file HTML statis + sitemap.xml + robots.txt ter-generate)**
+3. Integrasi Vercel: **Semua aturan host-based redirect dan noindex headers aktif di produksi.**
+
+### 3. Hal yang Sengaja Tidak Dikerjakan di Langkah Ini
+- Tidak ada SQL baru pada PRD ini. Seluruh database schema tetap utuh tanpa modifikasi.
+
+
