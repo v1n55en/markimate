@@ -137,3 +137,48 @@ Mode eksekusi: **Autopilot**.
 - Standardisasi angka produk dan penyeragaman istilah "kredit" (dijadwalkan di Langkah B).
 - Optimasi touch target dan drawer mobile di AuthScreen (dijadwalkan di Langkah C).
 
+---
+
+## Langkah B — Standardisasi Angka Produk & Istilah Kredit
+
+### 1. Ringkasan Perubahan
+- **Penyeragaman Istilah "kredit" di Seluruh Antarmuka Bahasa Indonesia**:
+  - Mengubah seluruh kemunculan istilah "credit" di kamus ID (`frontend/src/i18n/locales/id/`) menjadi "kredit" (sesuai standar Glosarium & Gaya Bahasa Markimate di `docs/i18n-glossary.md`).
+  - `billing.js`: "creditsUnit" diubah menjadi "kredit", cheatsheet tarif menjadi "Tarif Kredit", buku besar mutasi menjadi "pemotongan kredit".
+  - `public.js`: FAQ q4, q5, q6, banner trial, dan kartu penawaran diselaraskan menggunakan "kredit" dan "kr". Frasa metode pembayaran "kartu kredit" tetap dipertahankan dengan benar.
+  - `auth.js`: Penjelasan trial pada registrasi, login prompt, dan verifikasi email diselaraskan menggunakan "kredit".
+  - `common.js`: Tombol navigasi dompet diubah menjadi "Lihat dompet kredit & top-up".
+  - `app.js`: Label navigasi "Dompet Kredit", modal "Kredit Tidak Cukup", dan anti-loop protection (500 kredit/hari) diselaraskan.
+- **Single Source of Truth untuk Angka Produk & Trial**:
+  - `hero.ctaPrimary`: Tidak lagi memakai angka statis "300 credit", melainkan diinterpolasi dinamis dari `TRIAL.credits` dan `TRIAL.days` via `{ credits: TRIAL.credits, days: TRIAL.days }` (`"Start Free — {credits} credits, {days} days"` / `"Coba Gratis {days} Hari — {credits} kredit"`).
+  - `finalCta`: Parameter `{ days: TRIAL.days, credits: TRIAL.credits }` dan `{ count: ROLES.length }` diteruskan dari config produk, dan link menggunakan `LocalizedLink` agar konsisten dengan bahasa aktif.
+
+### 2. File yang Berubah
+- `frontend/src/i18n/locales/en/public.js`
+- `frontend/src/i18n/locales/id/public.js`
+- `frontend/src/i18n/locales/id/auth.js`
+- `frontend/src/i18n/locales/id/billing.js`
+- `frontend/src/i18n/locales/id/common.js`
+- `frontend/src/i18n/locales/id/app.js`
+- `frontend/src/pages/public/LandingPage.jsx`
+
+### 3. Cara Pengujian
+1. Jalankan unit test backend: `cd backend && npm test`
+2. Jalankan validasi parity i18n: `cd frontend && npm run i18n:check`
+3. Jalankan production build frontend: `cd frontend && npm run build`
+4. Cek konsistensi teks di halaman publik EN dan ID.
+
+### 4. Hasil Pengujian
+- `cd backend && npm test`: **LOLOS 100% (Semua tes lulus)**
+- `cd frontend && npm run i18n:check`: **LOLOS (1612 keys, 0 errors, perfect key parity)**
+- `cd frontend && npm run build`: **LOLOS (40 HTML statis dan sitemap ter-generate)**
+- **Checklist Mobile 390px (iPhone 14)**:
+  - [x] CTA Hero dan Bottom CTA menampilkan angka dinamis 7 hari & 300 kredit dengan benar.
+  - [x] Istilah "kredit" konsisten di seluruh ID tanpa ada "credit" yang terselip.
+  - [x] Tidak ada scroll horizontal pada halaman landing page EN maupun ID.
+
+### 5. Hal yang Sengaja Tidak Dikerjakan di Langkah Ini
+- Pembersihan inline style layout di `AuthScreen.jsx` (dijadwalkan di Langkah C).
+- Perbaikan celah keamanan dan token chain (dijadwalkan di Langkah D).
+
+

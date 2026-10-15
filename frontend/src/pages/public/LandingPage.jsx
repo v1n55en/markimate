@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { LocalizedLink } from '../../lib/localized-router';
 import {
   Sparkles,
@@ -27,6 +26,7 @@ import {
   Coins,
 } from 'lucide-react';
 import {
+  ROLES,
   getLocalizedRoles,
   getLocalizedCategories,
 } from '../../config/roles';
@@ -109,7 +109,7 @@ export default function LandingPage() {
 
           <div style={styles.heroCtas}>
             <LocalizedLink to="/register" style={styles.primaryCta}>
-              <span>{t('hero.ctaPrimary', 'Start Free — 300 credits, 7 days')}</span>
+              <span>{t('hero.ctaPrimary', { credits: TRIAL.credits, days: TRIAL.days }, `Start Free — ${TRIAL.credits} credits, ${TRIAL.days} days`)}</span>
               <ArrowRight size={16} />
             </LocalizedLink>
             <a href="#pricing" style={styles.secondaryCta}>
@@ -674,15 +674,15 @@ export default function LandingPage() {
             <Zap size={32} color="var(--accent-cyan)" style={{ marginBottom: '1rem' }} />
             <h2 style={styles.ctaBannerTitle}>{t('finalCta.title', 'Ready to Scale Your Marketing with AI?')}</h2>
             <p style={styles.ctaBannerSub}>
-              {t('finalCta.subtitle', 'Try all features with your own real data and website for 7 days. 300 free credits, zero credit card required.')}
+              {t('finalCta.subtitle', { days: TRIAL.days, credits: TRIAL.credits }, `Try all features with your own real data and website for ${TRIAL.days} days. ${TRIAL.credits} free credits, zero credit card required.`)}
             </p>
             <div style={styles.ctaBannerBtns}>
-              <Link to="/register" style={styles.primaryCta}>
-                <span>{t('finalCta.btnTrial', 'Start 7-Day Free Trial')}</span>
+              <LocalizedLink to="/register" style={styles.primaryCta}>
+                <span>{t('finalCta.btnTrial', { days: TRIAL.days }, `Start ${TRIAL.days}-Day Free Trial`)}</span>
                 <ArrowRight size={16} />
-              </Link>
+              </LocalizedLink>
               <a href="#roles" style={styles.secondaryCta}>
-                {t('finalCta.btnRoles', 'Browse 16 Roles')}
+                {t('finalCta.btnRoles', { count: ROLES.length }, `Browse ${ROLES.length} Roles`)}
               </a>
             </div>
           </div>

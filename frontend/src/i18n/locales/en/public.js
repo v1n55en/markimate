@@ -21,7 +21,7 @@ export const publicTranslations = {
     "badge": "Markimate · powered by 3our",
     "title": "Full Digital Marketing Team in One Platform",
     "subtitle": "Hire specialized AI marketing roles or deploy an entire full-stack digital marketing team — at a fraction of in-house team costs, with 100% human-in-the-loop review and approval before anything goes live.",
-    "ctaPrimary": "Start Free — 300 credits, 7 days",
+    "ctaPrimary": "Start Free — {credits} credits, {days} days",
     "ctaSecondary": "View Plans & Pricing",
     "proof1": "3 Active Roles Ready to Deploy",
     "proof2": "13 Specialized Roles in Pipeline",
@@ -176,9 +176,9 @@ export const publicTranslations = {
   },
   "finalCta": {
     "title": "Ready to Scale Your Marketing with AI?",
-    "subtitle": "Try all features with your own real data and website for 7 days. 300 free credits, zero credit card required.",
-    "btnTrial": "Start 7-Day Free Trial",
-    "btnRoles": "Browse 16 Roles"
+    "subtitle": "Try all features with your own real data and website for {days} days. {credits} free credits, zero credit card required.",
+    "btnTrial": "Start {days}-Day Free Trial",
+    "btnRoles": "Browse {count} Roles"
   },
   "waitlist": {
     "modalTitle": "Join the Early Access Waitlist",

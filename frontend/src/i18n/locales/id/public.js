@@ -21,12 +21,12 @@ export const publicTranslations = {
     "badge": "Markimate · powered by 3our",
     "title": "Semua Tim Digital Marketing dalam satu platform",
     "subtitle": "Pilih role spesialis yang Anda butuhkan atau rekrut seluruh tim digital marketing AI — mulai dari sebagian kecil biaya tim in-house, dengan hasil kerja yang tetap Anda review dan setujui sebelum tayang.",
-    "ctaPrimary": "Coba Gratis 7 Hari — 300 credit",
+    "ctaPrimary": "Coba Gratis {days} Hari — {credits} kredit",
     "ctaSecondary": "Lihat Paket & Harga",
     "proof1": "3 Role Aktif Siap Digunakan",
     "proof2": "13 Role Dalam Pengembangan",
     "proof3": "Human-in-the-Loop Approval",
-    "trialBanner": "Coba gratis {days} hari — {credits} credit, semua modul terbuka, tanpa kartu kredit",
+    "trialBanner": "Coba gratis {days} hari — {credits} kredit, semua modul terbuka, tanpa kartu kredit",
     "claimNow": "Klaim Sekarang →"
   },
   "rolesGrid": {
@@ -123,8 +123,8 @@ export const publicTranslations = {
     "ctaSelect": "Pilih Paket",
     "ctaPreorder": "Pre-Order Akses",
     "ctaContactWA": "Konsultasi WhatsApp",
-    "pricingTrialTitle": "Coba Gratis {days} Hari — {credits} Credit Tanpa Kartu Kredit",
-    "pricingTrialDesc": "1 credit = Rp1.000. Dapatkan {credits} credit langsung untuk mencoba pembuatan artikel SEO bergambar dan seluruh modul secara bebas.",
+    "pricingTrialTitle": "Coba Gratis {days} Hari — {credits} Kredit Tanpa Kartu Kredit",
+    "pricingTrialDesc": "1 kredit = Rp1.000. Dapatkan {credits} kredit langsung untuk mencoba pembuatan artikel SEO bergambar dan seluruh modul secara bebas.",
     "pricingTrialBtn": "Mulai Free Trial",
     "planBadgeModular": "Fleksibel",
     "modularTitle": "Per Modul Mandiri",
@@ -133,7 +133,7 @@ export const publicTranslations = {
     "modularFeat1": "AI SEO: 1.500 cr / bln (≈20 artikel bergambar)",
     "modularFeat2": "AI Ads Report: 1.500 cr / bln (3 akun iklan)",
     "modularFeat3": "AI Ads Spy: 1.000 cr / bln (5 kompetitor)",
-    "modularFeat4": "Credit berlaku lintas modul aktif",
+    "modularFeat4": "Kredit berlaku lintas modul aktif",
     "fokus3SaveBadge": "Hemat 20% vs Beli Satuan ({amount})",
     "fokus3Feat1": "Semua fitur SEO Specialist (20 artikel)",
     "fokus3Feat2": "Semua fitur Ads Report (Meta, Google, TikTok, Shopee)",
@@ -167,18 +167,18 @@ export const publicTranslations = {
     "a2": "Tidak. Markimate memegang prinsip teguh Human-in-the-Loop (HITL). Artikel masuk ke drawer review untuk diedit dan disetujui sebelum 1-klik terbit. Laporan dan insight iklan disajikan sebagai rekomendasi strategis.",
     "q3": "Bisakah saya mengelola beberapa brand atau toko dalam satu akun?",
     "a3": "Bisa! Markimate dilengkapi fitur Workspace Isolation. Anda dapat berpindah antar brand dalam hitungan detik; setiap brand memiliki keyword, data kompetitor, koneksi akun iklan, dan invoice masing-masing yang terpisah rapi.",
-    "q4": "Apa itu credit dan bagaimana cara kerjanya?",
-    "a4": "Credit adalah satuan pemakaian aksi AI di Markimate (1 credit = Rp1.000). Setiap aksi (generate artikel 60 cr, gambar AI 5 cr, riset topik 10 cr, dll.) memotong credit dari dompet workspace Anda. Saldo langganan diperbarui setiap bulan, dan Anda dapat membeli paket top-up tambahan kapan saja.",
-    "q5": "Bagaimana cara kerja Free Trial 7 Hari (300 credit)?",
-    "a5": "Setiap akun baru otomatis mendapatkan 300 credit gratis selama 7 hari tanpa perlu memasukkan kartu kredit. Seluruh modul dapat dicoba bebas. Setelah 7 hari, sisa credit trial akan dinolkan, namun semua data dan konfigurasi CMS Anda tetap tersimpan aman selama 30 hari.",
-    "q6": "Berapa lama masa berlaku credit paket top-up?",
-    "a6": "Credit top-up (Starter 500 cr, Growth 1.050 cr, Scale 2.750 cr) berlaku selama 365 hari (1 tahun penuh) dan otomatis digunakan setelah credit trial atau credit langganan bulanan Anda habis."
+    "q4": "Apa itu kredit dan bagaimana cara kerjanya?",
+    "a4": "Kredit adalah satuan pemakaian aksi AI di Markimate (1 kredit = Rp1.000). Setiap aksi (generate artikel 60 kr, gambar AI 5 kr, riset topik 10 kr, dll.) memotong kredit dari dompet workspace Anda. Saldo langganan diperbarui setiap bulan, dan Anda dapat membeli paket top-up tambahan kapan saja.",
+    "q5": "Bagaimana cara kerja Free Trial 7 Hari (300 kredit)?",
+    "a5": "Setiap akun baru otomatis mendapatkan 300 kredit gratis selama 7 hari tanpa perlu memasukkan kartu kredit. Seluruh modul dapat dicoba bebas. Setelah 7 hari, sisa kredit trial akan dinolkan, namun semua data dan konfigurasi CMS Anda tetap tersimpan aman selama 30 hari.",
+    "q6": "Berapa lama masa berlaku kredit paket top-up?",
+    "a6": "Kredit top-up (Starter 500 kr, Growth 1.050 kr, Scale 2.750 kr) berlaku selama 365 hari (1 tahun penuh) dan otomatis digunakan setelah kredit trial atau kredit langganan bulanan Anda habis."
   },
   "finalCta": {
     "title": "Siap Tingkatkan Pemasaran dengan Tim AI?",
-    "subtitle": "Coba semua fitur dengan data dan website Anda sendiri selama 7 hari. 300 credit gratis, tanpa kartu kredit.",
-    "btnTrial": "Coba Gratis 7 Hari",
-    "btnRoles": "Lihat 16 Role Tim"
+    "subtitle": "Coba semua fitur dengan data dan website Anda sendiri selama {days} hari. {credits} kredit gratis, tanpa kartu kredit.",
+    "btnTrial": "Coba Gratis {days} Hari",
+    "btnRoles": "Lihat {count} Role Tim"
   },
   "waitlist": {
     "modalTitle": "Gabung Waitlist Early Access",

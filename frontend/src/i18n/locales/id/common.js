@@ -43,7 +43,7 @@ export const common = {
   "upgradeToPro": "Upgrade ke Pro untuk membuka semua fitur",
   "monthlyQuota": "Kuota artikel",
   "monthlyArticlesProgress": "{used} dari {limit} artikel bulan ini",
-  "viewCreditWallet": "Lihat dompet credit & top-up",
+  "viewCreditWallet": "Lihat dompet kredit & top-up",
   "from": "Mulai dari",
   "perMonth": "/bln",
   "perYear": "/thn",
