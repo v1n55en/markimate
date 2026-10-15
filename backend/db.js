@@ -52,8 +52,8 @@ function makeSupabase() {
 
 // ---------- Fallback JSON (hanya untuk dev lokal; Vercel tidak menyimpan file) ----------
 class JsonStore {
-  constructor() {
-    this.file = path.join(__dirname, 'database.json');
+  constructor(filePath) {
+    this.file = filePath || process.env.DB_JSON_PATH || path.join(__dirname, 'database.json');
     this.data = {
       accounts: [],
       cms_connections: [],
