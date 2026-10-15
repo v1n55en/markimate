@@ -47,6 +47,7 @@ import SecuritySettingsPage from './pages/app/SecuritySettingsPage';
 import AccountSettingsPage from './pages/app/AccountSettingsPage';
 import MembersSettingsPage from './pages/app/MembersSettingsPage';
 import InvitePage from './pages/public/InvitePage';
+import AuthLayout from './components/common/AuthLayout';
 
 // Halaman Ads Creative Spy
 import SpyOverviewPage from './pages/spy/SpyOverviewPage';
@@ -241,11 +242,11 @@ function AppRoutes({ me, onLoginSuccess, onLogout, refreshMe }) {
       <Route path="/id/terms" element={<TermsPage />} />
       <Route path="/id/data-deletion" element={<DataDeletionPage />} />
 
-      {/* Rute Auth (Kanonik EN) */}
-      <Route path="/verify" element={<VerifyPage onLoginSuccess={onLoginSuccess} />} />
-      <Route path="/forgot" element={<ForgotPasswordPage />} />
-      <Route path="/reset" element={<ResetPasswordPage />} />
-      <Route path="/invite" element={<InvitePage />} />
+      {/* Rute Auth (Kanonik tanpa prefix, dibungkus AuthLayout) */}
+      <Route path="/verify" element={<AuthLayout><VerifyPage onLoginSuccess={onLoginSuccess} /></AuthLayout>} />
+      <Route path="/forgot" element={<AuthLayout><ForgotPasswordPage /></AuthLayout>} />
+      <Route path="/reset" element={<AuthLayout><ResetPasswordPage /></AuthLayout>} />
+      <Route path="/invite" element={<AuthLayout><InvitePage /></AuthLayout>} />
       <Route path="/auth/google/callback" element={<GoogleCallbackPage onLogin={onLoginSuccess} />} />
 
       <Route
@@ -254,7 +255,9 @@ function AppRoutes({ me, onLoginSuccess, onLogout, refreshMe }) {
           me ? (
             <Navigate to="/app/ads" replace />
           ) : (
-            <AuthScreen onLoginSuccess={onLoginSuccess} initialMode="login" />
+            <AuthLayout>
+              <AuthScreen onLoginSuccess={onLoginSuccess} initialMode="login" />
+            </AuthLayout>
           )
         }
       />
@@ -264,36 +267,20 @@ function AppRoutes({ me, onLoginSuccess, onLogout, refreshMe }) {
           me ? (
             <Navigate to="/app/ads" replace />
           ) : (
-            <AuthScreen onLoginSuccess={onLoginSuccess} initialMode="register" />
+            <AuthLayout>
+              <AuthScreen onLoginSuccess={onLoginSuccess} initialMode="register" />
+            </AuthLayout>
           )
         }
       />
 
-      {/* Rute Auth Terlokalisasi (ID) (PRD F3 Langkah 5) */}
-      <Route path="/id/verify" element={<VerifyPage onLoginSuccess={onLoginSuccess} />} />
-      <Route path="/id/forgot" element={<ForgotPasswordPage />} />
-      <Route path="/id/reset" element={<ResetPasswordPage />} />
-      <Route path="/id/invite" element={<InvitePage />} />
-      <Route
-        path="/id/login"
-        element={
-          me ? (
-            <Navigate to="/app/ads" replace />
-          ) : (
-            <AuthScreen onLoginSuccess={onLoginSuccess} initialMode="login" />
-          )
-        }
-      />
-      <Route
-        path="/id/register"
-        element={
-          me ? (
-            <Navigate to="/app/ads" replace />
-          ) : (
-            <AuthScreen onLoginSuccess={onLoginSuccess} initialMode="register" />
-          )
-        }
-      />
+      {/* Redirect rute auth lama /id/* ke kanonik */}
+      <Route path="/id/verify" element={<Navigate to="/verify" replace />} />
+      <Route path="/id/forgot" element={<Navigate to="/forgot" replace />} />
+      <Route path="/id/reset" element={<Navigate to="/reset" replace />} />
+      <Route path="/id/invite" element={<Navigate to="/invite" replace />} />
+      <Route path="/id/login" element={<Navigate to="/login" replace />} />
+      <Route path="/id/register" element={<Navigate to="/register" replace />} />
 
       {/* Rute Terproteksi Aplikasi */}
       <Route

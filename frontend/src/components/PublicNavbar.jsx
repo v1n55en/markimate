@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, LogIn, Menu, X } from 'lucide-react';
-import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
+import { useLanguage, LanguageToggle } from '../context/LanguageContext';
 import { LocalizedLink, useLocalizedPath } from '../lib/localized-router';
 import MarkimateLogo from './common/MarkimateLogo';
 
@@ -33,7 +33,7 @@ export default function PublicNavbar() {
 
         {/* Desktop CTA Group */}
         <div style={styles.ctaGroup} className="hide-on-mobile">
-          <LanguageSwitcher />
+          <LanguageToggle />
           <LocalizedLink to="/login" style={styles.loginBtn}>
             <LogIn size={15} />
             <span>{t('nav.login', 'Sign In')}</span>
@@ -44,9 +44,9 @@ export default function PublicNavbar() {
           </LocalizedLink>
         </div>
 
-        {/* Mobile Action Controls: Language Switcher + Hamburger */}
+        {/* Mobile Action Controls: Single Language Toggle + Hamburger */}
         <div style={styles.mobileActions} className="show-on-mobile">
-          <LanguageSwitcher size="small" />
+          <LanguageToggle />
           <button
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -93,10 +93,6 @@ export default function PublicNavbar() {
           </nav>
 
           <div style={styles.mobileDrawerCtas}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.25rem 0', borderBottom: '1px solid rgba(39, 39, 42, 0.5)', marginBottom: '0.5rem' }}>
-              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Language / Bahasa</span>
-              <LanguageSwitcher size="small" />
-            </div>
             <LocalizedLink
               to="/login"
               style={styles.mobileLoginBtn}

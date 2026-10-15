@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { ShieldCheck, UserPlus, LogIn, ArrowRight, Coins, Mail } from 'lucide-react';
 import { api, setToken } from '../api';
-import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
+import { useLanguage } from '../context/LanguageContext';
 import { LocalizedLink } from '../lib/localized-router';
 import MarkimateLogo from './common/MarkimateLogo';
 
@@ -134,10 +134,6 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
     return (
       <div className="auth-page-container">
         <div className="auth-card-box">
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
-            <LanguageSwitcher size="small" />
-          </div>
-
           <div className="auth-header">
             <LocalizedLink to="/" style={styles.logoLink}>
               <div style={styles.logoContainer}>
@@ -237,11 +233,6 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
   return (
     <div className="auth-page-container">
       <div className="auth-card-box">
-        {/* Top bar with language switcher */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
-          <LanguageSwitcher size="small" />
-        </div>
-
         <div style={styles.header}>
           <LocalizedLink to="/" style={styles.logoLink}>
             <div style={styles.logoContainer}>

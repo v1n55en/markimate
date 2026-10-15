@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Mail, MapPin, Phone, ShieldCheck } from 'lucide-react';
-import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
+import { useLanguage } from '../context/LanguageContext';
 import { LocalizedLink } from '../lib/localized-router';
 import MarkimateLogo from './common/MarkimateLogo';
 
@@ -29,9 +29,6 @@ export default function PublicFooter() {
             <div style={styles.emailLine}>
               <Phone size={15} color="var(--text-muted)" style={{ flexShrink: 0 }} />
               <a href="https://wa.me/6285179642520" target="_blank" rel="noreferrer" style={styles.emailLink}>+62 851-7964-2520</a>
-            </div>
-            <div style={{ marginTop: '0.75rem' }}>
-              <LanguageSwitcher size="small" />
             </div>
           </div>
 

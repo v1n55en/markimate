@@ -4,19 +4,13 @@ import { useLanguage } from '../context/LanguageContext';
 import { storage } from './storage';
 
 /**
- * Daftar rute publik & auth yang mendukung prefix /id
+ * Daftar rute publik yang mendukung prefix /id (halaman landing & legal)
  */
 export const PUBLIC_PAGES = [
   '/',
   '/privacy',
   '/terms',
-  '/data-deletion',
-  '/login',
-  '/register',
-  '/forgot',
-  '/reset',
-  '/verify',
-  '/invite'
+  '/data-deletion'
 ];
 
 /**

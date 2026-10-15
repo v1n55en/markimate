@@ -74,27 +74,63 @@ function detectInitialLanguage() {
   return 'en';
 }
 
+import { api } from '../api.js';
+
 export function LanguageProvider({ children }) {
   const [lang, setLangState] = useState(detectInitialLanguage);
   let location;
+  let navigate;
   try {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     location = useLocation();
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    navigate = useNavigate();
   } catch {
     // Di luar Router context
   }
 
-  // Sinkronisasi bahasa dengan URL publik saat navigasi
+  // Sinkronisasi bahasa dengan URL publik saat navigasi tanpa merusak pilihan pengguna
   useEffect(() => {
     if (!location?.pathname) return;
     const pathname = location.pathname;
 
+    // 1. Path publik dengan prefix /id selalu aktifkan 'id'
     if (pathname === '/id' || pathname.startsWith('/id/')) {
       if (lang !== 'id') setLangState('id');
-    } else if (isPublicPath(pathname)) {
-      if (lang !== 'en') setLangState('en');
+      return;
     }
-  }, [location?.pathname, lang]);
+
+    // 2. Path publik tanpa prefix (/ ... /privacy, /terms, /data-deletion, /roles/*)
+    if (isPublicPath(pathname)) {
+      const selected = storage.getItem('markimate_lang_selected') === 'true';
+      const savedLang = storage.getItem(STORAGE_KEY) || lang;
+
+      // Jika user SUDAH memilih 'id', arahkan ke URL padanannya (/id/...)
+      if (selected && savedLang === 'id') {
+        const idPath = getLocalizedPath(pathname, 'id');
+        if (idPath !== pathname && navigate) {
+          navigate(idPath + (location.search || '') + (location.hash || ''), { replace: true });
+        }
+        if (lang !== 'id') setLangState('id');
+      } else if (selected && savedLang === 'en') {
+        if (lang !== 'en') setLangState('en');
+      } else {
+        // Belum pernah memilih secara manual:
+        // Jika browser bahasa ID, arahkan ke /id/...
+        if (lang === 'id') {
+          const idPath = getLocalizedPath(pathname, 'id');
+          if (idPath !== pathname && navigate) {
+            navigate(idPath + (location.search || '') + (location.hash || ''), { replace: true });
+          }
+        } else {
+          if (lang !== 'en') setLangState('en');
+        }
+      }
+      return;
+    }
+
+    // 3. Path Auth (/login, /register, dll) dan App (/app/*) TIDAK PERNAH mengubah bahasa
+  }, [location?.pathname, lang, navigate]);
 
   useEffect(() => {
     try {
@@ -104,13 +140,27 @@ export function LanguageProvider({ children }) {
   }, [lang]);
 
   const setLang = (newLang) => {
-    if (newLang === 'en' || newLang === 'id') {
-      setLangState(newLang);
-    }
+    if (newLang !== 'en' && newLang !== 'id') return;
+    try {
+      storage.setItem('markimate_lang_selected', 'true');
+      storage.setItem(STORAGE_KEY, newLang);
+      document.documentElement.lang = newLang;
+    } catch {}
+    setLangState(newLang);
+
+    // Sinkronkan ke akun pengguna jika sedang login
+    try {
+      api('/api/me', {
+        method: 'PATCH',
+        body: { locale: newLang }
+      }).catch(() => {});
+    } catch {}
   };
 
   const toggleLang = () => {
-    setLangState((prev) => (prev === 'en' ? 'id' : 'en'));
+    const next = lang === 'en' ? 'id' : 'en';
+    setLang(next);
+    return next;
   };
 
   /**
@@ -219,11 +269,10 @@ export function Trans({ i18nKey, values = {}, components = {}, fallback = '' }) 
 }
 
 /**
- * Komponen Switcher Bahasa (className + CSS murni, touch target >= 44px, aksesibilitas penuh)
+ * Komponen LanguageToggle (Satu pill kecil per layar, touch target >= 44px via ::after, class .lang-toggle)
  */
-export function LanguageSwitcher({ size = 'normal', className = '' }) {
-  const { lang, setLang } = useLanguage();
-  const isSmall = size === 'small';
+export function LanguageToggle({ className = '' }) {
+  const { lang, toggleLang } = useLanguage();
   let location;
   let navigate;
   try {
@@ -233,51 +282,32 @@ export function LanguageSwitcher({ size = 'normal', className = '' }) {
     navigate = useNavigate();
   } catch {}
 
-  const handleSelectLang = (targetLang) => {
-    if (targetLang === lang) return;
-    try {
-      storage.setItem('markimate_lang_selected', 'true');
-      storage.setItem(STORAGE_KEY, targetLang);
-    } catch {}
-
-    setLang(targetLang);
+  const handleToggle = () => {
+    const nextLang = lang === 'en' ? 'id' : 'en';
+    toggleLang();
 
     if (location && navigate && isPublicPath(location.pathname)) {
-      const nextPath = getLocalizedPath(location.pathname, targetLang);
-      navigate(nextPath + location.search + location.hash);
+      const nextPath = getLocalizedPath(location.pathname, nextLang);
+      navigate(nextPath + (location.search || '') + (location.hash || ''));
     }
   };
 
+  const nextLabel = lang === 'en' ? 'ID' : 'EN';
+  const currentLabel = lang.toUpperCase();
+
   return (
-    <div
-      className={`language-switcher ${isSmall ? 'language-switcher-sm' : ''} ${className}`}
-      title="Switch Language / Ganti Bahasa"
-      role="group"
-      aria-label="Language selection"
+    <button
+      type="button"
+      onClick={handleToggle}
+      className={`lang-toggle ${className}`}
+      aria-label={`Current language: ${currentLabel}. Switch to ${nextLabel}`}
+      title={`Switch to ${nextLabel}`}
     >
-      <div className="language-switcher-icon">
-        <Globe size={isSmall ? 14 : 16} />
-      </div>
-
-      <button
-        type="button"
-        className={`language-switcher-btn ${lang === 'en' ? 'active' : ''}`}
-        onClick={() => handleSelectLang('en')}
-        aria-label="English"
-        aria-pressed={lang === 'en'}
-      >
-        EN
-      </button>
-
-      <button
-        type="button"
-        className={`language-switcher-btn ${lang === 'id' ? 'active' : ''}`}
-        onClick={() => handleSelectLang('id')}
-        aria-label="Bahasa Indonesia"
-        aria-pressed={lang === 'id'}
-      >
-        ID
-      </button>
-    </div>
+      <Globe size={13} className="lang-toggle-icon" />
+      <span className="lang-toggle-label">{currentLabel}</span>
+    </button>
   );
 }
+
+// Backward compatibility alias
+export const LanguageSwitcher = LanguageToggle;

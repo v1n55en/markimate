@@ -32,7 +32,7 @@ import { getCredits } from '../api';
 import { isAdsMock } from '../ads/adsApi';
 import { isSpyMock } from '../spy/spyApi';
 
-import { useLanguage, LanguageSwitcher } from '../context/LanguageContext';
+import { useLanguage, LanguageToggle } from '../context/LanguageContext';
 import { formatNumber } from '../lib/format';
 
 export default function Sidebar({ user, onLogout, plan, usage }) {
@@ -661,7 +661,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
         {/* Footer Language Switcher & Logout */}
         <div style={styles.footer}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.65rem' }}>
-            <LanguageSwitcher size="small" />
+            <LanguageToggle />
           </div>
           <button onClick={onLogout} style={styles.logoutBtn} className="logout-btn">
             <LogOut size={17} />

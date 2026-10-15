@@ -1212,64 +1212,84 @@ h1, h2, h3, h4, h5, h6, p, span, strong, a {
 }
 
 /* ========================================================
-   Language Switcher (Touch target >= 44px, Accessible)
+/* ========================================================
+   Language Toggle (Single compact pill, touch target >= 44px via ::after)
    ======================================================== */
-.language-switcher {
+.lang-toggle {
+  position: relative;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 28px;
+  min-width: 64px;
+  padding: 3px 8px;
   background-color: rgba(24, 24, 27, 0.85);
   border: 1px solid var(--border-muted);
-  border-radius: var(--radius-md);
-  padding: 2px;
-  gap: 2px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  user-select: none;
+  transition: all var(--transition-fast);
+  box-sizing: border-box;
 }
 
-.language-switcher-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 6px;
-  color: var(--text-muted);
-}
-
-.language-switcher-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.lang-toggle::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
   min-width: 44px;
   min-height: 44px;
-  padding: 0 10px;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 0.82rem;
-  font-weight: 600;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: all var(--transition-fast);
 }
 
-.language-switcher-btn:hover:not(.active) {
+.lang-toggle:hover {
   color: var(--text-primary);
+  border-color: var(--border-active);
   background-color: var(--bg-surface-hover);
 }
 
-.language-switcher-btn.active {
-  background-color: var(--accent-cyan);
-  color: #09090b;
-  font-weight: 700;
-  box-shadow: 0 0 10px var(--accent-cyan-glow);
+.lang-toggle:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
 }
 
-.language-switcher-sm .language-switcher-btn {
-  min-width: 44px;
-  min-height: 44px;
-  font-size: 0.78rem;
-  padding: 0 8px;
+.lang-toggle-icon {
+  display: flex;
+  align-items: center;
+  color: var(--accent-cyan);
 }
 
+.lang-toggle-label {
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
 
+@media (max-width: 639px) {
+  .lang-toggle {
+    height: 26px;
+    padding: 2px 7px;
+    font-size: 0.72rem;
+  }
+}
 
+/* ========================================================
+   Auth Layout & Top-Right Language Toggle
+   ======================================================== */
+.auth-layout-wrapper {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.auth-header-toggle {
+  position: absolute;
+  top: max(1rem, env(safe-area-inset-top));
+  right: max(1rem, env(safe-area-inset-right));
+  z-index: 50;
+}

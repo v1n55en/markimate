@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Users, CheckCircle2, AlertCircle, ArrowRight, ShieldCheck, LogIn, UserPlus } from 'lucide-react';
 import { api, getToken } from '../../api';
-import { useLanguage, LanguageSwitcher } from '../../context/LanguageContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { LocalizedLink, useLocalizedNavigate } from '../../lib/localized-router';
 import MarkimateLogo from '../../components/common/MarkimateLogo';
 
@@ -88,11 +88,6 @@ export default function InvitePage() {
   return (
     <div className="auth-page-container">
       <div className="auth-card-box card">
-        {/* Language switcher */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
-          <LanguageSwitcher size="small" />
-        </div>
-
         {/* Header / Brand */}
         <div className="auth-header">
           <LocalizedLink to="/" style={{ display: 'inline-block', textDecoration: 'none', marginBottom: '0.5rem' }}>

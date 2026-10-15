@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Mail, ArrowLeft, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { api } from '../../api';
-import { useLanguage, LanguageSwitcher } from '../../context/LanguageContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { LocalizedLink } from '../../lib/localized-router';
 import MarkimateLogo from '../../components/common/MarkimateLogo';
 
@@ -38,11 +38,6 @@ export default function ForgotPasswordPage() {
   return (
     <div className="auth-page-container">
       <div className="auth-card-box">
-        {/* Language switcher */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.5rem' }}>
-          <LanguageSwitcher size="small" />
-        </div>
-
         {/* Header Logo */}
         <div className="auth-header">
           <LocalizedLink to="/" style={{ display: 'inline-block', textDecoration: 'none', marginBottom: '0.5rem' }}>
