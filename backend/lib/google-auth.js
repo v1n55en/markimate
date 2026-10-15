@@ -246,10 +246,8 @@ export async function processGoogleAuth({ googleProfile, req, res }) {
       const trialRes = await grantTrialIfEligible(wsId, updated.email);
       if (trialRes && trialRes.granted) {
         const endsAt = trialRes.expiresAt ? new Date(trialRes.expiresAt).toISOString() : new Date(Date.now() + 7 * 86400 * 1000).toISOString();
-        for (const mod of ['seo', 'ads_report', 'ads_spy']) {
-          await db.insert('module_entitlements', {
-            workspace_id: wsId,
-            module: mod,
+        for (const mod of ['ads_report', 'ads_spy']) {
+          await db.upsert('module_entitlements', { workspace_id: wsId, module: mod }, {
             active: true,
             source: 'trial',
             starts_at: new Date().toISOString(),
@@ -258,13 +256,12 @@ export async function processGoogleAuth({ googleProfile, req, res }) {
         }
       }
 
-      // Pastikan entitlement seo free selalu ada
-      await db.insert('module_entitlements', {
-        workspace_id: wsId,
-        module: 'seo',
+      // Entitlement seo dengan source free selalu aktif
+      await db.upsert('module_entitlements', { workspace_id: wsId, module: 'seo' }, {
         active: true,
         source: 'free',
-        starts_at: new Date().toISOString()
+        starts_at: new Date().toISOString(),
+        ends_at: null
       });
 
       const session = await issueSession(res, updated, req);
@@ -356,10 +353,8 @@ export async function processGoogleAuth({ googleProfile, req, res }) {
   const trialRes = await grantTrialIfEligible(defaultWs.id, newAccount.email);
   if (trialRes && trialRes.granted) {
     const endsAt = trialRes.expiresAt ? new Date(trialRes.expiresAt).toISOString() : new Date(Date.now() + 7 * 86400 * 1000).toISOString();
-    for (const mod of ['seo', 'ads_report', 'ads_spy']) {
-      await db.insert('module_entitlements', {
-        workspace_id: defaultWs.id,
-        module: mod,
+    for (const mod of ['ads_report', 'ads_spy']) {
+      await db.upsert('module_entitlements', { workspace_id: defaultWs.id, module: mod }, {
         active: true,
         source: 'trial',
         starts_at: new Date().toISOString(),
@@ -368,13 +363,12 @@ export async function processGoogleAuth({ googleProfile, req, res }) {
     }
   }
 
-  // Langkah 1.7: Selalu insert entitlement seo dengan source free (on conflict do nothing)
-  await db.insert('module_entitlements', {
-    workspace_id: defaultWs.id,
-    module: 'seo',
+  // Entitlement seo dengan source free selalu aktif
+  await db.upsert('module_entitlements', { workspace_id: defaultWs.id, module: 'seo' }, {
     active: true,
     source: 'free',
-    starts_at: new Date().toISOString()
+    starts_at: new Date().toISOString(),
+    ends_at: null
   });
 
   const session = await issueSession(res, newAccount, req);
