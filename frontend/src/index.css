@@ -1508,6 +1508,11 @@ h1, h2, h3, h4, h5, h6, p, span, strong, a {
     padding: 2px 7px;
     font-size: 0.72rem;
   }
+  .lang-toggle::after {
+    inset: -9px -4px;
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 
 /* ========================================================

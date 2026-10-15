@@ -60,51 +60,38 @@ export function setLanguageCookie(val) {
   } catch {}
 }
 
-/**
- * Resolusi bahasa:
- * 1. Prefix URL publik (/id/... -> id)
- * 2. accounts.locale dari user tersimpan jika sedang login
- * 3. Cookie lintas subdomain mk_lang
- * 4. Pilihan tersimpan (markimate_lang di localStorage)
- * 5. Bahasa browser (navigator.language)
- * 6. Default: en (English)
- */
-function detectInitialLanguage() {
-  if (typeof window !== 'undefined' && window.location) {
-    const pathname = window.location.pathname || '';
-    if (pathname === '/id' || pathname.startsWith('/id/')) {
-      return 'id';
-    }
-  }
+import { resolveLanguage } from '../lib/resolve-language.js';
+export { resolveLanguage };
 
-  try {
-    const userRaw = storage.getItem('markimate_user') || storage.getItem('user');
-    if (userRaw) {
-      const u = typeof userRaw === 'string' ? JSON.parse(userRaw) : userRaw;
-      if (u?.locale === 'id' || u?.locale === 'en') {
-        return u.locale;
-      }
-    }
-  } catch {}
-
+export function getSavedLanguagePreference() {
   const cookieLang = getLanguageCookie();
-  if (cookieLang === 'en' || cookieLang === 'id') return cookieLang;
+  if (cookieLang === 'id' || cookieLang === 'en') return cookieLang;
 
   try {
     const saved = storage.getItem(STORAGE_KEY) || storage.getItem(LEGACY_STORAGE_KEY);
-    if (saved === 'en' || saved === 'id') return saved;
+    if (saved === 'id' || saved === 'en') return saved;
   } catch {}
 
-  if (typeof navigator !== 'undefined' && navigator.language) {
-    const navLang = navigator.language.toLowerCase();
-    if (navLang.startsWith('id')) return 'id';
-  }
-
-  // Default bahasa aplikasi Markimate adalah English (en)
-  return 'en';
+  return null;
 }
 
-import { api } from '../api.js';
+function detectInitialLanguage() {
+  const path = typeof window !== 'undefined' ? (window.location?.pathname || '') : '';
+  const cookie = getLanguageCookie();
+  let savedStorage = null;
+  try {
+    savedStorage = storage.getItem(STORAGE_KEY) || storage.getItem(LEGACY_STORAGE_KEY);
+  } catch {}
+
+  return resolveLanguage({
+    path,
+    accountLocale: null,
+    cookie,
+    storage: savedStorage
+  });
+}
+
+import { api, getToken } from '../api.js';
 
 export function LanguageProvider({ children }) {
   const [lang, setLangState] = useState(detectInitialLanguage);
@@ -124,48 +111,61 @@ export function LanguageProvider({ children }) {
     if (!location?.pathname) return;
     const pathname = location.pathname;
 
-    // 1. Path publik dengan prefix /id selalu aktifkan 'id'
+    // 1. Halaman /id/* hanya menampilkan ID. Halaman itu tidak menimpa cookie/storage.
     if (pathname === '/id' || pathname.startsWith('/id/')) {
       setLangState('id');
-      document.documentElement.lang = 'id';
+      if (typeof document !== 'undefined') document.documentElement.lang = 'id';
       return;
     }
 
-    // 2. Path publik kanonik tanpa prefix (/ ... /privacy, /terms, /data-deletion, /roles/*) selalu 'en'
+    // 2. Halaman publik tanpa prefix (/ ... /privacy, /terms, /data-deletion, /roles/*):
     if (isPublicPath(pathname)) {
-      setLangState('en');
-      document.documentElement.lang = 'en';
+      const savedPref = getSavedLanguagePreference();
+      // Kalau pilihan tersimpan adalah 'id', lakukan redirect (replace) ke padanan /id/...
+      if (savedPref === 'id') {
+        const targetPath = getLocalizedPath(pathname, 'id');
+        if (targetPath !== pathname && navigate) {
+          navigate(targetPath + (location.search || '') + (location.hash || ''), { replace: true });
+          return;
+        }
+      }
+
+      // Kalau belum ada pilihan tersimpan (pengunjung baru), tampilkan EN tanpa menyimpan apa pun
+      const activeLang = savedPref || 'en';
+      setLangState(activeLang);
+      if (typeof document !== 'undefined') document.documentElement.lang = activeLang;
       return;
     }
 
-    // 3. Path Auth (/login, /register, dll) dan App (/app/*) TIDAK mengubah bahasa URL
-  }, [location?.pathname]);
+    // 3. Halaman Auth (/login, /register, dll) dan App (/app/*):
+    // Hormati pilihan tersimpan (cookie mk_lang / storage markimate_lang)
+    const savedPref = getSavedLanguagePreference();
+    const resolved = savedPref || 'en';
+    setLangState(resolved);
+    if (typeof document !== 'undefined') document.documentElement.lang = resolved;
+  }, [location?.pathname, navigate]);
 
-  useEffect(() => {
-    try {
-      storage.setItem(STORAGE_KEY, lang);
-      setLanguageCookie(lang);
-      document.documentElement.lang = lang;
-    } catch {}
-  }, [lang]);
-
-  const setLang = (newLang) => {
+  const setLang = (newLang, { syncBackend = true } = {}) => {
     if (newLang !== 'en' && newLang !== 'id') return;
     try {
       storage.setItem('markimate_lang_selected', 'true');
       storage.setItem(STORAGE_KEY, newLang);
       setLanguageCookie(newLang);
-      document.documentElement.lang = newLang;
+      if (typeof document !== 'undefined') {
+        document.documentElement.lang = newLang;
+      }
     } catch {}
     setLangState(newLang);
 
-    // Sinkronkan ke akun pengguna jika sedang login
-    try {
-      api('/api/me', {
-        method: 'PATCH',
-        body: { locale: newLang }
-      }).catch(() => {});
-    } catch {}
+    // Sinkronkan ke akun pengguna HANYA jika sedang login (memiliki access token) dan diminta
+    if (syncBackend && getToken && getToken()) {
+      try {
+        api('/api/me', {
+          method: 'PATCH',
+          body: { locale: newLang }
+        }).catch(() => {});
+      } catch {}
+    }
   };
 
   const toggleLang = () => {
@@ -305,16 +305,16 @@ export function LanguageToggle({ className = '' }) {
     }
   };
 
-  const nextLabel = lang === 'en' ? 'ID' : 'EN';
   const currentLabel = lang.toUpperCase();
+  const ariaLabel = lang === 'en' ? 'Switch to Bahasa Indonesia' : 'Ganti ke English';
 
   return (
     <button
       type="button"
       onClick={handleToggle}
       className={`lang-toggle ${className}`}
-      aria-label={`Current language: ${currentLabel}. Switch to ${nextLabel}`}
-      title={`Switch to ${nextLabel}`}
+      aria-label={ariaLabel}
+      title={ariaLabel}
     >
       <Globe size={13} className="lang-toggle-icon" />
       <span className="lang-toggle-label">{currentLabel}</span>

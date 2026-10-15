@@ -247,7 +247,7 @@ function AppRoutes({ me, onLoginSuccess, onLogout, refreshMe }) {
       <Route path="/forgot" element={<AuthLayout><ForgotPasswordPage /></AuthLayout>} />
       <Route path="/reset" element={<AuthLayout><ResetPasswordPage /></AuthLayout>} />
       <Route path="/invite" element={<AuthLayout><InvitePage /></AuthLayout>} />
-      <Route path="/auth/google/callback" element={<GoogleCallbackPage onLogin={onLoginSuccess} />} />
+      <Route path="/auth/google/callback" element={<AuthLayout><GoogleCallbackPage onLogin={onLoginSuccess} /></AuthLayout>} />
 
       <Route
         path="/login"
@@ -273,14 +273,6 @@ function AppRoutes({ me, onLoginSuccess, onLogout, refreshMe }) {
           )
         }
       />
-
-      {/* Redirect rute auth lama /id/* ke kanonik */}
-      <Route path="/id/verify" element={<Navigate to="/verify" replace />} />
-      <Route path="/id/forgot" element={<Navigate to="/forgot" replace />} />
-      <Route path="/id/reset" element={<Navigate to="/reset" replace />} />
-      <Route path="/id/invite" element={<Navigate to="/invite" replace />} />
-      <Route path="/id/login" element={<Navigate to="/login" replace />} />
-      <Route path="/id/register" element={<Navigate to="/register" replace />} />
 
       {/* Rute Terproteksi Aplikasi */}
       <Route
@@ -312,6 +304,7 @@ function BootingScreen() {
 function AppContent() {
   const [me, setMe] = useState(null); // { user, plan, usage, cms }
   const [booting, setBooting] = useState(true);
+  const { setLang } = useLanguage();
 
   const refreshMe = useCallback(async () => {
     try {
@@ -350,13 +343,16 @@ function AppContent() {
 
       const data = await api('/api/me');
       setMe(data);
+      if (data?.user?.locale && (data.user.locale === 'id' || data.user.locale === 'en')) {
+        setLang(data.user.locale, { syncBackend: false });
+      }
       return data;
     } catch {
       setToken('');
       setMe(null);
       return null;
     }
-  }, []);
+  }, [setLang]);
 
   useEffect(() => {
     // Bersihkan sesi mock legacy & sisa key demo saat boot (PRD Hapus Mode Demo)
