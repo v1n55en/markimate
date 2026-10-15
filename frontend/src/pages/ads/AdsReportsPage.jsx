@@ -72,7 +72,7 @@ export default function AdsReportsPage({ user }) {
             {val || row.period}
           </strong>
           <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>
-            ID: {row.id}
+            {`ID: ${row.id}`}
           </div>
         </div>
       ),
@@ -229,11 +229,11 @@ export default function AdsReportsPage({ user }) {
               style={styles.filterSelect}
             >
               <option value="all">{t('ads.reports.allPlatforms')}</option>
-              <option value="meta">Meta Ads</option>
-              <option value="google">Google Ads</option>
-              <option value="tiktok">TikTok Ads</option>
-              <option value="tiktok_gmvmax">TikTok Shop GMV Max</option>
-              <option value="shopee">Shopee Ads</option>
+              <option value="meta">{t('ads.channels.meta')}</option>
+              <option value="google">{t('ads.channels.google')}</option>
+              <option value="tiktok">{t('ads.channels.tiktok')}</option>
+              <option value="tiktok_gmvmax">{t('ads.channels.tiktok_gmvmax')}</option>
+              <option value="shopee">{t('ads.channels.shopee')}</option>
             </select>
           </div>
 

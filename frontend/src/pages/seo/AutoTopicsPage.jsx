@@ -295,7 +295,7 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
               <label className="form-label">{t('seo.autoTopics.executionHour')}</label>
               <select className="form-select" value={hour} onChange={e => setHour(Number(e.target.value))}>
                 {Array.from({ length: 24 }).map((_, h) => (
-                  <option key={h} value={h}>{String(h).padStart(2, '0')}:00 WIB</option>
+                  <option key={h} value={h}>{`${String(h).padStart(2, '0')}:00 WIB`}</option>
                 ))}
               </select>
             </div>
@@ -439,7 +439,7 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
                       <td><span style={styles.sub}>{tItem.seed}</span></td>
                       <td>
                         {tItem.searchVolume ? formatNumber(Number(tItem.searchVolume), lang) : '–'}{' '}
-                        <span style={styles.sub}>/ KD {tItem.difficulty ?? '–'}</span>
+                        <span style={styles.sub}>{`/ KD ${tItem.difficulty ?? '–'}`}</span>
                       </td>
                       <td>
                         {tItem.trafficPotential ? formatNumber(Number(tItem.trafficPotential), lang) : '–'}

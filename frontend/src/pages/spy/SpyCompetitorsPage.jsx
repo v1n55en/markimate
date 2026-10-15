@@ -348,8 +348,8 @@ export default function SpyCompetitorsPage() {
                 <div style={styles.formGroup}>
                   <label style={styles.label}>{t('spy.competitors.modalPlatformLabel')}</label>
                   <select style={styles.select} disabled defaultValue="meta">
-                    <option value="meta">Meta Ad Library ({t('common.active')})</option>
-                    <option value="tiktok">TikTok Creative Center ({t('common.soon')})</option>
+                    <option value="meta">{`Meta Ad Library (${t('common.active')})`}</option>
+                    <option value="tiktok">{`TikTok Creative Center (${t('common.soon')})`}</option>
                   </select>
                 </div>
 
@@ -360,9 +360,9 @@ export default function SpyCompetitorsPage() {
                     onChange={(e) => setCountry(e.target.value)}
                     style={styles.select}
                   >
-                    <option value="ID">Indonesia (ID)</option>
-                    <option value="MY">Malaysia (MY)</option>
-                    <option value="SG">Singapura (SG)</option>
+                    <option value="ID">{t('spy.competitors.countryId')}</option>
+                    <option value="MY">{t('spy.competitors.countryMy')}</option>
+                    <option value="SG">{t('spy.competitors.countrySg')}</option>
                     <option value="ALL">{t('spy.competitors.allCountries')}</option>
                   </select>
                 </div>

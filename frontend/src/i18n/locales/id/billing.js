@@ -60,11 +60,15 @@ export const billing = {
   "ledgerSectionTitle": "Riwayat Pemakaian & Mutasi",
   "ledgerSubtitle": "Semua pemotongan kredit dan penambahan saldo tercatat transparan di buku besar.",
   "filterAllModules": "Semua Modul",
+  "filterSeo": "Konten SEO",
+  "filterAds": "Laporan Iklan",
+  "filterSpy": "Creative Spy",
   "filterAllTypes": "Semua Jenis Mutasi",
   "filterUsage": "Pemakaian Aksi",
   "filterGrantTrial": "Grant Trial",
   "filterTopup": "Top-Up",
   "filterExpire": "Kedaluwarsa",
+  "bonusLabel": "bonus",
   "exportCsv": "Ekspor CSV",
   "thDateTime": "Waktu",
   "thAction": "Aksi / Mutasi",
@@ -132,7 +136,9 @@ export const billing = {
   "spyQuota": "5 kompetitor",
   "adsModuleTitle": "Ads Specialist — Report Semua Platform",
   "spyModuleTitle": "Ads Creative Spy",
+  "seoModuleTitle": "AI SEO Specialist",
   "save20Percent": "Diskon 20%",
   "focus3Notice": "Paket Focus 3: 3 role utama seharga Rp3.200.000/bln (Hemat 20%)",
-  "paymentHelp": "Butuh invoice perusahaan atau transfer bank manual? Hubungi tim support kami."
+  "paymentHelp": "Butuh invoice perusahaan atau transfer bank manual? Hubungi tim support kami.",
+  "bonusBadge": "bonus"
 };

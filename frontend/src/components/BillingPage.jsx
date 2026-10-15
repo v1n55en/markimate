@@ -304,7 +304,7 @@ export default function BillingPage({ refreshMe }) {
                     {selectedModules.includes('seo') && <Check size={12} color="#000000" />}
                   </div>
                   <div>
-                    <strong style={styles.choiceName}>AI SEO Specialist</strong>
+                    <strong style={styles.choiceName}>{t('billing.seoModuleTitle')}</strong>
                     <span style={styles.choiceCategory}>
                       {t('billing.catContentOrganic')}
                     </span>

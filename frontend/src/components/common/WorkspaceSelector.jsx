@@ -222,13 +222,13 @@ export default function WorkspaceSelector() {
                   style={styles.select}
                   disabled={submitting}
                 >
-                  <option value="Retail & Fashion">Retail & Fashion</option>
-                  <option value="F&B (Kuliner & Kafe)">F&B (Kuliner & Kafe)</option>
-                  <option value="Beauty & Skincare">Beauty & Skincare</option>
-                  <option value="Agency & Jasa Kreatif">Agency & Jasa Kreatif</option>
-                  <option value="Software & Teknologi">Software & Teknologi</option>
-                  <option value="Properti & Real Estate">Properti & Real Estate</option>
-                  <option value="Lainnya">Lainnya</option>
+                  <option value="Retail & Fashion">{t('app.workspaceSelector.nicheRetail')}</option>
+                  <option value="F&B (Kuliner & Kafe)">{t('app.workspaceSelector.nicheFnb')}</option>
+                  <option value="Beauty & Skincare">{t('app.workspaceSelector.nicheBeauty')}</option>
+                  <option value="Agency & Jasa Kreatif">{t('app.workspaceSelector.nicheAgency')}</option>
+                  <option value="Software & Teknologi">{t('app.workspaceSelector.nicheSoftware')}</option>
+                  <option value="Properti & Real Estate">{t('app.workspaceSelector.nicheProperty')}</option>
+                  <option value="Lainnya">{t('app.workspaceSelector.nicheOther')}</option>
                 </select>
               </div>
 

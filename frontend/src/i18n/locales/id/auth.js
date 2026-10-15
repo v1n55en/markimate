@@ -121,5 +121,12 @@ export const auth = {
   "inviteAcceptedTitle": "Undangan Diterima!",
   "inviteAcceptedDesc": "Anda kini terdaftar sebagai anggota di {workspaceName} dengan peran {role}.",
   "roleAdmin": "Admin",
-  "roleViewer": "Pengamat (Viewer)"
+  "roleViewer": "Pengamat (Viewer)",
+  "nicheFnb": "F&B (Kuliner / Kafe / Resto)",
+  "nicheRetail": "Retail & Fashion (E-commerce)",
+  "nicheAgency": "Creative Agency / Jasa",
+  "nicheTech": "Software / Startup Teknologi",
+  "nicheProperty": "Properti & Real Estate",
+  "nicheOther": "Lainnya / Other",
+  "markimateSuffix": "Markimate."
 };

@@ -3,12 +3,13 @@ import PublicNavbar from '../../components/PublicNavbar';
 import PublicFooter from '../../components/PublicFooter';
 import SeoHead from '../../components/common/SeoHead';
 import { useLanguage } from '../../context/LanguageContext';
-import { TERMS_CONTENT, LEGAL_PREVAILING_NOTICE } from '../../content/legal-content';
+import { TERMS_CONTENT, LEGAL_PREVAILING_NOTICE, LEGAL_LABELS } from '../../content/legal-content';
 
 export default function TermsPage() {
   const { lang } = useLanguage();
   const content = TERMS_CONTENT[lang] || TERMS_CONTENT.id;
   const prevailingNotice = LEGAL_PREVAILING_NOTICE[lang] || LEGAL_PREVAILING_NOTICE.id;
+  const labels = LEGAL_LABELS[lang] || LEGAL_LABELS.en;
 
   return (
     <div style={styles.page}>
@@ -32,7 +33,7 @@ export default function TermsPage() {
         <div style={styles.prevailingBanner}>
           <AlertTriangle size={18} color="var(--accent-yellow)" style={{ flexShrink: 0, marginTop: '2px' }} />
           <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-            <strong style={{ color: 'var(--text-primary)' }}>Notice / Pemberitahuan: </strong>
+            <strong style={{ color: 'var(--text-primary)' }}>{labels.noticeHeading} </strong>
             {prevailingNotice}
           </div>
         </div>
@@ -41,7 +42,7 @@ export default function TermsPage() {
           {content.sections.map((sec) => (
             <section key={sec.number} style={styles.section}>
               <h2 style={styles.sectionHeading}>
-                {sec.number}. {sec.title}
+                {`${sec.number}. ${sec.title}`}
               </h2>
               <p style={styles.paragraph}>{sec.content}</p>
             </section>

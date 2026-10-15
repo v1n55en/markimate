@@ -204,6 +204,7 @@ export const publicTranslations = {
     "capabilitiesTitle": "Kapabilitas Utama",
     "deliverablesTitle": "Output & Deliverables yang Dihasilkan",
     "sampleOutputTitle": "Contoh Output Nyata",
+    "deliverablePreview": "Pratinjau Hasil Kerja",
     "quotaTitle": "Alokasi Kuota Bulanan",
     "pricingTitle": "Investasi Berlangganan",
     "ctaActivate": "Aktifkan Modul di Workspace",

@@ -190,7 +190,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
           <div className="auth-footer-security">
             <ShieldCheck size={14} color="var(--accent-green)" />
             <span>
-              Markimate · powered by 3our · {t('auth.emailVerificationRequired')}
+              {`Markimate · powered by 3our · ${t('auth.emailVerificationRequired')}`}
             </span>
           </div>
         </div>
@@ -327,12 +327,12 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
                   value={niche}
                   onChange={(e) => setNiche(e.target.value)}
                 >
-                  <option value="F&B">F&B (Kuliner / Kafe / Resto)</option>
-                  <option value="Retail">Retail & Fashion (E-commerce)</option>
-                  <option value="Agency">Creative Agency / Jasa</option>
-                  <option value="Tech">Software / Startup Teknologi</option>
-                  <option value="Property">Properti & Real Estate</option>
-                  <option value="Other">Lainnya / Other</option>
+                  <option value="F&B">{t('auth.nicheFnb')}</option>
+                  <option value="Retail">{t('auth.nicheRetail')}</option>
+                  <option value="Agency">{t('auth.nicheAgency')}</option>
+                  <option value="Tech">{t('auth.nicheTech')}</option>
+                  <option value="Property">{t('auth.nicheProperty')}</option>
+                  <option value="Other">{t('auth.nicheOther')}</option>
                 </select>
               </div>
             </>
@@ -393,7 +393,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
                 <LocalizedLink to="/privacy" target="_blank" style={{ color: 'var(--accent-cyan)', textDecoration: 'underline' }}>
                   {t('auth.privacyPolicy')}
                 </LocalizedLink>{' '}
-                Markimate.
+                {t('auth.markimateSuffix')}
               </label>
             </div>
           )}
@@ -453,7 +453,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
         <div className="auth-footer-security">
           <ShieldCheck size={14} color="var(--accent-green)" />
           <span>
-            Markimate · powered by 3our · {t('auth.footerSecurityNote')}
+            {`Markimate · powered by 3our · ${t('auth.footerSecurityNote')}`}
           </span>
         </div>
       </div>

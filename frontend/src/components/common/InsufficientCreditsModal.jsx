@@ -86,21 +86,21 @@ export default function InsufficientCreditsModal() {
                 <div style={styles.statCol}>
                   <span style={styles.statLabel}>{t('app.insufficientCredits.requiredLabel')}</span>
                   <span style={{ ...styles.statVal, color: 'var(--accent-yellow)' }}>
-                    {need} <span style={styles.statUnit}>credits</span>
+                    {need} <span style={styles.statUnit}>{t('billing.creditsUnit', 'credits')}</span>
                   </span>
                 </div>
                 <div style={styles.statDivider} />
                 <div style={styles.statCol}>
                   <span style={styles.statLabel}>{t('app.insufficientCredits.availableLabel')}</span>
                   <span style={{ ...styles.statVal, color: have === 0 ? 'var(--accent-red)' : 'var(--text-secondary)' }}>
-                    {have} <span style={styles.statUnit}>credits</span>
+                    {have} <span style={styles.statUnit}>{t('billing.creditsUnit', 'credits')}</span>
                   </span>
                 </div>
                 <div style={styles.statDivider} />
                 <div style={styles.statCol}>
                   <span style={styles.statLabel}>{t('app.insufficientCredits.shortageLabel')}</span>
                   <span style={{ ...styles.statVal, color: 'var(--accent-red)' }}>
-                    -{Math.max(0, need - have)} <span style={styles.statUnit}>credits</span>
+                    -{Math.max(0, need - have)} <span style={styles.statUnit}>{t('billing.creditsUnit', 'credits')}</span>
                   </span>
                 </div>
               </div>

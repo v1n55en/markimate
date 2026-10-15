@@ -254,9 +254,9 @@ export default function AccountSettingsPage({ me, refreshMe }) {
       {/* Header Halaman */}
       <div className="security-page-header">
         <div>
-          <h1 className="security-page-title">Pengaturan Akun</h1>
+          <h1 className="security-page-title">{t('settings.pageTitle')}</h1>
           <p className="security-page-subtitle">
-            Kelola identitas profil, kata sandi, alamat email, ekspor data, dan privasi akun Anda.
+            {t('settings.pageSubtitle')}
           </p>
         </div>
       </div>
@@ -427,10 +427,10 @@ export default function AccountSettingsPage({ me, refreshMe }) {
               >
                 <div>
                   <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.95rem' }}>
-                    🇮🇩 {t('settings.language.labelId')}
+                    {`🇮🇩 ${t('settings.language.labelId')}`}
                   </strong>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    Bahasa Indonesia baku (kata ganti &quot;Anda&quot;)
+                    {t('settings.language.subId')}
                   </span>
                 </div>
                 {lang === 'id' && <CheckCircle2 size={18} color="var(--accent-cyan)" />}
@@ -454,10 +454,10 @@ export default function AccountSettingsPage({ me, refreshMe }) {
               >
                 <div>
                   <strong style={{ display: 'block', color: 'var(--text-primary)', fontSize: '0.95rem' }}>
-                    🇺🇸 {t('settings.language.labelEn')}
+                    {`🇺🇸 ${t('settings.language.labelEn')}`}
                   </strong>
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    International English
+                    {t('settings.language.subEn')}
                   </span>
                 </div>
                 {lang === 'en' && <CheckCircle2 size={18} color="var(--accent-cyan)" />}
@@ -473,10 +473,10 @@ export default function AccountSettingsPage({ me, refreshMe }) {
           <div className="security-card-header">
             <div>
               <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                Informasi Profil Pribadi
+                {t('settings.profile.cardTitle')}
               </h2>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                Nama lengkap dan merek bisnis yang digunakan sebagai identitas akun Anda.
+                {t('settings.profile.cardSub')}
               </p>
             </div>
           </div>
@@ -497,7 +497,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
 
             <form onSubmit={handleSaveProfile} className="auth-form" style={{ maxWidth: '480px' }}>
               <div className="auth-field">
-                <label className="auth-field-label">Nama Lengkap</label>
+                <label className="auth-field-label">{t('settings.profile.nameLabel')}</label>
                 <input
                   type="text"
                   className="auth-input"
@@ -508,7 +508,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
               </div>
 
               <div className="auth-field">
-                <label className="auth-field-label">Nama Merek / Bisnis Utama</label>
+                <label className="auth-field-label">{t('settings.profile.brandNameLabel')}</label>
                 <input
                   type="text"
                   className="auth-input"
@@ -519,7 +519,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
               </div>
 
               <div className="auth-field">
-                <label className="auth-field-label">Niche / Industri Bisnis</label>
+                <label className="auth-field-label">{t('settings.profile.nicheLabel')}</label>
                 <input
                   type="text"
                   className="auth-input"
@@ -537,7 +537,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
                   <Save size={15} />
-                  <span>{savingProfile ? 'Menyimpan…' : 'Simpan Perubahan'}</span>
+                  <span>{savingProfile ? t('settings.profile.saving') : t('settings.profile.saveBtn')}</span>
                 </button>
               </div>
             </form>
@@ -551,10 +551,10 @@ export default function AccountSettingsPage({ me, refreshMe }) {
           <div className="security-card-header">
             <div>
               <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                Ubah Kata Sandi
+                {t('settings.passwordChange.cardTitle')}
               </h2>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                Perbarui kata sandi Anda secara berkala. Seluruh sesi di perangkat lain akan dicabut otomatis.
+                {t('settings.passwordChange.cardSub')}
               </p>
             </div>
           </div>
@@ -575,7 +575,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
 
             <form onSubmit={handleSavePassword} className="auth-form" style={{ maxWidth: '480px' }}>
               <div className="auth-field">
-                <label className="auth-field-label">Kata Sandi Saat Ini</label>
+                <label className="auth-field-label">{t('settings.passwordChange.currentPasswordLabel')}</label>
                 <input
                   type="password"
                   className="auth-input"
@@ -587,7 +587,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
               </div>
 
               <div className="auth-field">
-                <label className="auth-field-label">Kata Sandi Baru (Min. 10 karakter)</label>
+                <label className="auth-field-label">{t('settings.passwordChange.newPasswordLabel')}</label>
                 <input
                   type="password"
                   className="auth-input"
@@ -600,7 +600,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
               </div>
 
               <div className="auth-field">
-                <label className="auth-field-label">Konfirmasi Kata Sandi Baru</label>
+                <label className="auth-field-label">{t('settings.passwordChange.confirmPasswordLabel')}</label>
                 <input
                   type="password"
                   className="auth-input"
@@ -619,7 +619,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
                   <KeyRound size={15} />
-                  <span>{savingPassword ? 'Memperbarui…' : 'Perbarui Kata Sandi'}</span>
+                  <span>{savingPassword ? t('settings.passwordChange.processing') : t('settings.passwordChange.submitBtn')}</span>
                 </button>
               </div>
             </form>
@@ -633,10 +633,10 @@ export default function AccountSettingsPage({ me, refreshMe }) {
           <div className="security-card-header">
             <div>
               <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                Perbarui Alamat Email
+                {t('settings.emailChange.cardTitle')}
               </h2>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                Email saat ini: <strong>{user.email}</strong>
+                {t('settings.emailChange.currentEmail')} <strong>{user.email}</strong>
               </p>
             </div>
           </div>
@@ -668,14 +668,14 @@ export default function AccountSettingsPage({ me, refreshMe }) {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: 'var(--accent-cyan)', marginBottom: '4px' }}>
                 <ShieldCheck size={16} />
-                <span>Prosedur Keamanan Perubahan Email</span>
+                <span>{t('settings.emailChange.securityNoticeTitle')}</span>
               </div>
-              Tautan verifikasi akan dikirimkan ke alamat email baru Anda. Alamat email akun Anda hanya akan resmi berganti setelah Anda mengklik tautan verifikasi tersebut. Notifikasi keamanan juga akan dikirimkan ke email lama.
+              {t('settings.emailChange.securityNoticeDesc')}
             </div>
 
             <form onSubmit={handleSaveEmail} className="auth-form" style={{ maxWidth: '480px' }}>
               <div className="auth-field">
-                <label className="auth-field-label">Alamat Email Baru</label>
+                <label className="auth-field-label">{t('settings.emailChange.newEmailLabel')}</label>
                 <input
                   type="email"
                   className="auth-input"
@@ -687,7 +687,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
               </div>
 
               <div className="auth-field">
-                <label className="auth-field-label">Konfirmasi Kata Sandi Akun</label>
+                <label className="auth-field-label">{t('settings.emailChange.confirmPasswordLabel')}</label>
                 <input
                   type="password"
                   className="auth-input"
@@ -706,7 +706,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
                   <Mail size={15} />
-                  <span>{savingEmail ? 'Mengirimkan Tautan…' : 'Kirim Tautan Verifikasi Email Baru'}</span>
+                  <span>{savingEmail ? t('settings.emailChange.processing') : t('settings.emailChange.submitBtn')}</span>
                 </button>
               </div>
             </form>
@@ -720,10 +720,10 @@ export default function AccountSettingsPage({ me, refreshMe }) {
           <div className="security-card-header">
             <div>
               <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                Ekspor Seluruh Data Akun
+                {t('settings.export.cardTitle')}
               </h2>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                Unduh salinan data profil, workspace, artikel SEO, pengaturan CMS (tanpa kunci rahasia), dan ledger kredit Anda.
+                {t('settings.export.cardSub')}
               </p>
             </div>
           </div>
@@ -748,7 +748,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
               maxWidth: '540px'
             }}>
               <p style={{ margin: 0 }}>
-                Data akan diekspor dalam format <strong>JSON</strong> standar yang dapat Anda simpan atau gunakan sebagai cadangan (portabilitas data GDPR). Data kredensial koneksi CMS dan hash kata sandi otomatis dikecualikan demi keamanan.
+                {t('settings.export.gdprNotice')}
               </p>
             </div>
 
@@ -760,7 +760,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
               <Download size={15} />
-              <span>{exporting ? 'Menyiapkan File…' : 'Unduh File Ekspor (.JSON)'}</span>
+              <span>{exporting ? t('settings.export.exporting') : t('settings.export.exportBtn')}</span>
             </button>
           </div>
         </div>
@@ -773,10 +773,10 @@ export default function AccountSettingsPage({ me, refreshMe }) {
             <div>
               <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--accent-red)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <AlertTriangle size={16} />
-                <span>Zona Berbahaya: Hapus Akun</span>
+                <span>{t('settings.deletion.dangerZoneTitle')}</span>
               </h2>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
-                Permintaan penghapusan permanen akun Markimate dan workspace terkait.
+                {t('settings.deletion.dangerZoneSub')}
               </p>
             </div>
           </div>
@@ -785,7 +785,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
             {deleteSuccess && (
               <div className="auth-alert-box auth-alert-success" style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <CheckCircle2 size={16} />
-                <span>{deleteSuccess} Anda akan dialihkan ke halaman login…</span>
+                <span>{`${deleteSuccess} ${t('settings.deletion.redirecting')}`}</span>
               </div>
             )}
 
@@ -809,15 +809,15 @@ export default function AccountSettingsPage({ me, refreshMe }) {
                 maxWidth: '540px'
               }}>
                 <strong style={{ color: 'var(--accent-red)', display: 'block', marginBottom: '4px' }}>
-                  Transfer Kepemilikan Diperlukan
+                  {t('settings.deletion.transferRequiredTitle')}
                 </strong>
-                Anda masih menjadi owner pada workspace berikut yang memiliki anggota lain:
+                {t('settings.deletion.transferRequiredDesc')}
                 <ul style={{ margin: '6px 0 0 16px', padding: 0 }}>
                   {blockedWorkspaces.map(w => (
                     <li key={w.id}><strong>{w.name}</strong></li>
                   ))}
                 </ul>
-                Buka menu <em>Anggota & Tim</em> untuk mengalihkan kepemilikan workspace kepada anggota lain terlebih dahulu.
+                {t('settings.deletion.transferRequiredAction')}
               </div>
             )}
 
@@ -833,18 +833,18 @@ export default function AccountSettingsPage({ me, refreshMe }) {
               maxWidth: '540px'
             }}>
               <p style={{ margin: '0 0 6px 0', fontWeight: 600, color: 'var(--text-primary)' }}>
-                Ketentuan Masa Tenggang 30 Hari:
+                {t('settings.deletion.gracePeriodTitle')}
               </p>
               <ul style={{ margin: 0, paddingLeft: '16px' }}>
-                <li>Seluruh sesi aktif di semua perangkat akan dicabut seketika.</li>
-                <li>Seluruh jadwal penulisan otomatis dan sumber topik Google Trends akan dinonaktifkan.</li>
-                <li>Data akun akan disimpan selama 30 hari. Jika berubah pikiran, cukup login kembali sebelum 30 hari berakhir untuk membatalkan penghapusan.</li>
+                <li>{t('settings.deletion.graceRule1')}</li>
+                <li>{t('settings.deletion.graceRule2')}</li>
+                <li>{t('settings.deletion.graceRule3')}</li>
               </ul>
             </div>
 
             <form onSubmit={handleDeleteAccount} className="auth-form" style={{ maxWidth: '480px' }}>
               <div className="auth-field">
-                <label className="auth-field-label">Kata Sandi Akun</label>
+                <label className="auth-field-label">{t('settings.deletion.passwordLabel')}</label>
                 <input
                   type="password"
                   className="auth-input"
@@ -857,7 +857,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
 
               <div className="auth-field">
                 <label className="auth-field-label">
-                  Ketik kata <strong style={{ color: 'var(--accent-red)' }}>HAPUS</strong> untuk konfirmasi
+                  {t('settings.deletion.confirmInstruction', { word: 'HAPUS' })}
                 </label>
                 <input
                   type="text"

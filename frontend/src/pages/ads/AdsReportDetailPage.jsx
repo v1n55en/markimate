@@ -322,7 +322,7 @@ export default function AdsReportDetailPage({ user }) {
               <div style={styles.subCard} className="card">
                 <div style={styles.cardHeaderSmall}>
                   <Layers size={16} color="var(--accent-cyan)" />
-                  <h3 style={styles.cardTitleSmall}>Distribusi Saluran</h3>
+                  <h3 style={styles.cardTitleSmall}>{t('ads.detail.channelDistribution')}</h3>
                 </div>
                 <div style={styles.breakdownList}>
                   {report.platformBreakdown.map((item, idx) => (
@@ -330,7 +330,7 @@ export default function AdsReportDetailPage({ user }) {
                       <div style={styles.breakdownMeta}>
                         <span style={styles.breakdownName}>{item.name}</span>
                         <span style={styles.breakdownVal}>
-                          {formatCompactIDR(item.spend)} ({item.sharePct || Math.round(item.roas)}%)
+                          {`${formatCompactIDR(item.spend)} (${item.sharePct || Math.round(item.roas)}%)`}
                         </span>
                       </div>
                       <div style={styles.progressTrack}>
@@ -343,8 +343,8 @@ export default function AdsReportDetailPage({ user }) {
                         />
                       </div>
                       <div style={styles.breakdownSub}>
-                        <span>Hasil: {formatNumber(item.results)}</span>
-                        <span>ROAS: <strong>{formatRoas(item.roas)}</strong></span>
+                        <span>{t('ads.detail.labelResults')} {formatNumber(item.results)}</span>
+                        <span>{t('ads.detail.labelRoas')} <strong>{formatRoas(item.roas)}</strong></span>
                       </div>
                     </div>
                   ))}
@@ -357,7 +357,7 @@ export default function AdsReportDetailPage({ user }) {
               <div style={styles.subCard} className="card">
                 <div style={styles.cardHeaderSmall}>
                   <ShoppingBag size={16} color="var(--accent-green)" />
-                  <h3 style={styles.cardTitleSmall}>Penempatan Iklan (Placements)</h3>
+                  <h3 style={styles.cardTitleSmall}>{t('ads.detail.placements')}</h3>
                 </div>
                 <div style={styles.breakdownList}>
                   {report.placement.map((p, idx) => (
@@ -379,14 +379,14 @@ export default function AdsReportDetailPage({ user }) {
       {/* 5. Demografi Usia & Gender */}
       {report.demographics && (
         <div style={styles.section}>
-          <h2 style={styles.sectionHeading}>5. Profil Demografi Audiens</h2>
+          <h2 style={styles.sectionHeading}>{t('ads.detail.section5Title')}</h2>
           <div style={styles.dualGrid}>
             {/* Gender */}
             {report.demographics.gender && (
               <div style={styles.subCard} className="card">
                 <div style={styles.cardHeaderSmall}>
                   <Users size={16} color="var(--accent-cyan)" />
-                  <h3 style={styles.cardTitleSmall}>Komposisi Gender</h3>
+                  <h3 style={styles.cardTitleSmall}>{t('ads.detail.genderComposition')}</h3>
                 </div>
                 <div style={styles.genderRow}>
                   {report.demographics.gender.map((g, idx) => (
@@ -408,7 +408,7 @@ export default function AdsReportDetailPage({ user }) {
               <div style={styles.subCard} className="card">
                 <div style={styles.cardHeaderSmall}>
                   <Users size={16} color="var(--accent-yellow)" />
-                  <h3 style={styles.cardTitleSmall}>Sebaran Kelompok Usia</h3>
+                  <h3 style={styles.cardTitleSmall}>{t('ads.detail.ageDistribution')}</h3>
                 </div>
                 <div style={styles.ageList}>
                   {report.demographics.age.map((a, idx) => (
@@ -436,8 +436,8 @@ export default function AdsReportDetailPage({ user }) {
       {report.topProducts?.length > 0 && (
         <div style={styles.section}>
           <div style={styles.sectionTitleRow}>
-            <h2 style={styles.sectionHeading}>6. Produk Terlaris (Shopee & GMV Max Toko)</h2>
-            <span style={styles.countBadge}>{report.topProducts.length} Produk Unggulan</span>
+            <h2 style={styles.sectionHeading}>{t('ads.detail.section6Title')}</h2>
+            <span style={styles.countBadge}>{t('ads.detail.featuredProducts', { count: report.topProducts.length })}</span>
           </div>
           <div style={styles.productsGrid}>
             {report.topProducts.map((prod) => (
@@ -456,21 +456,21 @@ export default function AdsReportDetailPage({ user }) {
                   <h4 style={styles.productName} title={prod.name}>{prod.name}</h4>
                   <div style={styles.productMetricsGrid}>
                     <div>
-                      <span style={styles.prodMetricLabel}>Spend</span>
+                      <span style={styles.prodMetricLabel}>{t('ads.detail.prodSpend')}</span>
                       <strong style={styles.prodMetricVal}>{formatCompactIDR(prod.spend)}</strong>
                     </div>
                     <div>
-                      <span style={styles.prodMetricLabel}>GMV Penjualan</span>
+                      <span style={styles.prodMetricLabel}>{t('ads.detail.prodGmv')}</span>
                       <strong style={{ ...styles.prodMetricVal, color: 'var(--accent-green)' }}>
                         {formatCompactIDR(prod.gmv)}
                       </strong>
                     </div>
                     <div>
-                      <span style={styles.prodMetricLabel}>Pesanan</span>
+                      <span style={styles.prodMetricLabel}>{t('ads.detail.prodOrders')}</span>
                       <strong style={styles.prodMetricVal}>{formatNumber(prod.orders)}</strong>
                     </div>
                     <div>
-                      <span style={styles.prodMetricLabel}>ROAS Produk</span>
+                      <span style={styles.prodMetricLabel}>{t('ads.detail.prodRoas')}</span>
                       <strong style={{ ...styles.prodMetricVal, color: 'var(--accent-cyan)' }}>
                         {formatRoas(prod.roas)}
                       </strong>
@@ -486,14 +486,14 @@ export default function AdsReportDetailPage({ user }) {
       {/* 7. Performa Materi Kreatif (Top & Lowest) */}
       {(report.creatives?.length > 0 || report.lowestCreatives?.length > 0) && (
         <div style={styles.section}>
-          <h2 style={styles.sectionHeading}>7. Evaluasi Materi Kreatif (Creatives)</h2>
+          <h2 style={styles.sectionHeading}>{t('ads.detail.section7Title')}</h2>
           <div style={styles.dualGrid}>
             {/* Top Creatives */}
             {report.creatives?.length > 0 && (
               <div style={styles.subCard} className="card">
                 <div style={styles.cardHeaderSmall}>
                   <Award size={16} color="var(--accent-green)" />
-                  <h3 style={styles.cardTitleSmall}>Top Performing Creatives</h3>
+                  <h3 style={styles.cardTitleSmall}>{t('ads.detail.topCreatives')}</h3>
                 </div>
                 <div style={styles.creativeList}>
                   {report.creatives.map((c) => (
@@ -508,9 +508,9 @@ export default function AdsReportDetailPage({ user }) {
                         <strong style={styles.creativeTitle}>{c.title}</strong>
                         <span style={styles.creativeFormat}>{c.format}</span>
                         <div style={styles.creativeStats}>
-                          <span>CTR: <strong>{formatPercent(c.ctr)}</strong></span>
-                          <span>ROAS: <strong style={{ color: 'var(--accent-green)' }}>{formatRoas(c.roas)}</strong></span>
-                          <span>Hasil: <strong>{c.results}</strong></span>
+                          <span>{t('ads.detail.labelCtr')} <strong>{formatPercent(c.ctr)}</strong></span>
+                          <span>{t('ads.detail.labelRoas')} <strong style={{ color: 'var(--accent-green)' }}>{formatRoas(c.roas)}</strong></span>
+                          <span>{t('ads.detail.labelResults')} <strong>{c.results}</strong></span>
                         </div>
                       </div>
                     </div>
@@ -524,7 +524,7 @@ export default function AdsReportDetailPage({ user }) {
               <div style={styles.subCard} className="card">
                 <div style={styles.cardHeaderSmall}>
                   <AlertCircle size={16} color="var(--accent-yellow)" />
-                  <h3 style={styles.cardTitleSmall}>Perlu Dioptimasi / Diganti</h3>
+                  <h3 style={styles.cardTitleSmall}>{t('ads.detail.needsOptimization')}</h3>
                 </div>
                 <div style={styles.creativeList}>
                   {report.lowestCreatives.map((c) => (
@@ -557,9 +557,9 @@ export default function AdsReportDetailPage({ user }) {
               <Sparkles size={20} color="var(--accent-cyan)" />
             </div>
             <div>
-              <h2 style={styles.sectionHeading}>8. Rekomendasi & Insight Strategis AI</h2>
+              <h2 style={styles.sectionHeading}>{t('ads.detail.section8Title')}</h2>
               <p style={styles.insightSubtitle}>
-                Dihasilkan oleh model analitik periklanan 3Our berdasarkan data riil platform
+                {t('ads.detail.aiInsightSub')}
               </p>
             </div>
           </div>

@@ -1,24 +1,130 @@
-import js from '@eslint/js'
-import globals from 'globals'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import { defineConfig, globalIgnores } from 'eslint/config'
+import js from '@eslint/js';
+import globals from 'globals';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
+import i18next from 'eslint-plugin-i18next';
+import { defineConfig, globalIgnores } from 'eslint/config';
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', 'scripts']),
   {
-    files: ['**/*.{js,jsx}'],
+    files: ['src/**/*.{js,jsx}'],
+    plugins: {
+      i18next,
+    },
     extends: [
       js.configs.recommended,
       reactHooks.configs.flat.recommended,
       reactRefresh.configs.vite,
     ],
     languageOptions: {
-      globals: globals.browser,
+      globals: {
+        ...globals.browser,
+        process: 'readonly',
+      },
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
     rules: {
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      'no-empty': ['error', { allowEmptyCatch: true }],
       'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/purity': 'off',
+      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      'i18next/no-literal-string': ['error', {
+        mode: 'jsx-text-only',
+        'should-validate-template': false,
+        words: {
+          // Brand names, acronyms, and symbols exempted from translation (PRD F3 Langkah 3)
+          exclude: [
+            'Markimate',
+            '3Our',
+            'WordPress',
+            'Wix',
+            'Sanity',
+            'Shopify',
+            'Webflow',
+            'Ghost',
+            'Blogger',
+            'Google',
+            'Meta',
+            'TikTok',
+            'Pro',
+            'POST',
+            'GET',
+            'DELETE',
+            'HAPUS',
+            'PATCH',
+            'WIB',
+            'WITA',
+            'WIT',
+            'UTC',
+            'IDR',
+            'USD',
+            'KD',
+            'CTA',
+            'URL',
+            'API',
+            'SEO',
+            'CMS',
+            'AI',
+            'UUID',
+            'JSON',
+            'Alt',
+            'cr',
+            'Trends',
+            'Manual',
+            'ID',
+            'EN',
+            'Rp',
+            'powered by 3our',
+            '·',
+            '→',
+            '←',
+            '\\*',
+            '\\d+',
+            '\\d+\\/\\d+',
+            '\\d+%',
+            '\\d+x',
+            '\\d+k',
+            '\\d+M',
+            '©',
+            '⚡',
+            '👑',
+            '🎯',
+            'info@3ourasia.id',
+            '\\+62.*',
+            'Meta Ads \\(FB & IG\\)',
+            'Google Ads & PMax',
+            'TikTok Ads API',
+            'TikTok Shop \\| Tokopedia',
+            'Shopee Ads & Open Platform',
+            'WordPress REST API',
+            'Wix Headless',
+            'Sanity CMS',
+            'Shopify Blog',
+            '\\+',
+            '\\-',
+            '\\%',
+            '•',
+            '–',
+            '—',
+            '“',
+            '”',
+            '✓',
+            '⚠️',
+            '/',
+            ':',
+            '\\(',
+            '\\)',
+            '\\#',
+            '\\&',
+            '\\|',
+            '\\>',
+            '\\<',
+            '\\.\\.\\.'
+          ]
+        }
+      }],
     },
   },
-])
+]);

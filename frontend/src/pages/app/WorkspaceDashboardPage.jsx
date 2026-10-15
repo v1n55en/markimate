@@ -130,19 +130,19 @@ export default function WorkspaceDashboardPage({ me }) {
                 />
               </div>
               <div>
-                <h3 style={styles.cardTitle}>SEO Specialist</h3>
-                <span style={styles.cardCategory}>Content & Organik</span>
+                <h3 style={styles.cardTitle}>{t('app.dashboard.roleSeo')}</h3>
+                <span style={styles.cardCategory}>{t('app.dashboard.seoCat')}</span>
               </div>
             </div>
             {isSeoActive ? (
               <span style={styles.activeStatusTag}>
                 <Check size={11} />
-                Aktif
+                {t('common.active')}
               </span>
             ) : (
               <span style={styles.lockedStatusTag}>
                 <Lock size={11} />
-                Terkunci
+                {t('common.locked')}
               </span>
             )}
           </div>
@@ -150,31 +150,31 @@ export default function WorkspaceDashboardPage({ me }) {
           {isSeoActive ? (
             <div style={styles.cardBody}>
               <p style={styles.cardDesc}>
-                Automasi riset keyword dan penulisan artikel SEO dengan persetujuan manusia sebelum dipublikasikan ke CMS.
+                {t('app.dashboard.seoDescActive')}
               </p>
               <div style={styles.kpiRow}>
                 <div style={styles.kpiBlock}>
-                  <span style={styles.kpiLabel}>Artikel Bulan Ini</span>
+                  <span style={styles.kpiLabel}>{t('app.dashboard.seoArticlesMonth')}</span>
                   <strong style={styles.kpiValue}>
                     {seoRuns} <span style={styles.kpiSub}>/ {seoLimit}</span>
                   </strong>
                 </div>
                 <div style={styles.kpiBlock}>
-                  <span style={styles.kpiLabel}>Status CMS</span>
+                  <span style={styles.kpiLabel}>{t('app.dashboard.cmsStatus')}</span>
                   <strong style={{ ...styles.kpiValue, color: 'var(--accent-green)' }}>
-                    Terhubung
+                    {t('app.dashboard.connected')}
                   </strong>
                 </div>
               </div>
               <Link to="/app/seo/keywords" style={styles.cardActionBtn}>
-                <span>Kelola Automasi SEO</span>
+                <span>{t('app.dashboard.manageSeo')}</span>
                 <ArrowRight size={14} />
               </Link>
             </div>
           ) : (
             <div style={styles.cardBodyLocked}>
               <p style={styles.lockedDesc}>
-                Riset keyword otomatis, tulis artikel SEO 1.200+ kata, dan terbitkan langsung ke CMS WordPress/Wix.
+                {t('app.dashboard.seoDescLocked')}
               </p>
               <div style={styles.lockedPriceBox}>
                 <span>{t('app.dashboard.fromPrice')} <strong>{formatIDR(MODULE_PRICES.seo, lang)}</strong>{t('app.dashboard.perMonth')}</span>
@@ -182,7 +182,7 @@ export default function WorkspaceDashboardPage({ me }) {
               </div>
               <Link to="/app/modules/seo" style={styles.cardActivateBtn}>
                 <Sparkles size={14} />
-                <span>Aktifkan SEO Specialist</span>
+                <span>{t('app.dashboard.activateSeo')}</span>
               </Link>
             </div>
           )}
@@ -212,19 +212,19 @@ export default function WorkspaceDashboardPage({ me }) {
                 />
               </div>
               <div>
-                <h3 style={styles.cardTitle}>Ads Specialist</h3>
-                <span style={styles.cardCategory}>Report Semua Platform</span>
+                <h3 style={styles.cardTitle}>{t('app.dashboard.roleAds')}</h3>
+                <span style={styles.cardCategory}>{t('app.dashboard.adsCat')}</span>
               </div>
             </div>
             {isAdsActive ? (
               <span style={styles.activeStatusTag}>
                 <Check size={11} />
-                Aktif
+                {t('common.active')}
               </span>
             ) : (
               <span style={styles.lockedStatusTag}>
                 <Lock size={11} />
-                Terkunci
+                {t('common.locked')}
               </span>
             )}
           </div>
@@ -232,23 +232,23 @@ export default function WorkspaceDashboardPage({ me }) {
           {isAdsActive ? (
             <div style={styles.cardBody}>
               <p style={styles.cardDesc}>
-                Konsolidasi laporan performa Meta, Google, TikTok, GMV Max, dan Shopee Ads dengan analitik ROAS AI.
+                {t('app.dashboard.adsDescActive')}
               </p>
               {loading ? (
                 <div style={styles.loadingBox}>
                   <RefreshCw size={16} className="spin" />
-                  <span>Memuat ringkasan ads…</span>
+                  <span>{t('app.dashboard.adsLoading')}</span>
                 </div>
               ) : (
                 <div style={styles.kpiRow}>
                   <div style={styles.kpiBlock}>
-                    <span style={styles.kpiLabel}>Total Spend (Bln Lalu)</span>
+                    <span style={styles.kpiLabel}>{t('app.dashboard.adsTotalSpend')}</span>
                     <strong style={styles.kpiValue}>
                       {adsSummary ? formatCompactIDR(adsSummary.totals.spend) : 'Rp 0'}
                     </strong>
                   </div>
                   <div style={styles.kpiBlock}>
-                    <span style={styles.kpiLabel}>ROAS Gabungan</span>
+                    <span style={styles.kpiLabel}>{t('app.dashboard.adsBlendedRoas')}</span>
                     <strong style={{ ...styles.kpiValue, color: 'var(--accent-cyan)' }}>
                       {adsSummary ? formatRoas(adsSummary.totals.roas) : '0x'}
                     </strong>
@@ -256,19 +256,19 @@ export default function WorkspaceDashboardPage({ me }) {
                 </div>
               )}
               <div style={styles.subMetaRow}>
-                <span>{connectedCount} platform terhubung</span>
-                <span>·</span>
+                <span>{t('app.dashboard.adsConnectedPlatforms', { count: connectedCount })}</span>
+                <span>{'·'}</span>
                 <span>{adsSummary?.period || 'September 2026'}</span>
               </div>
               <Link to="/app/ads" style={styles.cardActionBtn}>
-                <span>Lihat Laporan Iklan</span>
+                <span>{t('app.dashboard.viewAdReports')}</span>
                 <ArrowRight size={14} />
               </Link>
             </div>
           ) : (
             <div style={styles.cardBodyLocked}>
               <p style={styles.lockedDesc}>
-                Laporan konsolidasi 5 platform iklan & marketplace siap kirim ke Slides & Sheets untuk review bulanan.
+                {t('app.dashboard.adsDescLocked')}
               </p>
               <div style={styles.lockedPriceBox}>
                 <span>{t('app.dashboard.fromPrice')} <strong>{formatIDR(MODULE_PRICES.ads_report, lang)}</strong>{t('app.dashboard.perMonth')}</span>
@@ -276,7 +276,7 @@ export default function WorkspaceDashboardPage({ me }) {
               </div>
               <Link to="/app/modules/ads_report" style={styles.cardActivateBtn}>
                 <Sparkles size={14} />
-                <span>Aktifkan Ads Specialist</span>
+                <span>{t('app.dashboard.activateAds')}</span>
               </Link>
             </div>
           )}
@@ -306,19 +306,19 @@ export default function WorkspaceDashboardPage({ me }) {
                 />
               </div>
               <div>
-                <h3 style={styles.cardTitle}>Ads Creative Spy</h3>
-                <span style={styles.cardCategory}>Riset & Intelijen</span>
+                <h3 style={styles.cardTitle}>{t('app.dashboard.roleSpy')}</h3>
+                <span style={styles.cardCategory}>{t('app.dashboard.spyCat')}</span>
               </div>
             </div>
             {isSpyActive ? (
               <span style={styles.activeStatusTag}>
                 <Check size={11} />
-                Aktif
+                {t('common.active')}
               </span>
             ) : (
               <span style={styles.lockedStatusTag}>
                 <Lock size={11} />
-                Terkunci
+                {t('common.locked')}
               </span>
             )}
           </div>
@@ -326,36 +326,37 @@ export default function WorkspaceDashboardPage({ me }) {
           {isSpyActive ? (
             <div style={styles.cardBody}>
               <p style={styles.cardDesc}>
-                Pantau library iklan kompetitor secara otomatis, temukan creative winning, dan rangkum formula hook.
+                {t('app.dashboard.spyDescActive')}
               </p>
               <div style={styles.kpiRow}>
                 <div style={styles.kpiBlock}>
-                  <span style={styles.kpiLabel}>Kompetitor Dipantau</span>
+                  <span style={styles.kpiLabel}>{t('app.dashboard.spyTrackedCompetitors')}</span>
                   <strong style={styles.kpiValue}>
-                    3 <span style={styles.kpiSub}>/ 5</span>
+                    {'3 '}
+                    <span style={styles.kpiSub}>{t('app.dashboard.outOfFive')}</span>
                   </strong>
                 </div>
                 <div style={styles.kpiBlock}>
-                  <span style={styles.kpiLabel}>Creative Baru (Mg Ini)</span>
+                  <span style={styles.kpiLabel}>{t('app.dashboard.spyNewCreatives')}</span>
                   <strong style={{ ...styles.kpiValue, color: 'var(--accent-yellow)' }}>
-                    +14 Iklan
+                    {t('app.dashboard.spyAdsCount', { count: 14 })}
                   </strong>
                 </div>
               </div>
               <div style={styles.subMetaRow}>
-                <span>Meta Ad Library</span>
-                <span>·</span>
-                <span>Scan Mingguan Otomatis</span>
+                <span>{t('app.dashboard.metaAdLibrary')}</span>
+                <span>{'·'}</span>
+                <span>{t('app.dashboard.autoWeeklyScan')}</span>
               </div>
               <Link to="/app/spy" style={styles.cardActionBtn}>
-                <span>Buka Creative Spy</span>
+                <span>{t('app.dashboard.openCreativeSpy')}</span>
                 <ArrowRight size={14} />
               </Link>
             </div>
           ) : (
             <div style={styles.cardBodyLocked}>
               <p style={styles.lockedDesc}>
-                Deteksi iklan kompetitor yang sedang tayang, analisa hook & penawaran, dan simpan ke swipe file brand Anda.
+                {t('app.dashboard.spyDescLocked')}
               </p>
               <div style={styles.lockedPriceBox}>
                 <span>{t('app.dashboard.fromPrice')} <strong>{formatIDR(MODULE_PRICES.ads_spy, lang)}</strong>{t('app.dashboard.perMonth')}</span>
@@ -363,7 +364,7 @@ export default function WorkspaceDashboardPage({ me }) {
               </div>
               <Link to="/app/modules/ads_spy" style={styles.cardActivateBtn}>
                 <Sparkles size={14} />
-                <span>Aktifkan Creative Spy</span>
+                <span>{t('app.dashboard.activateSpy')}</span>
               </Link>
             </div>
           )}
@@ -374,14 +375,14 @@ export default function WorkspaceDashboardPage({ me }) {
       <div style={styles.activityCard} className="card">
         <div style={styles.activityHeader}>
           <div>
-            <h3 style={styles.activityTitle}>Hasil Kerja Tim AI Terbaru</h3>
+            <h3 style={styles.activityTitle}>{t('app.dashboard.recentActivityTitle')}</h3>
             <p style={styles.activitySub}>
-              Setiap hasil kerja AI melewati proses review manusia sebelum dipublikasikan atau dikirim.
+              {t('app.dashboard.recentActivitySub')}
             </p>
           </div>
           <span style={styles.humanReviewBadge}>
             <CheckCircle2 size={13} color="var(--accent-green)" />
-            Human-in-the-loop Aktif
+            {t('app.dashboard.hitlActive')}
           </span>
         </div>
 
@@ -393,14 +394,14 @@ export default function WorkspaceDashboardPage({ me }) {
               </div>
               <div style={styles.activityInfo}>
                 <strong style={styles.activityItemTitle}>
-                  Laporan Iklan Periode September 2026 ({activeWorkspace?.name})
+                  {t('app.dashboard.activityAdsTitle', { name: activeWorkspace?.name || '' })}
                 </strong>
                 <span style={styles.activityItemMeta}>
-                  Ads Specialist · Disetujui & Siap Presentasi di Google Slides & Sheets
+                  {t('app.dashboard.activityAdsMeta')}
                 </span>
               </div>
               <Link to="/app/ads/reports" style={styles.activityActionLink}>
-                <span>Buka Laporan</span>
+                <span>{t('app.dashboard.openReport')}</span>
                 <ExternalLink size={13} />
               </Link>
             </div>
@@ -413,14 +414,14 @@ export default function WorkspaceDashboardPage({ me }) {
               </div>
               <div style={styles.activityInfo}>
                 <strong style={styles.activityItemTitle}>
-                  Artikel SEO: &ldquo;Strategi Digital Marketing Terpadu untuk Brand Modern&rdquo;
+                  {t('app.dashboard.activitySeoTitle')}
                 </strong>
                 <span style={styles.activityItemMeta}>
-                  SEO Specialist · 1.450 kata · Status: Review Ready (Menunggu Persetujuan)
+                  {t('app.dashboard.activitySeoMeta')}
                 </span>
               </div>
               <Link to="/app/seo/keywords" style={styles.activityActionLink}>
-                <span>Tinjau Draf</span>
+                <span>{t('app.dashboard.reviewDraft')}</span>
                 <ArrowRight size={13} />
               </Link>
             </div>
@@ -433,14 +434,14 @@ export default function WorkspaceDashboardPage({ me }) {
               </div>
               <div style={styles.activityInfo}>
                 <strong style={styles.activityItemTitle}>
-                  Insight Mingguan: 14 Pola Copy & Visual Winning Ads Kompetitor
+                  {t('app.dashboard.activitySpyTitle')}
                 </strong>
                 <span style={styles.activityItemMeta}>
-                  Ads Creative Spy · Dominan format Vertical Reels & Penawaran Bundling
+                  {t('app.dashboard.activitySpyMeta')}
                 </span>
               </div>
               <Link to="/app/spy" style={styles.activityActionLink}>
-                <span>Lihat Insight</span>
+                <span>{t('app.dashboard.viewInsight')}</span>
                 <ArrowRight size={13} />
               </Link>
             </div>
@@ -453,14 +454,14 @@ export default function WorkspaceDashboardPage({ me }) {
         <div style={styles.roadmapTeaserLeft}>
           <Sparkles size={20} color="var(--accent-cyan)" />
           <div>
-            <h4 style={styles.roadmapTitle}>13 Role AI Lainnya Sedang Dalam Pengembangan</h4>
+            <h4 style={styles.roadmapTitle}>{t('app.dashboard.roadmapTitle')}</h4>
             <p style={styles.roadmapSub}>
-              Social Media Specialist, Copywriter, Review Monitor, hingga AI Strategist segera hadir untuk melengkapi tim pemasaran Anda.
+              {t('app.dashboard.roadmapSub')}
             </p>
           </div>
         </div>
         <Link to="/#roles" style={styles.roadmapBtn}>
-          <span>Lihat Semua 16 Role</span>
+          <span>{t('app.dashboard.viewAllRoles')}</span>
           <ArrowRight size={14} />
         </Link>
       </div>

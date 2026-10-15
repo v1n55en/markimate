@@ -107,3 +107,85 @@ Dokumen ini mencatat implementasi dan hasil pengujian untuk perbaikan PRD F3 (Ta
 - Frontend `build`: **100% lolos**.
 
 ---
+
+## Langkah 3: Bersihkan Seluruh Literal String Frontend & Validasi ESLint i18next
+
+### Ringkasan Perubahan
+1. **Konfigurasi ESLint & Integrasi `eslint-plugin-i18next`**:
+   - Memasang `eslint-plugin-i18next` di `frontend/package.json`.
+   - Mengaktifkan aturan `i18next/no-literal-string` pada file antarmuka (`src/pages/**`, `src/components/**`).
+   - Mengonfigurasi `words.exclude` untuk simbol (seperti `•`, `–`, `—`, `✓`, `⚠️`, `©`, `⚡`, `👑`, `🎯`), angka (`\d+`), dan nama teknis/platform resmi (seperti `Meta Ads`, `Google Ads & PMax`, `WordPress REST API`).
+2. **Pembersihan String Hardcoded di Seluruh Komponen & Halaman**:
+   - Mengganti seluruh literal strings menjadi kunci terjemahan dwibahasa di 30+ file frontend.
+   - Mengisi kamus dwibahasa di `frontend/src/i18n/locales/en/` dan `id/` (`ads.js`, `app.js`, `auth.js`, `billing.js`, `common.js`, `public.js`, `seo.js`, `settings.js`, `spy.js`).
+   - Menyediakan komponen dwibahasa penuh untuk:
+     - `AdsReportDetailPage.jsx` (evaluasi materi kreatif, metrik CTR/ROAS/Hasil, insight AI & rekomendasi strategis).
+     - `AdsReportsPage.jsx` & `TrendChart.jsx` (pilihan platform iklan, header grafik, label metrik, tooltip tren).
+     - `ModuleActivatePage.jsx` (bundle hints, status modul, waitlist).
+     - `CreditWalletPage.jsx` & `BillingPage.jsx` (kredit unit, filter modul, bonus badge, paket SEO).
+     - `MembersSettingsPage.jsx` (header tim, notice undangan, modal transfer kepemilikan workspace).
+     - `SecuritySettingsPage.jsx` & `AccountSettingsPage.jsx` (log IP, format tanggal, preferensi bahasa).
+     - `SpyCompetitorsPage.jsx`, `SpyLibraryPage.jsx`, `SpyInsightsPage.jsx` (opsi negara, format ads, CTA badge, landing page URL).
+     - `TermsPage.jsx`, `PrivacyPage.jsx`, `PublicFooter.jsx` (label legal, copyright dinamis, kontak support).
+     - `AuthScreen.jsx` & `WorkspaceSelector.jsx` (niche options, catatan keamanan footer, format workspace).
+     - `KeywordManager.jsx` & `AutoTopicsPage.jsx` (badge gambar terunggah, regenerate AI title, save draft, WIB hour).
+3. **Verifikasi Paritas & Validasi Menyeluruh**:
+   - `scripts/i18n-check.mjs`: Memvalidasi paritas 1.895 kunci kamus EN dan ID (100% cocok tanpa ada kunci yang hilang).
+   - Memastikan tidak ada ternary forbidden atau akses manual `[lang]` di luar whitelist.
+   - Memastikan build frontend dan sitemap generator berjalan sempurna.
+
+### File yang Berubah
+- `frontend/eslint.config.js`
+- `frontend/package.json` & `frontend/package-lock.json`
+- `frontend/src/i18n/locales/en/*.js` (semua domain)
+- `frontend/src/i18n/locales/id/*.js` (semua domain)
+- `frontend/src/components/ads/TrendChart.jsx`
+- `frontend/src/components/common/InsufficientCreditsModal.jsx`
+- `frontend/src/components/common/WorkspaceSelector.jsx`
+- `frontend/src/components/AnalyticsDashboard.jsx`
+- `frontend/src/components/AuthScreen.jsx`
+- `frontend/src/components/BillingPage.jsx`
+- `frontend/src/components/CmsSettings.jsx`
+- `frontend/src/components/KeywordManager.jsx`
+- `frontend/src/components/PublicFooter.jsx`
+- `frontend/src/components/Sidebar.jsx`
+- `frontend/src/content/legal-content.js`
+- `frontend/src/pages/ads/AdsReportDetailPage.jsx`
+- `frontend/src/pages/ads/AdsReportsPage.jsx`
+- `frontend/src/pages/app/AccountSettingsPage.jsx`
+- `frontend/src/pages/app/MembersSettingsPage.jsx`
+- `frontend/src/pages/app/ModuleActivatePage.jsx`
+- `frontend/src/pages/app/SecuritySettingsPage.jsx`
+- `frontend/src/pages/app/WorkspaceDashboardPage.jsx`
+- `frontend/src/pages/billing/CreditWalletPage.jsx`
+- `frontend/src/pages/public/LandingPage.jsx`
+- `frontend/src/pages/public/PrivacyPage.jsx`
+- `frontend/src/pages/public/RoleDetailPage.jsx`
+- `frontend/src/pages/public/TermsPage.jsx`
+- `frontend/src/pages/seo/AutoTopicsPage.jsx`
+- `frontend/src/pages/spy/SpyCompetitorsPage.jsx`
+- `frontend/src/pages/spy/SpyInsightsPage.jsx`
+- `frontend/src/pages/spy/SpyLibraryPage.jsx`
+
+### Cara Tes
+1. ESLint check: `cd frontend && npx eslint src`
+2. Paritas dan validasi kamus: `cd frontend && npm run i18n:check`
+3. Frontend production build: `cd frontend && npm run build`
+4. Backend test suite: `cd backend && npm test`
+5. Pengujian tampilan mobile 390px (iPhone 14) pada browser subagent:
+   - English landing page (`/`)
+   - Indonesian landing page (`/id`)
+   - Halaman Login (`/login`)
+   - Cek horizontal scroll: `document.documentElement.scrollWidth <= window.innerWidth`
+
+### Hasil Tes
+- ESLint (`npx eslint src`): **0 Error** (seluruh 359 error `i18next/no-literal-string` berhasil diselesaikan).
+- `i18n:check`: **100% lolos** (1.895 keys perfectly matched antara EN & ID, 0 error).
+- Frontend `build`: **100% lolos** (0 error, static sitemap & HTML files ter-generate).
+- Backend `npm test`: **100% lolos** (seluruh suite lulus).
+- DevTools 390px: **Lolos** tanpa scroll horizontal, teks dwibahasa tampil bersih tanpa bocor literal string.
+
+### Screenshot (390px)
+- English Landing Page: `/Users/mm/.gemini/antigravity-ide/brain/89c9de70-e913-4338-a204-2dcd46fdf3fe/english_landing_page_1792069136855.png`
+- Indonesian Landing Page: `/Users/mm/.gemini/antigravity-ide/brain/89c9de70-e913-4338-a204-2dcd46fdf3fe/indonesian_landing_page_1792069148321.png`
+- Login Page: `/Users/mm/.gemini/antigravity-ide/brain/89c9de70-e913-4338-a204-2dcd46fdf3fe/login_page_1792069160333.png`

@@ -256,13 +256,13 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                     style={tab === 'creds' ? styles.tabBtnActive : styles.tabBtn}
                     onClick={() => handleTabChange(type, 'creds')}
                   >
-                    Kredensial
+                    {t('seo.cms.tabCreds')}
                   </button>
                   <button
                     style={tab === 'settings' ? styles.tabBtnActive : styles.tabBtn}
                     onClick={() => handleTabChange(type, 'settings')}
                   >
-                    Pengaturan Artikel
+                    {t('seo.cms.tabArticleSettings')}
                   </button>
                 </div>
               )}
@@ -290,7 +290,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                   )}
                   <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
                     <button className="btn btn-primary" onClick={() => save(type)} disabled={st.busy}>
-                      {st.busy ? <Loader2 size={16} className="spin-icon" /> : <Plug size={16} />} Simpan & Tes koneksi
+                      {st.busy ? <Loader2 size={16} className="spin-icon" /> : <Plug size={16} />} {t('seo.cms.saveAndTestBtn')}
                     </button>
                     {sv && (
                       <button className="btn btn-secondary" onClick={() => remove(type)} title="Putuskan">
@@ -306,17 +306,17 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                   <div style={styles.settingBlock}>
                     <div style={styles.settingHeader}>
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>Gambar AI (Hero + Inline)</div>
+                        <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{t('seo.cms.aiImagesTitle')}</div>
                         <div style={styles.sub}>
-                          Didukung: Sanity & WordPress.{' '}
+                          {t('seo.cms.supportedPlatforms')}{' '}
                           <span style={{ color: 'var(--text-muted)' }}>
-                            {type === 'wix' || type === 'shopify' ? '(Wix & Shopify akan dipublish tanpa gambar)' : ''}
+                            {type === 'wix' || type === 'shopify' ? t('seo.cms.wixShopifyNoImageNotice') : ''}
                           </span>
                         </div>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                         {!canUseImages && (
-                          <span style={styles.proLockBadge} onClick={() => goTo && goTo('billing')} title="Tersedia di paket Pro / SEO Specialist">
+                          <span style={styles.proLockBadge} onClick={() => goTo && goTo('billing')} title={t('seo.cms.proAvailableNotice')}>
                             <Lock size={12} /> Pro
                           </span>
                         )}
@@ -340,7 +340,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                     {canUseImages && setg.images?.enabled !== false && (
                       <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         <div>
-                          <label className="form-label">Jumlah Gambar</label>
+                          <label className="form-label">{t('seo.cms.imgCountLabel')}</label>
                           <div style={{ display: 'flex', gap: '0.5rem' }}>
                             {[1, 2, 3].map(cnt => (
                               <button
@@ -349,13 +349,13 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                                 style={setg.images?.count === cnt ? styles.pillActive : styles.pill}
                                 onClick={() => setSettingPath(type, 'images', 'count', cnt)}
                               >
-                                {cnt} {cnt === 1 ? 'Gambar (Hero)' : cnt === 2 ? 'Gambar' : 'Gambar (1 Hero + 2 Inline)'}
+                                {cnt} {cnt === 1 ? t('seo.cms.imgHeroOnly') : cnt === 2 ? t('seo.cms.imgPlural') : t('seo.cms.imgHeroAndInline')}
                               </button>
                             ))}
                           </div>
                         </div>
                         <div>
-                          <label className="form-label">Gaya Gambar (Prompt Style)</label>
+                          <label className="form-label">{t('seo.cms.imgStyleLabel')}</label>
                           <input
                             className="form-input"
                             value={setg.images?.style || ''}
@@ -369,13 +369,13 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
 
                   {/* 2. Internal & External Links */}
                   <div style={styles.settingBlock}>
-                    <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '0.5rem' }}>Penyisipan Link Otomatis</div>
+                    <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '0.5rem' }}>{t('seo.cms.autoLinkingTitle')}</div>
                     
                     {/* Internal link */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                       <div>
-                        <div style={{ fontSize: '0.82rem', fontWeight: 500 }}>Internal Links</div>
-                        <div style={styles.sub}>Tautkan ke artikel relevan yang ada di CMS</div>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 500 }}>{t('seo.cms.internalLinksTitle')}</div>
+                        <div style={styles.sub}>{t('seo.cms.internalLinksDesc')}</div>
                       </div>
                       <label className="switch">
                         <input
@@ -389,7 +389,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                     {setg.links?.internal !== false && (
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '0.5rem', marginBottom: '0.75rem' }}>
                         <div>
-                          <label className="form-label">Maksimal Link</label>
+                          <label className="form-label">{t('seo.cms.maxLinksLabel')}</label>
                           <input
                             type="number"
                             min="1"
@@ -400,7 +400,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                           />
                         </div>
                         <div>
-                          <label className="form-label">Base URL Artikel (Slug)</label>
+                          <label className="form-label">{t('seo.cms.baseUrlLabel')}</label>
                           <input
                             className="form-input"
                             value={setg.links?.siteBaseUrl || ''}
@@ -414,8 +414,8 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                     {/* External link */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                       <div>
-                        <div style={{ fontSize: '0.82rem', fontWeight: 500 }}>External Links</div>
-                        <div style={styles.sub}>Tautkan ke sumber referensi kredibel</div>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 500 }}>{t('seo.cms.externalLinksTitle')}</div>
+                        <div style={styles.sub}>{t('seo.cms.externalLinksDesc')}</div>
                       </div>
                       <label className="switch">
                         <input
@@ -429,7 +429,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                     {setg.links?.external !== false && (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         <div>
-                          <label className="form-label">Maksimal External Link</label>
+                          <label className="form-label">{t('seo.cms.maxExtLinksLabel')}</label>
                           <input
                             type="number"
                             min="1"
@@ -441,7 +441,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                           />
                         </div>
                         <div>
-                          <label className="form-label">Domain yang Dikecualikan (pisahkan koma)</label>
+                          <label className="form-label">{t('seo.cms.excludedDomainsLabel')}</label>
                           <input
                             className="form-input"
                             value={(setg.links?.excludeDomains || []).join(', ')}
@@ -500,15 +500,15 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                   {/* 4. Khusus CMS */}
                   {type === 'sanity' && (
                     <div style={styles.settingBlock}>
-                      <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '0.5rem' }}>Pengaturan Khusus Sanity</div>
+                      <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '0.5rem' }}>{t('seo.cms.sanitySettingsTitle')}</div>
                       <div className="form-group">
-                        <label className="form-label">Penulis (Author)</label>
+                        <label className="form-label">{t('seo.cms.authorLabel')}</label>
                         <select
                           className="form-input"
                           value={setg.sanity?.authorId || 'author.ai-team'}
                           onChange={e => setSettingPath(type, 'sanity', 'authorId', e.target.value)}
                         >
-                          <option value="author.ai-team">AI Team (author.ai-team)</option>
+                          <option value="author.ai-team">{t('seo.cms.authorAiTeam')}</option>
                           {(opts.authors || []).map(a => (
                             <option key={a.id} value={a.id}>{a.name} ({a.id})</option>
                           ))}
@@ -522,26 +522,26 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                           onChange={e => setSettingPath(type, 'sanity', 'autoCreateAuthor', e.target.checked)}
                         />
                         <label htmlFor="autoCreateAuthor" style={{ fontSize: '0.8rem', cursor: 'pointer' }}>
-                          Buat dokumen author AI Team otomatis jika belum ada di Sanity
+                          {t('seo.cms.autoCreateAuthorLabel')}
                         </label>
                       </div>
 
                       <div className="form-group">
-                        <label className="form-label">Mode Pemilihan Kategori</label>
+                        <label className="form-label">{t('seo.cms.categoryModeLabel')}</label>
                         <select
                           className="form-input"
                           value={setg.sanity?.categoryMode || 'fixed'}
                           onChange={e => setSettingPath(type, 'sanity', 'categoryMode', e.target.value)}
                         >
-                          <option value="fixed">Fixed (Kategori tetap yang dipilih di bawah)</option>
-                          <option value="ai">AI Auto-pick (AI memilih kategori yang paling sesuai)</option>
-                          <option value="fixed+ai">Fixed + AI (Gabungan kategori tetap & saran AI)</option>
+                          <option value="fixed">{t('seo.cms.catModeFixed')}</option>
+                          <option value="ai">{t('seo.cms.catModeAi')}</option>
+                          <option value="fixed+ai">{t('seo.cms.catModeFixedAi')}</option>
                         </select>
                       </div>
 
                       {opts.categories && opts.categories.length > 0 && (
                         <div className="form-group">
-                          <label className="form-label">Kategori Sanity</label>
+                          <label className="form-label">{t('seo.cms.sanityCategoryLabel')}</label>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                             {opts.categories.map(c => {
                               const selected = (setg.sanity?.categoryIds || []).includes(c.id);
@@ -566,7 +566,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
 
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
                         <div>
-                          <label className="form-label" style={{ fontSize: '0.72rem' }}>Field Published At</label>
+                          <label className="form-label" style={{ fontSize: '0.72rem' }}>{t('seo.cms.fieldPublishedAtLabel')}</label>
                           <input
                             className="form-input"
                             value={setg.sanity?.publishedAtField || 'publishedAt'}
@@ -574,7 +574,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                           />
                         </div>
                         <div>
-                          <label className="form-label" style={{ fontSize: '0.72rem' }}>Field Main Image</label>
+                          <label className="form-label" style={{ fontSize: '0.72rem' }}>{t('seo.cms.fieldMainImageLabel')}</label>
                           <input
                             className="form-input"
                             value={setg.sanity?.mainImageField || 'mainImage'}
@@ -582,7 +582,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                           />
                         </div>
                         <div>
-                          <label className="form-label" style={{ fontSize: '0.72rem' }}>Field Excerpt</label>
+                          <label className="form-label" style={{ fontSize: '0.72rem' }}>{t('seo.cms.fieldExcerptLabel')}</label>
                           <input
                             className="form-input"
                             value={setg.sanity?.excerptField || 'excerpt'}
@@ -595,10 +595,10 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
 
                   {type === 'wordpress' && (
                     <div style={styles.settingBlock}>
-                      <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '0.5rem' }}>Pengaturan Khusus WordPress</div>
+                      <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '0.5rem' }}>{t('seo.cms.wpSettingsTitle')}</div>
                       {opts.categories && opts.categories.length > 0 && (
                         <div className="form-group">
-                          <label className="form-label">Kategori Default</label>
+                          <label className="form-label">{t('seo.cms.defaultCategoryLabel')}</label>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                             {opts.categories.map(c => {
                               const selected = (setg.wordpress?.defaultCategoryIds || []).includes(c.id);
@@ -622,13 +622,13 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                       )}
                       {opts.authors && opts.authors.length > 0 && (
                         <div className="form-group">
-                          <label className="form-label">Penulis Post</label>
+                          <label className="form-label">{t('seo.cms.postAuthorLabel')}</label>
                           <select
                             className="form-input"
                             value={setg.wordpress?.authorId || ''}
                             onChange={e => setSettingPath(type, 'wordpress', 'authorId', e.target.value ? Number(e.target.value) : null)}
                           >
-                            <option value="">Default (Akun Login)</option>
+                            <option value="">{t('seo.cms.defaultLoginAccount')}</option>
                             {opts.authors.map(a => (
                               <option key={a.id} value={a.id}>{a.name}</option>
                             ))}
@@ -640,7 +640,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
 
                   {type === 'wix' && opts.categories && opts.categories.length > 0 && (
                     <div style={styles.settingBlock}>
-                      <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '0.5rem' }}>Kategori Wix Blog</div>
+                      <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '0.5rem' }}>{t('seo.cms.wixCategoryTitle')}</div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                         {opts.categories.map(c => {
                           const selected = (setg.wix?.categoryIds || []).includes(c.id);
@@ -665,8 +665,8 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
 
                   {type === 'shopify' && (
                     <div style={styles.settingBlock}>
-                      <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '0.5rem' }}>Tags Shopify Blog</div>
-                      <label className="form-label">Tags Artikel (pisahkan koma)</label>
+                      <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '0.5rem' }}>{t('seo.cms.shopifyTagsTitle')}</div>
+                      <label className="form-label">{t('seo.cms.shopifyTagsLabel')}</label>
                       <input
                         className="form-input"
                         value={(setg.shopify?.tags || []).join(', ')}
@@ -695,7 +695,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                     onClick={() => saveSettings(type)}
                     disabled={sSt.busy}
                   >
-                    {sSt.busy ? <Loader2 size={16} className="spin-icon" /> : <CheckCircle2 size={16} />} Simpan Pengaturan Artikel
+                    {sSt.busy ? <Loader2 size={16} className="spin-icon" /> : <CheckCircle2 size={16} />} {t('seo.cms.saveArticleSettingsBtn')}
                   </button>
                 </div>
               )}
@@ -705,7 +705,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
       </div>
 
       <div className="card" style={{ marginTop: '1.5rem', opacity: 0.7 }}>
-        <div style={styles.cardHead}><div style={{ ...styles.cmsIcon, backgroundColor: 'rgba(244,63,94,0.12)', border: '1px solid rgba(244,63,94,0.3)' }}><Globe size={18} color="#f43f5e" /></div><div style={{ flex: 1 }}><h2 style={{ margin: 0, fontSize: '1rem' }}>Webflow, Ghost, Blogger</h2><span style={styles.sub}>Segera hadir — hubungi 3Our bila butuh lebih cepat.</span></div><span className="badge badge-secondary">Soon</span></div>
+        <div style={styles.cardHead}><div style={{ ...styles.cmsIcon, backgroundColor: 'rgba(244,63,94,0.12)', border: '1px solid rgba(244,63,94,0.3)' }}><Globe size={18} color="#f43f5e" /></div><div style={{ flex: 1 }}><h2 style={{ margin: 0, fontSize: '1rem' }}>{'Webflow, Ghost, Blogger'}</h2><span style={styles.sub}>{t('seo.cms.otherCmsComingSoon')}</span></div><span className="badge badge-secondary">{t('common.soon')}</span></div>
       </div>
 
       <div className="grid-2" style={{ marginTop: '1.5rem', alignItems: 'start' }}>
@@ -753,9 +753,9 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
           <label className="form-label" style={{ marginTop: '1rem' }}>{t('seo.cms.exampleTitle')}</label>
           <pre style={styles.pre}>{curl}</pre>
           <div style={{ ...styles.sub, lineHeight: 1.7 }}>
-            <div><code>POST /api/v1/articles/generate</code> → <code>{'{ status, id, article }'}</code></div>
-            <div><code>POST /api/v1/articles/:id/publish</code> body <code>{'{ action: "draft" | "publish", article? }'}</code> → kirim ke CMS yang tersimpan</div>
-            <div><code>GET /api/v1/articles</code> → daftar artikel</div>
+            <div><code>{'POST /api/v1/articles/generate'}</code> {'→'} <code>{'{ status, id, article }'}</code></div>
+            <div><code>{'POST /api/v1/articles/:id/publish'}</code> {'body'} <code>{'{ action: "draft" | "publish", article? }'}</code> {'→'} {t('seo.cms.apiPublishHelper')}</div>
+            <div><code>{'GET /api/v1/articles'}</code> {'→'} {t('seo.cms.apiArticlesList')}</div>
           </div>
           <a href="https://3ourasia.id" target="_blank" rel="noreferrer" className="btn btn-secondary" style={{ marginTop: '1rem', fontSize: '0.8rem' }}><ExternalLink size={14} /> {t('seo.cms.customIntegration')}</a>
         </div>

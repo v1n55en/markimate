@@ -198,7 +198,7 @@ export default function SpyInsightsPage() {
                     <div style={styles.formatBarLabelRow}>
                       <span style={styles.formatName}>{fb.format}</span>
                       <span style={styles.formatPct}>
-                        {fb.percentage}% ({t('spy.insights.adsCount', { count: fb.count })})
+                        {`${fb.percentage}% (${t('spy.insights.adsCount', { count: fb.count })})`}
                       </span>
                     </div>
                     <div style={styles.track}>
@@ -267,11 +267,11 @@ export default function SpyInsightsPage() {
                   </div>
                   <div style={styles.recContent}>
                     <h4 style={styles.recItemTitle}>
-                      {idx + 1}. {rec.title}
+                      {`${idx + 1}. ${rec.title}`}
                     </h4>
                     <p style={styles.recActionText}>{rec.action}</p>
                     <div style={styles.recImpactBox}>
-                      <span style={styles.recImpactLabel}>🎯 {t('spy.insights.expectedImpact')}</span>
+                      <span style={styles.recImpactLabel}>{`🎯 ${t('spy.insights.expectedImpact')}`}</span>
                       <span style={styles.recImpactVal}>{rec.impact}</span>
                     </div>
                   </div>

@@ -12,7 +12,9 @@ export const ads = {
     "all": "Semua Saluran",
     "meta": "Meta Ads",
     "google": "Google Ads",
-    "tiktok": "TikTok Ads"
+    "tiktok": "TikTok Ads",
+    "tiktok_gmvmax": "TikTok Shop GMV Max",
+    "shopee": "Shopee Ads"
   },
   "summary": {
     "heading": "Ringkasan Ads Report",
@@ -96,7 +98,26 @@ export const ads = {
     "campaignsCount": "{count} Kampanye Aktif",
     "campaignsCount_one": "{count} Kampanye Aktif",
     "campaignsCount_other": "{count} Kampanye Aktif",
-    "section4Title": "4. Alokasi Penempatan (Placement) & Jaringan"
+    "section4Title": "4. Alokasi Penempatan (Placement) & Jaringan",
+    "channelDistribution": "Distribusi Saluran",
+    "placements": "Penempatan Iklan (Placements)",
+    "section5Title": "5. Profil Demografi Audiens",
+    "genderComposition": "Komposisi Gender",
+    "ageDistribution": "Sebaran Kelompok Usia",
+    "section6Title": "6. Produk Terlaris (Shopee & GMV Max Toko)",
+    "featuredProducts": "{count} Produk Unggulan",
+    "prodSpend": "Spend",
+    "prodGmv": "GMV Penjualan",
+    "prodOrders": "Pesanan",
+    "prodRoas": "ROAS Produk",
+    "section7Title": "7. Evaluasi Materi Kreatif (Creatives)",
+    "topCreatives": "Top Performing Creatives",
+    "needsOptimization": "Perlu Dioptimasi / Diganti",
+    "section8Title": "8. Rekomendasi & Insight Strategis AI",
+    "aiInsightSub": "Dihasilkan oleh model analitik periklanan 3Our berdasarkan data riil platform",
+    "labelResults": "Hasil:",
+    "labelRoas": "ROAS:",
+    "labelCtr": "CTR:"
   },
   "reports": {
     "title": "Laporan Kinerja",
@@ -155,5 +176,18 @@ export const ads = {
     "sent": "Terkirim",
     "failed": "Gagal",
     "skipped": "Dilewati – tidak ada iklan"
+  },
+  "trend": {
+    "defaultTitle": "Tren Performa Iklan",
+    "notAvailable": "Data grafik tren belum tersedia.",
+    "subtitle": "Kombinasi Biaya Iklan (Batang) vs Total Hasil / Konversi (Garis)",
+    "last6Months": "6 Bulan Terakhir",
+    "dailyPoints": "Harian ({count} Titik)",
+    "legendSpend": "Biaya Iklan (Spend)",
+    "legendResults": "Hasil / Pesanan (Results)",
+    "tooltipSpend": "Spend:",
+    "tooltipResults": "Hasil:",
+    "tooltipRoas": "ROAS:",
+    "conversionsUnit": "konversi"
   }
 };

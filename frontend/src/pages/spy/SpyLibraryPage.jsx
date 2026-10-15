@@ -185,9 +185,9 @@ export default function SpyLibraryPage() {
             style={styles.filterSelect}
           >
             <option value="all">{t('spy.library.allFormats')}</option>
-            <option value="video">Vertical Video (9:16)</option>
-            <option value="carousel">Carousel Multi-Item</option>
-            <option value="image">Single Image (Static)</option>
+            <option value="video">{t('spy.library.formatVideo')}</option>
+            <option value="carousel">{t('spy.library.formatCarousel')}</option>
+            <option value="image">{t('spy.library.formatImage')}</option>
           </select>
 
           {/* Quick Toggle Buttons */}
@@ -321,7 +321,7 @@ export default function SpyLibraryPage() {
                     <Sparkles size={13} color="var(--accent-cyan)" />
                     <span>{t('spy.library.fullAnalysis')}</span>
                   </button>
-                  <span style={styles.ctaBadge}>CTA: {cr.cta}</span>
+                  <span style={styles.ctaBadge}>{`CTA: ${cr.cta}`}</span>
                 </div>
               </div>
             </div>
@@ -385,7 +385,7 @@ export default function SpyLibraryPage() {
                 {selectedCreative.landingPageUrl && (
                   <div style={styles.landingLinkRow}>
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      Landing Page URL:
+                      {t('spy.library.landingUrlLabel')}
                     </span>
                     <a
                       href={selectedCreative.landingPageUrl}

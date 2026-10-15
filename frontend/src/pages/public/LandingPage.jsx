@@ -308,7 +308,7 @@ export default function LandingPage() {
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                   {t('benchmark.inhouse3Title', 'In-House 3-Role Payroll:')}
                 </span>
-                <span style={styles.inHouseTotal}>{formatIDR(TEAM_COST_BENCHMARK.focus3, lang)}/mo</span>
+                <span style={styles.inHouseTotal}>{formatIDR(TEAM_COST_BENCHMARK.focus3, lang)}{t('benchmark.perMonth', '/ mo')}</span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--accent-green)', fontWeight: '700' }}>
                   {t('benchmark.focus3Badge', { amount: formatCurrency(3200000, lang) }, `Markimate Focus 3: ${formatCurrency(3200000, lang)}/mo`)}
                 </span>
@@ -357,7 +357,7 @@ export default function LandingPage() {
                         <strong>{t('benchmark.totalTitle', 'Total Monthly Investment (3 Core Focus Pillars)')}</strong>
                       </td>
                       <td style={{ ...styles.tdTotal, textAlign: 'right', color: 'var(--text-muted)' }}>
-                        <strong>{formatIDR(TEAM_COST_BENCHMARK.focus3, lang)} / mo</strong>
+                        <strong>{formatIDR(TEAM_COST_BENCHMARK.focus3, lang)} {t('benchmark.perMonth', '/ mo')}</strong>
                       </td>
                       <td style={{ ...styles.tdTotal, textAlign: 'right' }}>
                         <strong style={{ color: 'var(--accent-green)', fontSize: '1.05rem' }}>
@@ -396,7 +396,7 @@ export default function LandingPage() {
                           {t('benchmark.thMarkimate', 'Markimate')}
                         </span>
                         <span style={styles.mobileCompMarkimateVal}>
-                          {formatIDR(row.markimateMonthly || row.supermatMonthly, lang)} <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}>/ mo</span>
+                          {formatIDR(row.markimateMonthly || row.supermatMonthly, lang)} <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400 }}>{t('benchmark.perMonth', '/ mo')}</span>
                         </span>
                       </div>
                     </div>
@@ -421,7 +421,7 @@ export default function LandingPage() {
                       {t('benchmark.inhouseRolesLabel', 'In-House 3 Roles')}
                     </span>
                     <span style={styles.mobileTotalInhouse}>
-                      {formatIDR(TEAM_COST_BENCHMARK.focus3, lang)}/mo
+                      {formatIDR(TEAM_COST_BENCHMARK.focus3, lang)}{t('benchmark.perMonth', '/ mo')}
                     </span>
                   </div>
                   <div style={{ textAlign: 'right' }}>

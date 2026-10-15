@@ -3,12 +3,13 @@ import PublicNavbar from '../../components/PublicNavbar';
 import PublicFooter from '../../components/PublicFooter';
 import SeoHead from '../../components/common/SeoHead';
 import { useLanguage } from '../../context/LanguageContext';
-import { PRIVACY_CONTENT, LEGAL_PREVAILING_NOTICE } from '../../content/legal-content';
+import { PRIVACY_CONTENT, LEGAL_PREVAILING_NOTICE, LEGAL_LABELS } from '../../content/legal-content';
 
 export default function PrivacyPage() {
   const { lang } = useLanguage();
   const content = PRIVACY_CONTENT[lang] || PRIVACY_CONTENT.id;
   const prevailingNotice = LEGAL_PREVAILING_NOTICE[lang] || LEGAL_PREVAILING_NOTICE.id;
+  const labels = LEGAL_LABELS[lang] || LEGAL_LABELS.en;
 
   return (
     <div style={styles.page}>
@@ -32,7 +33,7 @@ export default function PrivacyPage() {
         <div style={styles.prevailingBanner}>
           <AlertTriangle size={18} color="var(--accent-yellow)" style={{ flexShrink: 0, marginTop: '2px' }} />
           <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-            <strong style={{ color: 'var(--text-primary)' }}>Notice / Pemberitahuan: </strong>
+            <strong style={{ color: 'var(--text-primary)' }}>{labels.noticeHeading} </strong>
             {prevailingNotice}
           </div>
         </div>
@@ -41,7 +42,7 @@ export default function PrivacyPage() {
           {content.sections.map((sec) => (
             <section key={sec.number} style={styles.section}>
               <h2 style={styles.sectionHeading}>
-                {sec.number}. {sec.title}
+                {`${sec.number}. ${sec.title}`}
               </h2>
 
               {sec.alertBox && (
@@ -80,36 +81,36 @@ export default function PrivacyPage() {
                 <div style={styles.highlightBox}>
                   <div style={styles.companyRow}>
                     <Building2 size={16} color="var(--accent-cyan)" />
-                    <span><strong>Entitas / Entity:</strong> {content.companyOfficial}</span>
+                    <span><strong>{labels.entity}</strong> {content.companyOfficial}</span>
                   </div>
                   <div style={styles.companyRow}>
                     <MapPin size={16} color="var(--accent-cyan)" />
-                    <span><strong>Alamat / Address:</strong> {content.companyAddress}</span>
+                    <span><strong>{labels.address}</strong> {content.companyAddress}</span>
                   </div>
                   <div style={styles.companyRow}>
                     <Mail size={16} color="var(--accent-cyan)" />
-                    <span><strong>Email:</strong> <a href={`mailto:${content.companyEmail}`} style={{ color: 'var(--accent-cyan)' }}>{content.companyEmail}</a></span>
+                    <span><strong>{labels.email}</strong> <a href={`mailto:${content.companyEmail}`} style={{ color: 'var(--accent-cyan)' }}>{content.companyEmail}</a></span>
                   </div>
                   <div style={styles.companyRow}>
                     <Phone size={16} color="var(--accent-cyan)" />
-                    <span><strong>WhatsApp:</strong> <a href="https://wa.me/6285179642520" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-cyan)' }}>{content.companyPhone}</a></span>
+                    <span><strong>{labels.whatsapp}</strong> <a href="https://wa.me/6285179642520" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-cyan)' }}>{content.companyPhone}</a></span>
                   </div>
                 </div>
               )}
 
               {sec.hasContactCard && (
                 <div style={styles.contactCard}>
-                  <p style={{ margin: 0 }}><strong>Departemen Legal & Privasi Data / Legal & Privacy Office</strong></p>
+                  <p style={{ margin: 0 }}><strong>{labels.legalDept}</strong></p>
                   <p style={{ margin: '0.25rem 0' }}>{content.companyOfficial}</p>
                   <p style={{ margin: '0.25rem 0', color: 'var(--text-muted)' }}>{content.companyAddress}</p>
                   <p style={{ margin: '0.25rem 0' }}>
-                    Email:{' '}
+                    {labels.email}{' '}
                     <a href={`mailto:${content.companyEmail}`} style={{ color: 'var(--accent-cyan)' }}>
                       {content.companyEmail}
                     </a>
                   </p>
                   <p style={{ margin: '0.25rem 0' }}>
-                    WhatsApp:{' '}
+                    {labels.whatsapp}{' '}
                     <a href="https://wa.me/6285179642520" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-cyan)' }}>
                       {content.companyPhone}
                     </a>

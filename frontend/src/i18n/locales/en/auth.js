@@ -121,5 +121,12 @@ export const auth = {
   "inviteAcceptedTitle": "Invitation Accepted!",
   "inviteAcceptedDesc": "You are now a member of {workspaceName} with {role} access.",
   "roleAdmin": "Admin",
-  "roleViewer": "Viewer"
+  "roleViewer": "Viewer",
+  "nicheFnb": "F&B (Culinary / Cafe / Resto)",
+  "nicheRetail": "Retail & Fashion (E-commerce)",
+  "nicheAgency": "Creative Agency / Services",
+  "nicheTech": "Software / Tech Startup",
+  "nicheProperty": "Property & Real Estate",
+  "nicheOther": "Other",
+  "markimateSuffix": "Markimate."
 };

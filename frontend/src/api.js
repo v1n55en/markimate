@@ -22,18 +22,15 @@ export const setToken = (tVal) => {
 
 export class ApiError extends Error {
   constructor(messageOrData, status = 500, extraData = null) {
-    let data = null;
-    if (messageOrData && typeof messageOrData === 'object' && !(messageOrData instanceof Error)) {
-      data = messageOrData;
-    } else {
-      data = extraData;
-    }
+    const data = (messageOrData && typeof messageOrData === 'object' && !(messageOrData instanceof Error))
+      ? messageOrData
+      : extraData;
 
     const code = data?.code;
 
     // Menghasilkan message dari errors.<codeKey>, fallback errors.UNKNOWN ditambah kode kecil.
     // Jangan pernah memakai data.error (Keputusan PRD F3 Langkah 2).
-    let msg = '';
+    let msg;
     if (code) {
       const translated = t(`errors.${code}`);
       if (translated && translated !== `errors.${code}`) {

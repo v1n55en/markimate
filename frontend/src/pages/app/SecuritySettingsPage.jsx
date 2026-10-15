@@ -170,7 +170,7 @@ export default function SecuritySettingsPage() {
                     </div>
                     <div className="session-meta-row">
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <Globe size={12} /> IP: {s.ip}
+                        <Globe size={12} /> {`IP: ${s.ip}`}
                       </span>
                       <span>·</span>
                       <span>{formatDateTime(s.createdAt, lang)}</span>

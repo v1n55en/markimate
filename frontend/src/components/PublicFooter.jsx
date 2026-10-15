@@ -25,11 +25,11 @@ export default function PublicFooter() {
             </div>
             <div style={styles.emailLine}>
               <Mail size={15} color="var(--text-muted)" style={{ flexShrink: 0 }} />
-              <a href="mailto:info@3ourasia.id" style={styles.emailLink}>info@3ourasia.id</a>
+              <a href="mailto:info@3ourasia.id" style={styles.emailLink}>{'info@3ourasia.id'}</a>
             </div>
             <div style={styles.emailLine}>
               <Phone size={15} color="var(--text-muted)" style={{ flexShrink: 0 }} />
-              <a href="https://wa.me/6285179642520" target="_blank" rel="noreferrer" style={styles.emailLink}>+62 851-7964-2520</a>
+              <a href="https://wa.me/6285179642520" target="_blank" rel="noreferrer" style={styles.emailLink}>{'+62 851-7964-2520'}</a>
             </div>
           </div>
 
@@ -56,7 +56,7 @@ export default function PublicFooter() {
 
         <div style={styles.bottomRow}>
           <span style={styles.copyright}>
-            © {new Date().getFullYear()} Markimate · powered by 3our. {t('footer.rights', 'All rights reserved.')}
+            {`© ${new Date().getFullYear()} Markimate · powered by 3our. ${t('footer.rights', 'All rights reserved.')}`}
           </span>
           <span style={styles.metaNote}>
             {t('footer.slogan', 'Full Digital Marketing Team in One Platform')}

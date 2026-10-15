@@ -21,7 +21,8 @@ const STATUS_BADGE = {
 
 // Helper: parse simple markdown blocks and inline links/images
 function MarkdownRenderer({ content, images = [], imagePrompts = [] }) {
-  if (!content) return <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Konten artikel kosong.</div>;
+  const { t } = useLanguage();
+  if (!content) return <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{t('seo.keywords.emptyContent')}</div>;
 
   const lines = content.split('\n');
   const elements = [];
@@ -52,7 +53,7 @@ function MarkdownRenderer({ content, images = [], imagePrompts = [] }) {
             <div key={`img-${idx}-${match.index}`} style={styles.renderedImgContainer}>
               <img src={uploadedImg.url} alt={altOrAnchor || 'AI Image'} style={styles.renderedImg} />
               <div style={styles.renderedImgCaption}>
-                <span style={styles.badgeSuccessSmall}>✓ Terunggah ke CMS</span>
+                <span style={styles.badgeSuccessSmall}>{t('seo.keywords.uploadedToCms')}</span>
                 <span>{altOrAnchor || promptObj?.alt || `Gambar ${idx}`}</span>
               </div>
             </div>
@@ -63,12 +64,12 @@ function MarkdownRenderer({ content, images = [], imagePrompts = [] }) {
               <div style={styles.placeholderHeader}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
                   <ImageIcon size={15} color="var(--accent-cyan)" />
-                  <span>Placeholder Gambar {idx} (Inline)</span>
+                  <span>{t('seo.keywords.imagePlaceholderInline', { idx })}</span>
                 </div>
-                <span style={styles.badgeMuted}>Dibuat saat publish</span>
+                <span style={styles.badgeMuted}>{t('seo.keywords.createdOnPublish')}</span>
               </div>
-              <div style={styles.placeholderPrompt}><b>Alt:</b> {altOrAnchor || promptObj?.alt || '–'}</div>
-              {promptObj?.prompt && <div style={styles.placeholderPrompt}><b>Prompt AI:</b> {promptObj.prompt}</div>}
+              <div style={styles.placeholderPrompt}><b>{'Alt:'}</b> {altOrAnchor || promptObj?.alt || '–'}</div>
+              {promptObj?.prompt && <div style={styles.placeholderPrompt}><b>{'Prompt AI:'}</b> {promptObj.prompt}</div>}
             </div>
           );
         }
@@ -400,7 +401,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
           </div>
           <button type="submit" className="btn btn-primary" style={styles.addBtn} disabled={!form.keyword.trim() || !anyCms.length}>
             <Plus size={16} /> {t('seo.addAndRunBtn')}
-            <span style={styles.creditPill}><Coins size={12} /> ≈ 60 cr</span>
+            <span style={styles.creditPill}><Coins size={12} /> {'≈ 60 cr'}</span>
           </button>
         </div>
       </form>
@@ -510,10 +511,10 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                         <span style={styles.sourceBadge}>Manual</span>
                       )}
                     </td>
-                    <td><span style={styles.sub}>{kw.geo} · {kw.ln}</span></td>
+                    <td><span style={styles.sub}>{kw.geo}{' · '}{kw.ln}</span></td>
                     <td>
                       {kw.volume ? (
-                        <span>{formatNumber(kw.volume, lang)}<span style={styles.sub}> / KD {kw.difficulty ?? '–'}</span></span>
+                        <span>{formatNumber(kw.volume, lang)}<span style={styles.sub}>{' / KD '}{kw.difficulty ?? '–'}</span></span>
                       ) : <span style={styles.sub}>–</span>}
                     </td>
                     <td><span className="badge badge-secondary">{CMS_LABEL[kw.cms] || kw.cms}</span></td>
@@ -545,7 +546,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                               onClick={() => runKeyword(kw.id)}
                             >
                               {b === 'run' ? <Loader2 size={13} className="spin-icon" /> : <Check size={13} />} {t('seo.btnApprove')}
-                              <span style={styles.creditPillLight}><Coins size={10} /> ≈ 60 cr</span>
+                              <span style={styles.creditPillLight}><Coins size={10} /> {'≈ 60 cr'}</span>
                             </button>
                             <button
                               className="btn btn-secondary"
@@ -562,7 +563,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                         {(kw.status === 'Pending' || kw.status === 'Error' || isDuplicate) && (
                           <button className="btn btn-primary" style={styles.smallBtn} disabled={!!b} onClick={() => runKeyword(kw.id)}>
                             {b === 'run' ? <Loader2 size={14} className="spin-icon" /> : <Play size={14} />} {t('seo.btnRun')}
-                            <span style={styles.creditPillLight}><Coins size={10} /> ≈ 60 cr</span>
+                            <span style={styles.creditPillLight}><Coins size={10} /> {'≈ 60 cr'}</span>
                           </button>
                         )}
 
@@ -633,7 +634,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
               <div>
                 <div style={{ fontWeight: 700, fontSize: '1.1rem' }}>{t('seo.drawerTitle', { keyword: drawer.keyword })}</div>
                 <div style={styles.sub}>
-                  {t('seo.targetLabel')} {drawer.article?.primaryKeyword || drawer.keyword} · {drawer.geo}/{drawer.ln} · CMS {CMS_LABEL[drawer.cms] || drawer.cms}
+                  {t('seo.targetLabel')} {drawer.article?.primaryKeyword || drawer.keyword}{' · '}{drawer.geo}/{drawer.ln}{' · CMS '}{CMS_LABEL[drawer.cms] || drawer.cms}
                 </div>
               </div>
               <button onClick={closeDrawer} style={styles.closeBtn}><X size={18} /></button>
@@ -721,8 +722,8 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                         </div>
                         <span style={styles.badgeMuted}>{t('seo.heroAutoNote')}</span>
                       </div>
-                      <div style={styles.placeholderPrompt}><b>Alt:</b> {heroPromptObj.alt}</div>
-                      <div style={styles.placeholderPrompt}><b>Prompt AI:</b> {heroPromptObj.prompt}</div>
+                      <div style={styles.placeholderPrompt}><b>{'Alt:'}</b> {heroPromptObj.alt}</div>
+                      <div style={styles.placeholderPrompt}><b>{'Prompt AI:'}</b> {heroPromptObj.prompt}</div>
                     </div>
                   ) : null}
 
@@ -730,7 +731,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                   <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.6rem', color: 'var(--text-primary)' }}>{draft.title || t('seo.noTitlePlaceholder')}</h1>
                   {draft.excerpt && (
                     <div style={styles.previewExcerpt}>
-                      <b>Meta Description:</b> {draft.excerpt}
+                      <b>{'Meta Description:'}</b> {draft.excerpt}
                     </div>
                   )}
 
@@ -780,7 +781,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                   <div className="form-group" style={{ marginBottom: 0, flex: 1, display: 'flex', flexDirection: 'column' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
                       <label className="form-label" style={{ margin: 0 }}>{t('seo.articleBodyMarkdown')}</label>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Placeholder: <code>![alt](markimate:image:1)</code></span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{'Placeholder: '}<code>{'![alt](markimate:image:1)'}</code></span>
                     </div>
                     <textarea
                       className="form-input"

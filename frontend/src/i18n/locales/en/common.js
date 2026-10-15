@@ -41,6 +41,7 @@ export const common = {
   "planPro": "PRO PLAN",
   "planFree": "FREE PLAN",
   "upgradeToPro": "Upgrade to Pro to unlock all features",
+  "upgradeBtn": "Upgrade",
   "monthlyQuota": "Monthly quota",
   "monthlyArticlesProgress": "{used} of {limit} articles this month",
   "viewCreditWallet": "View credit wallet & top-up",

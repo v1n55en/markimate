@@ -60,11 +60,15 @@ export const billing = {
   "ledgerSectionTitle": "Usage & Transaction Ledger",
   "ledgerSubtitle": "All credit deductions and grants are transparently tracked in the ledger.",
   "filterAllModules": "All Modules",
+  "filterSeo": "SEO Content",
+  "filterAds": "Ads Reporter",
+  "filterSpy": "Ads Spy",
   "filterAllTypes": "All Transaction Types",
   "filterUsage": "Action Usage",
   "filterGrantTrial": "Trial Grant",
   "filterTopup": "Top-Up",
   "filterExpire": "Expired",
+  "bonusLabel": "bonus",
   "exportCsv": "Export CSV",
   "thDateTime": "Date & Time",
   "thAction": "Action / Type",
@@ -132,7 +136,9 @@ export const billing = {
   "spyQuota": "5 competitors",
   "adsModuleTitle": "AI Ads Performance Reporter",
   "spyModuleTitle": "AI Ads Creative Spy",
+  "seoModuleTitle": "AI SEO Specialist",
   "save20Percent": "Save 20%",
   "focus3Notice": "Focus 3 Bundle: 3 core roles at Rp3,200,000/mo (Save 20%)",
-  "paymentHelp": "For corporate invoicing or bank transfer, please contact our support team."
+  "paymentHelp": "For corporate invoicing or bank transfer, please contact our support team.",
+  "bonusBadge": "bonus"
 };

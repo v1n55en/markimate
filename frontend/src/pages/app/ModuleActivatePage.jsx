@@ -78,7 +78,7 @@ export default function ModuleActivatePage() {
           <span>{t('common.back')}</span>
         </button>
         <span style={styles.workspaceIndicator}>
-          Workspace: <strong>{activeWorkspace?.name}</strong>
+          {`${t('app.moduleActivate.workspacePrefix')} `}<strong>{activeWorkspace?.name}</strong>
         </span>
       </div>
 
@@ -244,17 +244,17 @@ export default function ModuleActivatePage() {
 
                 <div style={styles.bundleHint}>
                   <span style={styles.bundleHintText}>
-                    Ingin hemat lebih banyak? Ambil Paket <strong>Fokus 3</strong> dan dapatkan diskon 20%!
+                    {t('app.moduleActivate.bundleHint')}
                   </span>
                   <Link to="/app/billing" style={styles.bundleLink}>
-                    <span>Lihat Penawaran Bundle</span>
+                    <span>{t('app.moduleActivate.bundleCta')}</span>
                     <ArrowUpRight size={14} />
                   </Link>
                 </div>
 
                 <div style={styles.securityNote}>
                   <Shield size={14} color="var(--text-muted)" />
-                  <span>Jaminan keamanan data & privasi standar industri</span>
+                  <span>{t('app.moduleActivate.securityNote')}</span>
                 </div>
               </div>
             ) : (
@@ -269,15 +269,15 @@ export default function ModuleActivatePage() {
                     <Clock size={24} color="var(--accent-yellow)" />
                   </div>
                   <div>
-                    <span style={styles.planSub}>Status Pengembangan</span>
+                    <span style={styles.planSub}>{t('app.moduleActivate.devStatus')}</span>
                     <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-primary)' }}>
-                      Segera Hadir
+                      {t('app.moduleActivate.comingSoon')}
                     </h3>
                   </div>
                 </div>
 
                 <p style={styles.soonNotice}>
-                  Role <strong>{role.name}</strong> sedang dipersiapkan oleh tim AI Markimate & 3Our. Daftarkan email Anda untuk menjadi pengguna awal (early access) saat modul ini dirilis.
+                  {t('app.moduleActivate.soonNotice', { name: role.name })}
                 </p>
 
                 <button
@@ -289,12 +289,12 @@ export default function ModuleActivatePage() {
                   }}
                 >
                   <Bell size={16} />
-                  <span>Kabari Saya Saat Siap (Waitlist)</span>
+                  <span>{t('app.moduleActivate.waitlistBtn')}</span>
                 </button>
 
                 <div style={styles.securityNote}>
                   <Sparkles size={14} color="var(--accent-cyan)" />
-                  <span>Gratis akses uji coba beta bagi anggota waitlist pertama</span>
+                  <span>{t('app.moduleActivate.waitlistPerk')}</span>
                 </div>
               </div>
             )}

@@ -225,7 +225,7 @@ export default function RoleDetailPage() {
             <div style={styles.sampleOutputCard} className="card">
               <div style={styles.sampleHeader}>
                 <Sparkles size={16} color="var(--accent-yellow)" />
-                <span style={styles.sampleTitle}>Deliverable Preview</span>
+                <span style={styles.sampleTitle}>{t('roleDetail.deliverablePreview', 'Deliverable Preview')}</span>
               </div>
               <p style={styles.sampleContent}>{role.sampleOutput}</p>
               <div style={styles.sampleFooter}>

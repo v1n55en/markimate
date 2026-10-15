@@ -15,6 +15,25 @@ export const LEGAL_PREVAILING_NOTICE = {
   en: 'Language Notice: This official legal document is provided in Indonesian and English. In the event of any discrepancy, ambiguity, or interpretation difference between the English and Indonesian versions, the Indonesian language version shall legally prevail.',
 };
 
+export const LEGAL_LABELS = {
+  id: {
+    noticeHeading: 'Pemberitahuan:',
+    entity: 'Entitas:',
+    address: 'Alamat:',
+    email: 'Email:',
+    whatsapp: 'WhatsApp:',
+    legalDept: 'Departemen Legal & Privasi Data',
+  },
+  en: {
+    noticeHeading: 'Notice:',
+    entity: 'Entity:',
+    address: 'Address:',
+    email: 'Email:',
+    whatsapp: 'WhatsApp:',
+    legalDept: 'Legal & Privacy Office',
+  },
+};
+
 export const PRIVACY_CONTENT = {
   id: {
     seoTitle: 'Kebijakan Privasi',

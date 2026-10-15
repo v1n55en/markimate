@@ -41,6 +41,7 @@ export const common = {
   "planPro": "PAKET PRO",
   "planFree": "PAKET FREE",
   "upgradeToPro": "Upgrade ke Pro untuk membuka semua fitur",
+  "upgradeBtn": "Upgrade",
   "monthlyQuota": "Kuota artikel",
   "monthlyArticlesProgress": "{used} dari {limit} artikel bulan ini",
   "viewCreditWallet": "Lihat dompet kredit & top-up",

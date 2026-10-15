@@ -132,9 +132,9 @@ export default function AnalyticsDashboard({ me }) {
               <thead>
                 <tr>
                   <th>{t('seo.analytics.targetKeyword')}</th>
-                  <th>Volume</th>
+                  <th>{t('seo.analytics.volume')}</th>
                   <th>KD</th>
-                  <th>Status</th>
+                  <th>{t('seo.analytics.status')}</th>
                 </tr>
               </thead>
               <tbody>

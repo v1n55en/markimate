@@ -232,7 +232,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
             </span>
             {isTrialActive && (
               <span style={styles.trialBadge}>
-                ⚡ {t('billing.activeTrialDays', { days: trialDaysLeft })}
+                {`⚡ ${t('billing.activeTrialDays', { days: trialDaysLeft })}`}
               </span>
             )}
           </div>
@@ -351,33 +351,33 @@ export default function CreditWalletPage({ me, onTopupClick }) {
           </div>
           <div style={styles.rateGrid}>
             <div style={styles.rateItem}>
-              <span style={styles.rateName}>seo.article</span>
-              <span style={styles.rateVal}>60 cr</span>
+              <span style={styles.rateName}>{'seo.article'}</span>
+              <span style={styles.rateVal}>{'60 cr'}</span>
               <span style={styles.rateDesc}>{t('billing.rateDescSeoArticle')}</span>
             </div>
             <div style={styles.rateItem}>
-              <span style={styles.rateName}>seo.image</span>
-              <span style={styles.rateVal}>5 cr / img</span>
+              <span style={styles.rateName}>{'seo.image'}</span>
+              <span style={styles.rateVal}>{'5 cr / img'}</span>
               <span style={styles.rateDesc}>{t('billing.rateDescSeoImage')}</span>
             </div>
             <div style={styles.rateItem}>
-              <span style={styles.rateName}>seo.topics_run</span>
-              <span style={styles.rateVal}>10 cr</span>
+              <span style={styles.rateName}>{'seo.topics_run'}</span>
+              <span style={styles.rateVal}>{'10 cr'}</span>
               <span style={styles.rateDesc}>{t('billing.rateDescSeoTopics')}</span>
             </div>
             <div style={styles.rateItem}>
-              <span style={styles.rateName}>ads.report</span>
-              <span style={styles.rateVal}>400 cr</span>
+              <span style={styles.rateName}>{'ads.report'}</span>
+              <span style={styles.rateVal}>{'400 cr'}</span>
               <span style={styles.rateDesc}>{t('billing.rateDescAdsReport')}</span>
             </div>
             <div style={styles.rateItem}>
-              <span style={styles.rateName}>spy.scan</span>
-              <span style={styles.rateVal}>40 cr</span>
+              <span style={styles.rateName}>{'spy.scan'}</span>
+              <span style={styles.rateVal}>{'40 cr'}</span>
               <span style={styles.rateDesc}>{t('billing.rateDescSpyScan')}</span>
             </div>
             <div style={styles.rateItem}>
-              <span style={styles.rateName}>spy.insight</span>
-              <span style={styles.rateVal}>50 cr</span>
+              <span style={styles.rateName}>{'spy.insight'}</span>
+              <span style={styles.rateVal}>{'50 cr'}</span>
               <span style={styles.rateDesc}>{t('billing.rateDescSpyInsight')}</span>
             </div>
           </div>
@@ -434,9 +434,9 @@ export default function CreditWalletPage({ me, onTopupClick }) {
             </div>
             <div style={styles.packCreditBox}>
               <Coins size={16} color="var(--accent-cyan)" />
-              <span style={styles.packCreditCount}>{formatNumber(pack.credits, lang)} credits</span>
+              <span style={styles.packCreditCount}>{formatNumber(pack.credits, lang)} {t('billing.creditsUnit')}</span>
               {pack.bonus > 0 && (
-                <span style={styles.packBonusBadge}>+{pack.bonus} bonus</span>
+                <span style={styles.packBonusBadge}>+{pack.bonus} {t('billing.bonusBadge', 'bonus')}</span>
               )}
             </div>
             <p style={styles.packDesc}>{pack.desc}</p>
@@ -476,9 +476,9 @@ export default function CreditWalletPage({ me, onTopupClick }) {
               style={styles.filterSelect}
             >
               <option value="all">{t('billing.filterAllModules')}</option>
-              <option value="seo">SEO Content</option>
-              <option value="ads">Ads Reporter</option>
-              <option value="spy">Ads Spy</option>
+              <option value="seo">{t('billing.filterSeo')}</option>
+              <option value="ads">{t('billing.filterAds')}</option>
+              <option value="spy">{t('billing.filterSpy')}</option>
             </select>
 
             {/* Filter Kind */}

@@ -204,6 +204,7 @@ export const publicTranslations = {
     "capabilitiesTitle": "Core Capabilities",
     "deliverablesTitle": "Expected Deliverables & Outputs",
     "sampleOutputTitle": "Sample Production Output",
+    "deliverablePreview": "Deliverable Preview",
     "quotaTitle": "Monthly Quota Allocation",
     "pricingTitle": "Subscription Pricing",
     "ctaActivate": "Activate Module in Workspace",

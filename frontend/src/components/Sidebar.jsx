@@ -368,7 +368,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
           {isTrialActive && (
             <div style={styles.trialBadgeRow}>
               <span style={styles.trialBadge}>
-                ⚡ {t('sidebar.creditTrialBadge', 'Trial · sisa {days} hari').replace('{days}', trialDaysLeft)}
+                {`⚡ ${t('sidebar.creditTrialBadge', 'Trial · sisa {days} hari').replace('{days}', trialDaysLeft)}`}
               </span>
             </div>
           )}
@@ -446,7 +446,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
                         title={t('billing.manageSubscription')}
                       >
                         <span style={{ fontSize: '0.72rem', fontWeight: 'bold' }}>
-                          👑 {t('common.planPro')}
+                          {`👑 ${t('common.planPro')}`}
                         </span>
                       </button>
                     ) : (
@@ -459,7 +459,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
                           style={styles.upgradeBtn}
                           title={t('common.upgradeToPro')}
                         >
-                          👑 Upgrade
+                          {`👑 ${t('common.upgradeBtn')}`}
                         </button>
                       </div>
                     )}

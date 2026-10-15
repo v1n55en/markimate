@@ -201,7 +201,7 @@ export default function MembersSettingsPage({ me, refreshMe }) {
       <div style={{ marginBottom: '1.75rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
           <h1 style={{ fontSize: '1.5rem', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
-            Anggota & Tim
+            {t('settings.members.title')}
           </h1>
           <span style={{
             fontSize: '0.75rem',
@@ -215,7 +215,7 @@ export default function MembersSettingsPage({ me, refreshMe }) {
           </span>
         </div>
         <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>
-          Kelola izin akses dan kolaborator tim untuk brand ini. Peran Anda: <strong>{currentUserRole.toUpperCase()}</strong>.
+          {t('settings.members.subtitle', { role: currentUserRole.toUpperCase() })}
         </p>
       </div>
 
@@ -232,7 +232,7 @@ export default function MembersSettingsPage({ me, refreshMe }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
             <UserPlus size={18} color="var(--accent-cyan)" />
             <h3 style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>
-              Undang Anggota Baru
+              {t('settings.members.inviteSectionTitle')}
             </h3>
           </div>
 
@@ -283,11 +283,11 @@ export default function MembersSettingsPage({ me, refreshMe }) {
               className="btn btn-primary"
               style={{ padding: '0.65rem 1.25rem', whiteSpace: 'nowrap' }}
             >
-              <span>{inviting ? 'Mengirim...' : 'Kirim Undangan'}</span>
+              <span>{inviting ? t('settings.members.sending') : t('settings.members.sendInvite')}</span>
             </button>
           </form>
           <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', margin: '0.5rem 0 0 0' }}>
-            Undangan akan dikirim via email dan berlaku selama 7 hari. Maksimal 20 undangan aktif.
+            {t('settings.members.inviteNotice')}
           </p>
         </div>
       )}
@@ -298,15 +298,15 @@ export default function MembersSettingsPage({ me, refreshMe }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Users size={18} color="var(--accent-cyan)" />
             <h3 style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>
-              Daftar Anggota Tim ({members.length})
+              {t('settings.members.listTitle', { count: members.length })}
             </h3>
           </div>
         </div>
 
         {loading ? (
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Memuat daftar anggota...</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t('settings.members.loading')}</p>
         ) : members.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Belum ada anggota terdaftar.</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{t('settings.members.empty')}</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             {members.map((member) => {
@@ -330,7 +330,7 @@ export default function MembersSettingsPage({ me, refreshMe }) {
                         <span>{member.name || 'Pengguna Markimate'}</span>
                         {isSelf && (
                           <span style={{ fontSize: '0.7rem', color: 'var(--accent-cyan)', fontWeight: '600' }}>
-                            (Anda)
+                            {t('settings.members.youTag')}
                           </span>
                         )}
                       </div>
@@ -391,9 +391,9 @@ export default function MembersSettingsPage({ me, refreshMe }) {
                         }}
                         className="btn btn-secondary"
                         style={{ padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
-                        title="Alihkan kepemilikan workspace ke anggota ini"
+                        title={t('settings.members.transferTooltip')}
                       >
-                        Alihkan Owner
+                        {t('settings.members.transferBtn')}
                       </button>
                     )}
 
@@ -410,7 +410,7 @@ export default function MembersSettingsPage({ me, refreshMe }) {
                           borderColor: 'rgba(239, 68, 68, 0.3)'
                         }}
                       >
-                        {isSelf ? 'Keluar' : 'Keluarkan'}
+                        {isSelf ? t('settings.members.leaveBtn') : t('settings.members.removeBtn')}
                       </button>
                     )}
                   </div>
@@ -427,7 +427,7 @@ export default function MembersSettingsPage({ me, refreshMe }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
             <Mail size={18} color="var(--accent-cyan)" />
             <h3 style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>
-              Undangan Tertunda ({invites.length})
+              {t('settings.members.pendingTitle', { count: invites.length })}
             </h3>
           </div>
 
@@ -490,7 +490,7 @@ export default function MembersSettingsPage({ me, refreshMe }) {
                 <KeyRound size={18} color="#ef4444" />
               </div>
               <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-primary)', margin: 0, flex: 1 }}>
-                Alihkan Kepemilikan Workspace
+                {t('settings.members.transferModalTitle')}
               </h3>
               <button
                 type="button"
@@ -502,7 +502,7 @@ export default function MembersSettingsPage({ me, refreshMe }) {
             </div>
 
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1rem' }}>
-              Anda akan mengalihkan hak pemilik utama workspace <strong>{activeWorkspace?.name}</strong> kepada <strong>{transferTarget.name}</strong> ({transferTarget.email}). Peran Anda akan otomatis menjadi <strong>Admin</strong>.
+              {t('settings.members.transferModalDesc', { workspace: activeWorkspace?.name, targetName: transferTarget.name, targetEmail: transferTarget.email })}
             </p>
 
             {transferSuccess && (
@@ -522,11 +522,11 @@ export default function MembersSettingsPage({ me, refreshMe }) {
             <form onSubmit={handleTransferOwnership}>
               <div style={{ marginBottom: '1.25rem' }}>
                 <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                  Konfirmasi Kata Sandi Akun Anda *
+                  {t('settings.members.confirmPasswordLabel')}
                 </label>
                 <input
                   type="password"
-                  placeholder="Masukkan kata sandi akun Anda"
+                  placeholder={t('settings.members.confirmPasswordPlaceholder')}
                   value={transferPassword}
                   onChange={(e) => setTransferPassword(e.target.value)}
                   className="input"
@@ -544,7 +544,7 @@ export default function MembersSettingsPage({ me, refreshMe }) {
                   className="btn btn-secondary"
                   disabled={transferring}
                 >
-                  Batal
+                  {t('settings.members.cancelBtn')}
                 </button>
                 <button
                   type="submit"
@@ -552,7 +552,7 @@ export default function MembersSettingsPage({ me, refreshMe }) {
                   disabled={transferring}
                   style={{ backgroundColor: '#ef4444', borderColor: '#ef4444', color: '#ffffff' }}
                 >
-                  {transferring ? 'Memproses...' : 'Konfirmasi Alihkan'}
+                  {transferring ? t('settings.members.processingTransfer') : t('settings.members.confirmTransferBtn')}
                 </button>
               </div>
             </form>

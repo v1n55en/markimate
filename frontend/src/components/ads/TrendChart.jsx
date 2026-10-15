@@ -1,14 +1,17 @@
 import { useState } from 'react';
+import { useLanguage } from '../../context/LanguageContext';
 import { formatCompactIDR, formatRoas, formatIDR, formatNumber } from '../../ads/format';
 
 export default function TrendChart({
   monthlyData = [],
   dailyData = [],
-  title = 'Tren Performa Iklan',
+  title,
 }) {
+  const { t } = useLanguage();
   const [viewMode, setViewMode] = useState('monthly'); // 'monthly' | 'daily'
   const [hoveredPoint, setHoveredPoint] = useState(null);
 
+  const chartTitle = title || t('ads.trend.defaultTitle');
   const activeData = viewMode === 'monthly' ? monthlyData : dailyData;
   const labelKey = viewMode === 'monthly' ? 'month' : 'date';
 
@@ -16,7 +19,7 @@ export default function TrendChart({
     return (
       <div style={styles.emptyContainer} className="card">
         <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-          Data grafik tren belum tersedia.
+          {t('ads.trend.notAvailable')}
         </span>
       </div>
     );
@@ -53,9 +56,9 @@ export default function TrendChart({
     <div style={styles.container} className="card">
       <div style={styles.header}>
         <div>
-          <h3 style={styles.title}>{title}</h3>
+          <h3 style={styles.title}>{chartTitle}</h3>
           <p style={styles.subtitle}>
-            Kombinasi Biaya Iklan (Batang) vs Total Hasil / Konversi (Garis)
+            {t('ads.trend.subtitle')}
           </p>
         </div>
 
@@ -69,7 +72,7 @@ export default function TrendChart({
                   ...(viewMode === 'monthly' ? styles.toggleBtnActive : {}),
                 }}
               >
-                6 Bulan Terakhir
+                {t('ads.trend.last6Months')}
               </button>
               <button
                 onClick={() => { setViewMode('daily'); setHoveredPoint(null); }}
@@ -78,7 +81,7 @@ export default function TrendChart({
                   ...(viewMode === 'daily' ? styles.toggleBtnActive : {}),
                 }}
               >
-                Harian ({activeData.length} Titik)
+                {t('ads.trend.dailyPoints', { count: activeData.length })}
               </button>
             </div>
           )}
@@ -89,11 +92,11 @@ export default function TrendChart({
       <div style={styles.legend}>
         <div style={styles.legendItem}>
           <div style={styles.legendBar} />
-          <span>Biaya Iklan (Spend)</span>
+          <span>{t('ads.trend.legendSpend')}</span>
         </div>
         <div style={styles.legendItem}>
           <div style={styles.legendLine} />
-          <span>Hasil / Pesanan (Results)</span>
+          <span>{t('ads.trend.legendResults')}</span>
         </div>
       </div>
 
@@ -222,16 +225,16 @@ export default function TrendChart({
           >
             <div style={styles.tooltipTitle}>{hoveredPoint.data[labelKey]}</div>
             <div style={styles.tooltipRow}>
-              <span style={{ color: 'var(--accent-cyan)' }}>Spend:</span>
+              <span style={{ color: 'var(--accent-cyan)' }}>{t('ads.trend.tooltipSpend')}</span>
               <strong>{formatIDR(hoveredPoint.data.spend)}</strong>
             </div>
             <div style={styles.tooltipRow}>
-              <span style={{ color: 'var(--accent-green)' }}>Hasil:</span>
-              <strong>{formatNumber(hoveredPoint.data.results)} konversi</strong>
+              <span style={{ color: 'var(--accent-green)' }}>{t('ads.trend.tooltipResults')}</span>
+              <strong>{formatNumber(hoveredPoint.data.results)} {t('ads.trend.conversionsUnit')}</strong>
             </div>
             {hoveredPoint.data.roas && (
               <div style={styles.tooltipRow}>
-                <span style={{ color: 'var(--accent-yellow)' }}>ROAS:</span>
+                <span style={{ color: 'var(--accent-yellow)' }}>{t('ads.trend.tooltipRoas')}</span>
                 <strong>{formatRoas(hoveredPoint.data.roas)}</strong>
               </div>
             )}
