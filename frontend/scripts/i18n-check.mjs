@@ -87,6 +87,33 @@ if (placeholderMismatches === 0) {
   console.log('   OK - All placeholders {param} match consistently across languages.');
 }
 
+// (b2) Backend Error Codes Parity Check (PRD F3 Langkah 2)
+console.log('\n2b. Checking Backend ERROR_CODES Coverage in errors.js...');
+const backendErrorCodesPath = path.resolve(__dirname, '../../backend/lib/error-codes.js');
+if (fs.existsSync(backendErrorCodesPath)) {
+  const { ERROR_CODES } = await import(backendErrorCodesPath);
+  const backendCodes = Object.keys(ERROR_CODES);
+  const missingInEn = backendCodes.filter(c => !enKeys.has(`errors.${c}`));
+  const missingInId = backendCodes.filter(c => !idKeys.has(`errors.${c}`));
+
+  if (missingInEn.length > 0 || missingInId.length > 0) {
+    if (missingInEn.length > 0) {
+      console.error(`❌ Backend error code(s) missing in EN errors.js (${missingInEn.length}):`);
+      missingInEn.forEach(c => console.error(`   - ${c}`));
+      errorCount += missingInEn.length;
+    }
+    if (missingInId.length > 0) {
+      console.error(`❌ Backend error code(s) missing in ID errors.js (${missingInId.length}):`);
+      missingInId.forEach(c => console.error(`   - ${c}`));
+      errorCount += missingInId.length;
+    }
+  } else {
+    console.log(`   OK - All ${backendCodes.length} backend ERROR_CODES are covered in both EN and ID dictionaries.`);
+  }
+} else {
+  console.log('   Notice: backend/lib/error-codes.js not found, skipping backend code sync check.');
+}
+
 // Scan all JS/JSX files in src
 function getAllFiles(dir, exts = ['.js', '.jsx']) {
   let files = [];
@@ -104,7 +131,7 @@ function getAllFiles(dir, exts = ['.js', '.jsx']) {
 
 const allSrcFiles = getAllFiles(srcDir);
 
-// (d) Usage Check: t('key') used in code vs dictionary
+// (d) Usage Check: t("key") used in code vs dictionary
 console.log('\n3. Checking t("key") Usage in Code vs Dictionary...');
 const usedKeys = new Set();
 let missingUsedKeys = 0;
@@ -141,15 +168,28 @@ if (unusedKeys.length > 0) {
 
 // (c) Forbidden Ternary & Language Switching Anti-pattern Check
 console.log('\n4. Checking for Forbidden Ternary / Anti-pattern Expressions...');
+// Alasan pengecualian per file (PRD F3 Langkah 3):
+// Hanya file yang secara inheren mengelola logika runtime bahasa atau format berbasis locale yang dikecualikan.
 const allowedTernaryFiles = new Set([
+  // 1. LanguageContext.jsx: Modul inti provider bahasa yang mengevaluasi state lang dan melakukan fallback EN.
   path.resolve(srcDir, 'context/LanguageContext.jsx'),
+  // 2. i18n/index.js: Engine terjemahan mandiri non-hook yang membaca preferensi bahasa aktif.
+  path.resolve(srcDir, 'i18n/index.js'),
+  // 3. format.js: Format mata uang IDR vs USD dan tanggal sesuai spesifikasi locale aktif (Intl.NumberFormat).
   path.resolve(srcDir, 'lib/format.js'),
+  // 3. ads/format.js: Format angka & persentase modul ads report sesuai locale aktif.
   path.resolve(srcDir, 'ads/format.js'),
+  // 4. roles.js: Metadata konfigurasi peran sistem yang membutuhkan label dwibahasa secara terstruktur.
   path.resolve(srcDir, 'config/roles.js'),
+  // 5. pricing.js: Definisi paket harga berbayar yang membedakan format harga IDR/USD.
   path.resolve(srcDir, 'config/pricing.js'),
+  // 6. SeoHead.jsx: Tag link kanonik & alternate hreflang SEO (en vs id) untuk crawler search engine.
   path.resolve(srcDir, 'components/common/SeoHead.jsx'),
+  // 7. PrivacyPage.jsx: Komponen halaman statis kebijakan privasi dengan tanggal revisi hukum dwibahasa.
   path.resolve(srcDir, 'pages/public/PrivacyPage.jsx'),
+  // 8. TermsPage.jsx: Komponen halaman statis syarat ketentuan dengan klausul hukum dwibahasa.
   path.resolve(srcDir, 'pages/public/TermsPage.jsx'),
+  // 9. AccountSettingsPage.jsx: Form pemilih bahasa akun di mana perbandingan lang === 'id'|'en' diperlukan untuk dropdown select.
   path.resolve(srcDir, 'pages/app/AccountSettingsPage.jsx')
 ]);
 

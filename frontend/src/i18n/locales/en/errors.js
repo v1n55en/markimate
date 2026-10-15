@@ -31,6 +31,8 @@ export const errors = {
   "ACCOUNT_INACTIVE": "Account not found or inactive.",
   "USER_NOT_FOUND": "User not found.",
   "UNAUTHORIZED": "Authentication required. Please sign in.",
+  "FORBIDDEN": "Access denied.",
+  "BAD_REQUEST": "Invalid request parameters.",
   "WORKSPACE_NOT_FOUND": "Workspace not found or access denied.",
   "WORKSPACE_REQUIRED": "Workspace selection is required.",
   "WORKSPACE_LIMIT_REACHED": "Maximum workspace limit reached. Please upgrade to add more workspaces.",

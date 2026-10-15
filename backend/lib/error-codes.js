@@ -166,6 +166,16 @@ export const ERROR_CODES = {
     status: 401,
     message: 'Authentication required.'
   },
+  FORBIDDEN: {
+    code: 'FORBIDDEN',
+    status: 403,
+    message: 'Access denied.'
+  },
+  BAD_REQUEST: {
+    code: 'BAD_REQUEST',
+    status: 400,
+    message: 'Bad request.'
+  },
 
   // Workspace & Access Control
   WORKSPACE_NOT_FOUND: {

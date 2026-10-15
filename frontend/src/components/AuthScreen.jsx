@@ -118,11 +118,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
         }
       }
     } catch (err) {
-      const translated = err.code ? t(`errors.${err.code}`) : '';
-      const displayMsg = (translated && translated !== `errors.${err.code}`)
-        ? translated
-        : (err.message || t('auth.errSignInFailed', 'Sign in failed. Please check your email and password.'));
-      setError(displayMsg);
+      setError(err.message);
       if (err.code === 'EMAIL_NOT_VERIFIED') {
         setErrorCode('EMAIL_NOT_VERIFIED');
         setUnverifiedEmail(err.email || email);

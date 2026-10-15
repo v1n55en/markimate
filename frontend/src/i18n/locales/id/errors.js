@@ -31,6 +31,8 @@ export const errors = {
   "ACCOUNT_INACTIVE": "Akun tidak ditemukan atau tidak aktif.",
   "USER_NOT_FOUND": "Pengguna tidak ditemukan.",
   "UNAUTHORIZED": "Otentikasi diperlukan. Silakan masuk terlebih dahulu.",
+  "FORBIDDEN": "Akses ditolak. Anda tidak memiliki izin.",
+  "BAD_REQUEST": "Permintaan tidak valid atau parameter kurang.",
   "WORKSPACE_NOT_FOUND": "Workspace tidak ditemukan atau Anda tidak memiliki akses.",
   "WORKSPACE_REQUIRED": "Workspace wajib dipilih.",
   "WORKSPACE_LIMIT_REACHED": "Batas maksimal workspace telah tercapai. Tingkatkan paket langganan Anda.",

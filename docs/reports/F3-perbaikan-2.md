@@ -64,3 +64,46 @@ Dokumen ini mencatat implementasi dan hasil pengujian untuk perbaikan PRD F3 (Ta
 - Halaman Login dalam Bahasa Indonesia: `/Users/mm/.gemini/antigravity-ide/brain/89c9de70-e913-4338-a204-2dcd46fdf3fe/login_page_id_1792058212649.png`
 
 ---
+
+## Langkah 2: Error Diterjemahkan Secara Terpusat
+
+### Ringkasan Perubahan
+1. **Penerjemahan Terpusat di `frontend/src/api.js`**:
+   - `ApiError` dikonstruksi secara terpusat untuk menghasilkan pesan error terjemahan: `message = t('errors.' + code)`.
+   - Menggunakan fallback `errors.UNKNOWN` ditambah kode kecil bila kode belum ada dalam kamus (`${t('errors.UNKNOWN')} (${code})`).
+   - Tidak pernah lagi membocorkan `data.error` mentah dari backend ke pengguna.
+2. **Helper `t()` Mandiri Tanpa Hook**:
+   - Mengimplementasikan helper `t()` dan objek `i18n` di `frontend/src/i18n/index.js` yang dapat dipanggil langsung dari modul murni JavaScript (seperti `api.js`) tanpa ketergantungan pada React hook `useLanguage()`.
+   - Helper mendeteksi bahasa aktif dari `document.documentElement.lang`, path URL `/id/*`, cookie `mk_lang`, atau `localStorage` dengan default `en`.
+3. **Penyederhanaan Penanganan Error di Komponen**:
+   - `AuthScreen.jsx` dan seluruh halaman pemanggil API kini langsung menampilkan `err.message` tanpa perlu melakukan resolusi manual `t('errors.' + err.code)`.
+4. **Sinkronisasi Kode Error Baru**:
+   - Menambahkan error code `FORBIDDEN` dan `BAD_REQUEST` ke `backend/lib/error-codes.js`, `frontend/src/i18n/locales/en/errors.js`, dan `frontend/src/i18n/locales/id/errors.js`.
+   - Menambahkan pengujian otomatis di `frontend/scripts/i18n-check.mjs` (Langkah 2b) yang memverifikasi bahwa 100% kode di `backend/lib/error-codes.js` (65 kode error) memiliki padanan terjemahan di kamus EN dan ID.
+5. **Standarisasi Pesan Error Backend ke Bahasa Inggris + Error Code**:
+   - Memperbarui ~15 pesan error backend yang sebelumnya masih berbahasa Indonesia di `backend/index.js` dan `backend/lib/credits.js` menjadi Bahasa Inggris standar serta menyertakan error code (seperti `WORKSPACE_NOT_FOUND`, `USER_NOT_FOUND`, `PARAMS_REQUIRED`, `BAD_REQUEST`, `EMAIL_REQUIRED`, `UPGRADE_REQUIRED`, `CMS_NOT_CONFIGURED`, `KEYWORD_REQUIRED`, `NOT_FOUND`).
+
+### File yang Berubah
+- `backend/lib/error-codes.js`
+- `backend/index.js`
+- `backend/lib/credits.js`
+- `frontend/src/i18n/index.js`
+- `frontend/src/api.js`
+- `frontend/src/components/AuthScreen.jsx`
+- `frontend/src/i18n/locales/en/errors.js`
+- `frontend/src/i18n/locales/id/errors.js`
+- `frontend/scripts/i18n-check.mjs`
+- `frontend/scripts/test-api-error.mjs` (baru)
+
+### Cara Tes
+1. Unit test ApiError i18n: `node frontend/scripts/test-api-error.mjs`
+2. Backend test suite: `cd backend && npm test`
+3. Frontend i18n & build: `cd frontend && npm run i18n:check && npm run build`
+
+### Hasil Tes
+- `test-api-error.mjs`: **100% lolos** (EN, ID, fallback unknown code, FORBIDDEN & BAD_REQUEST terverifikasi).
+- Backend tests: **100% lolos** (semua 5 file test lulus).
+- Frontend `i18n:check`: **100% lolos** (seluruh 65 backend ERROR_CODES tercover di EN & ID).
+- Frontend `build`: **100% lolos**.
+
+---

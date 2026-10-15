@@ -111,7 +111,7 @@ export async function costOf(usage) {
 }
 
 export async function getWallet(workspaceId) {
-  if (!workspaceId) throw new Error('workspaceId wajib disediakan.');
+  if (!workspaceId) throw new Error('workspaceId is required.');
   let wallet = await db.findOne('credit_wallets', { workspace_id: workspaceId });
   if (!wallet) {
     wallet = await db.insert('credit_wallets', {
@@ -212,7 +212,7 @@ export async function assertAffordable(workspaceId, actionKey, qty = 1, extra = 
 
   // Cek saldo aktif
   if (totalBalance < need) {
-    const err = new Error('Credit tidak cukup');
+    const err = new Error('Insufficient credits.');
     err.status = 402;
     err.code = 'INSUFFICIENT_CREDITS';
     err.need = need;
@@ -225,7 +225,7 @@ export async function assertAffordable(workspaceId, actionKey, qty = 1, extra = 
 }
 
 export async function charge(workspaceId, actionKey, qty = 1, ref = {}, usage = null) {
-  if (!workspaceId) throw new Error('workspaceId wajib diisi.');
+  if (!workspaceId) throw new Error('workspaceId is required.');
   const refType = ref?.type || null;
   const refId = ref?.id ? String(ref.id) : null;
 
@@ -281,7 +281,7 @@ export async function charge(workspaceId, actionKey, qty = 1, ref = {}, usage = 
   }
 
   if (remaining > 0) {
-    const err = new Error('Credit tidak cukup');
+    const err = new Error('Insufficient credits.');
     err.status = 402;
     err.code = 'INSUFFICIENT_CREDITS';
     err.need = need;
@@ -366,11 +366,11 @@ export async function recordFailedUsage(workspaceId, actionKey, usage = null, re
 }
 
 export async function grant(workspaceId, bucket, amount, expiresAt, kind = 'topup', note = '', ref = {}) {
-  if (!workspaceId) throw new Error('workspaceId wajib diisi.');
+  if (!workspaceId) throw new Error('workspaceId is required.');
   const amt = Number(amount || 0);
-  if (amt <= 0) throw new Error('Jumlah credit harus positif.');
+  if (amt <= 0) throw new Error('Credit amount must be positive.');
   if (!['trial', 'sub', 'topup'].includes(bucket)) {
-    throw new Error(`Bucket tidak valid: ${bucket}. Harus 'trial' | 'sub' | 'topup'.`);
+    throw new Error(`Invalid bucket: ${bucket}. Must be 'trial' | 'sub' | 'topup'.`);
   }
 
   const { wallet } = await getWallet(workspaceId);

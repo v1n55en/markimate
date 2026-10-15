@@ -2099,25 +2099,25 @@ app.post('/api/admin/subscriptions', adminAuth, wrap(async (req, res) => {
 
   if (workspaceId) {
     targetWs = await db.findOne('workspaces', { id: String(workspaceId).trim() });
-    if (!targetWs) throw Object.assign(new Error('Workspace tidak ditemukan.'), { status: 404 });
+    if (!targetWs) throw Object.assign(new Error('Workspace not found.'), { status: 404, code: 'WORKSPACE_NOT_FOUND' });
     user = targetWs.owner_user_id ? await db.findOne('accounts', { id: targetWs.owner_user_id }) : null;
   } else if (email) {
     const em = String(email || '').trim().toLowerCase();
     user = await db.findOne('accounts', { email: em });
-    if (!user) throw Object.assign(new Error('User tidak ditemukan.'), { status: 404 });
+    if (!user) throw Object.assign(new Error('User not found.'), { status: 404, code: 'USER_NOT_FOUND' });
     const resolved = await resolveWorkspaceForUser(user.id);
     targetWs = resolved?.workspace || await db.findOne('workspaces', { id: user.id });
     if (!targetWs) {
       targetWs = { id: user.id, name: user.name || 'Workspace Default' };
     }
   } else {
-    throw Object.assign(new Error('workspaceId atau email wajib diisi.'), { status: 400 });
+    throw Object.assign(new Error('workspaceId or email is required.'), { status: 400, code: 'PARAMS_REQUIRED' });
   }
 
   const planKey = String(plan || '').trim().toLowerCase();
   const planData = PLANS[planKey];
   if (!planData || planKey === 'free') {
-    throw Object.assign(new Error('Plan tidak valid atau tidak berbayar. Pilih salah satu paket berbayar yang tersedia.'), { status: 400 });
+    throw Object.assign(new Error('Invalid paid plan selection. Please choose an active paid plan.'), { status: 400, code: 'BAD_REQUEST' });
   }
 
   const numMonths = Math.max(1, parseInt(months, 10) || 1);
@@ -2194,19 +2194,19 @@ app.post('/api/admin/subscriptions', adminAuth, wrap(async (req, res) => {
 app.post('/api/admin/credits/grant', adminAuth, wrap(async (req, res) => {
   const { email, bucket = 'topup', amount, days, note } = req.body || {};
   const em = String(email || '').trim().toLowerCase();
-  if (!em) throw Object.assign(new Error('Email wajib diisi.'), { status: 400 });
+  if (!em) throw Object.assign(new Error('Email address is required.'), { status: 400, code: 'EMAIL_REQUIRED' });
 
   const user = await db.findOne('accounts', { email: em });
-  if (!user) throw Object.assign(new Error('User tidak ditemukan.'), { status: 404 });
+  if (!user) throw Object.assign(new Error('User not found.'), { status: 404, code: 'USER_NOT_FOUND' });
 
   const targetBucket = String(bucket || 'topup').trim().toLowerCase();
   if (!['topup', 'sub'].includes(targetBucket)) {
-    throw Object.assign(new Error("Bucket tidak valid. Harus 'topup' atau 'sub'."), { status: 400 });
+    throw Object.assign(new Error("Invalid bucket. Must be 'topup' or 'sub'."), { status: 400, code: 'BAD_REQUEST' });
   }
 
   const amt = Number(amount || 0);
   if (!amt || amt <= 0) {
-    throw Object.assign(new Error('Jumlah credit (amount) harus berupa angka positif.'), { status: 400 });
+    throw Object.assign(new Error('Credit amount must be a positive number.'), { status: 400, code: 'BAD_REQUEST' });
   }
 
   const numDays = days !== undefined && days !== null && !isNaN(Number(days)) ? Number(days) : (targetBucket === 'sub' ? 30 : 365);
@@ -2241,7 +2241,7 @@ app.post('/api/admin/credits/grant', adminAuth, wrap(async (req, res) => {
 // Admin manual user verification (PRD §3 & §4 Langkah 2)
 app.post('/api/admin/users/:id/verify', adminAuth, wrap(async (req, res) => {
   const user = await db.findOne('accounts', { id: req.params.id });
-  if (!user) throw Object.assign(new Error('User tidak ditemukan.'), { status: 404 });
+  if (!user) throw Object.assign(new Error('User not found.'), { status: 404, code: 'USER_NOT_FOUND' });
 
   const now = new Date().toISOString();
   await db.update('accounts', { id: user.id }, {
@@ -2577,7 +2577,7 @@ app.get('/api/cms/:type/options', auth, requireWorkspace('viewer'), requireModul
 }));
 app.put('/api/cms/:type', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
   const type = String(req.params.type).toLowerCase();
-  if (!CMS_TYPES.includes(type)) throw Object.assign(new Error('CMS belum didukung: ' + type), { status: 400 });
+  if (!CMS_TYPES.includes(type)) throw Object.assign(new Error('Unsupported CMS type: ' + type), { status: 400, code: 'UNSUPPORTED_CMS' });
   const existing = await db.findOne('cms_connections', { workspace_id: req.workspace.id, cms_type: type });
   const existingConfig = existing ? resolveConnConfig(existing) : {};
   
@@ -2591,7 +2591,7 @@ app.put('/api/cms/:type', auth, requireWorkspace('admin'), requireModule('seo'),
   }
 
   const shouldTest = hasConfig && req.body.test !== false;
-  const test = shouldTest ? await testConnection(type, incoming) : { ok: existing?.verified ?? false, message: existing?.verified ? 'Terhubung' : 'Belum dites' };
+  const test = shouldTest ? await testConnection(type, incoming) : { ok: existing?.verified ?? false, message: existing?.verified ? 'Connected' : 'Not tested' };
   const { enc, iv } = encrypt(incoming);
   
   const articleSettings = req.body.articleSettings !== undefined
@@ -2600,7 +2600,7 @@ app.put('/api/cms/:type', auth, requireWorkspace('admin'), requireModule('seo'),
 
   const creditsEnabled = process.env.CREDITS_ENABLED !== 'false';
   if (!creditsEnabled && articleSettings.images?.enabled && !planOf(req.user).images) {
-    throw Object.assign(new Error('Fitur gambar AI hanya untuk paket berbayar (Pro). Silakan upgrade paket Anda.'), { status: 402 });
+    throw Object.assign(new Error('AI image generation is only available on paid plans. Please upgrade.'), { status: 402, code: 'UPGRADE_REQUIRED' });
   }
 
   const row = await db.upsert('cms_connections', { workspace_id: req.workspace.id, cms_type: type }, {
@@ -2624,7 +2624,7 @@ app.put('/api/cms/:type', auth, requireWorkspace('admin'), requireModule('seo'),
 app.post('/api/cms/:type/test', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
   const type = String(req.params.type).toLowerCase();
   const c = await db.findOne('cms_connections', { workspace_id: req.workspace.id, cms_type: type });
-  if (!c) throw Object.assign(new Error('Kredensial belum disimpan.'), { status: 404 });
+  if (!c) throw Object.assign(new Error('CMS credentials have not been configured yet.'), { status: 404, code: 'CMS_NOT_CONFIGURED' });
   const cfg = resolveConnConfig(c);
   const test = await testConnection(type, cfg);
   await db.update('cms_connections', { id: c.id }, { verified: test.ok, verified_at: test.ok ? new Date().toISOString() : null });
@@ -2671,10 +2671,10 @@ app.get('/api/keywords', auth, requireWorkspace('viewer'), requireModule('seo'),
 }));
 app.post('/api/keywords', auth, requireWorkspace('admin'), requireModule('seo'), wrap(async (req, res) => {
   const b = req.body || {};
-  const keyword = String(b.keyword || '').trim(); if (!keyword) throw Object.assign(new Error('Keyword wajib diisi.'), { status: 400 });
+  const keyword = String(b.keyword || '').trim(); if (!keyword) throw Object.assign(new Error('Keyword is required.'), { status: 400, code: 'KEYWORD_REQUIRED' });
   const cms = String(b.cmsType || b.cms || 'wordpress').toLowerCase();
   const schedule = ['immediate', 'daily', 'weekly'].includes(b.schedule) ? b.schedule : 'immediate';
-  if (schedule !== 'immediate' && planOf(req.user).id === 'free') throw Object.assign(new Error('Jadwal otomatis hanya untuk paket berbayar (Pro).'), { status: 402 });
+  if (schedule !== 'immediate' && planOf(req.user).id === 'free') throw Object.assign(new Error('Automated scheduling is only available on paid plans.'), { status: 402, code: 'UPGRADE_REQUIRED' });
   const row = await db.insert('keywords', {
     user_id: req.user.id,
     workspace_id: req.workspace.id,
@@ -2690,7 +2690,7 @@ app.post('/api/keywords', auth, requireWorkspace('admin'), requireModule('seo'),
 }));
 app.patch('/api/keywords/:id', auth, requireWorkspace('admin'), requireModule('seo'), requireUuidParam('id'), wrap(async (req, res) => {
   const k = await db.findOne('keywords', { id: req.params.id, workspace_id: req.workspace.id });
-  if (!k) throw Object.assign(new Error('Tidak ditemukan.'), { status: 404 });
+  if (!k) throw Object.assign(new Error('Keyword not found.'), { status: 404, code: 'NOT_FOUND' });
   const patch = {}; const b = req.body || {};
   if (b.article) {
     patch.article = { ...(k.article || {}), ...b.article };
@@ -2711,7 +2711,7 @@ app.patch('/api/keywords/:id', auth, requireWorkspace('admin'), requireModule('s
 }));
 app.delete('/api/keywords/:id', auth, requireWorkspace('admin'), requireModule('seo'), requireUuidParam('id'), wrap(async (req, res) => {
   const k = await db.findOne('keywords', { id: req.params.id, workspace_id: req.workspace.id });
-  if (!k) throw Object.assign(new Error('Tidak ditemukan.'), { status: 404 });
+  if (!k) throw Object.assign(new Error('Keyword not found.'), { status: 404, code: 'NOT_FOUND' });
   await db.remove('keywords', { id: k.id });
   res.json({ ok: true });
 }));
@@ -2934,7 +2934,7 @@ const webApproverOn = (u) => (process.env.CREDITS_ENABLED !== 'false' ? u.web_ap
 
 app.post('/api/keywords/:id/run', auth, requireWorkspace('admin'), requireModule('seo'), requireUuidParam('id'), wrap(async (req, res) => {
   const k = await db.findOne('keywords', { id: req.params.id, workspace_id: req.workspace.id });
-  if (!k) throw Object.assign(new Error('Tidak ditemukan.'), { status: 404 });
+  if (!k) throw Object.assign(new Error('Keyword not found.'), { status: 404, code: 'NOT_FOUND' });
   let row = await generateFor(req.user, k);
   if (row.status !== 'Duplicate' && !webApproverOn(req.user)) {
     // Free (atau Web Approver mati): langsung simpan sebagai DRAF di CMS, tanpa review
@@ -2944,8 +2944,8 @@ app.post('/api/keywords/:id/run', auth, requireWorkspace('admin'), requireModule
 }));
 app.post('/api/keywords/:id/publish', auth, requireWorkspace('admin'), requireModule('seo'), requireUuidParam('id'), wrap(async (req, res) => {
   const k = await db.findOne('keywords', { id: req.params.id, workspace_id: req.workspace.id });
-  if (!k) throw Object.assign(new Error('Tidak ditemukan.'), { status: 404 });
-  if (!k.article && !k.post_id) throw Object.assign(new Error('Belum ada artikel. Jalankan dulu.'), { status: 400 });
+  if (!k) throw Object.assign(new Error('Keyword not found.'), { status: 404, code: 'NOT_FOUND' });
+  if (!k.article && !k.post_id) throw Object.assign(new Error('Article has not been generated yet. Please run the keyword first.'), { status: 400, code: 'BAD_REQUEST' });
   const action = req.body.action === 'publish' ? 'publish' : 'draft';
   const row = await publishFor(req.user, k, action, req.body.article || null);
   res.json({ keyword: kwPublic(row) });
@@ -2980,12 +2980,12 @@ async function runTopicSource(user, source) {
     // Assert saldo seo.topics_run (10 credit, PRD §4.2)
     await assertAffordable(wsId, 'seo.topics_run', 1);
   } else if (user.plan === 'free') {
-    throw Object.assign(new Error('Topik otomatis hanya untuk paket berbayar (Pro).'), { status: 402 });
+    throw Object.assign(new Error('Auto topics is only available on paid plans.'), { status: 402, code: 'UPGRADE_REQUIRED' });
   }
 
   const conn = await db.findOne('cms_connections', { workspace_id: wsId, cms_type: source.cms_type });
   if (!conn) {
-    throw Object.assign(new Error(`Koneksi CMS ${source.cms_type} belum disimpan.`), { status: 400 });
+    throw Object.assign(new Error(`CMS connection for ${source.cms_type} is not configured.`), { status: 400, code: 'CMS_NOT_CONFIGURED' });
   }
   const connConfig = resolveConnConfig(conn);
   const artSet = normalizeArticleSettings(conn.article_settings);
@@ -3139,14 +3139,14 @@ app.put('/api/seo/topic-sources', auth, requireWorkspace('admin'), requireModule
 
 app.delete('/api/seo/topic-sources/:id', auth, requireWorkspace('admin'), requireModule('seo'), requireUuidParam('id'), wrap(async (req, res) => {
   const source = await db.findOne('seo_topic_sources', { id: req.params.id, workspace_id: req.workspace.id });
-  if (!source) throw Object.assign(new Error('Sumber topik tidak ditemukan.'), { status: 404 });
+  if (!source) throw Object.assign(new Error('Topic source not found.'), { status: 404, code: 'NOT_FOUND' });
   await db.remove('seo_topic_sources', { id: source.id });
   res.json({ ok: true });
 }));
 
 app.post('/api/seo/topic-sources/:id/run', auth, requireWorkspace('admin'), requireModule('seo'), requireUuidParam('id'), wrap(async (req, res) => {
   const source = await db.findOne('seo_topic_sources', { id: req.params.id, workspace_id: req.workspace.id });
-  if (!source) throw Object.assign(new Error('Sumber topik tidak ditemukan.'), { status: 404 });
+  if (!source) throw Object.assign(new Error('Topic source not found.'), { status: 404, code: 'NOT_FOUND' });
   const result = await runTopicSource(req.user, source);
   res.json(result);
 }));
@@ -3245,7 +3245,7 @@ app.post('/api/billing/cancel', auth, requireWorkspace('admin'), wrap(async (req
 // ---------- 3Our Public API (API key per workspace/user) ----------
 app.post('/api/v1/articles/generate', apiKeyAuth, requireModule('seo'), wrap(async (req, res) => {
   const b = req.body || {}; const keyword = String(b.keyword || '').trim();
-  if (!keyword) throw Object.assign(new Error('keyword wajib diisi.'), { status: 400 });
+  if (!keyword) throw Object.assign(new Error('Keyword is required.'), { status: 400, code: 'KEYWORD_REQUIRED' });
   const wsId = req.workspace ? req.workspace.id : req.user.id;
   const k = await db.insert('keywords', {
     user_id: req.user.id,
@@ -3264,7 +3264,7 @@ app.post('/api/v1/articles/generate', apiKeyAuth, requireModule('seo'), wrap(asy
       status: 'duplicate',
       id: row.id,
       duplicateOf: row.duplicate_of || null,
-      message: row.error || 'Topik duplikat dengan artikel yang sudah ada di CMS.'
+      message: row.error || 'Duplicate topic with existing CMS article.'
     });
   }
   res.json({
@@ -3279,7 +3279,7 @@ app.post('/api/v1/articles/:id/publish', apiKeyAuth, requireModule('seo'), wrap(
   const wsId = req.workspace ? req.workspace.id : req.user.id;
   let k = await db.findOne('keywords', { id: req.params.id, workspace_id: wsId });
   if (!k) k = await db.findOne('keywords', { id: req.params.id, user_id: req.user.id });
-  if (!k) throw Object.assign(new Error('Artikel tidak ditemukan.'), { status: 404 });
+  if (!k) throw Object.assign(new Error('Article not found.'), { status: 404, code: 'NOT_FOUND' });
   const row = await publishFor(req.user, k, req.body.action === 'publish' ? 'publish' : 'draft', req.body.article || null);
   res.json({ status: 'ok', id: row.id, postId: row.post_id, draftEditUrl: row.draft_url, publicUrl: row.public_url, postStatus: row.post_status, warnings: row.warnings || [] });
 }));

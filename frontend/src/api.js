@@ -1,30 +1,72 @@
-import { storage } from './lib/storage';
+import { storage } from './lib/storage.js';
+import { t } from './i18n/index.js';
 
 // Klien API Markimate.
 // Di produksi, VITE_API_BASE_URL dikosongkan agar memanggil path relatif /api/...
 // yang di-rewrite secara first-party oleh Vercel ke backend markimate-api.
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL !== undefined
+export const API_BASE_URL = typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE_URL !== undefined
   ? import.meta.env.VITE_API_BASE_URL
-  : (import.meta.env.DEV ? 'http://localhost:5001' : '');
+  : (typeof import.meta !== 'undefined' && import.meta.env?.DEV ? 'http://localhost:5001' : '');
 
 // Sesi JWT access token disimpan di memori (bukan localStorage) untuk pencegahan XSS (PRD F1 + F2)
 let inMemoryAccessToken = '';
 
 export const getToken = () => inMemoryAccessToken;
-export const setToken = (t) => {
-  inMemoryAccessToken = t || '';
+export const setToken = (tVal) => {
+  inMemoryAccessToken = tVal || '';
   // Pastikan token legacy di localStorage dibersihkan jika ada
-  if (!t) {
+  if (!tVal) {
     try { storage.removeItem('token'); } catch {}
   }
 };
 
 export class ApiError extends Error {
-  constructor(message, status, data) {
-    super(message);
+  constructor(messageOrData, status = 500, extraData = null) {
+    let data = null;
+    if (messageOrData && typeof messageOrData === 'object' && !(messageOrData instanceof Error)) {
+      data = messageOrData;
+    } else {
+      data = extraData;
+    }
+
+    const code = data?.code;
+
+    // Menghasilkan message dari errors.<codeKey>, fallback errors.UNKNOWN ditambah kode kecil.
+    // Jangan pernah memakai data.error (Keputusan PRD F3 Langkah 2).
+    let msg = '';
+    if (code) {
+      const translated = t(`errors.${code}`);
+      if (translated && translated !== `errors.${code}`) {
+        msg = translated;
+      } else {
+        const unknownText = t('errors.UNKNOWN');
+        msg = `${unknownText} (${code})`;
+      }
+    } else if (status === 0) {
+      msg = t('errors.SERVICE_UNAVAILABLE');
+    } else if (status === 403) {
+      msg = t('errors.FORBIDDEN');
+    } else if (status === 404) {
+      msg = t('errors.NOT_FOUND');
+    } else if (status === 400) {
+      msg = t('errors.BAD_REQUEST');
+    } else if (status === 401) {
+      msg = t('errors.UNAUTHORIZED');
+    } else if (status === 429) {
+      msg = t('errors.RATE_LIMITED');
+    } else if (status === 500) {
+      msg = t('errors.INTERNAL_ERROR');
+    } else {
+      const unknownText = t('errors.UNKNOWN');
+      msg = status ? `${unknownText} (HTTP ${status})` : unknownText;
+    }
+
+    super(msg);
+    this.name = 'ApiError';
     this.status = status;
     this.data = data;
-    this.code = data?.code;
+    this.code = code;
+    this.email = data?.email;
   }
 }
 
@@ -51,7 +93,7 @@ export async function refreshSession() {
     const data = await res.json().catch(() => null);
 
     if (!res.ok || !data?.accessToken) {
-      throw new ApiError(data?.error || 'Sesi telah berakhir.', res.status, data);
+      throw new ApiError(data || { code: 'SESSION_EXPIRED' }, res.status);
     }
 
     setToken(data.accessToken);
@@ -97,7 +139,7 @@ export async function api(path, { method = 'GET', body, headers = {}, retryOn401
       credentials: 'include'
     });
   } catch {
-    throw new ApiError('Tidak bisa menghubungi server Markimate. Pastikan koneksi atau backend aktif.', 0, null);
+    throw new ApiError({ code: 'SERVICE_UNAVAILABLE' }, 0);
   }
 
   // Tangani 401 dengan auto refresh diam-diam jika bukan endpoint auth
@@ -144,7 +186,7 @@ export async function api(path, { method = 'GET', body, headers = {}, retryOn401
       window.dispatchEvent(new CustomEvent('markimate:insufficient_credits', { detail: data }));
       window.dispatchEvent(new CustomEvent('supermat:insufficient_credits', { detail: data }));
     }
-    throw new ApiError((data && (data.error || data.message)) || `HTTP ${res.status}`, res.status, data);
+    throw new ApiError(data, res.status);
   }
 
   return data;
