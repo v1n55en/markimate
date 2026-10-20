@@ -60,7 +60,7 @@ export async function ensurePlatformAdmin(account) {
 
   // Cari semua workspace milik akun ini
   const workspaces = await db.findMany('workspaces', { owner_user_id: account.id });
-  const targets = (workspaces && workspaces.length > 0) ? workspaces : [{ id: account.id }];
+  const targets = (workspaces && workspaces.length > 0) ? workspaces : [];
 
   const now = new Date().toISOString();
   for (const ws of targets) {

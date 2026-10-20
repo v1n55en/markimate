@@ -28,11 +28,14 @@ export function buildSchemaContract() {
       schemaContract[tableName] = {
         columns: new Set(),
         notNullNoDefault: new Set(),
-        uuidColumns: new Set()
+        uuidColumns: new Set(),
+        checkConstraints: {}
       };
     }
     return schemaContract[tableName];
   }
+
+  const checkInRegex = /check\s*\(\s*([a-zA-Z0-9_]+)\s+in\s*\(([^)]+)\)\s*\)/gi;
 
   for (const filePath of migrationFiles) {
     if (!fs.existsSync(filePath)) continue;
@@ -45,6 +48,14 @@ export function buildSchemaContract() {
       const tableName = match[1];
       const body = match[2];
       const tableDef = ensureTable(tableName);
+
+      // Parse CHECK in (...) constraints in table body
+      let checkMatch;
+      while ((checkMatch = checkInRegex.exec(body)) !== null) {
+        const col = checkMatch[1].toLowerCase();
+        const allowed = checkMatch[2].split(',').map(s => s.trim().replace(/^['"]|['"]$/g, ''));
+        tableDef.checkConstraints[col] = new Set(allowed);
+      }
 
       const lines = body.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('--'));
       for (const line of lines) {
@@ -88,6 +99,14 @@ export function buildSchemaContract() {
       const hasDefault = /default/i.test(colRest);
       if (isNotNull && !hasDefault) {
         tableDef.notNullNoDefault.add(colName);
+      }
+
+      // Parse CHECK in (...) constraints in ALTER TABLE
+      let alterCheckMatch;
+      while ((alterCheckMatch = checkInRegex.exec(colRest)) !== null) {
+        const col = alterCheckMatch[1].toLowerCase();
+        const allowed = alterCheckMatch[2].split(',').map(s => s.trim().replace(/^['"]|['"]$/g, ''));
+        tableDef.checkConstraints[col] = new Set(allowed);
       }
     }
 
@@ -166,6 +185,18 @@ export function validateRowContract(table, row, isInsert = true) {
     if (tableDef.uuidColumns.has(col) && val !== null && val !== undefined) {
       if (!isUuid(val)) {
         throw new Error(`[SCHEMA CONTRACT] Column "${col}" in table "${table}" is type UUID, but received invalid value: "${val}".`);
+      }
+    }
+  }
+
+  // (d) Menolak nilai yang melanggar CHECK in (...) constraint
+  if (tableDef.checkConstraints) {
+    for (const [col, allowedValues] of Object.entries(tableDef.checkConstraints)) {
+      const val = row[col];
+      if (val !== undefined && val !== null) {
+        if (!allowedValues.has(val)) {
+          throw new Error(`[SCHEMA CONTRACT] Column "${col}" in table "${table}" violates CHECK constraint. Value "${val}" is not in (${[...allowedValues].join(', ')}).`);
+        }
       }
     }
   }

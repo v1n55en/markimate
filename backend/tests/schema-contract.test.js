@@ -131,6 +131,73 @@ async function runSchemaContractTests() {
   assert.strictEqual(hit4, false, 'Hit 4 harus false (melebihi batas max 3)');
   console.log('✓ 8. db.rpc("hit_rate_limit") berfungsi secara akurat');
 
+  // 9. Menguji CHECK in (...) Constraints
+  console.log('9. Menguji CHECK in (...) constraints dari migrasi...');
+  assert.ok(contract.module_entitlements.checkConstraints.source.has('admin'));
+  assert.ok(contract.module_entitlements.checkConstraints.source.has('free'));
+  assert.ok(contract.module_entitlements.checkConstraints.source.has('trial'));
+  assert.ok(contract.module_entitlements.checkConstraints.source.has('subscription'));
+  assert.ok(!contract.module_entitlements.checkConstraints.source.has('unlimited'), 'unlimited tidak boleh ada di CHECK source');
+
+  // Tolak source: 'unlimited'
+  assert.throws(() => {
+    validateRowContract('module_entitlements', {
+      workspace_id: randomUUID(),
+      module: 'seo',
+      source: 'unlimited'
+    }, true);
+  }, /Column "source".*violates CHECK constraint/);
+
+  // Terima source: 'admin'
+  assert.doesNotThrow(() => {
+    validateRowContract('module_entitlements', {
+      workspace_id: randomUUID(),
+      module: 'seo',
+      source: 'admin'
+    }, true);
+  });
+  console.log('✓ 9. CHECK in (...) constraints membaca dan menolak nilai ilegal secara akurat');
+
+  // 10. Menguji flow platform admin / 3our.id@gmail.com tidak melanggar schema contract
+  console.log('10. Menguji flow platform admin / 3our.id@gmail.com mematuhi kontrak skema...');
+  const adminWsId = randomUUID();
+  const adminUserId = randomUUID();
+  const { ensurePlatformAdmin } = await import('../lib/admin.js');
+  process.env.PLATFORM_ADMIN_EMAILS = '3our.id@gmail.com';
+
+  const mockAdminAccount = {
+    id: adminUserId,
+    email: '3our.id@gmail.com',
+    email_verified_at: new Date().toISOString()
+  };
+
+  // Simpan akun & workspace di DB JSON
+  await db.insert('accounts', {
+    id: adminUserId,
+    email: '3our.id@gmail.com',
+    status: 'active',
+    is_platform_admin: false,
+    email_verified_at: new Date().toISOString()
+  });
+
+  await db.insert('workspaces', {
+    id: adminWsId,
+    name: '3Our HQ',
+    owner_user_id: adminUserId
+  });
+
+  const adminResult = await ensurePlatformAdmin(mockAdminAccount);
+  assert.strictEqual(adminResult, true, 'ensurePlatformAdmin harus berhasil untuk 3our.id@gmail.com');
+
+  const adminEntitlements = await db.findMany('module_entitlements', { workspace_id: adminWsId });
+  assert.strictEqual(adminEntitlements.length, 3, 'Harus mengaktifkan 3 modul');
+  for (const ent of adminEntitlements) {
+    assert.strictEqual(ent.source, 'admin', 'Source harus admin bukan unlimited');
+    const { id, created_at, ...cleanEnt } = ent;
+    validateRowContract('module_entitlements', cleanEnt, false);
+  }
+  console.log('✓ 10. Login / aktivasi 3our.id@gmail.com terbukti lolos validasi kontrak skema 100%');
+
   console.log('ALL SCHEMA CONTRACT TESTS PASSED!');
   process.exit(0);
 }
