@@ -150,9 +150,7 @@ async function runAccountLifecycleTests() {
   });
   assert.strictEqual(forgotFakeRes.status, 200, 'Email tidak terdaftar harus tetap mengembalikan status 200');
   assert.strictEqual(forgotFakeRes.status, forgotRes.status, 'Status code terdaftar vs tidak terdaftar harus identik');
-  assert.strictEqual(forgotFakeRes.data.success, forgotRes.data.success, 'Flag success harus identik');
-  assert.strictEqual(forgotFakeRes.data.message, forgotRes.data.message, 'Message respons harus identik untuk mencegah enumerasi');
-  assert.deepStrictEqual(Object.keys(forgotFakeRes.data).sort(), Object.keys(forgotRes.data).sort(), 'Bentuk struktur respons body harus identik');
+  assert.deepStrictEqual(forgotFakeRes.data, forgotRes.data, 'Seluruh body respons terdaftar vs tidak terdaftar harus identik (anti-enumeration neutrality)');
 
   const resetRecord = await db.findOne('password_resets', { user_id: user.id });
   assert.ok(resetRecord, 'Data password_resets harus tercatat di database');

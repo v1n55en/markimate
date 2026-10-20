@@ -418,16 +418,39 @@ async function runDokuPaymentsTests() {
   db.insert = origInsert;
 
   // ----------------------------------------------------
-  // 6. Uji Proteksi Webhook Mock di Mode Production
+  // 6. Uji Proteksi Webhook Mock di Mode Production & Empty Secret via HTTP
   // ----------------------------------------------------
-  console.log('6. Menguji penolakan webhook mock di mode production...');
+  console.log('6. Menguji penolakan webhook mock di mode production & empty secret via HTTP...');
+  
+  // 6a. Set NODE_ENV=production dan PAYMENT_PROVIDER=mock
   process.env.NODE_ENV = 'production';
+  process.env.PAYMENT_PROVIDER = 'mock';
+
+  const balanceBeforeMock = (await req('/api/credits', { headers: authHeaders })).data.balance.topup;
+
   const mockWebhookRes = await req('/api/webhooks/mock', {
     method: 'POST',
-    body: { invoice_number: 'TEST-MOCK' }
+    body: { invoice_number: 'TEST-MOCK', status: 'paid' }
   });
-  assert.strictEqual(mockWebhookRes.status, 404, 'Di mode production, /api/webhooks/mock wajib return 404');
+  assert.strictEqual(mockWebhookRes.status, 404, 'Di mode production dengan PAYMENT_PROVIDER=mock, /api/webhooks/mock wajib return 404 karena guard produksi');
+
+  const balanceAfterMock = (await req('/api/credits', { headers: authHeaders })).data.balance.topup;
+  assert.strictEqual(balanceAfterMock, balanceBeforeMock, 'Kredit tidak boleh bertambah saat mock ditolak di produksi');
+
+  // Kembalikan environment
+  process.env.PAYMENT_PROVIDER = 'doku';
   process.env.NODE_ENV = 'test';
+
+  // 6b. Test Empty Secret DOKU via HTTP -> 401
+  const origDokuSecret = dokuAdapter.secretKey;
+  dokuAdapter.secretKey = '';
+  const emptySecretRes = await req('/api/webhooks/doku', {
+    method: 'POST',
+    headers: retryHeaders,
+    body: retryWebhookPayload
+  });
+  assert.strictEqual(emptySecretRes.status, 401, 'Request HTTP ke /api/webhooks/doku saat secret kosong wajib ditolak 401');
+  dokuAdapter.secretKey = origDokuSecret;
 
   // ----------------------------------------------------
   // 7. Uji Proteksi Cron Reconcile & Eksekusi Sukses

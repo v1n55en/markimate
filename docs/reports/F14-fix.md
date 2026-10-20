@@ -33,14 +33,14 @@ Dokumen ini mencatat seluruh implementasi, mitigasi celah keamanan, dan verifika
 
 4. **Commit `397e1a4`** — `test(payments): langkah 4 uji signature doku via http, penolakan mock prod, amount mismatch, dan atomisitas (PRD F14)`
    - Memperbarui suite pengujian `backend/tests/payments-doku.test.js` untuk menguji adapter DOKU nyata melalui HTTP Express server:
-     1. Test vector signature resmi HMAC-SHA256 DOKU dan penolakan 503 jika secret belum dikonfigurasi.
+     1. Test vector signature HMAC-SHA256 yang dihitung sesuai spesifikasi DOKU dan penolakan 503 jika secret belum dikonfigurasi.
      2. Katalog paket harga dalam mata uang IDR.
      3. Pembuatan order top-up dan checkout invoice `MKM-T-*`.
      4. Pengiriman webhook HTTP nyata ke `POST /api/webhooks/doku`:
         - Penolakan 401 untuk signature palsu.
         - Penolakan 401 untuk Client-Id palsu / beda.
         - Penolakan fulfillment jika nominal `order.amount` tidak cocok dengan database (`amount_mismatch`).
-        - Penerimaan webhook dengan signature valid resmi -> 200, status `paid`, dan saldo top-up bertambah.
+        - Penerimaan webhook dengan signature valid (dihitung sesuai formula HMAC-SHA256 DOKU) -> 200, status `paid`, dan saldo top-up bertambah.
         - Uji idempotensi notifikasi berulang -> 200 `already_processed`, saldo tidak bertambah ganda.
      5. Pengujian konkurensi fulfillment: 2 eksekusi `fulfillPayment` bersamaan menghasilkan tepat 1 keberhasilan (atomik).
      6. Uji proteksi production: `POST /api/webhooks/mock` saat `NODE_ENV === 'production'` mengembalikan 404 dan tidak menambah saldo.
@@ -72,7 +72,7 @@ Dokumen ini mencatat seluruh implementasi, mitigasi celah keamanan, dan verifika
 ✅ tests/workspace.test.js                   (1.40s)
 
 Total: 14/14 lolos (100%).
-🔒 Verifikasi Integritas DB: database.json tidak tersentuh (MD5: ee9699674c675f30feb203304f5d3b8d).
+🔒 Isolasi Database Test: Seluruh test runner berjalan pada sandbox direktori sementara (`tmpdir`) sehingga `database.json` repositori tidak tersentuh selama pengujian.
 🎉 SEMUA TEST BACKEND LOLOS 100% TANPA MENGOTORI DATABASE!
 ```
 
