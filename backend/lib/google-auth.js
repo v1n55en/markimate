@@ -45,7 +45,7 @@ export function getGoogleRedirectUri(req) {
 export function generateGoogleAuthUrl(req, res) {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   if (!clientId) {
-    throw new Error('GOOGLE_CLIENT_ID belum dikonfigurasi di environment server.');
+    throw new Error('GOOGLE_CLIENT_ID is not configured in the server environment.');
   }
 
   const state = randomBytes(24).toString('base64url');
@@ -117,7 +117,7 @@ export async function exchangeGoogleCode(code, codeVerifier, redirectUri) {
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
   if (!clientId || !clientSecret) {
-    throw new Error('Kredensial OAuth Google (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET) belum lengkap.');
+    throw new Error('Google OAuth credentials (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET) are incomplete.');
   }
 
   const body = new URLSearchParams({
@@ -190,7 +190,7 @@ export async function processGoogleAuth({ googleProfile, req, res }) {
   const existingBySub = await db.findOne('accounts', { google_sub: sub });
   if (existingBySub) {
     if (existingBySub.status === 'pending_deletion') {
-      const err = new Error('Akun sedang dalam proses penghapusan. Batalkan penghapusan terlebih dahulu.');
+      const err = new Error('Account is pending deletion. Cancel deletion first.');
       err.status = 403;
       err.code = 'ACCOUNT_PENDING_DELETION';
       throw err;
@@ -226,7 +226,7 @@ export async function processGoogleAuth({ googleProfile, req, res }) {
   const existingByEmail = await db.findOne('accounts', { email: normalizedEmail });
   if (existingByEmail) {
     if (existingByEmail.status === 'pending_deletion') {
-      const err = new Error('Akun sedang dalam proses penghapusan. Batalkan penghapusan terlebih dahulu.');
+      const err = new Error('Account is pending deletion. Cancel deletion first.');
       err.status = 403;
       err.code = 'ACCOUNT_PENDING_DELETION';
       throw err;
@@ -301,7 +301,7 @@ export async function processGoogleAuth({ googleProfile, req, res }) {
         expires_at: expiresAt
       });
 
-      const err = new Error('Akun dengan email ini sudah terdaftar. Masukkan kata sandi Markimate untuk menautkan akun Google Anda.');
+      const err = new Error('An account with this email already exists. Enter your Markimate password to link your Google account.');
       err.status = 409;
       err.code = 'LINK_PASSWORD_REQUIRED';
       err.email = normalizedEmail;
