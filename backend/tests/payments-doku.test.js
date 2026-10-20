@@ -249,6 +249,35 @@ async function runDokuPaymentsTests() {
   });
   assert.strictEqual(mismatchRes.status, 200);
   assert.strictEqual(mismatchRes.data.reason, 'amount_mismatch');
+
+  // 4c-2. SUCCESS tanpa amount (kosong) -> wajib ditolak (amount_mismatch)
+  const missingAmountPayload = {
+    order: { invoice_number: topupInvoice }, // amount undefined
+    status: 'SUCCESS'
+  };
+  const missingAmountHeaders = makeDokuWebhookHeaders(missingAmountPayload);
+  const missingAmountRes = await req('/api/webhooks/doku', {
+    method: 'POST',
+    headers: missingAmountHeaders,
+    body: missingAmountPayload
+  });
+  assert.strictEqual(missingAmountRes.status, 200);
+  assert.strictEqual(missingAmountRes.data.reason, 'amount_mismatch', 'SUCCESS notification tanpa amount harus ditolak');
+
+  // 4c-3. SUCCESS dengan amount 0 -> wajib ditolak (amount_mismatch)
+  const zeroAmountPayload = {
+    order: { invoice_number: topupInvoice, amount: 0 },
+    status: 'SUCCESS'
+  };
+  const zeroAmountHeaders = makeDokuWebhookHeaders(zeroAmountPayload);
+  const zeroAmountRes = await req('/api/webhooks/doku', {
+    method: 'POST',
+    headers: zeroAmountHeaders,
+    body: zeroAmountPayload
+  });
+  assert.strictEqual(zeroAmountRes.status, 200);
+  assert.strictEqual(zeroAmountRes.data.reason, 'amount_mismatch', 'SUCCESS notification dengan amount 0 harus ditolak');
+
   const paymentStillPending = await db.findOne('payments', { invoice_number: topupInvoice });
   assert.strictEqual(paymentStillPending.status, 'pending', 'Payment nominal mismatch harus tetap pending');
 

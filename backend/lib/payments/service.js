@@ -360,8 +360,15 @@ export async function handleNotification(providerName, req) {
     return { status: 'ignored', reason: 'payment_not_found', invoiceNumber };
   }
 
-  // PRD F14 Poin 6: Cocokkan nominal order.amount dengan amount di database
-  if (amount && Number(payment.amount) !== Number(amount)) {
+  // PRD F14 Poin 6 & Tahap 2 Poin 3: Nominal wajib dicocokkan.
+  // Notifikasi status 'paid' tanpa amount yang valid (> 0) atau nominal mismatch wajib ditolak & dilog.
+  if (status === 'paid') {
+    const notifAmount = Number(amount);
+    if (!amount || isNaN(notifAmount) || notifAmount <= 0 || notifAmount !== Number(payment.amount)) {
+      console.error(`[PAYMENT-MISMATCH] Invoice ${invoiceNumber}: Invalid or mismatch amount in SUCCESS notification. DB amount: ${payment.amount}, Notif amount: ${amount}`);
+      return { status: 'ignored', reason: 'amount_mismatch', invoiceNumber };
+    }
+  } else if (amount && Number(payment.amount) !== Number(amount)) {
     console.error(`[PAYMENT-MISMATCH] Invoice ${invoiceNumber}: DB amount ${payment.amount} !== Notif amount ${amount}`);
     return { status: 'ignored', reason: 'amount_mismatch', invoiceNumber };
   }
