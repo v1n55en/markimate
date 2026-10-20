@@ -223,15 +223,15 @@ export default function AdminDashboardPage({ user }) {
             </div>
             <div style={styles.internalGrid}>
               <div style={styles.internalItem}>
-                <span style={styles.internalLabel}>{t('adminDashboard.internalActions', 'Aksi Dijalankan')}</span>
+                <span style={styles.internalLabel}>{t('adminDashboard.internalActions', 'Actions Executed')}</span>
                 <span style={styles.internalVal}>{formatNumber(internalAdmin.actions_count || 0, lang)}</span>
               </div>
               <div style={styles.internalItem}>
-                <span style={styles.internalLabel}>{t('adminDashboard.internalApiCost', 'Biaya API Vendor Ditanggung')}</span>
+                <span style={styles.internalLabel}>{t('adminDashboard.internalApiCost', 'Absorbed Vendor API Cost')}</span>
                 <span style={{ ...styles.internalVal, color: 'var(--accent-yellow)' }}>{formatIDR(internalAdmin.cost_actual_idr || 0)}</span>
               </div>
               <div style={styles.internalItem}>
-                <span style={styles.internalLabel}>{t('adminDashboard.internalEstCredits', 'Setara Kredit')}</span>
+                <span style={styles.internalLabel}>{t('adminDashboard.internalEstCredits', 'Credits Equivalent')}</span>
                 <span style={styles.internalVal}>{formatNumber(internalAdmin.estimated_credits || 0, lang)} cr</span>
               </div>
             </div>
@@ -239,16 +239,16 @@ export default function AdminDashboardPage({ user }) {
 
           {/* 4. Tabel Rincian Aksi & Margin */}
           <div style={styles.tableCard} className="card">
-            <h3 style={styles.cardHeading}>{t('adminDashboard.breakdownTitle', 'Rincian Aksi Bulanan')}</h3>
+            <h3 style={styles.cardHeading}>{t('adminDashboard.breakdownTitle', 'Monthly Action Breakdown')}</h3>
             <div style={styles.tableWrapper}>
               <table style={styles.table}>
                 <thead>
                   <tr style={styles.tableHeaderRow}>
-                    <th style={styles.th}>{t('adminDashboard.thAction', 'Jenis Aksi')}</th>
-                    <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thCount', 'Jumlah Aksi')}</th>
-                    <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thCredits', 'Kredit')}</th>
-                    <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thRevenue', 'Pendapatan')}</th>
-                    <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thCost', 'Biaya API')}</th>
+                    <th style={styles.th}>{t('adminDashboard.thAction', 'Action Type')}</th>
+                    <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thCount', 'Action Count')}</th>
+                    <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thCredits', 'Credits')}</th>
+                    <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thRevenue', 'Revenue')}</th>
+                    <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thCost', 'API Cost')}</th>
                     <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thMargin', 'Margin')}</th>
                   </tr>
                 </thead>
@@ -276,10 +276,10 @@ export default function AdminDashboardPage({ user }) {
             <div style={styles.operationCard} className="card">
               <div style={styles.opHeader}>
                 <UserCheck size={18} color="var(--accent-cyan)" />
-                <h3 style={styles.cardHeading}>{t('adminDashboard.grantTitle', 'Grant Kredit Manual')}</h3>
+                <h3 style={styles.cardHeading}>{t('adminDashboard.grantTitle', 'Manual Credit Grant')}</h3>
               </div>
               <p style={styles.opDesc}>
-                {t('adminDashboard.grantDesc', 'Alokasikan kredit langsung ke dompet workspace untuk dukungan teknis atau kontrak korporat.')}
+                {t('adminDashboard.grantDesc', 'Allocate credits directly to workspace wallet for support or corporate contracts.')}
               </p>
 
               {grantSuccess && (
@@ -315,7 +315,7 @@ export default function AdminDashboardPage({ user }) {
                     </select>
                   </div>
                   <div style={styles.formGroup}>
-                    <label style={styles.label}>{t('adminDashboard.grantAmount', 'Jumlah (Kredit)')}</label>
+                    <label style={styles.label}>{t('adminDashboard.grantAmount', 'Amount (Credits)')}</label>
                     <input
                       type="number"
                       value={grantAmount}
@@ -327,7 +327,7 @@ export default function AdminDashboardPage({ user }) {
                   </div>
                 </div>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>{t('adminDashboard.grantReason', 'Alasan / Catatan')}</label>
+                  <label style={styles.label}>{t('adminDashboard.grantReason', 'Reason / Note')}</label>
                   <input
                     type="text"
                     value={grantReason}

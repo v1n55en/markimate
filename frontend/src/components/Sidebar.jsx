@@ -647,7 +647,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
                       : 'var(--text-secondary)'
                   }
                 />
-                <span>{t('sidebar.members', 'Anggota & Tim')}</span>
+                <span>{t('sidebar.members', 'Members & Team')}</span>
               </button>
               <button
                 onClick={() => handleNavClick('/app/settings/security')}

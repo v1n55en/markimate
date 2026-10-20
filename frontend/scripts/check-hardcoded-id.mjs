@@ -48,12 +48,7 @@ const ID_REGEX = new RegExp(`\\b(${INDONESIAN_KEYWORDS.join('|')})\\b`, 'i');
 const ALLOWED_TOKENS = [
   "confirmWord !== 'HAPUS'",
   "text=Halo",
-  "console.",
-  "_id:", // fallback bilingual properties di roles.js
-  "name_id:",
-  "description_id:",
-  "features_id:",
-  "category_id:"
+  "console."
 ];
 
 // Strip komentar JavaScript / JSX menggunakan @babel/parser AST
@@ -79,7 +74,15 @@ function stripComments(source) {
   }
 }
 
-// Scan seluruh file js dan jsx di src kecuali i18n/locales dan kamus statis dwibahasa
+// Scan seluruh file js dan jsx di src kecuali i18n/locales dan data kamus statis dwibahasa terpusat.
+// Alasan pengecualian per file (PRD F3 Poin 6 & F14 Tahap 2 Poin 6):
+// 1. src/i18n/locales: Merupakan direktori kamus terjemahan resmi aplikasi (ID & EN).
+// 2. src/config/roles.js: Single Source of Truth (SSOT) katalog 16 peran AI dwibahasa
+//    yang menyimpan metadata EN dan ID berdampingan (misal name & name_id, description & description_id)
+//    untuk konsumsi dinamis helper getLocalizedRoles(lang) tanpa hardcoding di komponen UI.
+// 3. src/content/legal-content.js: Dokumen hukum resmi statis dwibahasa (Kebijakan Privasi & Syarat Ketentuan)
+//    yang memiliki klausul hukum mengikat: "In the event of discrepancy, the Indonesian version shall prevail"
+//    dan dikonsumsi oleh PrivacyPage & TermsPage via helper bahasa terpusat.
 const EXCLUDED_DATA_FILES = [
   path.join('src', 'i18n', 'locales'),
   path.join('src', 'content', 'legal-content.js'),
@@ -125,10 +128,12 @@ for (const absPath of files) {
     }
 
     if (ID_REGEX.test(line)) {
-      // Abaikan jika string berada di dalam panggilan t('key', ...) atau t('key', 'fallback')
-      // Atau di dalam tag <Trans i18nKey=... />
+      // Hanya strip panggilan t('key') atau t('key', { params }).
+      // String fallback literal (argumen kedua/ketiga berupa string) TIDAK di-strip
+      // agar fallback berbahasa Indonesia di dalam t() tetap terdeteksi sebagai pelanggaran.
       const withoutTranslations = line
-        .replace(/t\(\s*['"][^'"]+['"](?:,\s*\{[^}]*\})?(?:,\s*['"][^'"]*['"])?\s*\)/g, '')
+        .replace(/t\(\s*['"][a-zA-Z0-9_.]+['"]\s*\)/g, '')
+        .replace(/t\(\s*['"][a-zA-Z0-9_.]+['"]\s*,\s*\{[^}]*\}\s*\)/g, '')
         .replace(/<Trans\b[^>]*\/>/g, '');
 
       if (ID_REGEX.test(withoutTranslations)) {
