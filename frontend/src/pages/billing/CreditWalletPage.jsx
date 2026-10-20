@@ -364,32 +364,32 @@ export default function CreditWalletPage({ me, onTopupClick }) {
           <div style={styles.rateGrid}>
             <div style={styles.rateItem}>
               <span style={styles.rateName}>{'seo.article'}</span>
-              <span style={styles.rateVal}>{'60 cr'}</span>
+              <span style={styles.rateVal}>{t('billing.rateCr', { amount: 60 })}</span>
               <span style={styles.rateDesc}>{t('billing.rateDescSeoArticle')}</span>
             </div>
             <div style={styles.rateItem}>
               <span style={styles.rateName}>{'seo.image'}</span>
-              <span style={styles.rateVal}>{'5 cr / img'}</span>
+              <span style={styles.rateVal}>{t('billing.rateCrPerImg', { amount: 5 })}</span>
               <span style={styles.rateDesc}>{t('billing.rateDescSeoImage')}</span>
             </div>
             <div style={styles.rateItem}>
               <span style={styles.rateName}>{'seo.topics_run'}</span>
-              <span style={styles.rateVal}>{'10 cr'}</span>
+              <span style={styles.rateVal}>{t('billing.rateCr', { amount: 10 })}</span>
               <span style={styles.rateDesc}>{t('billing.rateDescSeoTopics')}</span>
             </div>
             <div style={styles.rateItem}>
               <span style={styles.rateName}>{'ads.report'}</span>
-              <span style={styles.rateVal}>{'400 cr'}</span>
+              <span style={styles.rateVal}>{t('billing.rateCr', { amount: 400 })}</span>
               <span style={styles.rateDesc}>{t('billing.rateDescAdsReport')}</span>
             </div>
             <div style={styles.rateItem}>
               <span style={styles.rateName}>{'spy.scan'}</span>
-              <span style={styles.rateVal}>{'40 cr'}</span>
+              <span style={styles.rateVal}>{t('billing.rateCr', { amount: 40 })}</span>
               <span style={styles.rateDesc}>{t('billing.rateDescSpyScan')}</span>
             </div>
             <div style={styles.rateItem}>
               <span style={styles.rateName}>{'spy.insight'}</span>
-              <span style={styles.rateVal}>{'50 cr'}</span>
+              <span style={styles.rateVal}>{t('billing.rateCr', { amount: 50 })}</span>
               <span style={styles.rateDesc}>{t('billing.rateDescSpyInsight')}</span>
             </div>
           </div>

@@ -189,7 +189,7 @@ export async function getCreative(id) {
     const creatives = getMockCreatives();
     const found = creatives.find((c) => c.id === id);
     if (!found) {
-      throw new Error('Creative iklan tidak ditemukan.');
+      throw new Error('Ad creative not found.');
     }
     return { creative: found };
   }

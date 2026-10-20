@@ -54,6 +54,8 @@ export const billing = {
   "creditsUnit": "kredit",
   "cheatsheetTitle": "Cheatsheet Tarif Kredit per Aksi",
   "cheatsheetSubtitle": "Harga tetap, dipotong hanya bila aksi sukses.",
+  "rateCr": "{amount} kr",
+  "rateCrPerImg": "{amount} kr / img",
   "rateDescSeoArticle": "Status Review Ready (409 dup = 0)",
   "rateDescSeoImage": "Upload gambar terpublikasi",
   "rateDescSeoTopics": "Riset tren & topik otomatis",

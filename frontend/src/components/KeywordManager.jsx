@@ -410,7 +410,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
           </div>
           <button type="submit" className="btn btn-primary" style={styles.addBtn} disabled={!form.keyword.trim() || !anyCms.length}>
             <Plus size={16} /> {t('seo.addAndRunBtn')}
-            <span style={styles.creditPill}><Coins size={12} /> {'≈ 60 cr'}</span>
+            <span style={styles.creditPill}><Coins size={12} /> {t('seo.approxCredits', { amount: 60 })}</span>
           </button>
         </div>
       </form>
@@ -548,7 +548,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                               onClick={() => runKeyword(kw.id)}
                             >
                               {b === 'run' ? <Loader2 size={13} className="spin-icon" /> : <Check size={13} />} {t('seo.btnApprove')}
-                              <span style={styles.creditPillLight}><Coins size={10} /> {'≈ 60 cr'}</span>
+                              <span style={styles.creditPillLight}><Coins size={10} /> {t('seo.approxCredits', { amount: 60 })}</span>
                             </button>
                             <button
                               className="btn btn-secondary"
@@ -565,7 +565,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                         {(kw.status === 'Pending' || kw.status === 'Error' || isDuplicate) && (
                           <button className="btn btn-primary" style={styles.smallBtn} disabled={!!b} onClick={() => runKeyword(kw.id)}>
                             {b === 'run' ? <Loader2 size={14} className="spin-icon" /> : <Play size={14} />} {t('seo.btnRun')}
-                            <span style={styles.creditPillLight}><Coins size={10} /> {'≈ 60 cr'}</span>
+                            <span style={styles.creditPillLight}><Coins size={10} /> {t('seo.approxCredits', { amount: 60 })}</span>
                           </button>
                         )}
 
@@ -916,7 +916,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
               <button className="btn btn-primary" onClick={() => submitDrawer('publish')} disabled={!!drawerBusy || !draft.title.trim()}>
                 {drawerBusy === 'publish' ? <Loader2 size={15} className="spin-icon" /> : <Rocket size={15} />} {t('seo.drawerBtnPublish', { cms: CMS_LABEL[drawer.cms] || drawer.cms })}
                 <span style={styles.creditPillLight}>
-                  <Coins size={12} /> {imagesEnabled && draft.imagePrompts?.length ? `≈ ${draft.imagePrompts.length * 5} cr` : '0 cr'}
+                  <Coins size={12} /> {imagesEnabled && draft.imagePrompts?.length ? t('seo.approxCredits', { amount: draft.imagePrompts.length * 5 }) : t('seo.zeroCredits')}
                 </span>
               </button>
             </div>

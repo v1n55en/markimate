@@ -17,6 +17,8 @@ export const seo = {
   "scheduleDaily": "Daily (autonomous)",
   "scheduleWeekly": "Weekly (autonomous)",
   "addAndRunBtn": "Add & Run",
+  "approxCredits": "≈ {amount} cr",
+  "zeroCredits": "0 cr",
   "reloadBtn": "Reload",
   "tabAll": "All",
   "tabReviewReady": "Review Ready",

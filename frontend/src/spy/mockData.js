@@ -233,24 +233,24 @@ export const INITIAL_SPY_INSIGHTS = {
   actionRecommendations: [
     {
       id: 'rec-1',
-      title: 'Buat Video Hook Berbasis Tekstur (Sensory Pour)',
+      title: 'Create Texture-Focused Video Hook (Sensory Pour)',
       action:
-        'Produksi 3 variasi video vertikal 15 detik dengan close-up 2 detik pertama yang menonjolkan tekstur produk unggulan brand Anda.',
-      impact: 'Potensi peningkatan Hook Rate 3-second hingga +32%.',
+        'Produce 3 variations of 15s vertical videos with a 2-second close-up showcasing product texture.',
+      impact: 'Potential increase in 3-second hook rate up to +32%.',
     },
     {
       id: 'rec-2',
-      title: 'Uji Coba Penawaran Paket Bundling Rp 35rb - Rp 45rb',
+      title: 'Test Bundling Offers Between Rp 35k - Rp 45k',
       action:
-        'Gabungkan 2 produk terlaris dalam satu penawaran harga bulat untuk menyaingi paket promo kompetitor.',
-      impact: 'Meningkatkan Conversion Rate dan margin kontribusi.',
+        'Combine 2 top-selling items in a bundled offer to compete with rival flash promotions.',
+      impact: 'Increases conversion rate and contribution margin.',
     },
     {
       id: 'rec-3',
-      title: 'Manfaatkan Headline Kontras / Edukasi Kualitas',
+      title: 'Leverage Contrast Headline / Quality Education',
       action:
-        'Gunakan format angle "Kenapa bayar mahal untuk X jika Anda bisa dapat Y?" untuk mengedukasi keunggulan bahan baku Anda.',
-      impact: 'Sangat efektif menjaring audiens yang sudah jenuh dengan iklan diskon standar.',
+        'Use the angle "Why pay more for X when you can get premium Y?" to educate on ingredient superiority.',
+      impact: 'Highly effective at capturing audiences fatigued by generic discount ads.',
     },
   ],
 };

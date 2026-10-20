@@ -18,9 +18,9 @@ export const MODULE_CREDITS = {
 };
 
 export const TOPUP_PACKS = [
-  { id: 'starter', name: 'Starter Pack', price: 500000, credits: 500, bonus: 0, tag: 'Dasar' },
-  { id: 'growth', name: 'Growth Pack', price: 1000000, credits: 1050, bonus: 50, popular: true, tag: 'Paling Populer' },
-  { id: 'scale', name: 'Scale Pack', price: 2500000, credits: 2750, bonus: 250, tag: 'Terbaik (Bonus 10%)' },
+  { id: 'starter', name: 'Starter Pack', price: 500000, credits: 500, bonus: 0, tag: 'Basic' },
+  { id: 'growth', name: 'Growth Pack', price: 1000000, credits: 1050, bonus: 50, popular: true, tag: 'Most Popular' },
+  { id: 'scale', name: 'Scale Pack', price: 2500000, credits: 2750, bonus: 250, tag: 'Best Value (+10% Bonus)' },
 ];
 
 export const MODULE_PRICES = {
@@ -38,29 +38,20 @@ export const MODULE_QUOTA = {
 export const BUNDLES = [
   {
     key: 'focus3',
-    name: 'Paket Fokus 3',
-    description: 'Kombinasi 3 pilar pertumbuhan utama: SEO Specialist + Ads Specialist (Report) + Ads Creative Spy (3.200 credit/bulan).',
     modules: ['seo', 'ads_report', 'ads_spy'],
     credits: 3200,
-    discount: 0.2, // Diskon 20% dari total satuan (Rp 4.000.000 -> Rp 3.200.000 / bln)
-    badge: 'Paling Populer',
+    discount: 0.2,
   },
   {
     key: 'all_in_one',
-    name: 'All-in-One AI Team',
-    description: 'Akses penuh ke seluruh 16 role tim marketing AI Markimate (7.875 credit/bulan). Modul baru langsung aktif otomatis.',
     modules: 'all',
     credits: 7875,
-    price: 7875000, // Rp 7.875.000 / bln
+    price: 7875000,
     preorder: true,
-    badge: 'Pre-Order Eksklusif',
   },
   {
     key: 'managed',
-    name: 'Managed by 3Our',
-    description: 'Layanan terkelola penuh (Full-service). Tim agensi 3Our mengoperasikan platform Markimate untuk brand Anda.',
     contactSales: true,
-    badge: 'Solusi Agensi',
     contactUrl: 'https://wa.me/6285179642520?text=Halo%203Our,%20saya%20tertarik%20dengan%20paket%20Managed%20by%203Our%20Markimate',
   },
 ];

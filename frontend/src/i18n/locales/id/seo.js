@@ -17,6 +17,8 @@ export const seo = {
   "scheduleDaily": "Harian (otomatis)",
   "scheduleWeekly": "Mingguan (otomatis)",
   "addAndRunBtn": "Tambah & Jalankan",
+  "approxCredits": "≈ {amount} kr",
+  "zeroCredits": "0 kr",
   "reloadBtn": "Muat ulang",
   "tabAll": "Semua",
   "tabReviewReady": "Review Ready",

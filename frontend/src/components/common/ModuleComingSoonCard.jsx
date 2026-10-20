@@ -27,11 +27,11 @@ export default function ModuleComingSoonCard({ roleKey = 'ads_report' }) {
   const rawRole = ROLES.find((r) => r.key === roleKey) || {
     key: roleKey,
     name: 'AI Marketing Specialist',
-    name_id: 'AI Marketing Specialist',
-    description: 'Modul ini sedang dalam tahap pengembangan roadmap.',
+    name_id: 'Spesialis AI Marketing',
+    description: 'This module is currently in roadmap development.',
     description_id: 'Modul ini sedang dalam tahap pengembangan roadmap.',
     category: 'Marketing',
-    features: ['Integrasi platform langsung', 'Analisis otomatis AI'],
+    features: ['Direct platform integration', 'Automated AI analysis'],
     features_id: ['Integrasi platform langsung', 'Analisis otomatis AI'],
   };
 

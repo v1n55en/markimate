@@ -65,7 +65,7 @@ export default function AdsReportDetailPage({ user }) {
     setApproving(true);
     try {
       await approveReport(report.id);
-      setReport((prev) => ({ ...prev, status: 'Terkirim' }));
+      setReport((prev) => ({ ...prev, status: 'sent' }));
       setApproveSuccess(true);
       setTimeout(() => setApproveSuccess(false), 4000);
     } catch (err) {
@@ -104,7 +104,7 @@ export default function AdsReportDetailPage({ user }) {
   }
 
   const kpis = report.kpi || {};
-  const isPendingApproval = report.status === 'Menunggu approve 3Our';
+  const isPendingApproval = report.status === 'waiting_approval' || report.status === 'pending_approval';
 
   // Kolom Tabel Kampanye
   const campaignColumns = [

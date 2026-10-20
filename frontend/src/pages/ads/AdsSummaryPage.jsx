@@ -253,7 +253,7 @@ export default function AdsSummaryPage() {
                       </div>
                       <div style={styles.platformMetricRow}>
                         <span style={styles.metricLabel}>{t('ads.summary.lastReport')}</span>
-                        <StatusChip status={p.lastReportStatus || 'Terkirim'} size="sm" />
+                        <StatusChip status={p.lastReportStatus || 'sent'} size="sm" />
                       </div>
                     </div>
 

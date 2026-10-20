@@ -240,7 +240,7 @@ export async function getReport(id) {
       const reports = getMockReports();
       const meta = reports.find((r) => r.id === id);
       if (!meta) {
-        throw new Error('Laporan iklan tidak ditemukan.');
+        throw new Error('Ad report not found.');
       }
       return {
         ...REPORT_DETAILS['rep-shopee-gmvmax-2026-09'],
@@ -273,7 +273,7 @@ export async function approveReport(id) {
     const reports = getMockReports();
     const updated = reports.map((r) => {
       if (r.id === id) {
-        return { ...r, status: 'Terkirim' };
+        return { ...r, status: 'sent' };
       }
       return r;
     });
@@ -281,11 +281,11 @@ export async function approveReport(id) {
 
     const details = getMockDetails();
     if (details[id]) {
-      details[id].status = 'Terkirim';
+      details[id].status = 'sent';
       setStoredJson(getWsStorageKey(STORAGE_KEYS.DETAILS), details);
     }
 
-    return { ok: true, status: 'Terkirim' };
+    return { ok: true, status: 'sent' };
   }
   return api(`/api/ads/reports/${id}/approve`, { method: 'POST' });
 }

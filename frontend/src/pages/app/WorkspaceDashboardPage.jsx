@@ -18,7 +18,7 @@ import {
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { MODULE_PRICES, MODULE_QUOTA, formatIDR } from '../../config/pricing';
-import { ROLES } from '../../config/roles';
+import { ROLES, SOON_ROLES, TOTAL_ROLES_COUNT } from '../../config/roles';
 import { getAdsSummary, listConnections } from '../../ads/adsApi';
 import { formatCompactIDR, formatRoas } from '../../ads/format';
 
@@ -455,14 +455,14 @@ export default function WorkspaceDashboardPage({ me }) {
         <div style={styles.roadmapTeaserLeft}>
           <Sparkles size={20} color="var(--accent-cyan)" />
           <div>
-            <h4 style={styles.roadmapTitle}>{t('app.dashboard.roadmapTitle', { soonRoles: soonRolesCount })}</h4>
+            <h4 style={styles.roadmapTitle}>{t('app.dashboard.roadmapTitle', { soonRoles: SOON_ROLES.length })}</h4>
             <p style={styles.roadmapSub}>
               {t('app.dashboard.roadmapSub')}
             </p>
           </div>
         </div>
         <Link to="/#roles" style={styles.roadmapBtn}>
-          <span>{t('app.dashboard.viewAllRoles', { totalRoles: totalRolesCount })}</span>
+          <span>{t('app.dashboard.viewAllRoles', { totalRoles: TOTAL_ROLES_COUNT })}</span>
           <ArrowRight size={14} />
         </Link>
       </div>

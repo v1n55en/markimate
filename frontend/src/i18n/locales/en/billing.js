@@ -54,6 +54,8 @@ export const billing = {
   "creditsUnit": "credits",
   "cheatsheetTitle": "Credit Rates per AI Action",
   "cheatsheetSubtitle": "Fixed rate, charged only upon success.",
+  "rateCr": "{amount} cr",
+  "rateCrPerImg": "{amount} cr / img",
   "rateDescSeoArticle": "Review Ready (409 dup = 0)",
   "rateDescSeoImage": "Uploaded published image",
   "rateDescSeoTopics": "Auto trends & topic run",

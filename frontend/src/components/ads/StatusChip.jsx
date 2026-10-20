@@ -37,7 +37,7 @@ const STATUS_CONFIGS = {
   },
 
   // Status Laporan Bulanan
-  'Diproses': {
+  processing: {
     key: 'ads.status.processing',
     fallback: 'Processing',
     bg: 'rgba(6, 182, 212, 0.12)',
@@ -45,7 +45,7 @@ const STATUS_CONFIGS = {
     border: 'rgba(6, 182, 212, 0.25)',
     dot: '#06b6d4',
   },
-  'Menunggu approve 3Our': {
+  waiting_approval: {
     key: 'ads.status.waitingApproval',
     fallback: 'Waiting 3Our approval',
     bg: 'rgba(245, 158, 11, 0.12)',
@@ -53,7 +53,7 @@ const STATUS_CONFIGS = {
     border: 'rgba(245, 158, 11, 0.25)',
     dot: '#f59e0b',
   },
-  'Terkirim': {
+  sent: {
     key: 'ads.status.sent',
     fallback: 'Sent',
     bg: 'rgba(16, 185, 129, 0.12)',
@@ -61,7 +61,7 @@ const STATUS_CONFIGS = {
     border: 'rgba(16, 185, 129, 0.25)',
     dot: '#10b981',
   },
-  'Gagal': {
+  failed: {
     key: 'ads.status.failed',
     fallback: 'Failed',
     bg: 'rgba(239, 68, 68, 0.12)',
@@ -69,7 +69,7 @@ const STATUS_CONFIGS = {
     border: 'rgba(239, 68, 68, 0.25)',
     dot: '#ef4444',
   },
-  'Dilewati – tidak ada iklan': {
+  skipped: {
     key: 'ads.status.skipped',
     fallback: 'Skipped – no ads',
     bg: 'rgba(113, 113, 122, 0.12)',
@@ -81,7 +81,8 @@ const STATUS_CONFIGS = {
 
 export default function StatusChip({ status, size = 'md' }) {
   const { t } = useLanguage();
-  const config = STATUS_CONFIGS[status] || {
+  const normalizedKey = status ? String(status).toLowerCase() : '';
+  const config = STATUS_CONFIGS[normalizedKey] || STATUS_CONFIGS[status] || {
     key: '',
     fallback: status || 'Unknown',
     bg: 'rgba(113, 113, 122, 0.12)',
