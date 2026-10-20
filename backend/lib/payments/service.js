@@ -163,14 +163,20 @@ export async function fulfillPayment(payment, parsed = {}) {
   // PRD F14 Poin 5: Fulfillment harus atomik. Gunakan update bersyarat (where id = ? and fulfilled_at is null)
   // dan hanya berikan kredit kalau baris itu benar-benar ter-update.
   const fulfilledAt = new Date().toISOString();
-  const claimed = await db.update('payments', {
-    id: payment.id,
-    fulfilled_at: null
-  }, {
-    fulfilled_at: fulfilledAt,
-    status: 'paid',
-    updated_at: fulfilledAt
-  });
+  const claimed = typeof db.claim === 'function'
+    ? await db.claim('payments', payment.id, {
+        fulfilled_at: fulfilledAt,
+        status: 'paid',
+        updated_at: fulfilledAt
+      })
+    : await db.update('payments', {
+        id: payment.id,
+        fulfilled_at: null
+      }, {
+        fulfilled_at: fulfilledAt,
+        status: 'paid',
+        updated_at: fulfilledAt
+      });
 
   if (!claimed) {
     return { fulfilled: false, reason: 'already_fulfilled' };

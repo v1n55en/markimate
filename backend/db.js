@@ -126,6 +126,17 @@ class JsonStore {
     this.save();
     return rows[0] || null;
   }
+  async claim(table, id, patch, nullColumn = 'fulfilled_at') {
+    if (process.env.SCHEMA_CONTRACT_VALIDATION === 'true') {
+      const { validateRowContract } = await import('./lib/schema-contract.js');
+      validateRowContract(table, patch, false);
+    }
+    const row = (this.data[table] || []).find(r => r.id === id && (r[nullColumn] === undefined || r[nullColumn] === null));
+    if (!row) return null;
+    Object.assign(row, patch, { updated_at: new Date().toISOString() });
+    this.save();
+    return row;
+  }
   async upsert(table, where, row) { const ex = await this.findOne(table, where); return ex ? this.update(table, where, row) : this.insert(table, { ...where, ...row }); }
   async remove(table, where) { const before = (this.data[table] || []).length; this.data[table] = (this.data[table] || []).filter(r => !this._match(r, where)); this.save(); return before - this.data[table].length; }
   async rpc(name, params = {}) {
@@ -160,13 +171,51 @@ class JsonStore {
 // ---------- Supabase ----------
 class SupabaseStore {
   constructor(client) { this.c = client; }
-  _q(table, where) { let q = this.c.from(table).select('*'); for (const [k, v] of Object.entries(where)) q = q.eq(k, v); return q; }
+  _applyFilters(q, where = {}) {
+    for (const [k, v] of Object.entries(where)) {
+      if (v === null) {
+        q = q.is(k, null);
+      } else {
+        q = q.eq(k, v);
+      }
+    }
+    return q;
+  }
+  _q(table, where) {
+    let q = this.c.from(table).select('*');
+    return this._applyFilters(q, where);
+  }
   async findOne(table, where) { const { data, error } = await this._q(table, where).limit(1); if (error) throw new Error(`${table}: ${error.message}`); return data[0] || null; }
-  async findMany(table, where = {}, opts = {}) { let q = this._q(table, where); if (opts.orderBy) q = q.order(opts.orderBy, { ascending: !!opts.ascending }); if (opts.limit) q = q.limit(opts.limit); const { data, error } = await q; if (error) throw new Error(`${table}: ${error.message}`); return data; }
+  async findMany(table, where = {}, opts = {}) {
+    let q = this._q(table, where);
+    if (opts.orderBy) q = q.order(opts.orderBy, { ascending: !!opts.ascending });
+    if (opts.limit) q = q.limit(opts.limit);
+    const { data, error } = await q;
+    if (error) throw new Error(`${table}: ${error.message}`);
+    return data;
+  }
   async insert(table, row) { const { data, error } = await this.c.from(table).insert(row).select().single(); if (error) throw new Error(`${table}: ${error.message}`); return data; }
-  async update(table, where, patch) { let q = this.c.from(table).update({ ...patch, updated_at: new Date().toISOString() }); for (const [k, v] of Object.entries(where)) q = q.eq(k, v); const { data, error } = await q.select(); if (error) throw new Error(`${table}: ${error.message}`); return data[0] || null; }
+  async update(table, where, patch) {
+    let q = this.c.from(table).update({ ...patch, updated_at: new Date().toISOString() });
+    q = this._applyFilters(q, where);
+    const { data, error } = await q.select();
+    if (error) throw new Error(`${table}: ${error.message}`);
+    return data[0] || null;
+  }
+  async claim(table, id, patch, nullColumn = 'fulfilled_at') {
+    let q = this.c.from(table).update({ ...patch, updated_at: new Date().toISOString() }).eq('id', id).is(nullColumn, null);
+    const { data, error } = await q.select();
+    if (error) throw new Error(`${table}: ${error.message}`);
+    return data && data.length > 0 ? data[0] : null;
+  }
   async upsert(table, where, row) { const ex = await this.findOne(table, where); return ex ? this.update(table, where, row) : this.insert(table, { ...where, ...row }); }
-  async remove(table, where) { let q = this.c.from(table).delete(); for (const [k, v] of Object.entries(where)) q = q.eq(k, v); const { error, count } = await q; if (error) throw new Error(`${table}: ${error.message}`); return count ?? 1; }
+  async remove(table, where) {
+    let q = this.c.from(table).delete();
+    q = this._applyFilters(q, where);
+    const { error, count } = await q;
+    if (error) throw new Error(`${table}: ${error.message}`);
+    return count ?? 1;
+  }
   async rpc(name, params = {}) {
     const { data, error } = await this.c.rpc(name, params);
     if (error) throw new Error(`rpc ${name}: ${error.message}`);
@@ -177,4 +226,4 @@ class SupabaseStore {
 const sb = makeSupabase();
 export const db = sb ? new SupabaseStore(sb) : new JsonStore();
 export const dbMode = sb ? 'supabase' : 'json';
-export { TABLES, JsonStore };
+export { TABLES, JsonStore, SupabaseStore };
