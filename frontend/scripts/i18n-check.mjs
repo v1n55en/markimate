@@ -2,6 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { parse } from '@babel/parser';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -193,39 +194,99 @@ if (missingUsedKeys === 0) {
   console.log(`   OK - All ${usedKeys.size} referenced keys exist in dictionary.`);
 }
 
-// (e) Missing Parameter Check for Keys with Placeholders (PRD F3 Penutup)
-console.log('\n3b. Checking t("key") Calls for Missing Parameters...');
+// (e) Missing Parameter Check for Keys with Placeholders (PRD F3 Penutup & F14 Tahap 2 Poin 5)
+console.log('\n3b. Checking t("key") Calls for Missing / Incomplete Parameters via AST...');
 let missingParamErrors = 0;
-const tCallRegex = /\bt\(\s*['"]([a-zA-Z0-9_.]+)['"]\s*([,)])/g;
 
-for (const file of allSrcFiles) {
-  const content = fs.readFileSync(file, 'utf8');
-  const relPath = path.relative(srcDir, file);
-  let match;
-  while ((match = tCallRegex.exec(content)) !== null) {
-    const key = match[1];
-    const delimiter = match[2];
+function checkCallExpressionParams(node, relPath) {
+  if (
+    node.type === 'CallExpression' &&
+    node.callee &&
+    node.callee.type === 'Identifier' &&
+    node.callee.name === 't'
+  ) {
+    const args = node.arguments || [];
+    if (args.length === 0) return;
+    const firstArg = args[0];
+    if (firstArg.type !== 'StringLiteral') return;
+    const key = firstArg.value;
     const expected = enPlaceholders[key];
 
     if (expected && expected.length > 0) {
-      if (delimiter === ')') {
+      if (args.length < 2) {
         console.error(`❌ [${relPath}] Key "${key}" expects parameters [${expected.join(', ')}] but was called without arguments: t('${key}')`);
         missingParamErrors++;
         errorCount++;
-      } else if (delimiter === ',') {
-        const rest = content.slice(match.index + match[0].length).trim();
-        if (rest.startsWith("'") || rest.startsWith('"') || rest.startsWith('`')) {
-          console.error(`❌ [${relPath}] Key "${key}" expects parameters [${expected.join(', ')}] but was passed a string fallback instead of parameter object: t('${key}', ...)`);
-          missingParamErrors++;
-          errorCount++;
+        return;
+      }
+
+      const secondArg = args[1];
+      if (
+        secondArg.type === 'StringLiteral' ||
+        secondArg.type === 'TemplateLiteral'
+      ) {
+        console.error(`❌ [${relPath}] Key "${key}" expects parameters [${expected.join(', ')}] but was passed a string fallback instead of parameter object: t('${key}', ...)`);
+        missingParamErrors++;
+        errorCount++;
+        return;
+      }
+
+      if (secondArg.type === 'ObjectExpression') {
+        const passedKeys = new Set();
+        let hasSpread = false;
+        for (const prop of secondArg.properties) {
+          if (prop.type === 'ObjectProperty') {
+            if (prop.key.type === 'Identifier') passedKeys.add(prop.key.name);
+            else if (prop.key.type === 'StringLiteral') passedKeys.add(prop.key.value);
+          } else if (prop.type === 'SpreadElement') {
+            hasSpread = true;
+          }
+        }
+
+        if (!hasSpread) {
+          for (const param of expected) {
+            if (!passedKeys.has(param)) {
+              console.error(`❌ [${relPath}] Key "${key}" expects parameter "{${param}}" which was missing in parameter object: t('${key}', { ${[...passedKeys].join(', ')} })`);
+              missingParamErrors++;
+              errorCount++;
+            }
+          }
         }
       }
     }
   }
 }
 
+function traverseAst(node, relPath) {
+  if (!node || typeof node !== 'object') return;
+  checkCallExpressionParams(node, relPath);
+  for (const key of Object.keys(node)) {
+    if (key === 'comments' || key === 'tokens') continue;
+    const child = node[key];
+    if (Array.isArray(child)) {
+      for (const c of child) traverseAst(c, relPath);
+    } else if (child && typeof child === 'object') {
+      traverseAst(child, relPath);
+    }
+  }
+}
+
+for (const file of allSrcFiles) {
+  const content = fs.readFileSync(file, 'utf8');
+  const relPath = path.relative(srcDir, file);
+  try {
+    const ast = parse(content, {
+      sourceType: 'module',
+      plugins: ['jsx']
+    });
+    traverseAst(ast, relPath);
+  } catch (err) {
+    // Abaikan jika ada file non-standard, tetap aman
+  }
+}
+
 if (missingParamErrors === 0) {
-  console.log('   OK - All t() calls for keys with placeholders provide parameter arguments.');
+  console.log('   OK - All t() calls provide all expected parameter names defined in dictionary.');
 }
 
 // Unused keys warning

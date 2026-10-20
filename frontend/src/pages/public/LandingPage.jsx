@@ -136,11 +136,11 @@ export default function LandingPage() {
           <div style={styles.heroProof}>
             <div style={styles.proofItem}>
               <CheckCircle2 size={15} color="var(--accent-green)" />
-              <span>{t('hero.proof1', { activeRoles: ACTIVE_ROLES_COUNT }, `${ACTIVE_ROLES_COUNT} Active Roles Ready to Deploy`)}</span>
+              <span>{t('hero.proof1', { activeRoles: ACTIVE_ROLES_COUNT })}</span>
             </div>
             <div style={styles.proofItem}>
               <CheckCircle2 size={15} color="var(--accent-green)" />
-              <span>{t('hero.proof2', { soonRoles: SOON_ROLES.length }, `${SOON_ROLES.length} Specialized Roles in Pipeline`)}</span>
+              <span>{t('hero.proof2', { soonRoles: SOON_ROLES.length })}</span>
             </div>
             <div style={styles.proofItem}>
               <CheckCircle2 size={15} color="var(--accent-green)" />
@@ -153,14 +153,10 @@ export default function LandingPage() {
         <section id="roles" style={styles.section}>
           <div style={styles.sectionHeader}>
             <h2 style={styles.sectionHeading}>
-              {t('rolesGrid.sectionTitle', { totalRoles: TOTAL_ROLES_COUNT }, 'Your Autonomous Marketing Team')}
+              {t('rolesGrid.sectionTitle', { totalRoles: TOTAL_ROLES_COUNT })}
             </h2>
             <p style={styles.sectionSub}>
-              {t(
-                'rolesGrid.sectionSubtitle',
-                { totalRoles: TOTAL_ROLES_COUNT },
-                `${TOTAL_ROLES_COUNT} specialized AI roles covering every digital marketing function. Activate individual modules or orchestrate the entire team.`
-              )}
+              {t('rolesGrid.sectionSubtitle', { totalRoles: TOTAL_ROLES_COUNT })}
             </p>
 
             {/* Filter Kategori */}
@@ -468,10 +464,10 @@ export default function LandingPage() {
               </div>
               <div style={{ flex: 1, minWidth: '220px' }}>
                 <div style={{ fontWeight: 700, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
-                  {t('bundles.pricingTrialTitle', { days: TRIAL.days, credits: TRIAL.credits }, `${TRIAL.days}-Day Free Trial — ${TRIAL.credits} Credits, Zero Credit Card Required`)}
+                  {t('bundles.pricingTrialTitle', { days: TRIAL.days, credits: TRIAL.credits })}
                 </div>
                 <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                  {t('bundles.pricingTrialDesc', { credits: TRIAL.credits }, `1 credit = IDR 1,000. Get ${TRIAL.credits} free credits instantly to test AI SEO articles with images and all modules freely.`)}
+                  {t('bundles.pricingTrialDesc', { credits: TRIAL.credits, rate: formatCurrency(CREDIT_PRICE_IDR, lang) })}
                 </div>
               </div>
               <AppLink to="/register" style={styles.trialCtaBtn}>
