@@ -265,6 +265,11 @@ export async function charge(workspaceId, actionKey, qty = 1, ref = {}, usage = 
   // 2a. Bypass pemotongan saldo untuk workspace admin platform
   if (await isWorkspacePlatformAdmin(workspaceId)) {
     const costActual = await costOf(usage);
+    const est = await estimate(actionKey, qty, ref?.extra);
+    const estimatedCredits = est ? est.credits : 0;
+    const usageObj = typeof usage === 'object' && usage !== null ? { ...usage } : {};
+    usageObj.estimated_credits = estimatedCredits;
+
     const row = await db.insert('credit_ledger', {
       workspace_id: workspaceId,
       delta: 0,
@@ -274,7 +279,7 @@ export async function charge(workspaceId, actionKey, qty = 1, ref = {}, usage = 
       ref_type: refType,
       ref_id: refId,
       balance_after: totalBalance,
-      usage: usage || null,
+      usage: usageObj,
       cost_actual_idr: costActual,
       note: ref?.note || `Pemakaian internal admin (${actionKey})`
     });

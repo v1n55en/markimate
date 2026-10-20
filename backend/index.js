@@ -6,7 +6,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { randomBytes } from 'crypto';
+import crypto, { randomBytes, timingSafeEqual } from 'crypto';
 import { db, dbMode } from './db.js';
 import { encrypt, decrypt } from './lib/crypto.js';
 import {
@@ -99,6 +99,12 @@ if (process.env.NODE_ENV === 'production') {
   if (process.env.ADMIN_KEY && process.env.ADMIN_KEY.length < 32) {
     console.error('[FATAL] In production environment, ADMIN_KEY must be at least 32 characters if set.');
     process.exit(1);
+  }
+  if ((process.env.PAYMENT_PROVIDER || 'doku').toLowerCase() === 'doku') {
+    if (!process.env.DOKU_CLIENT_ID || !process.env.DOKU_SECRET_KEY) {
+      console.error('[FATAL] In production environment, DOKU_CLIENT_ID and DOKU_SECRET_KEY are mandatory when PAYMENT_PROVIDER=doku.');
+      process.exit(1);
+    }
   }
 }
 const JWT_SECRET = process.env.JWT_SECRET || 'ganti-di-env-JWT_SECRET';
@@ -2040,17 +2046,28 @@ app.get('/api/credits/ledger', auth, requireWorkspace('viewer'), wrap(async (req
 // Webhook notifikasi Provider Pembayaran (DOKU Checkout, dsb) (PRD F14 §2.7 & §4.6)
 app.post('/api/webhooks/:provider', wrap(async (req, res) => {
   const provider = String(req.params.provider || '').toLowerCase();
+  const activeProvider = (process.env.PAYMENT_PROVIDER || 'doku').toLowerCase();
+
+  // Tolak jika bukan active provider atau mock di mode production
+  if (provider !== activeProvider || (process.env.NODE_ENV === 'production' && provider === 'mock')) {
+    return res.status(404).json({ error: 'Webhook provider not found or inactive', code: 'NOT_FOUND' });
+  }
+
   const result = await handleNotification(provider, req);
   res.json(result);
 }));
 
 // ---------- Admin Auth & Endpoints (PRD §2b & §4.4) ----------
 const adminAuth = async (req, res, next) => {
-  // 1. Header x-admin-key (hanya jika ADMIN_KEY diisi dan cocok)
+  // 1. Header x-admin-key (hanya jika ADMIN_KEY diisi dan cocok via timingSafeEqual)
   const adminKey = process.env.ADMIN_KEY ? String(process.env.ADMIN_KEY).trim() : '';
-  const given = req.headers['x-admin-key'];
-  if (adminKey && given && given === adminKey) {
-    return next();
+  const given = req.headers['x-admin-key'] ? String(req.headers['x-admin-key']).trim() : '';
+  if (adminKey && given) {
+    const adminKeyBuf = Buffer.from(adminKey);
+    const givenBuf = Buffer.from(given);
+    if (adminKeyBuf.length === givenBuf.length && crypto.timingSafeEqual(adminKeyBuf, givenBuf)) {
+      return next();
+    }
   }
 
   // 2. Sesi user dengan flag is_platform_admin
@@ -3271,25 +3288,23 @@ app.get('/api/billing', auth, requireWorkspace('viewer'), wrap(async (req, res) 
 }));
 
 app.post('/api/billing/topup', auth, requireWorkspace('admin'), wrap(async (req, res) => {
-  const { packageId, callbackUrl } = req.body || {};
+  const { packageId } = req.body || {};
   const checkout = await createCheckout({
     kind: 'topup',
     itemId: packageId || 'starter',
     workspaceId: req.workspace.id,
-    userId: req.user.id,
-    callbackUrl
+    userId: req.user.id
   });
   res.json(checkout);
 }));
 
 app.post('/api/billing/checkout', auth, requireWorkspace('admin'), wrap(async (req, res) => {
-  const { plan, callbackUrl } = req.body || {};
+  const { plan } = req.body || {};
   const checkout = await createCheckout({
     kind: 'subscription',
     itemId: plan || 'seo',
     workspaceId: req.workspace.id,
-    userId: req.user.id,
-    callbackUrl
+    userId: req.user.id
   });
   res.json(checkout);
 }));
@@ -3352,10 +3367,9 @@ app.post('/api/billing/cancel', auth, requireWorkspace('admin'), wrap(async (req
 
 // Cron rekonsiliasi pembayaran DOKU / provider (PRD F14 §2.8 & §4.6)
 app.get('/api/cron/payments-reconcile', wrap(async (req, res) => {
-  const cronSecret = process.env.CRON_SECRET;
-  const authHeader = req.headers.authorization;
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return res.status(401).json({ error: 'Unauthorized cron request.' });
+  const given = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '') || String(req.query.secret || '');
+  if (!CRON_SECRET || given !== CRON_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized cron request.', code: 'UNAUTHORIZED' });
   }
   const result = await reconcile();
   res.json({ status: 'ok', result });
@@ -3494,7 +3508,22 @@ app.get('/api/cron/run-scheduled', wrap(async (req, res) => {
     log(`[CRON] topic sources check error: ${err.message}`);
   }
 
-  res.json({ ran: results.length, results, alerts: alertSummary, marginSentinel: marginSentinelSummary });
+  // 0d. Pengingat perpanjangan langganan H-7 dan H-1 (PRD F14 Poin 16)
+  let renewalReminderSummary = null;
+  try {
+    const { processSubscriptionRenewalReminders } = await import('./lib/payments/service.js');
+    renewalReminderSummary = await processSubscriptionRenewalReminders();
+  } catch (err) {
+    log(`[CRON] processSubscriptionRenewalReminders error: ${err.message}`);
+  }
+
+  res.json({
+    ran: results.length,
+    results,
+    alerts: alertSummary,
+    marginSentinel: marginSentinelSummary,
+    renewalReminders: renewalReminderSummary
+  });
 }));
 
 app.use((req, res) => res.status(404).json({ error: 'Route not found.', code: 'NOT_FOUND' }));

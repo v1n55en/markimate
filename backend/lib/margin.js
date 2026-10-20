@@ -55,7 +55,7 @@ export async function calculateUsageAndMargin(monthStr = null) {
     if (r.kind === 'admin_usage') {
       internalAdminUsage.actions_count += 1;
       internalAdminUsage.cost_actual_idr += cost;
-      const estCr = prices[actKey]?.credits || 0;
+      const estCr = r.usage?.estimated_credits || prices[actKey]?.credits || 0;
       internalAdminUsage.estimated_credits += estCr;
       if (!internalAdminUsage.by_action[actKey]) {
         internalAdminUsage.by_action[actKey] = {
