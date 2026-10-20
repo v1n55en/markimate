@@ -162,6 +162,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
   }, []);
 
   const totalBalance = credits?.balance?.total ?? 0;
+  const isUnlimited = Boolean(credits?.isUnlimited || me?.isPlatformAdmin);
   const trialBalance = credits?.balance?.trial ?? 0;
   const subBalance = credits?.balance?.sub ?? 0;
   const topupBalance = credits?.balance?.topup ?? 0;
@@ -246,7 +247,13 @@ export default function CreditWalletPage({ me, onTopupClick }) {
               <Coins size={13} color="var(--accent-cyan)" />
               {t('billing.walletBadge')}
             </span>
-            {isTrialActive && (
+            {isUnlimited && (
+              <span style={styles.adminBadge}>
+                <ShieldAlert size={13} color="var(--accent-cyan)" />
+                <span>{t('billing.adminUnlimitedBadge', 'Admin · Unlimited')}</span>
+              </span>
+            )}
+            {isTrialActive && !isUnlimited && (
               <span style={styles.trialBadge}>
                 {`⚡ ${t('billing.activeTrialDays', { days: trialDaysLeft })}`}
               </span>
@@ -282,13 +289,13 @@ export default function CreditWalletPage({ me, onTopupClick }) {
             </div>
           </div>
           <div style={styles.bucketValRow}>
-            <span style={styles.totalVal}>{formatNumber(totalBalance, lang)}</span>
-            <span style={styles.bucketUnit}>{t('billing.creditsUnit')}</span>
+            <span style={styles.totalVal}>{isUnlimited ? t('billing.unlimitedBalance', '∞ Unlimited') : formatNumber(totalBalance, lang)}</span>
+            {!isUnlimited && <span style={styles.bucketUnit}>{t('billing.creditsUnit')}</span>}
           </div>
           <div style={styles.dailyCapRow}>
             <span>{t('billing.usedToday')}</span>
             <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>
-              {credits?.dailyUsed || 0} / {credits?.dailyCap || 500} cr
+              {isUnlimited ? t('billing.unlimitedDailyCap', 'Akses Tanpa Batas (Bypass)') : `${credits?.dailyUsed || 0} / ${credits?.dailyCap || 500} cr`}
             </span>
           </div>
         </div>
@@ -633,6 +640,18 @@ const styles = {
     color: 'var(--accent-yellow)',
     backgroundColor: 'rgba(245, 158, 11, 0.12)',
     border: '1px solid rgba(245, 158, 11, 0.3)',
+    borderRadius: '6px',
+    padding: '0.2rem 0.55rem',
+  },
+  adminBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.35rem',
+    fontSize: '0.72rem',
+    fontWeight: '700',
+    color: 'var(--accent-cyan)',
+    backgroundColor: 'rgba(6, 182, 212, 0.12)',
+    border: '1px solid rgba(6, 182, 212, 0.3)',
     borderRadius: '6px',
     padding: '0.2rem 0.55rem',
   },

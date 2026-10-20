@@ -1,6 +1,7 @@
 import { db } from '../db.js';
 import { DEFAULT_PRICES, DEFAULT_COST_RATES } from '../scripts/maintenance/seed-credit-prices.js';
-import { TRIAL_CONFIG, isUnlimitedEmail } from './config.js';
+import { TRIAL_CONFIG } from './config.js';
+import { isWorkspacePlatformAdmin } from './admin.js';
 
 let cachedPrices = null;
 let cachedPricesAt = 0;
@@ -194,14 +195,9 @@ export async function assertAffordable(workspaceId, actionKey, qty = 1, extra = 
     return { affordable: true, need: 0, have: totalBalance, wallet };
   }
 
-  // Bypass untuk akun khusus / Owner (Unlimited)
-  if (workspaceId) {
-    const ws = await db.findOne('workspaces', { id: workspaceId });
-    const ownerUserId = ws?.owner_user_id || workspaceId;
-    const owner = await db.findOne('accounts', { id: ownerUserId });
-    if (owner && isUnlimitedEmail(owner.email)) {
-      return { affordable: true, need: 0, have: 999999, wallet: { ...wallet, balance_topup: 999999 } };
-    }
+  // Bypass untuk akun admin platform (Unlimited)
+  if (await isWorkspacePlatformAdmin(workspaceId)) {
+    return { affordable: true, unlimited: true, need: 0, have: totalBalance, wallet };
   }
 
   // Cek daily cap pemakaian hari ini WIB
@@ -264,10 +260,34 @@ export async function charge(workspaceId, actionKey, qty = 1, ref = {}, usage = 
     return { charged: 0, idempotent: false, ledgerRows: [] };
   }
 
-  // 2. Pastikan saldo cukup & batas harian terpenuhi
-  await assertAffordable(workspaceId, actionKey, qty, ref?.extra);
-
   let { wallet, totalBalance } = await getWallet(workspaceId);
+
+  // 2a. Bypass pemotongan saldo untuk workspace admin platform
+  if (await isWorkspacePlatformAdmin(workspaceId)) {
+    const costActual = await costOf(usage);
+    const row = await db.insert('credit_ledger', {
+      workspace_id: workspaceId,
+      delta: 0,
+      bucket: 'topup',
+      kind: 'admin_usage',
+      action_key: actionKey,
+      ref_type: refType,
+      ref_id: refId,
+      balance_after: totalBalance,
+      usage: usage || null,
+      cost_actual_idr: costActual,
+      note: ref?.note || `Pemakaian internal admin (${actionKey})`
+    });
+    return {
+      charged: 0,
+      unlimited: true,
+      idempotent: false,
+      ledgerRows: [row],
+      balanceAfter: totalBalance,
+      deductions: []
+    };
+  }
+
   const now = new Date();
 
   // 3. Potong berurutan: trial -> sub -> topup
@@ -499,21 +519,6 @@ export async function expireBuckets(workspaceId = null) {
 export async function grantTrialIfEligible(workspaceId, email, cmsDomain = null) {
   if (!email || !workspaceId) return null;
   const em = String(email).trim().toLowerCase();
-
-  if (isUnlimitedEmail(em)) {
-    await db.upsert('credit_wallets', { workspace_id: workspaceId }, {
-      balance_topup: 999999,
-      daily_cap: 999999,
-      topup_expires_at: null
-    });
-    return {
-      granted: true,
-      credits: 999999,
-      days: 3650,
-      expiresAt: null,
-      unlimited: true
-    };
-  }
 
   const existing = await db.findOne('credit_trials', { email: em });
   if (existing) {

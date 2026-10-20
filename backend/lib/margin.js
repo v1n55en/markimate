@@ -38,9 +38,39 @@ export async function calculateUsageAndMargin(monthStr = null) {
   let totalRevenueIdr = 0;
   let totalCostActualIdr = 0;
 
+  const internalAdminUsage = {
+    label: 'Pemakaian internal 3Our',
+    actions_count: 0,
+    cost_actual_idr: 0,
+    estimated_credits: 0,
+    by_action: {}
+  };
+
   for (const r of monthRows) {
     const actKey = r.action_key;
     if (!actKey) continue;
+    const cost = Number(r.cost_actual_idr || 0);
+
+    // Pemakaian internal admin (kind: admin_usage) dipisahkan dari margin bisnis
+    if (r.kind === 'admin_usage') {
+      internalAdminUsage.actions_count += 1;
+      internalAdminUsage.cost_actual_idr += cost;
+      const estCr = prices[actKey]?.credits || 0;
+      internalAdminUsage.estimated_credits += estCr;
+      if (!internalAdminUsage.by_action[actKey]) {
+        internalAdminUsage.by_action[actKey] = {
+          action_key: actKey,
+          label: prices[actKey]?.label || actKey,
+          actions_count: 0,
+          cost_actual_idr: 0,
+          estimated_credits: 0
+        };
+      }
+      internalAdminUsage.by_action[actKey].actions_count += 1;
+      internalAdminUsage.by_action[actKey].cost_actual_idr += cost;
+      internalAdminUsage.by_action[actKey].estimated_credits += estCr;
+      continue;
+    }
 
     if (!byAction[actKey]) {
       byAction[actKey] = {
@@ -58,7 +88,6 @@ export async function calculateUsageAndMargin(monthStr = null) {
     }
 
     const item = byAction[actKey];
-    const cost = Number(r.cost_actual_idr || 0);
 
     if (r.delta < 0) {
       const cr = Math.abs(r.delta);
@@ -87,6 +116,11 @@ export async function calculateUsageAndMargin(monthStr = null) {
     }
   }
 
+  internalAdminUsage.cost_actual_idr = Math.round(internalAdminUsage.cost_actual_idr * 100) / 100;
+  for (const item of Object.values(internalAdminUsage.by_action)) {
+    item.cost_actual_idr = Math.round(item.cost_actual_idr * 100) / 100;
+  }
+
   totalCostActualIdr = Math.round(totalCostActualIdr * 100) / 100;
   const overallMarginPct = totalRevenueIdr > 0
     ? Math.round(((totalRevenueIdr - totalCostActualIdr) / totalRevenueIdr) * 100)
@@ -100,7 +134,8 @@ export async function calculateUsageAndMargin(monthStr = null) {
       total_revenue_idr: totalRevenueIdr,
       total_cost_actual_idr: totalCostActualIdr,
       overall_margin_pct: overallMarginPct
-    }
+    },
+    internal_admin_usage: internalAdminUsage
   };
 }
 

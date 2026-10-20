@@ -66,6 +66,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
   }, [user]);
 
   const totalCredits = creditsData?.balance?.total ?? 0;
+  const isUnlimited = Boolean(user?.isPlatformAdmin || creditsData?.isUnlimited);
   const isTrialActive = Boolean(creditsData?.trial?.active);
   const trialDaysLeft = creditsData?.trial?.daysLeft ?? 0;
   const maxBaseline = isTrialActive ? 300 : (creditsData?.dailyCap || 500);
@@ -251,8 +252,8 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
             title={t('common.viewCreditWallet')}
           >
             <Coins size={13} color={barColor} />
-            <span style={{ ...styles.mobileCreditNum, color: totalCredits === 0 ? 'var(--accent-red)' : 'var(--text-primary)' }}>
-              {formatNumber(totalCredits, lang)}
+            <span style={{ ...styles.mobileCreditNum, color: totalCredits === 0 && !isUnlimited ? 'var(--accent-red)' : 'var(--text-primary)' }}>
+              {isUnlimited ? t('billing.unlimitedBalance', '∞ Unlimited') : formatNumber(totalCredits, lang)}
             </span>
           </button>
           <button
@@ -344,33 +345,44 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
               <span
                 style={{
                   ...styles.creditChipAmount,
-                  color: totalCredits === 0 ? 'var(--accent-red)' : 'var(--text-primary)',
+                  color: totalCredits === 0 && !isUnlimited ? 'var(--accent-red)' : 'var(--text-primary)',
                 }}
               >
-                {formatNumber(totalCredits, lang)}
+                {isUnlimited ? t('billing.unlimitedBalance', '∞ Unlimited') : formatNumber(totalCredits, lang)}
               </span>
-              <span style={styles.creditChipUnit}>cr</span>
+              {!isUnlimited && <span style={styles.creditChipUnit}>cr</span>}
             </div>
           </div>
 
-          {/* Progress Bar Saldo */}
-          <div style={styles.creditProgressTrack}>
-            <div
-              style={{
-                ...styles.creditProgressFill,
-                width: `${creditPct}%`,
-                backgroundColor: barColor,
-              }}
-            />
-          </div>
-
-          {/* Badge Trial jika masih aktif */}
-          {isTrialActive && (
-            <div style={styles.trialBadgeRow}>
-              <span style={styles.trialBadge}>
-                {`⚡ ${t('sidebar.creditTrialBadge', { days: trialDaysLeft })}`}
+          {/* Progress Bar Saldo atau Badge Admin */}
+          {isUnlimited ? (
+            <div style={styles.adminBadgeRow}>
+              <span style={styles.adminUnlimitedBadge}>
+                <Shield size={11} color="var(--accent-cyan)" />
+                <span>{t('sidebar.adminUnlimitedBadge', 'Admin · Unlimited')}</span>
               </span>
             </div>
+          ) : (
+            <>
+              <div style={styles.creditProgressTrack}>
+                <div
+                  style={{
+                    ...styles.creditProgressFill,
+                    width: `${creditPct}%`,
+                    backgroundColor: barColor,
+                  }}
+                />
+              </div>
+
+              {/* Badge Trial jika masih aktif */}
+              {isTrialActive && (
+                <div style={styles.trialBadgeRow}>
+                  <span style={styles.trialBadge}>
+                    {`⚡ ${t('sidebar.creditTrialBadge', { days: trialDaysLeft })}`}
+                  </span>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -657,6 +669,35 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
               </button>
             </div>
           </div>
+
+          {/* 5. Menu Admin Platform (Khusus Platform Admin) */}
+          {user?.isPlatformAdmin && (
+            <div style={styles.sectionBlock}>
+              <div style={styles.sectionHeader}>
+                <span style={styles.sectionGroupTitle}>{t('sidebar.sectionAdmin', 'Platform Administration')}</span>
+              </div>
+              <div style={styles.itemsList}>
+                <button
+                  onClick={() => handleNavClick('/app/admin')}
+                  style={{
+                    ...styles.navLink,
+                    ...(location.pathname.startsWith('/app/admin') ? styles.navLinkActive : {}),
+                  }}
+                >
+                  {location.pathname.startsWith('/app/admin') && <div style={styles.activeBar} />}
+                  <Shield
+                    size={17}
+                    color={
+                      location.pathname.startsWith('/app/admin')
+                        ? 'var(--accent-cyan)'
+                        : 'var(--text-secondary)'
+                    }
+                  />
+                  <span>{t('sidebar.adminConsole', 'Admin Console')}</span>
+                </button>
+              </div>
+            </div>
+          )}
         </nav>
 
         {/* Footer Language Switcher & Logout */}
@@ -1178,5 +1219,23 @@ const styles = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '0.2rem',
+  },
+  adminBadgeRow: {
+    display: 'flex',
+    alignItems: 'center',
+    marginTop: '0.1rem',
+  },
+  adminUnlimitedBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.3rem',
+    fontSize: '0.68rem',
+    fontWeight: '700',
+    color: 'var(--accent-cyan)',
+    backgroundColor: 'rgba(6, 182, 212, 0.12)',
+    border: '1px solid rgba(6, 182, 212, 0.25)',
+    padding: '0.15rem 0.45rem',
+    borderRadius: '4px',
+    letterSpacing: '0.02em',
   },
 };

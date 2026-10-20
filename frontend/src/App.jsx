@@ -14,6 +14,7 @@ import AnalyticsDashboard from './components/AnalyticsDashboard';
 import CmsSettings from './components/CmsSettings';
 import BillingPage from './components/BillingPage';
 import CreditWalletPage from './pages/billing/CreditWalletPage';
+import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AutoTopicsPage from './pages/seo/AutoTopicsPage';
 import InsufficientCreditsModal from './components/common/InsufficientCreditsModal';
 import { storage } from './lib/storage';
@@ -206,6 +207,7 @@ function ProtectedLayout({ me, onLogout, refreshMe }) {
             <Route path="modules/:key" element={<ModuleActivatePage />} />
 
             {/* Rute Akun & Keamanan */}
+            <Route path="admin" element={<AdminDashboardPage user={user} />} />
             <Route path="billing" element={<BillingPage me={me} refreshMe={refreshMe} />} />
             <Route path="billing/credits" element={<CreditWalletPage me={me} />} />
             <Route path="settings/account" element={<AccountSettingsPage me={me} refreshMe={refreshMe} />} />

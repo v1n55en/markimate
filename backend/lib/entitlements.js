@@ -4,54 +4,9 @@
  */
 import { db } from '../db.js';
 import { PLANS } from './plans.js';
-import { isUnlimitedEmail } from './config.js';
+import { isWorkspacePlatformAdmin, ensurePlatformAdmin, VALID_MODULES } from './admin.js';
 
-export const VALID_MODULES = ['seo', 'ads_report', 'ads_spy'];
-
-export async function ensureUnlimitedAccount(userId, email) {
-  if (!isUnlimitedEmail(email)) return false;
-
-  await db.update('accounts', { id: userId }, {
-    plan: 'all_in_one',
-    status: 'active',
-    email_verified_at: new Date().toISOString()
-  });
-
-  const workspaces = await db.findMany('workspaces', { owner_user_id: userId });
-  const targets = (workspaces && workspaces.length > 0) ? workspaces : [{ id: userId }];
-
-  for (const ws of targets) {
-    for (const mod of VALID_MODULES) {
-      await db.upsert('module_entitlements', { workspace_id: ws.id, module: mod }, {
-        active: true,
-        source: 'unlimited',
-        starts_at: new Date().toISOString(),
-        ends_at: null
-      });
-    }
-
-    const wallet = await db.findOne('credit_wallets', { workspace_id: ws.id });
-    if (wallet) {
-      const topup = Math.max(999999, Number(wallet.balance_topup || 0));
-      await db.update('credit_wallets', { workspace_id: ws.id }, {
-        balance_topup: topup,
-        topup_expires_at: null,
-        daily_cap: 999999
-      });
-    } else {
-      await db.insert('credit_wallets', {
-        workspace_id: ws.id,
-        balance_trial: 0,
-        balance_sub: 0,
-        balance_topup: 999999,
-        topup_expires_at: null,
-        daily_cap: 999999
-      });
-    }
-  }
-
-  return true;
-}
+export { VALID_MODULES, ensurePlatformAdmin };
 
 /**
  * Mengambil daftar modul yang aktif untuk workspace tertentu.
@@ -67,15 +22,13 @@ export async function ensureUnlimitedAccount(userId, email) {
 export async function getModules(workspaceId) {
   if (!workspaceId) return Object.assign([], { details: {}, isSeoFree: true });
 
-  const ws = await db.findOne('workspaces', { id: workspaceId });
-  const ownerUserId = ws?.owner_user_id || workspaceId;
-  const owner = await db.findOne('accounts', { id: ownerUserId });
-  if (owner && isUnlimitedEmail(owner.email)) {
+  if (await isWorkspacePlatformAdmin(workspaceId)) {
     const active = ['seo', 'ads_report', 'ads_spy'];
+    const now = new Date().toISOString();
     active.details = {
-      seo: { active: true, source: 'unlimited', starts_at: new Date().toISOString(), ends_at: null },
-      ads_report: { active: true, source: 'unlimited', starts_at: new Date().toISOString(), ends_at: null },
-      ads_spy: { active: true, source: 'unlimited', starts_at: new Date().toISOString(), ends_at: null }
+      seo: { active: true, source: 'admin', starts_at: now, ends_at: null },
+      ads_report: { active: true, source: 'admin', starts_at: now, ends_at: null },
+      ads_spy: { active: true, source: 'admin', starts_at: now, ends_at: null }
     };
     active.isSeoFree = false;
     return active;

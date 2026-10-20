@@ -12,7 +12,7 @@ const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const GOOGLE_TOKENINFO_ENDPOINT = 'https://oauth2.googleapis.com/tokeninfo';
 
 import { getAppUrl, TRIAL_CONFIG } from './config.js';
-import { ensureUnlimitedAccount } from './entitlements.js';
+import { ensurePlatformAdmin } from './admin.js';
 
 /**
  * Menentukan redirect URI yang valid menggunakan allowlist exact match (Langkah 1.8).
@@ -201,7 +201,7 @@ export async function processGoogleAuth({ googleProfile, req, res }) {
       last_login_at: new Date().toISOString()
     });
 
-    await ensureUnlimitedAccount(existingBySub.id, existingBySub.email);
+    await ensurePlatformAdmin(existingBySub);
 
     const session = await issueSession(res, existingBySub, req);
     await logAuditEvent({
@@ -267,7 +267,7 @@ export async function processGoogleAuth({ googleProfile, req, res }) {
         ends_at: null
       });
 
-      await ensureUnlimitedAccount(updated.id, updated.email);
+      await ensurePlatformAdmin(updated);
 
       const session = await issueSession(res, updated, req);
       await logAuditEvent({
@@ -376,7 +376,7 @@ export async function processGoogleAuth({ googleProfile, req, res }) {
     ends_at: null
   });
 
-  await ensureUnlimitedAccount(newAccount.id, newAccount.email);
+  await ensurePlatformAdmin(newAccount);
 
   const session = await issueSession(res, newAccount, req);
   await logAuditEvent({

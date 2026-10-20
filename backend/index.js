@@ -55,9 +55,12 @@ import {
 import {
   getModules,
   requireModule,
-  expireEntitlements,
-  ensureUnlimitedAccount
+  expireEntitlements
 } from './lib/entitlements.js';
+import {
+  ensurePlatformAdmin,
+  isWorkspacePlatformAdmin
+} from './lib/admin.js';
 import {
   logAuditEvent,
   getWorkspaceAuditLogs,
@@ -90,6 +93,10 @@ if (process.env.NODE_ENV === 'production') {
   }
   if (!process.env.CMS_CRED_KEY || process.env.CMS_CRED_KEY.trim().length === 0) {
     console.error('[FATAL] In production environment, CMS_CRED_KEY is mandatory for credential encryption.');
+    process.exit(1);
+  }
+  if (process.env.ADMIN_KEY && process.env.ADMIN_KEY.length < 32) {
+    console.error('[FATAL] In production environment, ADMIN_KEY must be at least 32 characters if set.');
     process.exit(1);
   }
 }
@@ -128,6 +135,7 @@ const publicUser = (u) => u && ({
   webApprover: u.web_approver !== false,
   status: u.status || 'active',
   locale: u.locale || 'id',
+  isPlatformAdmin: Boolean(u.is_platform_admin),
   emailVerifiedAt: u.email_verified_at,
   createdAt: u.created_at
 });
@@ -468,7 +476,7 @@ app.post('/api/auth/verify', wrap(async (req, res) => {
 
   // Alokasikan 300 free trial credits (7 hari) HANYA setelah email terverifikasi
   await grantTrialIfEligible(user.id, user.email);
-  await ensureUnlimitedAccount(user.id, user.email);
+  await ensurePlatformAdmin(user);
 
   // Catat audit log
   await db.insert('audit_logs', {
@@ -620,8 +628,8 @@ app.post('/api/auth/login', wrap(async (req, res) => {
     meta: { email: user.email }
   });
 
-  // Pastikan akun khusus/owner memiliki status unlimited dan kredit penuh
-  await ensureUnlimitedAccount(user.id, user.email);
+  // Pastikan akun admin platform memiliki status dan modul aktif
+  await ensurePlatformAdmin(user);
 
   // Terbitkan sesi baru (refresh token di cookie httpOnly + access token di memori)
   const session = await issueSession(res, user, req);
@@ -1996,6 +2004,7 @@ app.get('/api/credits', auth, requireWorkspace('viewer'), wrap(async (req, res) 
       endsAt: wallet.trial_expires_at || null,
       daysLeft,
     },
+    isUnlimited: await isWorkspacePlatformAdmin(workspaceId),
   });
 }));
 
@@ -2036,13 +2045,30 @@ app.post('/api/webhooks/midtrans', wrap(async (req, res) => {
 }));
 
 // ---------- Admin Auth & Endpoints (PRD §2b & §4.4) ----------
-const adminAuth = (req, res, next) => {
-  const adminKey = process.env.ADMIN_KEY || 'default-admin-secret-key';
+const adminAuth = async (req, res, next) => {
+  // 1. Header x-admin-key (hanya jika ADMIN_KEY diisi dan cocok)
+  const adminKey = process.env.ADMIN_KEY ? String(process.env.ADMIN_KEY).trim() : '';
   const given = req.headers['x-admin-key'];
-  if (!given || given !== adminKey) {
-    return res.status(401).json({ error: 'Unauthorized: Invalid Admin Key' });
+  if (adminKey && given && given === adminKey) {
+    return next();
   }
-  next();
+
+  // 2. Sesi user dengan flag is_platform_admin
+  const h = String(req.headers.authorization || '');
+  const token = h.startsWith('Bearer ') ? h.slice(7) : '';
+  if (token) {
+    try {
+      const payload = jwt.verify(token, JWT_SECRET);
+      const userId = payload.sub || payload.userId || payload.id;
+      const user = await db.findOne('accounts', { id: userId });
+      if (user && Boolean(user.is_platform_admin)) {
+        req.user = user;
+        return next();
+      }
+    } catch (_) {}
+  }
+
+  return res.status(401).json({ error: 'Unauthorized: Admin access required', code: 'UNAUTHORIZED' });
 };
 
 app.get('/api/admin/credits/usage', adminAuth, wrap(async (req, res) => {
@@ -2263,6 +2289,7 @@ app.post('/api/admin/users/:id/verify', adminAuth, wrap(async (req, res) => {
 
   // Alokasikan trial jika eligible
   await grantTrialIfEligible(user.id, user.email);
+  await ensurePlatformAdmin(user);
 
   await db.insert('audit_logs', {
     user_id: user.id,

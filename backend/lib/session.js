@@ -83,7 +83,8 @@ export function publicUser(row) {
     email: row.email,
     name: row.name || '',
     brandName: row.brand_name || row.name || '',
-    locale: row.locale || 'id'
+    locale: row.locale || 'id',
+    isPlatformAdmin: Boolean(row.is_platform_admin)
   };
 }
 
