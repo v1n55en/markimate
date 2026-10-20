@@ -61,6 +61,22 @@ export const TOPUP_PACKAGES = [
   },
 ];
 
+const PAYMENT_STATUS_CONFIG = {
+  paid: { color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)', labelKey: 'billing.statusPaid' },
+  pending: { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)', labelKey: 'billing.statusPending' },
+  expired: { color: '#ef4444', bg: 'rgba(239, 68, 68, 0.12)', labelKey: 'billing.statusExpired' },
+  failed: { color: '#ef4444', bg: 'rgba(239, 68, 68, 0.12)', labelKey: 'billing.statusFailed' },
+  refunded: { color: '#6366f1', bg: 'rgba(99, 102, 241, 0.12)', labelKey: 'billing.statusRefunded' },
+};
+
+function getPaymentStatusMeta(status) {
+  return PAYMENT_STATUS_CONFIG[status] || {
+    color: '#94a3b8',
+    bg: 'rgba(148, 163, 184, 0.12)',
+    labelKey: 'billing.statusPending'
+  };
+}
+
 export default function CreditWalletPage({ me, onTopupClick }) {
   const { lang, t } = useLanguage();
   const [loading, setLoading] = useState(true);
@@ -72,16 +88,25 @@ export default function CreditWalletPage({ me, onTopupClick }) {
   const [topupBusy, setTopupBusy] = useState(null);
   const [topupNotice, setTopupNotice] = useState(null);
 
+  const [payments, setPayments] = useState([]);
+  const [catalogPacks, setCatalogPacks] = useState(TOPUP_PACKAGES);
+
   const fetchWalletData = async () => {
     try {
       setLoading(true);
-      const [cData, lData] = await Promise.all([
+      const [cData, lData, pData, catData] = await Promise.all([
         getCredits().catch(() => null),
         getCreditLedger({ limit: 100 }).catch(() => ({ ledger: [] })),
+        api('/api/billing/payments').catch(() => ({ payments: [] })),
+        api('/api/billing/catalog').catch(() => null)
       ]);
 
       if (cData) setCredits(cData);
       if (lData?.ledger) setLedger(lData.ledger);
+      if (pData?.payments) setPayments(pData.payments);
+      if (catData?.topupPackages && catData.topupPackages.length > 0) {
+        setCatalogPacks(catData.topupPackages);
+      }
     } finally {
       setLoading(false);
     }
@@ -95,53 +120,17 @@ export default function CreditWalletPage({ me, onTopupClick }) {
     try {
       setTopupBusy(pack.id);
       setTopupNotice(null);
-      const res = await api('/api/credits/topup', {
+      const res = await api('/api/billing/topup', {
         method: 'POST',
         body: { packageId: pack.id }
       });
 
-      // Buka Snap jika script tersedia
-      if (window.snap && res.token && !res.token.startsWith('snap_mock_')) {
-        window.snap.pay(res.token, {
-          onSuccess: () => {
-            fetchWalletData();
-            window.dispatchEvent(new Event('markimate:credits_updated'));
-            window.dispatchEvent(new Event('supermat:credits_updated'));
-            setTopupNotice({ ok: true, text: t('billing.topupSuccessNotice', { credits: pack.credits }) });
-          },
-          onPending: () => {
-            setTopupNotice({ ok: true, text: t('billing.topupPendingNotice') });
-          },
-          onError: (err) => {
-            setTopupNotice({ ok: false, text: err.status_message || t('billing.topupFailedNotice') });
-          },
-          onClose: () => {
-            fetchWalletData();
-          }
-        });
+      if (res?.checkoutUrl) {
+        window.location.assign(res.checkoutUrl);
       } else {
-        // Mode sandbox / dev simulation: simulasi settlement
-        try {
-          await api('/api/webhooks/midtrans', {
-            method: 'POST',
-            body: {
-              order_id: res.orderId,
-              transaction_status: 'settlement',
-              status_code: '200',
-              gross_amount: String(pack.price),
-              payment_type: 'qris'
-            }
-          });
-          await fetchWalletData();
-          window.dispatchEvent(new Event('markimate:credits_updated'));
-          window.dispatchEvent(new Event('supermat:credits_updated'));
-          setTopupNotice({
-            ok: true,
-            text: t('billing.topupSandboxNotice', { name: pack.name, credits: pack.credits })
-          });
-        } catch (simErr) {
-          setTopupNotice({ ok: false, text: simErr.message });
-        }
+        await fetchWalletData();
+        window.dispatchEvent(new Event('markimate:credits_updated'));
+        window.dispatchEvent(new Event('supermat:credits_updated'));
       }
     } catch (err) {
       setTopupNotice({ ok: false, text: err.message });
@@ -436,7 +425,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
       )}
 
       <div style={styles.packsGrid}>
-        {TOPUP_PACKAGES.map((pack) => (
+        {catalogPacks.map((pack) => (
           <div
             key={pack.id}
             style={{
@@ -593,6 +582,132 @@ export default function CreditWalletPage({ me, onTopupClick }) {
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* 5. Riwayat Pembayaran (PRD F14 §4.6) */}
+      <div style={styles.ledgerSection}>
+        <div style={styles.ledgerHeaderRow}>
+          <div>
+            <h2 style={styles.sectionTitle}>
+              {t('billing.paymentsSectionTitle')}
+            </h2>
+            <p style={styles.sectionDesc}>
+              {t('billing.paymentsSubtitle')}
+            </p>
+          </div>
+        </div>
+
+        {/* Tampilan Desktop Table */}
+        <div style={styles.tableCard} className="card desktop-only-table">
+          <table style={styles.table}>
+            <thead>
+              <tr style={styles.thRow}>
+                <th style={styles.th}>{t('billing.invoiceCol')}</th>
+                <th style={styles.th}>{t('billing.itemCol')}</th>
+                <th style={styles.th}>{t('billing.amountCol')}</th>
+                <th style={styles.th}>{t('billing.statusCol')}</th>
+                <th style={styles.th}>{t('billing.methodCol')}</th>
+                <th style={styles.th}>{t('billing.dateCol')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payments.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={styles.tdEmpty}>
+                    {t('billing.noPayments')}
+                  </td>
+                </tr>
+              ) : (
+                payments.map((p) => {
+                  const meta = getPaymentStatusMeta(p.status);
+                  return (
+                    <tr key={p.id} style={styles.tr}>
+                      <td style={styles.tdTime}>
+                        <span style={styles.codeText}>{p.invoiceNumber}</span>
+                      </td>
+                      <td style={styles.tdAction}>
+                        <strong>{p.itemName}</strong>
+                        {p.credits ? (
+                          <span style={styles.subText}> {t('billing.creditsWithPlus', { credits: p.credits })}</span>
+                        ) : null}
+                      </td>
+                      <td style={styles.tdAction}>
+                        {formatIDR(p.amount, lang)}
+                      </td>
+                      <td style={styles.tdAction}>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '2px 8px',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          color: meta.color,
+                          backgroundColor: meta.bg
+                        }}>
+                          {t(meta.labelKey)}
+                        </span>
+                      </td>
+                      <td style={styles.tdNote}>
+                        <span style={styles.noteText}>{p.method || p.provider || '-'}</span>
+                      </td>
+                      <td style={styles.tdTime}>
+                        {formatDateTime(p.createdAt, lang)}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Tampilan Mobile Cards */}
+        <div style={styles.mobilePaymentsGrid} className="mobile-only-cards">
+          {payments.length === 0 ? (
+            <div style={styles.emptyCardMobile}>
+              {t('billing.noPayments')}
+            </div>
+          ) : (
+            payments.map((p) => {
+              const meta = getPaymentStatusMeta(p.status);
+              return (
+                <div key={p.id} style={styles.paymentCardMobile} className="card">
+                  <div style={styles.paymentCardHeader}>
+                    <span style={styles.codeText}>{p.invoiceNumber}</span>
+                    <span style={{
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      color: meta.color,
+                      backgroundColor: meta.bg
+                    }}>
+                      {t(meta.labelKey)}
+                    </span>
+                  </div>
+                  <div style={styles.paymentCardBody}>
+                    <div style={styles.paymentCardRow}>
+                      <span style={styles.cardLabel}>{t('billing.itemCol')}:</span>
+                      <span style={styles.cardVal}>{p.itemName} {p.credits ? t('billing.creditsWithPlus', { credits: p.credits }) : ''}</span>
+                    </div>
+                    <div style={styles.paymentCardRow}>
+                      <span style={styles.cardLabel}>{t('billing.amountCol')}:</span>
+                      <span style={{ ...styles.cardVal, fontWeight: '700' }}>{formatIDR(p.amount, lang)}</span>
+                    </div>
+                    <div style={styles.paymentCardRow}>
+                      <span style={styles.cardLabel}>{t('billing.methodCol')}:</span>
+                      <span style={styles.cardVal}>{p.method || p.provider || '-'}</span>
+                    </div>
+                    <div style={styles.paymentCardRow}>
+                      <span style={styles.cardLabel}>{t('billing.dateCol')}:</span>
+                      <span style={styles.cardVal}>{formatDateTime(p.createdAt, lang)}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
     </div>
@@ -1064,5 +1179,59 @@ const styles = {
     padding: '2.5rem',
     textAlign: 'center',
     color: 'var(--text-muted)',
+  },
+  mobilePaymentsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))',
+    gap: '12px',
+    marginTop: '12px',
+  },
+  paymentCardMobile: {
+    padding: '16px',
+    borderRadius: '12px',
+    border: '1px solid var(--border-color, #e2e8f0)',
+    backgroundColor: 'var(--card-bg, #ffffff)',
+  },
+  paymentCardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '12px',
+    paddingBottom: '8px',
+    borderBottom: '1px solid var(--border-color, #e2e8f0)',
+  },
+  paymentCardBody: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+  },
+  paymentCardRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    fontSize: '13px',
+  },
+  cardLabel: {
+    color: 'var(--text-secondary, #64748b)',
+  },
+  cardVal: {
+    color: 'var(--text-primary, #0f172a)',
+    overflowWrap: 'anywhere',
+  },
+  emptyCardMobile: {
+    padding: '24px',
+    textAlign: 'center',
+    color: 'var(--text-secondary, #64748b)',
+    fontSize: '14px',
+  },
+  codeText: {
+    fontFamily: 'monospace',
+    fontSize: '12px',
+    fontWeight: '600',
+    color: 'var(--accent-cyan, #06b6d4)',
+  },
+  subText: {
+    fontSize: '12px',
+    color: '#059669',
+    fontWeight: '600',
   },
 };

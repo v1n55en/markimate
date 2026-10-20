@@ -428,3 +428,128 @@ export async function sendAccountPurgedEmail({ to, locale = 'id' }) {
     tag: 'account_purged'
   });
 }
+
+/**
+ * 9. Kirim email notifikasi top-up credit berhasil (PRD F14 §4 Langkah 4)
+ */
+export async function sendTopupSuccessEmail({ to, invoiceNumber, packageName, credits, amount, locale = 'id' }) {
+  const lang = normalizeLocale(locale);
+  const isEn = lang === 'en';
+  const formattedAmount = 'Rp' + Number(amount || 0).toLocaleString('id-ID');
+
+  const subject = isEn
+    ? `Credit Top-Up Successful (${invoiceNumber}) — Markimate`
+    : `Top-up Kredit Berhasil (${invoiceNumber}) — Markimate`;
+
+  const html = isEn ? `
+    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 0;">Top-Up Payment Successful!</h2>
+    <p>Hello,</p>
+    <p>Your payment for <strong>${packageName}</strong> (${formattedAmount}) has been confirmed successfully.</p>
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0;">
+      <p style="margin: 0 0 8px;"><strong>Invoice:</strong> ${invoiceNumber}</p>
+      <p style="margin: 0 0 8px;"><strong>Credits Added:</strong> +${Number(credits || 0).toLocaleString()} credits</p>
+      <p style="margin: 0;"><strong>Validity:</strong> 365 days</p>
+    </div>
+    <p>The credits are now ready to use across all your AI marketing modules in Markimate.</p>
+  ` : `
+    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 0;">Pembayaran Top-Up Berhasil!</h2>
+    <p>Halo,</p>
+    <p>Pembayaran Anda untuk <strong>${packageName}</strong> (${formattedAmount}) telah berhasil dikonfirmasi.</p>
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0;">
+      <p style="margin: 0 0 8px;"><strong>Invoice:</strong> ${invoiceNumber}</p>
+      <p style="margin: 0 0 8px;"><strong>Kredit Ditambahkan:</strong> +${Number(credits || 0).toLocaleString()} kredit</p>
+      <p style="margin: 0;"><strong>Masa Berlaku:</strong> 365 hari</p>
+    </div>
+    <p>Kredit telah langsung masuk ke dompet workspace Anda dan siap digunakan di seluruh modul AI Markimate.</p>
+  `;
+
+  return sendMail({
+    to,
+    subject,
+    html,
+    locale: lang,
+    tag: 'topup_success'
+  });
+}
+
+/**
+ * 10. Kirim email konfirmasi paket langganan aktif (PRD F14 §4 Langkah 5)
+ */
+export async function sendSubscriptionSuccessEmail({ to, invoiceNumber, planName, periodDays, amount, endsAt, locale = 'id' }) {
+  const lang = normalizeLocale(locale);
+  const isEn = lang === 'en';
+  const formattedAmount = 'Rp' + Number(amount || 0).toLocaleString('id-ID');
+  const formattedEndDate = formatEmailDate(endsAt, lang);
+
+  const subject = isEn
+    ? `Subscription Activated: ${planName} (${invoiceNumber}) — Markimate`
+    : `Paket Langganan Aktif: ${planName} (${invoiceNumber}) — Markimate`;
+
+  const html = isEn ? `
+    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 0;">Subscription Activated!</h2>
+    <p>Hello,</p>
+    <p>Your payment for <strong>${planName}</strong> (${formattedAmount}) has been verified successfully.</p>
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0;">
+      <p style="margin: 0 0 8px;"><strong>Invoice:</strong> ${invoiceNumber}</p>
+      <p style="margin: 0 0 8px;"><strong>Package:</strong> ${planName}</p>
+      <p style="margin: 0 0 8px;"><strong>Duration:</strong> ${periodDays || 30} days</p>
+      <p style="margin: 0;"><strong>Active Until:</strong> ${formattedEndDate}</p>
+    </div>
+    <p>All included AI modules have been enabled for your workspace.</p>
+  ` : `
+    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 0;">Paket Langganan Aktif!</h2>
+    <p>Halo,</p>
+    <p>Pembayaran Anda untuk paket <strong>${planName}</strong> (${formattedAmount}) telah berhasil diverifikasi.</p>
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0;">
+      <p style="margin: 0 0 8px;"><strong>Invoice:</strong> ${invoiceNumber}</p>
+      <p style="margin: 0 0 8px;"><strong>Paket:</strong> ${planName}</p>
+      <p style="margin: 0 0 8px;"><strong>Durasi:</strong> ${periodDays || 30} hari</p>
+      <p style="margin: 0;"><strong>Aktif Hingga:</strong> ${formattedEndDate}</p>
+    </div>
+    <p>Seluruh modul AI yang termasuk dalam paket telah diaktifkan untuk workspace Anda.</p>
+  `;
+
+  return sendMail({
+    to,
+    subject,
+    html,
+    locale: lang,
+    tag: 'subscription_success'
+  });
+}
+
+/**
+ * 11. Kirim email pengingat perpanjangan langganan (PRD F14 §4 Langkah 5)
+ */
+export async function sendSubscriptionRenewalReminderEmail({ to, planName, endsAt, daysRemaining, renewUrl, locale = 'id' }) {
+  const lang = normalizeLocale(locale);
+  const isEn = lang === 'en';
+  const formattedEndDate = formatEmailDate(endsAt, lang);
+
+  const subject = isEn
+    ? `Action Required: Renew Your ${planName} Subscription (${daysRemaining} Days Left) — Markimate`
+    : `Pengingat Perpanjangan: Paket ${planName} Berakhir dalam ${daysRemaining} Hari — Markimate`;
+
+  const html = isEn ? `
+    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 0;">Subscription Renewal Reminder</h2>
+    <p>Hello,</p>
+    <p>Your subscription for <strong>${planName}</strong> will expire on <strong>${formattedEndDate}</strong> (${daysRemaining} days remaining).</p>
+    <p>Markimate does not automatically charge your payment method. To ensure uninterrupted access to your AI marketing team and scheduled tasks, please renew your subscription below:</p>
+  ` : `
+    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 0;">Pengingat Perpanjangan Paket</h2>
+    <p>Halo,</p>
+    <p>Masa aktif paket <strong>${planName}</strong> Anda akan berakhir pada <strong>${formattedEndDate}</strong> (${daysRemaining} hari lagi).</p>
+    <p>Markimate tidak memotong otomatis kartu/rekening Anda. Untuk memastikan tim AI Anda tetap aktif menulis dan memantau iklan tanpa terputus, silakan perpanjang paket Anda melalui tombol di bawah:</p>
+  `;
+
+  return sendMail({
+    to,
+    subject,
+    html,
+    actionUrl: renewUrl,
+    actionText: isEn ? 'Renew Subscription' : 'Perpanjang Paket',
+    locale: lang,
+    tag: 'subscription_renewal_reminder'
+  });
+}
+

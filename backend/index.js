@@ -24,7 +24,8 @@ import {
 } from './lib/credits.js';
 import { PLANS, FREE_MONTHLY_LIMIT } from './lib/plans.js';
 import { processDailyCreditAlerts } from './lib/notifications.js';
-import { createSnapTransaction, handleMidtransWebhook } from './lib/midtrans.js';
+import { getCatalog } from './lib/catalog.js';
+import { createCheckout, handleNotification, reconcile } from './lib/payments/service.js';
 import { calculateUsageAndMargin, checkMarginSentinel } from './lib/margin.js';
 import {
   sendMail,
@@ -121,7 +122,12 @@ app.use(cors({
   },
   credentials: true,
 }));
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({
+  limit: '2mb',
+  verify: (req, _res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 
 // ---------- Helpers ----------
 const genApiKey = () => 'spm_live_' + randomBytes(18).toString('base64url');
@@ -2031,16 +2037,10 @@ app.get('/api/credits/ledger', auth, requireWorkspace('viewer'), wrap(async (req
   res.json({ ledger: paginated, entries: paginated, total: filtered.length });
 }));
 
-// Midtrans Snap Top-up (PRD §4.3 & §4.4)
-app.post('/api/credits/topup', auth, wrap(async (req, res) => {
-  const { packageId } = req.body || {};
-  const tx = await createSnapTransaction(req.user, packageId || 'starter');
-  res.json(tx);
-}));
-
-// Webhook notifikasi Midtrans (PRD §4.3 & §4.4)
-app.post('/api/webhooks/midtrans', wrap(async (req, res) => {
-  const result = await handleMidtransWebhook(req.body);
+// Webhook notifikasi Provider Pembayaran (DOKU Checkout, dsb) (PRD F14 §2.7 & §4.6)
+app.post('/api/webhooks/:provider', wrap(async (req, res) => {
+  const provider = String(req.params.provider || '').toLowerCase();
+  const result = await handleNotification(provider, req);
   res.json(result);
 }));
 
@@ -3252,94 +3252,113 @@ app.post('/api/seo/topic-sources/:id/run', auth, requireWorkspace('admin'), requ
   res.json(result);
 }));
 
-// ---------- Billing (dummy) ----------
+// ---------- Billing & Payments (PRD F14) ----------
+app.get('/api/billing/catalog', wrap(async (_req, res) => {
+  res.json(getCatalog());
+}));
+
 app.get('/api/billing', auth, requireWorkspace('viewer'), wrap(async (req, res) => {
-  const subs = await db.findMany('subscriptions', { workspace_id: req.workspace.id }, { orderBy: 'created_at' });
+  const subs = await db.findMany('subscriptions', { workspace_id: req.workspace.id }, { orderBy: 'created_at desc' });
+  const payments = await db.findMany('payments', { workspace_id: req.workspace.id }, { orderBy: 'created_at desc' });
   res.json({
     plans: Object.values(PLANS),
     current: planOf(req.user),
     subscription: subs[0] || null,
     history: subs.slice(0, 10),
-    billingDisabled: process.env.BILLING_DUMMY !== 'true'
+    payments: payments.slice(0, 20),
+    billingDisabled: false
   });
 }));
+
+app.post('/api/billing/topup', auth, requireWorkspace('admin'), wrap(async (req, res) => {
+  const { packageId, callbackUrl } = req.body || {};
+  const checkout = await createCheckout({
+    kind: 'topup',
+    itemId: packageId || 'starter',
+    workspaceId: req.workspace.id,
+    userId: req.user.id,
+    callbackUrl
+  });
+  res.json(checkout);
+}));
+
 app.post('/api/billing/checkout', auth, requireWorkspace('admin'), wrap(async (req, res) => {
-  if (process.env.BILLING_DUMMY !== 'true') {
-    return res.status(403).json({
-      error: 'Direct checkout is not available. Contact 3Our to activate your plan.',
-      code: 'BILLING_DISABLED'
-    });
-  }
-  const planKey = req.body.plan;
-  const plan = PLANS[planKey] ? planKey : 'premium';
-  if (plan === 'free') throw Object.assign(new Error('Please select a paid plan.'), { status: 400, code: 'PAID_PLAN_REQUIRED' });
-  const method = String(req.body.method || 'qris');
-  const planData = PLANS[plan];
-  const endsAt = new Date(Date.now() + 30 * 86400e3);
-  const sub = await db.insert('subscriptions', {
-    user_id: req.user.id,
-    workspace_id: req.workspace.id,
-    plan,
-    status: 'active',
-    method,
-    amount: planData.price,
-    invoice_no: 'INV-' + Date.now().toString(36).toUpperCase(),
-    started_at: new Date().toISOString(),
-    ends_at: endsAt.toISOString(),
-    dummy: true
+  const { plan, callbackUrl } = req.body || {};
+  const checkout = await createCheckout({
+    kind: 'subscription',
+    itemId: plan || 'seo',
+    workspaceId: req.workspace.id,
+    userId: req.user.id,
+    callbackUrl
   });
-  const u = await db.update('accounts', { id: req.user.id }, { plan });
+  res.json(checkout);
+}));
 
-  // Tulis module_entitlements untuk modul paket
-  for (const mod of (planData.modules || ['seo'])) {
-    const existingEnt = await db.findOne('module_entitlements', {
-      workspace_id: req.workspace.id,
-      module: mod
-    });
-    if (existingEnt) {
-      await db.update('module_entitlements', { workspace_id: req.workspace.id, module: mod }, {
-        active: true,
-        source: 'subscription',
-        starts_at: new Date().toISOString(),
-        ends_at: endsAt.toISOString()
-      });
-    } else {
-      await db.insert('module_entitlements', {
-        workspace_id: req.workspace.id,
-        module: mod,
-        active: true,
-        source: 'subscription',
-        starts_at: new Date().toISOString(),
-        ends_at: endsAt.toISOString()
-      });
-    }
+app.get('/api/billing/payments/:invoice', auth, requireWorkspace('viewer'), wrap(async (req, res) => {
+  const invoice = String(req.params.invoice || '').trim();
+  const payment = await db.findOne('payments', { invoice_number: invoice, workspace_id: req.workspace.id });
+  if (!payment) {
+    throw Object.assign(new Error('Payment not found.'), { status: 404, code: 'PAYMENT_NOT_FOUND' });
   }
-
-  // PRD §4.3: balance_sub = credit paket (reset, bukan tambah), sub_expires_at = period_end
-  if (process.env.CREDITS_ENABLED !== 'false' && planData.credits > 0) {
-    await grant(
-      req.workspace.id,
-      'sub',
-      planData.credits,
-      endsAt,
-      'grant_sub',
-      `Subscription ${planData.name} (${planData.credits} credits)`,
-      { actionKey: 'billing.sub', refType: 'subscription', refId: sub.id }
-    );
-  }
-
   res.json({
-    user: publicUser(u),
-    subscription: sub,
-    code: 'SIMULATION_PAYMENT_SUCCESS',
-    message: `Simulated payment successful. ${planData.name} plan active for 30 days (${planData.credits || 0} credits).`
+    id: payment.id,
+    invoiceNumber: payment.invoice_number,
+    kind: payment.kind,
+    itemId: payment.item_id,
+    itemName: payment.item_name,
+    amount: payment.amount,
+    currency: payment.currency,
+    credits: payment.credits,
+    periodDays: payment.period_days,
+    provider: payment.provider,
+    status: payment.status,
+    method: payment.method,
+    paidAt: payment.paid_at,
+    expiresAt: payment.expires_at,
+    checkoutUrl: payment.checkout_url,
+    createdAt: payment.created_at
   });
 }));
+
+app.get('/api/billing/payments', auth, requireWorkspace('viewer'), wrap(async (req, res) => {
+  const payments = await db.findMany('payments', { workspace_id: req.workspace.id }, { orderBy: 'created_at desc' });
+  res.json({
+    payments: payments.map(p => ({
+      id: p.id,
+      invoiceNumber: p.invoice_number,
+      kind: p.kind,
+      itemId: p.item_id,
+      itemName: p.item_name,
+      amount: p.amount,
+      currency: p.currency,
+      credits: p.credits,
+      periodDays: p.period_days,
+      provider: p.provider,
+      status: p.status,
+      method: p.method,
+      paidAt: p.paid_at,
+      expiresAt: p.expires_at,
+      createdAt: p.created_at
+    }))
+  });
+}));
+
 app.post('/api/billing/cancel', auth, requireWorkspace('admin'), wrap(async (req, res) => {
   const subs = await db.findMany('subscriptions', { workspace_id: req.workspace.id, status: 'active' });
   for (const s of subs) await db.update('subscriptions', { id: s.id }, { status: 'cancelled' });
   const u = await db.update('accounts', { id: req.user.id }, { plan: 'free' });
   res.json({ user: publicUser(u) });
+}));
+
+// Cron rekonsiliasi pembayaran DOKU / provider (PRD F14 §2.8 & §4.6)
+app.get('/api/cron/payments-reconcile', wrap(async (req, res) => {
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers.authorization;
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return res.status(401).json({ error: 'Unauthorized cron request.' });
+  }
+  const result = await reconcile();
+  res.json({ status: 'ok', result });
 }));
 
 // ---------- 3Our Public API (API key per workspace/user) ----------

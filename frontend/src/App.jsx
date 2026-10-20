@@ -14,6 +14,7 @@ import AnalyticsDashboard from './components/AnalyticsDashboard';
 import CmsSettings from './components/CmsSettings';
 import BillingPage from './components/BillingPage';
 import CreditWalletPage from './pages/billing/CreditWalletPage';
+import ReturnPaymentPage from './pages/billing/ReturnPaymentPage';
 import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import AutoTopicsPage from './pages/seo/AutoTopicsPage';
 import InsufficientCreditsModal from './components/common/InsufficientCreditsModal';
@@ -210,6 +211,7 @@ function ProtectedLayout({ me, onLogout, refreshMe }) {
             <Route path="admin" element={<AdminDashboardPage user={user} />} />
             <Route path="billing" element={<BillingPage me={me} refreshMe={refreshMe} />} />
             <Route path="billing/credits" element={<CreditWalletPage me={me} />} />
+            <Route path="billing/return" element={<ReturnPaymentPage />} />
             <Route path="settings/account" element={<AccountSettingsPage me={me} refreshMe={refreshMe} />} />
             <Route path="settings/security" element={<SecuritySettingsPage />} />
             <Route path="settings/members" element={<MembersSettingsPage me={me} refreshMe={refreshMe} />} />

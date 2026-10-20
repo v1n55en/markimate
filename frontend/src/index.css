@@ -1532,3 +1532,24 @@ h1, h2, h3, h4, h5, h6, p, span, strong, a {
   right: max(1rem, env(safe-area-inset-right));
   z-index: 50;
 }
+
+/* ========================================================
+   Payment & Ledger Responsive Table/Card Views (PRD F14)
+   ======================================================== */
+.desktop-only-table {
+  display: none;
+}
+.mobile-only-cards {
+  display: grid;
+}
+
+@media (min-width: 640px) {
+  .desktop-only-table {
+    display: block;
+    overflow-x: auto;
+  }
+  .mobile-only-cards {
+    display: none;
+  }
+}
+

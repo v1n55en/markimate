@@ -48,7 +48,7 @@ export function buildSchemaContract() {
 
       const lines = body.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('--'));
       for (const line of lines) {
-        if (/^(unique|primary\s+key|constraint|check|foreign\s+key)/i.test(line)) continue;
+        if (/^(unique|primary\s+key|constraint|check\b|foreign\s+key)/i.test(line)) continue;
         const colMatch = line.match(/^([a-zA-Z0-9_]+)\s+([a-zA-Z0-9_]+(?:\(\s*\d+\s*\))?(?:\[\])?)([\s\S]*)/i);
         if (!colMatch) continue;
 

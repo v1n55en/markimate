@@ -93,12 +93,16 @@ export default function BillingPage({ refreshMe }) {
     try {
       const planToSubmit = pricing.appliedBundle || (selectedModules.includes('seo') ? 'seo' : selectedModules[0]) || 'premium';
 
-      // Call backend checkout endpoint to persist subscription and grant credits
+      // Call backend checkout endpoint to create DOKU checkout
       try {
-        await api('/api/billing/checkout', {
+        const checkoutRes = await api('/api/billing/checkout', {
           method: 'POST',
-          body: { plan: planToSubmit, method: selectedMethod }
+          body: { plan: planToSubmit }
         });
+        if (checkoutRes?.checkoutUrl) {
+          window.location.assign(checkoutRes.checkoutUrl);
+          return;
+        }
         window.dispatchEvent(new Event('markimate:credits_updated'));
         window.dispatchEvent(new Event('supermat:credits_updated'));
       } catch (err) {
