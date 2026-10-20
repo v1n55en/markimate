@@ -309,6 +309,86 @@ async function runDokuPaymentsTests() {
   assert.strictEqual(successCount, 1, 'Hanya tepat 1 proses fulfillment yang boleh berhasil (atomik)');
 
   // ----------------------------------------------------
+  // 5b. Uji Rollback Klaim saat Grant Throw Error & Sukses di Retry DOKU
+  // ----------------------------------------------------
+  console.log('5b. Menguji grant gagal throw error -> webhook 500 -> retry sukses -> kredit tepat 1x...');
+  const retryInvoice = generateInvoiceNumber('topup');
+  const retryPayment = await db.insert('payments', {
+    workspace_id: userRow.id,
+    user_id: userRow.id,
+    kind: 'topup',
+    item_id: 'starter',
+    item_name: 'Starter Pack',
+    provider: 'doku',
+    amount: 500000,
+    credits: 500,
+    period_days: 365,
+    invoice_number: retryInvoice,
+    status: 'pending',
+    fulfilled_at: null
+  });
+
+  const retryWebhookPayload = {
+    order: { invoice_number: retryInvoice, amount: 500000 },
+    status: 'SUCCESS',
+    transaction: { status: 'SUCCESS', date: new Date().toISOString() },
+    channel: { id: 'QRIS' }
+  };
+  const retryHeaders = makeDokuWebhookHeaders(retryWebhookPayload);
+
+  // Ambil saldo awal
+  const preWalletRes = await req('/api/credits', { headers: authHeaders });
+  const preBalance = preWalletRes.data.balance.topup;
+
+  // Mock sementara db.insert('credit_ledger') agar throw error simulasi kegagalan grant
+  const origInsert = db.insert.bind(db);
+  let failOnce = true;
+  db.insert = async function (table, row) {
+    if (table === 'credit_ledger' && failOnce) {
+      failOnce = false;
+      throw new Error('Simulated Database I/O failure during credit_ledger insertion');
+    }
+    return origInsert(table, row);
+  };
+
+  // 1. Panggilan webhook pertama: harus throw dan dibalas HTTP 500
+  const failWebhookRes = await req('/api/webhooks/doku', {
+    method: 'POST',
+    headers: retryHeaders,
+    body: retryWebhookPayload
+  });
+  assert.strictEqual(failWebhookRes.status, 500, 'Webhook wajib mengembalikan HTTP 500 jika fulfillment/grant gagal');
+
+  // Verifikasi rollback: status harus kembali 'pending' dan fulfilled_at harus kembali null
+  const rolledBackPayment = await db.findOne('payments', { invoice_number: retryInvoice });
+  assert.strictEqual(rolledBackPayment.status, 'pending', 'Status pembayaran wajib di-rollback menjadi pending');
+  assert.strictEqual(rolledBackPayment.fulfilled_at, null, 'fulfilled_at wajib di-rollback menjadi null');
+
+  // Verifikasi saldo belum bertambah
+  const midWalletRes = await req('/api/credits', { headers: authHeaders });
+  assert.strictEqual(midWalletRes.data.balance.topup, preBalance, 'Saldo tidak boleh bertambah saat grant gagal');
+
+  // 2. Simulasi Retry dari DOKU (db.insert sudah normal)
+  const retryWebhookRes = await req('/api/webhooks/doku', {
+    method: 'POST',
+    headers: retryHeaders,
+    body: retryWebhookPayload
+  });
+  assert.strictEqual(retryWebhookRes.status, 200, 'Retry webhook harus berhasil 200 setelah error pulih');
+
+  // Verifikasi pembayaran sukses ter-fulfill
+  const successPayment = await db.findOne('payments', { invoice_number: retryInvoice });
+  assert.strictEqual(successPayment.status, 'paid');
+  assert.ok(successPayment.fulfilled_at);
+
+  // Verifikasi saldo bertambah tepat 1x (+500)
+  const postWalletRes = await req('/api/credits', { headers: authHeaders });
+  assert.strictEqual(postWalletRes.data.balance.topup, preBalance + 500, 'Saldo harus bertambah tepat 1x');
+
+  // Pulihkan fungsi db.insert
+  db.insert = origInsert;
+
+  // ----------------------------------------------------
   // 6. Uji Proteksi Webhook Mock di Mode Production
   // ----------------------------------------------------
   console.log('6. Menguji penolakan webhook mock di mode production...');

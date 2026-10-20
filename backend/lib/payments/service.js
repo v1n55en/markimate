@@ -182,140 +182,151 @@ export async function fulfillPayment(payment, parsed = {}) {
     return { fulfilled: false, reason: 'already_fulfilled' };
   }
 
-  const now = new Date();
-  const user = payment.user_id ? await db.findOne('accounts', { id: payment.user_id }) : null;
-  const userLocale = user?.locale || 'id';
+  try {
+    const now = new Date();
+    const user = payment.user_id ? await db.findOne('accounts', { id: payment.user_id }) : null;
+    const userLocale = user?.locale || 'id';
 
-  if (payment.kind === 'topup') {
-    // 1. Tambah credit ke bucket topup dengan masa berlaku 365 hari
-    const validityDays = payment.period_days || 365;
-    const expiresAt = new Date(now.getTime() + validityDays * 86400e3);
+    if (payment.kind === 'topup') {
+      // 1. Tambah credit ke bucket topup dengan masa berlaku 365 hari
+      const validityDays = payment.period_days || 365;
+      const expiresAt = new Date(now.getTime() + validityDays * 86400e3);
 
-    await grant(
-      payment.workspace_id,
-      'topup',
-      payment.credits,
-      expiresAt,
-      'topup',
-      `Top-up credit via ${payment.provider.toUpperCase()} (${payment.invoice_number})`,
-      {
-        actionKey: 'billing.topup',
-        refType: 'payment',
-        refId: payment.id,
-        invoiceNumber: payment.invoice_number,
-        provider: payment.provider,
-        method: parsed.method || payment.method
-      }
-    );
-
-    // 2. Kirim email notifikasi top-up berhasil
-    if (user?.email) {
-      sendTopupSuccessEmail({
-        to: user.email,
-        invoiceNumber: payment.invoice_number,
-        packageName: payment.item_name,
-        credits: payment.credits,
-        amount: payment.amount,
-        locale: userLocale
-      }).catch(err => console.error('[MAIL] Failed to send topup success email:', err.message));
-    }
-  } else if (payment.kind === 'subscription') {
-    const planKey = payment.item_id;
-    const planData = PLANS[planKey];
-    const durationDays = payment.period_days || 30;
-
-    // Periksa apakah sudah ada langganan aktif untuk memperpanjang
-    const existingSubs = await db.findMany('subscriptions', {
-      workspace_id: payment.workspace_id,
-      status: 'active'
-    });
-
-    let baseTime = now.getTime();
-    for (const s of existingSubs) {
-      if (s.ends_at && new Date(s.ends_at).getTime() > baseTime) {
-        baseTime = new Date(s.ends_at).getTime();
-      }
-    }
-    const endsAt = new Date(baseTime + durationDays * 86400e3);
-
-    // 1. Buat record subscription
-    const sub = await db.insert('subscriptions', {
-      user_id: payment.user_id,
-      workspace_id: payment.workspace_id,
-      plan: planKey,
-      status: 'active',
-      method: parsed.method || payment.method || payment.provider,
-      amount: payment.amount,
-      invoice_no: payment.invoice_number,
-      started_at: now.toISOString(),
-      ends_at: endsAt.toISOString(),
-      dummy: false
-    });
-
-    if (user) {
-      await db.update('accounts', { id: user.id }, { plan: planKey });
-    }
-
-    // 2. Aktifkan module_entitlements paket dengan source: 'subscription'
-    const targetModules = planData?.modules || ['seo'];
-    for (const mod of targetModules) {
-      const existingEnt = await db.findOne('module_entitlements', {
-        workspace_id: payment.workspace_id,
-        module: mod
-      });
-      if (existingEnt) {
-        await db.update('module_entitlements', { workspace_id: payment.workspace_id, module: mod }, {
-          active: true,
-          source: 'subscription',
-          starts_at: now.toISOString(),
-          ends_at: endsAt.toISOString()
-        });
-      } else {
-        await db.insert('module_entitlements', {
-          workspace_id: payment.workspace_id,
-          module: mod,
-          active: true,
-          source: 'subscription',
-          starts_at: now.toISOString(),
-          ends_at: endsAt.toISOString()
-        });
-      }
-    }
-
-    // 3. Berikan credit paket subscription (reset/isi kuota bulanan)
-    const credits = (planData?.credits || payment.credits || 0);
-    if (process.env.CREDITS_ENABLED !== 'false' && credits > 0) {
       await grant(
         payment.workspace_id,
-        'sub',
-        credits,
-        endsAt,
-        'grant_sub',
-        `Aktivasi paket ${payment.item_name} via ${payment.provider.toUpperCase()} (${payment.invoice_number})`,
+        'topup',
+        payment.credits,
+        expiresAt,
+        'topup',
+        `Top-up credit via ${payment.provider.toUpperCase()} (${payment.invoice_number})`,
         {
-          actionKey: 'billing.sub',
-          refType: 'subscription',
-          refId: sub.id,
-          invoiceNumber: payment.invoice_number
+          actionKey: 'billing.topup',
+          refType: 'payment',
+          refId: payment.id,
+          invoiceNumber: payment.invoice_number,
+          provider: payment.provider,
+          method: parsed.method || payment.method
         }
       );
-    }
 
-    // 4. Kirim email notifikasi aktivasi langganan berhasil
-    if (user?.email) {
-      sendSubscriptionSuccessEmail({
-        to: user.email,
-        invoiceNumber: payment.invoice_number,
-        planName: payment.item_name,
-        periodDays: durationDays,
+      // 2. Kirim email notifikasi top-up berhasil
+      if (user?.email) {
+        sendTopupSuccessEmail({
+          to: user.email,
+          invoiceNumber: payment.invoice_number,
+          packageName: payment.item_name,
+          credits: payment.credits,
+          amount: payment.amount,
+          locale: userLocale
+        }).catch(err => console.error('[MAIL] Failed to send topup success email:', err.message));
+      }
+    } else if (payment.kind === 'subscription') {
+      const planKey = payment.item_id;
+      const planData = PLANS[planKey];
+      const durationDays = payment.period_days || 30;
+
+      // Periksa apakah sudah ada langganan aktif untuk memperpanjang
+      const existingSubs = await db.findMany('subscriptions', {
+        workspace_id: payment.workspace_id,
+        status: 'active'
+      });
+
+      let baseTime = now.getTime();
+      for (const s of existingSubs) {
+        if (s.ends_at && new Date(s.ends_at).getTime() > baseTime) {
+          baseTime = new Date(s.ends_at).getTime();
+        }
+      }
+      const endsAt = new Date(baseTime + durationDays * 86400e3);
+
+      // 1. Buat record subscription
+      const sub = await db.insert('subscriptions', {
+        user_id: payment.user_id,
+        workspace_id: payment.workspace_id,
+        plan: planKey,
+        status: 'active',
+        method: parsed.method || payment.method || payment.provider,
         amount: payment.amount,
-        endsAt: endsAt.toISOString(),
-        locale: userLocale
-      }).catch(err => console.error('[MAIL] Failed to send subscription success email:', err.message));
-    }
-  }
+        invoice_no: payment.invoice_number,
+        started_at: now.toISOString(),
+        ends_at: endsAt.toISOString(),
+        dummy: false
+      });
 
-  return { fulfilled: true, fulfilledAt };
+      if (user) {
+        await db.update('accounts', { id: user.id }, { plan: planKey });
+      }
+
+      // 2. Aktifkan module_entitlements paket dengan source: 'subscription'
+      const targetModules = planData?.modules || ['seo'];
+      for (const mod of targetModules) {
+        const existingEnt = await db.findOne('module_entitlements', {
+          workspace_id: payment.workspace_id,
+          module: mod
+        });
+        if (existingEnt) {
+          await db.update('module_entitlements', { workspace_id: payment.workspace_id, module: mod }, {
+            active: true,
+            source: 'subscription',
+            starts_at: now.toISOString(),
+            ends_at: endsAt.toISOString()
+          });
+        } else {
+          await db.insert('module_entitlements', {
+            workspace_id: payment.workspace_id,
+            module: mod,
+            active: true,
+            source: 'subscription',
+            starts_at: now.toISOString(),
+            ends_at: endsAt.toISOString()
+          });
+        }
+      }
+
+      // 3. Berikan credit paket subscription (reset/isi kuota bulanan)
+      const credits = (planData?.credits || payment.credits || 0);
+      if (process.env.CREDITS_ENABLED !== 'false' && credits > 0) {
+        await grant(
+          payment.workspace_id,
+          'sub',
+          credits,
+          endsAt,
+          'grant_sub',
+          `Aktivasi paket ${payment.item_name} via ${payment.provider.toUpperCase()} (${payment.invoice_number})`,
+          {
+            actionKey: 'billing.sub',
+            refType: 'subscription',
+            refId: sub.id,
+            invoiceNumber: payment.invoice_number
+          }
+        );
+      }
+
+      // 4. Kirim email notifikasi aktivasi langganan berhasil
+      if (user?.email) {
+        sendSubscriptionSuccessEmail({
+          to: user.email,
+          invoiceNumber: payment.invoice_number,
+          planName: payment.item_name,
+          periodDays: durationDays,
+          amount: payment.amount,
+          endsAt: endsAt.toISOString(),
+          locale: userLocale
+        }).catch(err => console.error('[MAIL] Failed to send subscription success email:', err.message));
+      }
+    }
+
+    return { fulfilled: true, fulfilledAt };
+  } catch (err) {
+    console.error(`[FULFILLMENT-FAILED] Error fulfilling payment ${payment.invoice_number}:`, err.message);
+    // Rollback klaim agar baris tidak terkunci sebagai 'paid' tanpa kredit
+    await db.update('payments', { id: payment.id }, {
+      fulfilled_at: null,
+      status: 'pending',
+      updated_at: new Date().toISOString()
+    });
+    throw err;
+  }
 }
 
 /**
@@ -452,6 +463,55 @@ export async function reconcile() {
     } catch (err) {
       console.error(`[RECONCILE] Error checking status for ${payment.invoice_number}:`, err.message);
       results.unchanged++;
+    }
+  }
+
+  // Rekonsiliasi pembayaran 'paid' yang belum ter-grant (PRD F14 Tahap 2 Poin 2)
+  const paidPayments = await db.findMany('payments', { status: 'paid' });
+  for (const payment of paidPayments || []) {
+    // 1. Jika fulfilled_at masih null pada status 'paid', lakukan fulfill
+    if (!payment.fulfilled_at) {
+      try {
+        const fulfillRes = await fulfillPayment(payment);
+        if (fulfillRes.fulfilled) results.fulfilled++;
+      } catch (err) {
+        console.error(`[RECONCILE] Error fulfilling unfulfilled paid payment ${payment.invoice_number}:`, err.message);
+      }
+      continue;
+    }
+
+    // 2. Jika kind === 'topup' dan credits > 0, pastikan ada baris credit_ledger terkait
+    if (payment.kind === 'topup' && payment.credits > 0) {
+      const existingLedger = await db.findMany('credit_ledger', {
+        workspace_id: payment.workspace_id,
+        ref_id: payment.id
+      });
+      const hasGrantRow = (existingLedger || []).some(r => r.kind === 'topup' || (r.delta && r.delta > 0));
+      if (!hasGrantRow) {
+        try {
+          const validityDays = payment.period_days || 365;
+          const expiresAt = new Date(Date.now() + validityDays * 86400e3);
+          await grant(
+            payment.workspace_id,
+            'topup',
+            payment.credits,
+            expiresAt,
+            'topup',
+            `Reconciliation: Top-up credit via ${payment.provider.toUpperCase()} (${payment.invoice_number})`,
+            {
+              actionKey: 'billing.topup',
+              refType: 'payment',
+              refId: payment.id,
+              invoiceNumber: payment.invoice_number,
+              provider: payment.provider,
+              method: payment.method
+            }
+          );
+          results.fulfilled++;
+        } catch (err) {
+          console.error(`[RECONCILE] Error granting missing topup credits for ${payment.invoice_number}:`, err.message);
+        }
+      }
     }
   }
 

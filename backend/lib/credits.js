@@ -407,7 +407,34 @@ export async function grant(workspaceId, bucket, amount, expiresAt, kind = 'topu
     throw new Error(`Invalid bucket: ${bucket}. Must be 'trial' | 'sub' | 'topup'.`);
   }
 
+  // Idempotensi per refId (misal payment.id) untuk mencegah penambahan kredit ganda saat retry
+  if (ref && ref.refId) {
+    const existingLedger = await db.findMany('credit_ledger', {
+      workspace_id: workspaceId,
+      ref_id: String(ref.refId)
+    });
+    const matchedGrant = (existingLedger || []).find(r => r.kind === kind || (r.delta && r.delta > 0));
+    if (matchedGrant) {
+      const { wallet, totalBalance } = await getWallet(workspaceId);
+      return {
+        wallet,
+        ledgerRow: matchedGrant,
+        totalBalance,
+        idempotent: true
+      };
+    }
+  }
+
   const { wallet } = await getWallet(workspaceId);
+  const oldBalances = {
+    balance_trial: Number(wallet.balance_trial || 0),
+    trial_expires_at: wallet.trial_expires_at || null,
+    balance_sub: Number(wallet.balance_sub || 0),
+    sub_expires_at: wallet.sub_expires_at || null,
+    balance_topup: Number(wallet.balance_topup || 0),
+    topup_expires_at: wallet.topup_expires_at || null
+  };
+
   const patch = {};
   const expIso = expiresAt instanceof Date ? expiresAt.toISOString() : (expiresAt || null);
 
@@ -423,26 +450,32 @@ export async function grant(workspaceId, bucket, amount, expiresAt, kind = 'topu
     patch.topup_expires_at = expIso;
   }
 
-  await db.update('credit_wallets', { workspace_id: workspaceId }, patch);
-  const { totalBalance } = await getWallet(workspaceId);
+  try {
+    await db.update('credit_wallets', { workspace_id: workspaceId }, patch);
+    const { totalBalance } = await getWallet(workspaceId);
 
-  const defaultActionKey = kind === 'grant_trial' ? 'auth.trial' : (bucket === 'sub' ? 'billing.sub' : 'billing.topup');
+    const defaultActionKey = kind === 'grant_trial' ? 'auth.trial' : (bucket === 'sub' ? 'billing.sub' : 'billing.topup');
 
-  const ledgerRow = await db.insert('credit_ledger', {
-    workspace_id: workspaceId,
-    delta: amt,
-    bucket,
-    kind,
-    action_key: ref.actionKey || defaultActionKey,
-    ref_type: ref.refType || (kind === 'grant_trial' ? 'trial' : null),
-    ref_id: ref.refId || null,
-    balance_after: totalBalance,
-    usage: null,
-    cost_actual_idr: 0,
-    note: note || `Grant ${bucket} +${amt}`
-  });
+    const ledgerRow = await db.insert('credit_ledger', {
+      workspace_id: workspaceId,
+      delta: amt,
+      bucket,
+      kind,
+      action_key: ref.actionKey || defaultActionKey,
+      ref_type: ref.refType || (kind === 'grant_trial' ? 'trial' : null),
+      ref_id: ref.refId || null,
+      balance_after: totalBalance,
+      usage: null,
+      cost_actual_idr: 0,
+      note: note || `Grant ${bucket} +${amt}`
+    });
 
-  return { wallet: patch, ledgerRow, totalBalance };
+    return { wallet: patch, ledgerRow, totalBalance };
+  } catch (err) {
+    // Rollback wallet balance jika proses pencatatan ledger gagal
+    await db.update('credit_wallets', { workspace_id: workspaceId }, oldBalances).catch(() => {});
+    throw err;
+  }
 }
 
 export async function expireBuckets(workspaceId = null) {
