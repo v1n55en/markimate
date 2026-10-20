@@ -85,7 +85,11 @@ const app = express();
 const PORT = process.env.PORT || 5001;
 if (process.env.NODE_ENV === 'production') {
   if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
-    console.error('[FATAL] Di lingkungan production, JWT_SECRET wajib diisi dan minimal 32 karakter.');
+    console.error('[FATAL] In production environment, JWT_SECRET is mandatory and must be at least 32 characters.');
+    process.exit(1);
+  }
+  if (!process.env.CMS_CRED_KEY || process.env.CMS_CRED_KEY.trim().length === 0) {
+    console.error('[FATAL] In production environment, CMS_CRED_KEY is mandatory for credential encryption.');
     process.exit(1);
   }
 }
@@ -156,8 +160,9 @@ async function callN8n(url, body) {
   const text = await res.text();
   let json = null; try { json = JSON.parse(text); } catch (e) {}
   if (res.status === 409 || (json && json.status === 'duplicate')) {
-    const err = new Error((json && json.message) || 'Topik mirip sudah ada di CMS.');
+    const err = new Error((json && json.message) || 'A similar topic already exists in CMS.');
     err.status = 409;
+    err.code = 'SIMILAR_TOPIC_EXISTS';
     err.isDuplicate = true;
     err.duplicateOf = (json && json.duplicateOf) || null;
     err.n8n = json;
@@ -1206,7 +1211,8 @@ app.post('/api/account/delete', auth, wrap(async (req, res) => {
   clearRefreshTokenCookie(res);
   res.json({
     success: true,
-    message: `Akun Anda dijadwalkan untuk dihapus permanen pada ${result.scheduledDateFormatted}. Anda dapat membatalkannya kapan saja dengan login kembali dalam 30 hari.`,
+    code: 'ACCOUNT_DELETION_SCHEDULED',
+    message: `Your account is scheduled for permanent deletion on ${result.scheduledDateFormatted}. You can cancel it anytime by logging back in within 30 days.`,
     scheduledAt: result.scheduledAt
   });
 }));
@@ -1236,7 +1242,8 @@ app.post('/api/account/delete/cancel', wrap(async (req, res) => {
   const session = await issueSession(res, result.user, req);
   res.json({
     success: true,
-    message: 'Jadwal penghapusan akun berhasil dibatalkan. Akun Anda kini aktif kembali.',
+    code: 'ACCOUNT_DELETION_CANCELLED',
+    message: 'Account deletion schedule has been cancelled. Your account is now active again.',
     token: session.accessToken,
     accessToken: session.accessToken,
     user: publicUser(result.user)
@@ -1939,7 +1946,8 @@ app.post('/api/workspaces/:id/transfer-ownership', auth, requireWorkspace('owner
 
   res.json({
     success: true,
-    message: 'Kepemilikan workspace berhasil dialihkan.'
+    code: 'WORKSPACE_OWNERSHIP_TRANSFERRED',
+    message: 'Workspace ownership successfully transferred.'
   });
 }));
 
@@ -2891,7 +2899,7 @@ async function generateFor(user, k) {
 async function publishFor(user, k, action, articleOverride) {
   const wsId = k.workspace_id || user.id;
   const conn = await db.findOne('cms_connections', { workspace_id: wsId, cms_type: k.cms_type });
-  if (!conn) throw Object.assign(new Error(`Kredensial ${k.cms_type} belum disimpan di Pengaturan CMS.`), { status: 400 });
+  if (!conn) throw Object.assign(new Error(`CMS credentials for ${k.cms_type} have not been configured yet.`), { status: 400, code: 'CMS_NOT_CONFIGURED' });
   const connConfig = resolveConnConfig(conn);
   const artSet = normalizeArticleSettings(conn.article_settings);
   const plan = planOf(user);
@@ -3288,7 +3296,7 @@ app.post('/api/billing/checkout', auth, requireWorkspace('admin'), wrap(async (r
       planData.credits,
       endsAt,
       'grant_sub',
-      `Langganan ${planData.name} (${planData.credits} credit)`,
+      `Subscription ${planData.name} (${planData.credits} credits)`,
       { actionKey: 'billing.sub', refType: 'subscription', refId: sub.id }
     );
   }
@@ -3296,7 +3304,8 @@ app.post('/api/billing/checkout', auth, requireWorkspace('admin'), wrap(async (r
   res.json({
     user: publicUser(u),
     subscription: sub,
-    message: `Pembayaran simulasi berhasil. Paket ${planData.name} aktif 30 hari (${planData.credits || 0} credit).`
+    code: 'SIMULATION_PAYMENT_SUCCESS',
+    message: `Simulated payment successful. ${planData.name} plan active for 30 days (${planData.credits || 0} credits).`
   });
 }));
 app.post('/api/billing/cancel', auth, requireWorkspace('admin'), wrap(async (req, res) => {

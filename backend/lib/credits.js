@@ -1,5 +1,5 @@
 import { db } from '../db.js';
-import { DEFAULT_PRICES, DEFAULT_COST_RATES } from '../scripts/seed-credit-prices.js';
+import { DEFAULT_PRICES, DEFAULT_COST_RATES } from '../scripts/maintenance/seed-credit-prices.js';
 import { TRIAL_CONFIG, isUnlimitedEmail } from './config.js';
 
 let cachedPrices = null;

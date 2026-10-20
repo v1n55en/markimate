@@ -1,6 +1,7 @@
 import { db } from '../db.js';
 import { getPrices, invalidateCreditCaches } from './credits.js';
 import { sendEmail, recordAlertSent, hasAlertBeenSent } from './notifications.js';
+import { SYSTEM_WORKSPACE_ID } from './config.js';
 
 const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
 
@@ -191,7 +192,7 @@ export async function checkMarginSentinel() {
       }
 
       const periodKey = `margin_low_${actionKey}_${todayDate}`;
-      const alreadySent = await hasAlertBeenSent('system', 'margin_low', periodKey);
+      const alreadySent = await hasAlertBeenSent(SYSTEM_WORKSPACE_ID, 'margin_low', periodKey);
 
       if (!alreadySent) {
         const subject = `[ALERT MARGIN] Aksi ${actionKey} memiliki margin < 60% (${stats.margin_pct}%)`;
@@ -205,7 +206,7 @@ export async function checkMarginSentinel() {
           metadata: stats
         });
 
-        await recordAlertSent('system', 'margin_low', adminEmail, periodKey, stats);
+        await recordAlertSent(SYSTEM_WORKSPACE_ID, 'margin_low', adminEmail, periodKey, stats);
         alertsTriggered.push({ type: 'margin_low', actionKey, marginPct: stats.margin_pct });
       }
     }
@@ -219,7 +220,7 @@ export async function checkMarginSentinel() {
 
   if (totalCostToday > costLimit) {
     const periodKey = `cost_high_${todayDate}`;
-    const alreadySent = await hasAlertBeenSent('system', 'cost_high', periodKey);
+    const alreadySent = await hasAlertBeenSent(SYSTEM_WORKSPACE_ID, 'cost_high', periodKey);
 
     if (!alreadySent) {
       const subject = `[CIRCUIT BREAKER] Biaya API harian melebihi ambang batas: Rp${totalCostToday.toLocaleString('id-ID')}`;
@@ -233,7 +234,7 @@ export async function checkMarginSentinel() {
         metadata: { totalCostToday, costLimit }
       });
 
-      await recordAlertSent('system', 'cost_high', adminEmail, periodKey, { totalCostToday, costLimit });
+      await recordAlertSent(SYSTEM_WORKSPACE_ID, 'cost_high', adminEmail, periodKey, { totalCostToday, costLimit });
       alertsTriggered.push({ type: 'cost_high', totalCostToday, costLimit });
     }
   }

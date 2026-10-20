@@ -1,9 +1,14 @@
+import { useLanguage } from '../../context/LanguageContext';
+
 export default function DataTable({
   columns = [],
   data = [],
-  emptyMessage = 'Belum ada data untuk ditampilkan.',
+  emptyMessage,
   keyField = 'id',
 }) {
+  const { t } = useLanguage();
+  const resolvedEmptyMessage = emptyMessage || t('common.noData');
+
   return (
     <div style={styles.tableWrapper}>
       <table style={styles.table}>
@@ -27,7 +32,7 @@ export default function DataTable({
           {data.length === 0 ? (
             <tr>
               <td colSpan={columns.length} style={styles.emptyTd}>
-                {emptyMessage}
+                {resolvedEmptyMessage}
               </td>
             </tr>
           ) : (

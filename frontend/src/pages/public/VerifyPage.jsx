@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { CheckCircle2, AlertTriangle, ArrowRight, Mail, RefreshCw } from 'lucide-react';
 import { api, setToken } from '../../api';
@@ -23,8 +23,11 @@ export default function VerifyPage({ onLoginSuccess }) {
   const [resending, setResending] = useState(false);
   const [resendNotice, setResendNotice] = useState('');
 
+  const verifyingRef = useRef(false);
+
   useEffect(() => {
-    if (!token) return;
+    if (!token || verifyingRef.current) return;
+    verifyingRef.current = true;
 
     let isMounted = true;
     async function doVerify() {
@@ -60,7 +63,7 @@ export default function VerifyPage({ onLoginSuccess }) {
 
     doVerify();
     return () => { isMounted = false; };
-  }, [token, onLoginSuccess, lang, setLang, t]);
+  }, [token]);
 
   const handleResend = async (e) => {
     e.preventDefault();

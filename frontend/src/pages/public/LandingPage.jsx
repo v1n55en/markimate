@@ -28,6 +28,10 @@ import {
 } from 'lucide-react';
 import {
   ROLES,
+  AVAILABLE_ROLES,
+  SOON_ROLES,
+  ACTIVE_ROLES_COUNT,
+  TOTAL_ROLES_COUNT,
   getLocalizedRoles,
   getLocalizedCategories,
 } from '../../config/roles';
@@ -131,11 +135,11 @@ export default function LandingPage() {
           <div style={styles.heroProof}>
             <div style={styles.proofItem}>
               <CheckCircle2 size={15} color="var(--accent-green)" />
-              <span>{t('hero.proof1', '3 Active Roles Ready to Deploy')}</span>
+              <span>{t('hero.proof1', { activeRoles: ACTIVE_ROLES_COUNT }, `${ACTIVE_ROLES_COUNT} Active Roles Ready to Deploy`)}</span>
             </div>
             <div style={styles.proofItem}>
               <CheckCircle2 size={15} color="var(--accent-green)" />
-              <span>{t('hero.proof2', '13 Specialized Roles in Pipeline')}</span>
+              <span>{t('hero.proof2', { soonRoles: SOON_ROLES.length }, `${SOON_ROLES.length} Specialized Roles in Pipeline`)}</span>
             </div>
             <div style={styles.proofItem}>
               <CheckCircle2 size={15} color="var(--accent-green)" />
@@ -148,12 +152,13 @@ export default function LandingPage() {
         <section id="roles" style={styles.section}>
           <div style={styles.sectionHeader}>
             <h2 style={styles.sectionHeading}>
-              {t('rolesGrid.sectionTitle', 'Your Autonomous Marketing Team')}
+              {t('rolesGrid.sectionTitle', { totalRoles: TOTAL_ROLES_COUNT }, 'Your Autonomous Marketing Team')}
             </h2>
             <p style={styles.sectionSub}>
               {t(
                 'rolesGrid.sectionSubtitle',
-                '16 specialized AI roles covering every digital marketing function. Activate individual modules or orchestrate the entire team.'
+                { totalRoles: TOTAL_ROLES_COUNT },
+                `${TOTAL_ROLES_COUNT} specialized AI roles covering every digital marketing function. Activate individual modules or orchestrate the entire team.`
               )}
             </p>
 
@@ -650,10 +655,10 @@ export default function LandingPage() {
             <div style={styles.faqItem} className="card">
               <h4 style={styles.faqQuestion}>
                 <HelpCircle size={17} color="var(--accent-cyan)" />
-                {t('faq.q5')}
+                {t('faq.q5', { days: TRIAL.days, credits: TRIAL.credits })}
               </h4>
               <p style={styles.faqAnswer}>
-                {t('faq.a5')}
+                {t('faq.a5', { days: TRIAL.days, credits: TRIAL.credits, totalRoles: TOTAL_ROLES_COUNT })}
               </p>
             </div>
 

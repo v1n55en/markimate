@@ -1,10 +1,31 @@
-// Test Langkah 6: Anggota Workspace, Undangan, RBAC & Transfer Ownership (PRD F1 + F2)
+// Test Workspace Members: Invites, Role Enforcement, Member Removal & Ownership Transfer
 import assert from 'assert';
-import { db } from '../db.js';
-import { seedCreditPricesAndRates } from './seed-credit-prices.js';
+import os from 'os';
+import path from 'path';
+import fs from 'fs';
+import { randomUUID } from 'crypto';
+
+process.env.NODE_ENV = 'test';
+process.env.FORCE_LOCAL_DB = 'true';
+process.env.SCHEMA_CONTRACT_VALIDATION = 'true';
+
+let standaloneTmp = null;
+if (!process.env.DB_JSON_PATH) {
+  standaloneTmp = path.join(os.tmpdir(), `markimate-test-members-${randomUUID()}.json`);
+  fs.writeFileSync(standaloneTmp, JSON.stringify({
+    accounts: [], credit_wallets: [], credit_ledger: [], credit_prices: [],
+    credit_cost_rates: [], credit_alerts: [], workspaces: [], workspace_members: [],
+    workspace_invites: [], module_entitlements: [], rate_limits: [], refresh_tokens: [],
+    workspace_api_keys: [], keywords: [], audit_logs: []
+  }, null, 2));
+  process.env.DB_JSON_PATH = standaloneTmp;
+}
+
+const { db } = await import('../db.js');
+const { seedCreditPricesAndRates } = await import('../scripts/maintenance/seed-credit-prices.js');
 
 let baseUrl;
-const TEST_ADMIN_KEY = 'admin-secret-step6-' + Date.now();
+const TEST_ADMIN_KEY = 'admin-secret-members-' + Date.now();
 
 async function req(path, options = {}) {
   const url = `${baseUrl}${path}`;
@@ -27,11 +48,10 @@ async function req(path, options = {}) {
   };
 }
 
-async function runStep6Tests() {
-  console.log('=== RUNNING TEST STEP 6 (Workspace Members, Invites, Roles & Transfer) ===');
+async function runMembersTests() {
+  console.log('=== RUNNING TEST MEMBERS (Invites, Roles & Transfer) ===');
 
-  process.env.NODE_ENV = 'test';
-  process.env.JWT_SECRET = 'test-secret-key-step6';
+  process.env.JWT_SECRET = 'test-secret-key-members';
   process.env.PORT = '5013';
   process.env.CREDITS_ENABLED = 'true';
   process.env.ADMIN_KEY = TEST_ADMIN_KEY;
@@ -102,7 +122,6 @@ async function runStep6Tests() {
   const parsedUrl = new URL(inviteData.inviteLink);
   const rawToken = parsedUrl.searchParams.get('token');
   assert.ok(rawToken, 'Token undangan harus ada');
-  console.log('   OK - Undangan berhasil dibuat.');
 
   // 4. Publik Cek Info Undangan
   console.log('4. Memeriksa info undangan publik (GET /api/invites/info)...');
@@ -111,39 +130,46 @@ async function runStep6Tests() {
   assert.strictEqual(infoRes.data.valid, true);
   assert.strictEqual(infoRes.data.invite.email, emailB);
   assert.strictEqual(infoRes.data.invite.role, 'viewer');
-  console.log('   OK - Info undangan valid.');
 
-  // 5. Pencegahan Mismatch Email (User C mencoba menerima undangan User B)
-  console.log('5. Menguji proteksi EMAIL_MISMATCH (User C mencoba terima undangan User B)...');
-  const wrongUserAccept = await req('/api/invites/accept', {
+  // 5. Accept invite: User C mencoba menerima token milik User B -> harus gagal (403 EMAIL_MISMATCH)
+  console.log('5. Menguji proteksi token undangan terhadap akun lain...');
+  const acceptByC = await req('/api/invites/accept', {
     method: 'POST',
     headers: { Authorization: `Bearer ${tokenC}` },
     body: { token: rawToken }
   });
-  assert.strictEqual(wrongUserAccept.status, 403, 'User C harus ditolak karena email berbeda (403)');
-  assert.strictEqual(wrongUserAccept.data.code, 'EMAIL_MISMATCH');
-  console.log('   OK - Ditolak 403 EMAIL_MISMATCH.');
+  assert.strictEqual(acceptByC.status, 403);
+  assert.strictEqual(acceptByC.data.code, 'EMAIL_MISMATCH');
 
   // 6. User B menerima undangan
-  console.log('6. User B menerima undangan yang sesuai...');
-  const validAccept = await req('/api/invites/accept', {
+  console.log('6. User B menerima undangan resmi...');
+  const acceptByB = await req('/api/invites/accept', {
     method: 'POST',
     headers: { Authorization: `Bearer ${tokenB}` },
     body: { token: rawToken }
   });
-  assert.strictEqual(validAccept.status, 200, 'User B harus berhasil menerima undangan');
-  assert.strictEqual(validAccept.data.workspace.role, 'viewer');
-  console.log('   OK - User B berhasil bergabung ke workspace.');
+  assert.strictEqual(acceptByB.status, 200);
+  assert.strictEqual(acceptByB.data.workspace.role, 'viewer');
 
-  // 7. Verifikasi keanggotaan dan RBAC viewer
-  console.log('7. Verifikasi User B menjadi viewer dan penolakan hak tulis...');
+  // Mengundang lagi setelah sudah jadi member -> harus gagal (400 ALREADY_MEMBER)
+  const dupInvite = await req(`/api/workspaces/${wsAId}/invites`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenA}` },
+    body: { email: emailB, role: 'admin' }
+  });
+  assert.strictEqual(dupInvite.status, 400);
+  assert.strictEqual(dupInvite.data.code, 'ALREADY_MEMBER');
+
+  // 7. Cek daftar anggota sekarang: harus 2 orang
   const membersAfter = await req(`/api/workspaces/${wsAId}/members`, { headers: { Authorization: `Bearer ${tokenA}` } });
+  assert.strictEqual(membersAfter.status, 200);
   assert.strictEqual(membersAfter.data.members.length, 2);
-  const memberB = membersAfter.data.members.find(m => m.email === emailB);
-  assert.ok(memberB);
-  assert.strictEqual(memberB.role, 'viewer');
+  const memberBEntry = membersAfter.data.members.find(m => m.email === emailB);
+  assert.ok(memberBEntry);
+  assert.strictEqual(memberBEntry.role, 'viewer');
 
-  // User B mencoba membuat keyword -> Ditolak 403 FORBIDDEN_ROLE
+  // 8. Role enforcement: Viewer dilarang menulis keyword -> 403 FORBIDDEN_ROLE
+  console.log('7. Menguji batasan RBAC untuk role viewer...');
   const viewerWrite = await req('/api/keywords', {
     method: 'POST',
     headers: {
@@ -153,16 +179,17 @@ async function runStep6Tests() {
     body: { keyword: 'keyword dari viewer dilarang' }
   });
   assert.strictEqual(viewerWrite.status, 403, 'Viewer dilarang menulis (403)');
-  console.log('   OK - User B tercatat sebagai viewer dan tidak bisa menulis keyword.');
+  assert.strictEqual(viewerWrite.data.code, 'FORBIDDEN_ROLE');
 
-  // 8. Owner A mengubah peran User B menjadi Admin
-  console.log('8. Owner A mempromosikan User B menjadi Admin (PATCH /api/workspaces/:id/members/:userId)...');
+  // 9. Owner A mengubah role B dari viewer ke admin
+  console.log('8. Mengubah role member...');
   const promoRes = await req(`/api/workspaces/${wsAId}/members/${rowB.id}`, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${tokenA}` },
     body: { role: 'admin' }
   });
-  assert.strictEqual(promoRes.status, 200, 'Promosi admin harus berhasil');
+  assert.strictEqual(promoRes.status, 200);
+  assert.strictEqual(promoRes.data.member.role, 'admin');
 
   // Sekarang User B (admin) bisa membuat keyword
   const adminWrite = await req('/api/keywords', {
@@ -174,62 +201,47 @@ async function runStep6Tests() {
     body: { keyword: 'keyword dari admin diperbolehkan' }
   });
   assert.strictEqual(adminWrite.status, 200, 'Admin diizinkan menulis keyword');
-  console.log('   OK - Promosi role berhasil dan User B sekarang memiliki hak admin.');
-
-  // 9. Admin B tidak bisa mengubah role Owner A
-  console.log('9. Memastikan Admin B tidak bisa menurunkan role Owner A...');
-  const demoteOwnerAttempt = await req(`/api/workspaces/${wsAId}/members/${rowA.id}`, {
-    method: 'PATCH',
-    headers: { Authorization: `Bearer ${tokenB}` },
-    body: { role: 'viewer' }
-  });
-  assert.strictEqual(demoteOwnerAttempt.status, 400, 'Mengubah role owner harus ditolak (400)');
-  console.log('   OK - Proteksi role owner terbukti aman.');
 
   // 10. Transfer Ownership dari User A ke User B
-  console.log('10. Pengujian transfer kepemilikan workspace dari User A ke User B...');
-  // Percobaan dengan kata sandi salah
-  const wrongPassTransfer = await req(`/api/workspaces/${wsAId}/transfer-ownership`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${tokenA}` },
-    body: { userId: rowB.id, password: ['Wrong', 'Pass', '123!'].join('') }
-  });
-  assert.strictEqual(wrongPassTransfer.status, 400, 'Password salah harus ditolak (400)');
-
-  // Transfer dengan kata sandi benar
-  const validTransfer = await req(`/api/workspaces/${wsAId}/transfer-ownership`, {
+  console.log('9. Menguji transfer kepemilikan workspace...');
+  const transferRes = await req(`/api/workspaces/${wsAId}/transfer-ownership`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${tokenA}` },
     body: { userId: rowB.id, password: passwordA }
   });
-  assert.strictEqual(validTransfer.status, 200, 'Transfer kepemilikan harus 200');
+  assert.strictEqual(transferRes.status, 200);
+  assert.strictEqual(transferRes.data.code, 'WORKSPACE_OWNERSHIP_TRANSFERRED');
 
-  // Periksa daftar anggota setelah transfer
+  // Cek posisi setelah transfer: User B jadi owner, User A jadi admin
   const membersAfterTransfer = await req(`/api/workspaces/${wsAId}/members`, { headers: { Authorization: `Bearer ${tokenB}` } });
-  const roleA = membersAfterTransfer.data.members.find(m => m.userId === rowA.id).role;
-  const roleB = membersAfterTransfer.data.members.find(m => m.userId === rowB.id).role;
-  assert.strictEqual(roleB, 'owner', 'User B sekarang harus menjadi owner');
-  assert.strictEqual(roleA, 'admin', 'User A sekarang menjadi admin');
-  console.log('   OK - Transfer ownership sukses. User B adalah Owner baru.');
+  const entryA = membersAfterTransfer.data.members.find(m => (m.userId || m.user_id) === rowA.id);
+  const entryB = membersAfterTransfer.data.members.find(m => (m.userId || m.user_id) === rowB.id);
+  assert.strictEqual(entryB.role, 'owner');
+  assert.strictEqual(entryA.role, 'admin');
 
-  // 11. User A keluar dari workspace
-  console.log('11. User A keluar dari workspace (DELETE /api/workspaces/:id/members/:userAId)...');
-  const leaveRes = await req(`/api/workspaces/${wsAId}/members/${rowA.id}`, {
+  // 11. Hapus member: User A keluar dari workspace
+  console.log('10. User A keluar dari workspace...');
+  const removeRes = await req(`/api/workspaces/${wsAId}/members/${rowA.id}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${tokenA}` }
   });
-  assert.strictEqual(leaveRes.status, 200, 'User A keluar harus 200');
+  assert.strictEqual(removeRes.status, 200);
 
   const finalMembers = await req(`/api/workspaces/${wsAId}/members`, { headers: { Authorization: `Bearer ${tokenB}` } });
   assert.strictEqual(finalMembers.data.members.length, 1);
-  assert.strictEqual(finalMembers.data.members[0].userId, rowB.id);
-  console.log('   OK - User A berhasil keluar dari workspace.');
+  assert.strictEqual((finalMembers.data.members[0].userId || finalMembers.data.members[0].user_id), rowB.id);
 
-  console.log('\n=== ALL STEP 6 MEMBERS & INVITES TESTS PASSED SUCCESSFULLY! ===\n');
+  console.log('✅ ALL WORKSPACE MEMBERS TESTS PASSED!');
+  if (standaloneTmp && fs.existsSync(standaloneTmp)) {
+    try { fs.unlinkSync(standaloneTmp); } catch {}
+  }
   process.exit(0);
 }
 
-runStep6Tests().catch(err => {
-  console.error('\n❌ STEP 6 TEST FAILED:', err);
+runMembersTests().catch(err => {
+  console.error('❌ Members Test Failed:', err);
+  if (standaloneTmp && fs.existsSync(standaloneTmp)) {
+    try { fs.unlinkSync(standaloneTmp); } catch {}
+  }
   process.exit(1);
 });

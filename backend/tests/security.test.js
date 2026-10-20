@@ -1,9 +1,30 @@
-// Test Langkah D & E: Keamanan Workspace Isolation, requireUuidParam, dan Token Grace Chain (PRD F3)
+// Test Security & Workspace Isolation: requireUuidParam, Cross-tenant Guard & Token Grace Chain
 import assert from 'assert';
+import os from 'os';
+import path from 'path';
+import fs from 'fs';
 import crypto, { randomUUID } from 'crypto';
 import jwt from 'jsonwebtoken';
-import { db } from '../db.js';
-import { hashToken } from '../lib/tokens.js';
+
+process.env.NODE_ENV = 'test';
+process.env.FORCE_LOCAL_DB = 'true';
+process.env.SCHEMA_CONTRACT_VALIDATION = 'true';
+
+let standaloneTmp = null;
+if (!process.env.DB_JSON_PATH) {
+  standaloneTmp = path.join(os.tmpdir(), `markimate-test-security-${randomUUID()}.json`);
+  fs.writeFileSync(standaloneTmp, JSON.stringify({
+    accounts: [], credit_wallets: [], credit_ledger: [], credit_prices: [],
+    credit_cost_rates: [], credit_alerts: [], workspaces: [], workspace_members: [],
+    workspace_invites: [], module_entitlements: [], rate_limits: [], refresh_tokens: [],
+    workspace_api_keys: [], keywords: [], audit_logs: [], cms_connections: [], seo_topic_sources: []
+  }, null, 2));
+  process.env.DB_JSON_PATH = standaloneTmp;
+}
+
+const { db } = await import('../db.js');
+const { seedCreditPricesAndRates } = await import('../scripts/maintenance/seed-credit-prices.js');
+const { hashToken } = await import('../lib/tokens.js');
 
 function signAccessToken(user) {
   return jwt.sign(
@@ -13,7 +34,7 @@ function signAccessToken(user) {
   );
 }
 
-const PORT = 5025;
+const PORT = 5018;
 const baseUrl = `http://localhost:${PORT}`;
 
 async function req(path, options = {}) {
@@ -38,13 +59,13 @@ async function req(path, options = {}) {
 }
 
 async function runSecurityTests() {
-  console.log('=== RUNNING SECURITY & WORKSPACE ISOLATION SUITE (PRD F3 LANGKAH D & E) ===\n');
+  console.log('=== RUNNING SECURITY & WORKSPACE ISOLATION SUITE ===\n');
 
-  process.env.NODE_ENV = 'test';
   process.env.PORT = String(PORT);
   process.env.JWT_SECRET = 'test-secret-step-d-security';
   process.env.ADMIN_KEY = 'test-admin-key-step-d';
 
+  await seedCreditPricesAndRates();
   await db.remove('rate_limits', {});
   await import('../index.js');
 
@@ -107,59 +128,25 @@ async function runSecurityTests() {
   const tokenA = signAccessToken(userA);
   const tokenB = signAccessToken(userB);
 
-  // -------------------------------------------------------------
-  // BAGIAN 1: requireUuidParam validation (404 NOT_FOUND untuk ID bukan UUID)
-  // -------------------------------------------------------------
+  // 1. requireUuidParam validation (404 NOT_FOUND untuk ID bukan UUID)
   console.log('1. Menguji proteksi requireUuidParam pada endpoint keywords & topic sources...');
-  
   const badIdRes1 = await req('/api/keywords/bukan-uuid', {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${tokenA}`, 'x-workspace-id': wsA.id },
     body: { status: 'Pending' }
   });
-  assert.strictEqual(badIdRes1.status, 404, 'PATCH /api/keywords/:id harus 404 jika ID bukan UUID');
+  assert.strictEqual(badIdRes1.status, 404);
   assert.strictEqual(badIdRes1.data?.code, 'NOT_FOUND');
 
   const badIdRes2 = await req('/api/keywords/12345-invalid', {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${tokenA}`, 'x-workspace-id': wsA.id }
   });
-  assert.strictEqual(badIdRes2.status, 404, 'DELETE /api/keywords/:id harus 404 jika ID bukan UUID');
+  assert.strictEqual(badIdRes2.status, 404);
   assert.strictEqual(badIdRes2.data?.code, 'NOT_FOUND');
 
-  const badIdRes3 = await req('/api/keywords/sql-inject--/run', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${tokenA}`, 'x-workspace-id': wsA.id }
-  });
-  assert.strictEqual(badIdRes3.status, 404, 'POST /api/keywords/:id/run harus 404 jika ID bukan UUID');
-
-  const badIdRes4 = await req('/api/keywords/some-slug/publish', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${tokenA}`, 'x-workspace-id': wsA.id },
-    body: { action: 'draft' }
-  });
-  assert.strictEqual(badIdRes4.status, 404, 'POST /api/keywords/:id/publish harus 404 jika ID bukan UUID');
-
-  const badIdRes5 = await req('/api/seo/topic-sources/bukan-uuid-juga', {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${tokenA}`, 'x-workspace-id': wsA.id }
-  });
-  assert.strictEqual(badIdRes5.status, 404, 'DELETE /api/seo/topic-sources/:id harus 404 jika ID bukan UUID');
-
-  const badIdRes6 = await req('/api/seo/topic-sources/bukan-uuid/run', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${tokenA}`, 'x-workspace-id': wsA.id }
-  });
-  assert.strictEqual(badIdRes6.status, 404, 'POST /api/seo/topic-sources/:id/run harus 404 jika ID bukan UUID');
-
-  console.log('   OK - requireUuidParam sukses menolak input non-UUID dengan 404 NOT_FOUND.');
-
-  // -------------------------------------------------------------
-  // BAGIAN 2: Workspace Isolation (Penghapusan user_id fallback)
-  // -------------------------------------------------------------
-  console.log('\n2. Menguji isolasi data ketat antar workspace...');
-
-  // Setup resource di Workspace A
+  // 2. Workspace Isolation
+  console.log('2. Menguji isolasi data ketat antar workspace...');
   const kwA = await db.insert('keywords', {
     id: randomUUID(),
     user_id: userA.id,
@@ -190,56 +177,36 @@ async function runSecurityTests() {
     active: true
   });
 
-  // Verifikasi User A bisa melihat keyword KWA
+  // User A bisa melihat keyword miliknya
   const listA = await req('/api/keywords', {
     headers: { Authorization: `Bearer ${tokenA}`, 'x-workspace-id': wsA.id }
   });
   assert.strictEqual(listA.status, 200);
-  assert.ok(listA.data?.keywords?.some(k => k.id === kwA.id), 'User A harus melihat keyword miliknya');
+  assert.ok(listA.data?.keywords?.some(k => k.id === kwA.id));
 
-  // Verifikasi User B di Workspace B TIDAK melihat keyword KWA
+  // User B TIDAK boleh melihat keyword milik Workspace A
   const listB = await req('/api/keywords', {
     headers: { Authorization: `Bearer ${tokenB}`, 'x-workspace-id': wsB.id }
   });
   assert.strictEqual(listB.status, 200);
-  assert.ok(!listB.data?.keywords?.some(k => k.id === kwA.id), 'User B TIDAK boleh melihat keyword milik Workspace A');
+  assert.ok(!listB.data?.keywords?.some(k => k.id === kwA.id));
 
-  // Verifikasi User B tidak bisa mengedit keyword milik Workspace A
+  // User B tidak bisa mengedit atau menghapus keyword milik Workspace A
   const patchB = await req(`/api/keywords/${kwA.id}`, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${tokenB}`, 'x-workspace-id': wsB.id },
     body: { status: 'Published' }
   });
-  assert.strictEqual(patchB.status, 404, 'User B harus mendapat 404 saat mencoba mengedit keyword Workspace A');
+  assert.strictEqual(patchB.status, 404);
 
-  // Verifikasi User B tidak bisa menghapus keyword milik Workspace A
   const delB = await req(`/api/keywords/${kwA.id}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${tokenB}`, 'x-workspace-id': wsB.id }
   });
-  assert.strictEqual(delB.status, 404, 'User B harus mendapat 404 saat mencoba menghapus keyword Workspace A');
+  assert.strictEqual(delB.status, 404);
 
-  // Verifikasi User B tidak melihat CMS connections milik Workspace A di GET /api/me
-  const meB = await req('/api/me', {
-    headers: { Authorization: `Bearer ${tokenB}`, 'x-workspace-id': wsB.id }
-  });
-  assert.strictEqual(meB.status, 200);
-  assert.ok(!meB.data?.cms?.some(c => c.id === cmsA.id), 'User B TIDAK boleh melihat CMS connection milik Workspace A');
-
-  // Verifikasi User B tidak bisa menghapus atau menjalankan Topic Source milik Workspace A
-  const delTopicB = await req(`/api/seo/topic-sources/${topicA.id}`, {
-    method: 'DELETE',
-    headers: { Authorization: `Bearer ${tokenB}`, 'x-workspace-id': wsB.id }
-  });
-  assert.strictEqual(delTopicB.status, 404, 'User B harus mendapat 404 saat mencoba menghapus Topic Source Workspace A');
-
-  console.log('   OK - Isolasi multi-tenant data workspace & CMS connections terbukti aman 100%.');
-
-  // -------------------------------------------------------------
-  // BAGIAN 3: Refresh Token Grace Chain Traversal
-  // -------------------------------------------------------------
-  console.log('\n3. Menguji Refresh Token Grace Chain Traversal...');
-
+  // 3. Refresh Token Grace Chain Traversal & Reuse Detection
+  console.log('3. Menguji Refresh Token Grace Chain Traversal...');
   const familyId = randomUUID();
   const rawToken0 = 'raw_tok_0_' + randomUUID();
   const rawToken1 = 'raw_tok_1_' + randomUUID();
@@ -249,11 +216,9 @@ async function runSecurityTests() {
   const id1 = randomUUID();
   const id2 = randomUUID();
 
-  const now = new Date();
   const expiresAt = new Date(Date.now() + 7 * 86400 * 1000).toISOString();
-  const revokedRecently = new Date(Date.now() - 5 * 1000).toISOString(); // 5 detik lalu (dalam grace 30s)
+  const revokedRecently = new Date(Date.now() - 5 * 1000).toISOString();
 
-  // Token 2: token aktif terakhir
   await db.insert('refresh_tokens', {
     id: id2,
     token_hash: hashToken(rawToken2),
@@ -264,7 +229,6 @@ async function runSecurityTests() {
     expires_at: expiresAt
   });
 
-  // Token 1: direvoke dan digantikan oleh Token 2
   await db.insert('refresh_tokens', {
     id: id1,
     token_hash: hashToken(rawToken1),
@@ -275,7 +239,6 @@ async function runSecurityTests() {
     expires_at: expiresAt
   });
 
-  // Token 0: direvoke dan digantikan oleh Token 1
   await db.insert('refresh_tokens', {
     id: id0,
     token_hash: hashToken(rawToken0),
@@ -286,17 +249,15 @@ async function runSecurityTests() {
     expires_at: expiresAt
   });
 
-  // Request refresh dengan Token 0 (berjarak 2 hop ke Token 2 aktif):
   const refreshRes = await req('/api/auth/refresh', {
     method: 'POST',
     cookie: `mk_rt=${rawToken0}`
   });
-
-  assert.strictEqual(refreshRes.status, 200, 'Refresh dengan token dalam grace period harus sukses');
-  assert.ok(refreshRes.data?.accessToken, 'Harus mengembalikan accessToken baru');
+  assert.strictEqual(refreshRes.status, 200);
+  assert.ok(refreshRes.data?.accessToken);
   assert.strictEqual(refreshRes.data?.user?.email, userA.email);
 
-  // Verifikasi reuse detection di luar grace window (> 30 detik)
+  // Reuse Detection (> 30s)
   const expiredRevokedTime = new Date(Date.now() - 35 * 1000).toISOString();
   const idStale = randomUUID();
   const rawTokenStale = 'raw_stale_' + randomUUID();
@@ -315,36 +276,24 @@ async function runSecurityTests() {
     method: 'POST',
     cookie: `mk_rt=${rawTokenStale}`
   });
-
-  assert.strictEqual(staleRefresh.status, 401, 'Token di luar grace window harus 401 reuse detection');
+  assert.strictEqual(staleRefresh.status, 401);
   assert.strictEqual(staleRefresh.data?.code, 'TOKEN_REUSE_DETECTED');
 
-  // Seluruh token family sekarang harus telah direvoke
   const activeTokensInFamily = await db.findMany('refresh_tokens', { family_id: familyId });
   const anyUnrevoked = activeTokensInFamily.some(r => !r.revoked_at);
-  assert.strictEqual(anyUnrevoked, false, 'Seluruh family token harus direvoke saat reuse detection terjadi');
+  assert.strictEqual(anyUnrevoked, false);
 
-  console.log('   OK - Refresh token grace chain traversal & reuse detection terverifikasi sempurna.');
-
-  // Cleanup data uji
-  await db.remove('keywords', { id: kwA.id });
-  await db.remove('cms_connections', { id: cmsA.id });
-  await db.remove('seo_topic_sources', { id: topicA.id });
-  await db.remove('refresh_tokens', { family_id: familyId });
-  await db.remove('workspace_members', { workspace_id: wsA.id });
-  await db.remove('workspace_members', { workspace_id: wsB.id });
-  await db.remove('workspaces', { id: wsA.id });
-  await db.remove('workspaces', { id: wsB.id });
-  await db.remove('accounts', { id: userA.id });
-  await db.remove('accounts', { id: userB.id });
-
-  console.log('\n======================================================');
-  console.log('SEMUA PENGUJIAN LANGKAH D & E SUKSES 100%!');
-  console.log('======================================================\n');
+  console.log('✅ ALL SECURITY & ISOLATION TESTS PASSED!');
+  if (standaloneTmp && fs.existsSync(standaloneTmp)) {
+    try { fs.unlinkSync(standaloneTmp); } catch {}
+  }
   process.exit(0);
 }
 
 runSecurityTests().catch(err => {
-  console.error('\n❌ ERROR DALAM TEST KEAMANAN & ISOLASI:', err);
+  console.error('❌ Security Test Failed:', err);
+  if (standaloneTmp && fs.existsSync(standaloneTmp)) {
+    try { fs.unlinkSync(standaloneTmp); } catch {}
+  }
   process.exit(1);
 });

@@ -58,5 +58,6 @@ export const common = {
     "sat": "Saturday"
   },
   "toggleNav": "Toggle Navigation Menu",
-  "closeModal": "Close modal"
+  "closeModal": "Close modal",
+  "noData": "No data available to display."
 };

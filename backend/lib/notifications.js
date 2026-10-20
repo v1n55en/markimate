@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { db } from '../db.js';
 import { PLANS } from './plans.js';
-import { TRIAL_CONFIG } from './config.js';
+import { TRIAL_CONFIG, SYSTEM_WORKSPACE_ID } from './config.js';
 
 import { sendMail } from './mailer.js';
 
@@ -15,20 +15,27 @@ export async function sendEmail({ to, subject, text, html, tag = 'general', meta
 }
 
 export async function hasAlertBeenSent(workspaceId, alertType, periodKey = null) {
-  const query = { workspace_id: workspaceId, alert_type: alertType };
+  const isSystem = (workspaceId === 'system' || workspaceId === SYSTEM_WORKSPACE_ID || !workspaceId);
+  const wsId = isSystem ? SYSTEM_WORKSPACE_ID : workspaceId;
+  const query = { workspace_id: wsId, alert_type: alertType };
   if (periodKey) query.period_key = periodKey;
   const existing = await db.findOne('credit_alerts', query);
   return Boolean(existing);
 }
 
 export async function recordAlertSent(workspaceId, alertType, sentTo, periodKey = null, metadata = {}) {
+  const isSystem = (workspaceId === 'system' || workspaceId === SYSTEM_WORKSPACE_ID || !workspaceId);
+  const wsId = isSystem ? SYSTEM_WORKSPACE_ID : workspaceId;
+  const payloadMeta = isSystem
+    ? { scope: 'system', ...metadata }
+    : metadata;
   return await db.insert('credit_alerts', {
     id: randomUUID(),
-    workspace_id: workspaceId,
+    workspace_id: wsId,
     alert_type: alertType,
     sent_to: sentTo,
     period_key: periodKey,
-    metadata,
+    metadata: payloadMeta,
     created_at: new Date().toISOString()
   });
 }

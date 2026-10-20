@@ -23,3 +23,5 @@ export function isUnlimitedEmail(email) {
   return extra.includes(normalized);
 }
 
+export const SYSTEM_WORKSPACE_ID = '00000000-0000-0000-0000-000000000000';
+

@@ -70,11 +70,11 @@ export default function MembersSettingsPage({ me, refreshMe }) {
         setInvites(invitesRes.invites);
       }
     } catch (err) {
-      setError(err.message || 'Gagal memuat data anggota workspace.');
+      setError(err.message || t('settings.members.loadError'));
     } finally {
       setLoading(false);
     }
-  }, [currentWorkspaceId, isAdminOrOwner]);
+  }, [currentWorkspaceId, isAdminOrOwner, t]);
 
   useEffect(() => {
     loadMembersAndInvites();
@@ -96,13 +96,13 @@ export default function MembersSettingsPage({ me, refreshMe }) {
       });
 
       if (res && res.success) {
-        setInviteSuccess(`Undangan berhasil dikirim ke ${inviteEmail.trim()}`);
+        setInviteSuccess(t('settings.members.inviteSuccess', { email: inviteEmail.trim() }));
         setInviteEmail('');
         setTimeout(() => setInviteSuccess(''), 5000);
         await loadMembersAndInvites();
       }
     } catch (err) {
-      setInviteError(err.message || 'Gagal mengirim undangan.');
+      setInviteError(err.message || t('settings.members.inviteError'));
     } finally {
       setInviting(false);
     }
@@ -171,7 +171,7 @@ export default function MembersSettingsPage({ me, refreshMe }) {
       });
 
       if (res && res.success) {
-        setTransferSuccess('Kepemilikan workspace berhasil dialihkan.');
+        setTransferSuccess(t('settings.members.transferSuccess'));
         setTransferPassword('');
         setTimeout(() => {
           setShowTransferModal(false);
@@ -181,7 +181,7 @@ export default function MembersSettingsPage({ me, refreshMe }) {
         }, 1500);
       }
     } catch (err) {
-      setTransferError(err.message || 'Gagal mengalihkan kepemilikan.');
+      setTransferError(err.message || t('settings.members.transferError'));
     } finally {
       setTransferring(false);
     }

@@ -1,6 +1,6 @@
 // Script migrasi massal: Enkripsi kredensial config yang ada di cms_connections ke config_enc & config_iv
-import { db, dbMode } from '../db.js';
-import { encrypt } from '../lib/crypto.js';
+import { db, dbMode } from '../../db.js';
+import { encrypt } from '../../lib/crypto.js';
 
 async function main() {
   console.log(`[Migrasi] Memulai enkripsi cms_connections (Mode DB: ${dbMode})...`);

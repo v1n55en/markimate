@@ -77,7 +77,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
       setTimeout(() => setLanguageSuccess(''), 4000);
       if (refreshMe) await refreshMe();
     } catch (err) {
-      setLanguageError(err.message || 'Gagal menyimpan preferensi bahasa.');
+      setLanguageError(err.message || t('settings.language.error'));
     } finally {
       setSavingLanguage(false);
     }
@@ -95,11 +95,11 @@ export default function AccountSettingsPage({ me, refreshMe }) {
         method: 'PATCH',
         body: { name, brandName, niche }
       });
-      setProfileSuccess('Profil akun berhasil diperbarui.');
+      setProfileSuccess(t('settings.profile.saved'));
       setTimeout(() => setProfileSuccess(''), 4000);
       if (refreshMe) await refreshMe();
     } catch (err) {
-      setProfileError(err.message || 'Gagal menyimpan profil.');
+      setProfileError(err.message || t('settings.profile.error'));
     } finally {
       setSavingProfile(false);
     }
@@ -112,11 +112,11 @@ export default function AccountSettingsPage({ me, refreshMe }) {
     setPasswordSuccess('');
 
     if (newPassword.length < 10) {
-      setPasswordError('Kata sandi baru minimal 10 karakter.');
+      setPasswordError(t('settings.passwordChange.minChars'));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setPasswordError('Konfirmasi kata sandi baru tidak sesuai.');
+      setPasswordError(t('settings.passwordChange.mismatch'));
       return;
     }
 
@@ -126,13 +126,13 @@ export default function AccountSettingsPage({ me, refreshMe }) {
         method: 'POST',
         body: { currentPassword, newPassword }
       });
-      setPasswordSuccess('Kata sandi berhasil diperbarui. Sesi perangkat lain telah dicabut.');
+      setPasswordSuccess(t('settings.passwordChange.successNotice'));
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setTimeout(() => setPasswordSuccess(''), 5000);
     } catch (err) {
-      setPasswordError(err.message || 'Gagal mengubah kata sandi.');
+      setPasswordError(err.message || t('settings.passwordChange.error'));
     } finally {
       setSavingPassword(false);
     }
@@ -146,15 +146,15 @@ export default function AccountSettingsPage({ me, refreshMe }) {
 
     const targetEm = newEmail.trim().toLowerCase();
     if (!targetEm || !targetEm.includes('@')) {
-      setEmailError('Format alamat email baru tidak valid.');
+      setEmailError(t('settings.emailChange.invalidFormat'));
       return;
     }
     if (targetEm === (user.email || '').toLowerCase()) {
-      setEmailError('Alamat email baru sama dengan alamat email saat ini.');
+      setEmailError(t('settings.emailChange.sameEmail'));
       return;
     }
     if (!emailPassword) {
-      setEmailError('Kata sandi wajib diisi untuk verifikasi keamanan.');
+      setEmailError(t('settings.emailChange.passwordRequired'));
       return;
     }
 
@@ -164,11 +164,11 @@ export default function AccountSettingsPage({ me, refreshMe }) {
         method: 'POST',
         body: { newEmail: targetEm, password: emailPassword }
       });
-      setEmailSuccess(res.message || 'Tautan konfirmasi telah dikirimkan ke alamat email baru.');
+      setEmailSuccess(res.message || t('settings.emailChange.successNotice'));
       setNewEmail('');
       setEmailPassword('');
     } catch (err) {
-      setEmailError(err.message || 'Gagal mengajukan perubahan email.');
+      setEmailError(err.message || t('settings.emailChange.error'));
     } finally {
       setSavingEmail(false);
     }
@@ -188,7 +188,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || 'Gagal mengekspor data akun.');
+        throw new Error(err.error || t('settings.export.error'));
       }
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
@@ -200,7 +200,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
       a.remove();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      setExportError(err.message || 'Gagal mengunduh file ekspor data.');
+      setExportError(err.message || t('settings.export.error'));
     } finally {
       setExporting(false);
     }
@@ -244,7 +244,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
       if (err.code === 'TRANSFER_OWNERSHIP_FIRST' && Array.isArray(err.workspaces)) {
         setBlockedWorkspaces(err.workspaces);
       }
-      setDeleteError(err.message || 'Gagal mengajukan penghapusan akun.');
+      setDeleteError(err.message || t('settings.deletion.error'));
     } finally {
       setDeletingAccount(false);
     }

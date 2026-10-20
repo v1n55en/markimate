@@ -1,6 +1,8 @@
 // Konfigurasi harga, kuota, bundle, dan benchmark biaya tim marketing in-house
 // Mengikuti data kalkulator Supermat v3 (Supermat-v3-Kalkulator-Paket-Biaya-Development.xlsx)
 
+export const CREDIT_PRICE_IDR = 1000;
+
 export const TRIAL = {
   days: 7,
   credits: 300,
@@ -116,30 +118,11 @@ export const getLocalizedInHouseComparison = (lang = 'id') => {
   }));
 };
 
-// Format mata uang: USD ($) jika 'en', IDR (Rp) jika 'id'
-export const formatCurrency = (n, lang = 'id') => {
-  if (lang.startsWith('en')) {
-    // Pemetaan angka bulat untuk harga paket standar
-    if (n === 1500000) return '$99';
-    if (n === 1000000) return '$69';
-    if (n === 3200000) return '$210';
-    if (n === 4000000) return '$267';
-    if (n === 7875000) return '$499';
-    if (n === 9000000) return '$600';
-    if (n === 11000000) return '$750';
-    if (n === 9375000) return '$625';
-    if (n === 29375000) return '$1,975';
-    if (n === 26175000) return '$1,765';
-    if (n === 64375000) return '$4,290';
-    // Fallback konversi 1 USD = Rp 15.000
-    const usd = Math.round(Number(n || 0) / 15000);
-    return '$' + usd.toLocaleString('en-US');
-  }
-  return 'Rp ' + Number(n || 0).toLocaleString('id-ID');
-};
+// Format mata uang selalu IDR (Rp) di EN dan ID sesuai PRD F3
+export const formatCurrency = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
 
-// Alias formatIDR yang otomatis menyesuaikan mata uang berdasarkan bahasa
-export const formatIDR = (n, lang = 'id') => formatCurrency(n, lang);
+// Alias formatIDR
+export const formatIDR = (n) => formatCurrency(n);
 
 // Kalkulator harga modul modular
 export function calculatePricing({

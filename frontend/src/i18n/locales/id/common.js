@@ -58,5 +58,6 @@ export const common = {
     "sat": "Sabtu"
   },
   "toggleNav": "Buka/Tutup Menu Navigasi",
-  "closeModal": "Tutup modal"
+  "closeModal": "Tutup modal",
+  "noData": "Belum ada data untuk ditampilkan."
 };

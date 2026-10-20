@@ -83,7 +83,7 @@ export const auth = {
   "verifyTitle": "Verifikasi Alamat Email Anda",
   "verifySubtitle": "Memverifikasi akun Markimate Anda...",
   "verifySuccessTitle": "Verifikasi Email Berhasil!",
-  "verifySuccessDesc": "Selamat datang di Markimate! Akun Anda telah terverifikasi dan 300 kredit uji coba gratis telah aktif di workspace Anda.",
+  "verifySuccessDesc": "Selamat datang di Markimate! Akun Anda telah terverifikasi dan {credits} kredit uji coba gratis telah aktif di workspace Anda.",
   "btnEnterDashboard": "Masuk ke Dasbor Markimate",
   "verifyErrorTitle": "Tautan Verifikasi Tidak Valid atau Kadaluarsa",
   "verifyResendInstruction": "Masukkan alamat email Anda untuk menerima tautan verifikasi baru:",

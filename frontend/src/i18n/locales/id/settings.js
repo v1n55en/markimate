@@ -19,7 +19,8 @@ export const settings = {
     "labelId": "Bahasa Indonesia",
     "subId": "Bahasa Indonesia baku (kata ganti “Anda”)",
     "subEn": "International English",
-    "saved": "Preferensi bahasa berhasil diperbarui."
+    "saved": "Preferensi bahasa berhasil diperbarui.",
+    "error": "Gagal menyimpan preferensi bahasa."
   },
   "profile": {
     "title": "Informasi Profil",
@@ -35,6 +36,7 @@ export const settings = {
     "saveBtn": "Simpan Perubahan",
     "saving": "Menyimpan…",
     "saved": "Profil berhasil diperbarui.",
+    "error": "Gagal menyimpan profil akun.",
     "placeholderFullName": "Nama Lengkap Anda",
     "placeholderBrandName": "Nama Brand atau Startup",
     "placeholderNiche": "Misal: Teknologi, Fashion, Kuliner"
@@ -59,6 +61,10 @@ export const settings = {
     "submitBtn": "Kirim Tautan Verifikasi Email Baru",
     "processing": "Mengirimkan Tautan…",
     "successNotice": "Tautan konfirmasi telah dikirimkan ke alamat email baru Anda.",
+    "invalidFormat": "Format alamat email baru tidak valid.",
+    "sameEmail": "Alamat email baru sama dengan alamat email saat ini.",
+    "passwordRequired": "Kata sandi wajib diisi untuk verifikasi keamanan.",
+    "error": "Gagal mengajukan perubahan email.",
     "placeholderNewEmail": "email.baru@bisnis.com",
     "placeholderVerifyPassword": "Masukkan kata sandi akun untuk verifikasi"
   },
@@ -72,6 +78,9 @@ export const settings = {
     "submitBtn": "Perbarui Kata Sandi",
     "processing": "Memperbarui…",
     "successNotice": "Kata sandi berhasil diperbarui. Sesi perangkat lain telah dicabut.",
+    "minChars": "Kata sandi baru minimal 10 karakter.",
+    "mismatch": "Konfirmasi kata sandi baru tidak sesuai.",
+    "error": "Gagal mengubah kata sandi.",
     "placeholderCurrentPassword": "Masukkan kata sandi saat ini",
     "placeholderNewPassword": "Kata sandi baru minimal 10 karakter",
     "placeholderConfirmPassword": "Ketik ulang kata sandi baru"
@@ -84,7 +93,8 @@ export const settings = {
     "gdprNotice": "Data akan diekspor dalam format JSON standar yang dapat Anda simpan atau gunakan sebagai cadangan (portabilitas data GDPR). Data kredensial koneksi CMS dan hash kata sandi otomatis dikecualikan demi keamanan.",
     "exportBtn": "Unduh File Ekspor (.JSON)",
     "exporting": "Menyiapkan File…",
-    "successNotice": "Data berhasil diekspor."
+    "successNotice": "Data berhasil diekspor.",
+    "error": "Gagal mengunduh file ekspor data akun."
   },
   "members": {
     "title": "Anggota & Tim",
@@ -118,6 +128,11 @@ export const settings = {
     "revokeInviteError": "Gagal membatalkan undangan.",
     "changeRoleError": "Gagal mengubah role anggota.",
     "removeMemberError": "Gagal mengeluarkan anggota.",
+    "loadError": "Gagal memuat data anggota workspace.",
+    "inviteSuccess": "Undangan berhasil dikirim ke {email}",
+    "inviteError": "Gagal mengirim undangan.",
+    "transferSuccess": "Kepemilikan workspace berhasil dialihkan.",
+    "transferError": "Gagal mengalihkan kepemilikan workspace.",
     "activeWorkspaceFallback": "Workspace Aktif",
     "userFallback": "Pengguna Markimate",
     "confirmLeave": "Apakah Anda yakin ingin keluar dari workspace ini?",
@@ -145,6 +160,7 @@ export const settings = {
     "blockedNotice": "Anda adalah satu-satunya Pemilik dari satu atau lebih workspace aktif. Harap alihkan kepemilikan atau hapus workspace terlebih dahulu.",
     "placeholderAccountPassword": "Masukkan kata sandi Anda",
     "scheduledSuccess": "Akun Anda telah dijadwalkan untuk dihapus dalam 30 hari.",
-    "passwordRequired": "Kata sandi wajib diisi untuk konfirmasi penghapusan."
+    "passwordRequired": "Kata sandi wajib diisi untuk konfirmasi penghapusan.",
+    "error": "Gagal mengajukan penghapusan akun."
   }
 };

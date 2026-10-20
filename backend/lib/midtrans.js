@@ -36,7 +36,10 @@ export const TOPUP_PACKAGES = {
 export async function createSnapTransaction(user, packageId) {
   const pack = TOPUP_PACKAGES[packageId];
   if (!pack) {
-    throw Object.assign(new Error(`Paket top-up '${packageId}' tidak valid. Pilih starter, growth, atau scale.`), { status: 400 });
+    throw Object.assign(new Error(`Invalid top-up package '${packageId}'. Choose starter, growth, or scale.`), {
+      status: 400,
+      code: 'INVALID_TOPUP_PACKAGE'
+    });
   }
 
   const orderId = `SPM-TOPUP-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
@@ -152,7 +155,7 @@ export async function handleMidtransWebhook(body) {
   const orderId = body.order_id;
   const order = await db.findOne('credit_orders', { order_id: orderId });
   if (!order) {
-    return { status: 'ignored', message: `Order ${orderId} tidak ditemukan` };
+    return { status: 'ignored', code: 'ORDER_NOT_FOUND', message: `Order ${orderId} not found` };
   }
 
   // Idempoten: Jika sudah status 'paid', tidak grant dua kali

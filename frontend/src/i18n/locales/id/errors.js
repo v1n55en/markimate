@@ -64,5 +64,17 @@ export const errors = {
   "VALIDATION_ERROR": "Validasi data gagal.",
   "NOT_FOUND": "Data atau sumber daya tidak ditemukan.",
   "INTERNAL_ERROR": "Terjadi kesalahan internal pada server.",
-  "UNKNOWN": "Terjadi kesalahan yang tidak diharapkan. Silakan coba lagi."
+  "UNKNOWN": "Terjadi kesalahan yang tidak diharapkan. Silakan coba lagi.",
+  "SIMILAR_TOPIC_EXISTS": "Topik mirip sudah ada di CMS.",
+  "ACCOUNT_DELETION_SCHEDULED": "Jadwal penghapusan akun berhasil dibuat.",
+  "ACCOUNT_DELETION_CANCELLED": "Jadwal penghapusan akun berhasil dibatalkan.",
+  "WORKSPACE_OWNERSHIP_TRANSFERRED": "Kepemilikan workspace berhasil dialihkan.",
+  "INVALID_TOPUP_PACKAGE": "Paket top-up tidak valid.",
+  "ORDER_NOT_FOUND": "Pesanan tidak ditemukan.",
+  "GOOGLE_TOKEN_EXCHANGE_FAILED": "Gagal menukarkan kode otorisasi dengan token Google.",
+  "GOOGLE_TOKEN_REQUIRED": "ID token Google wajib disertakan.",
+  "INVALID_GOOGLE_TOKEN": "ID token Google tidak valid atau sudah kedaluwarsa.",
+  "GOOGLE_AUD_MISMATCH": "ID token Google tidak ditujukan untuk aplikasi Markimate ini.",
+  "GOOGLE_EMAIL_UNVERIFIED": "Alamat email Google Anda belum diverifikasi oleh Google.",
+  "SIMULATION_PAYMENT_SUCCESS": "Pembayaran simulasi berhasil."
 };

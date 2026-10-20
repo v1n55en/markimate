@@ -1,10 +1,29 @@
 import assert from 'assert';
 import { randomUUID } from 'crypto';
-import { db } from '../db.js';
-import { seedCreditPricesAndRates } from './seed-credit-prices.js';
+import os from 'os';
+import path from 'path';
+import fs from 'fs';
+import { SYSTEM_WORKSPACE_ID } from '../lib/config.js';
+
+// Setup environment sebelum import DB
+process.env.NODE_ENV = 'test';
+process.env.FORCE_LOCAL_DB = 'true';
+process.env.SCHEMA_CONTRACT_VALIDATION = 'true';
+let standaloneTmp = null;
+if (!process.env.DB_JSON_PATH) {
+  standaloneTmp = path.join(os.tmpdir(), `markimate-test-margin-${randomUUID()}.json`);
+  fs.writeFileSync(standaloneTmp, JSON.stringify({
+    accounts: [], credit_wallets: [], credit_ledger: [], credit_prices: [],
+    credit_cost_rates: [], credit_alerts: [], workspaces: []
+  }, null, 2));
+  process.env.DB_JSON_PATH = standaloneTmp;
+}
+
+const { db } = await import('../db.js');
+const { seedCreditPricesAndRates } = await import('../scripts/maintenance/seed-credit-prices.js');
 
 let baseUrl;
-const TEST_ADMIN_KEY = 'super-secret-admin-key-step8';
+const TEST_ADMIN_KEY = 'super-secret-admin-key-margin';
 
 async function request(path, options = {}) {
   const url = `${baseUrl}${path}`;
@@ -19,16 +38,15 @@ async function request(path, options = {}) {
   return { status: res.status, ok: res.ok, data };
 }
 
-async function runStep8Tests() {
-  console.log('=== RUNNING TEST STEP 8 (Admin Usage, Margin & Sentinel) ===');
+async function runMarginTests() {
+  console.log('=== RUNNING TEST ADMIN MARGIN & CIRCUIT BREAKER ===');
 
-  process.env.NODE_ENV = 'test';
-  process.env.JWT_SECRET = 'test-secret-key-for-step8';
+  process.env.JWT_SECRET = 'test-secret-key-for-margin';
   process.env.PORT = '5008';
   process.env.CREDITS_ENABLED = 'true';
   process.env.ADMIN_KEY = TEST_ADMIN_KEY;
-  process.env.CRON_SECRET = 'cron-secret-step8';
-  process.env.COST_DAILY_ALERT_IDR = '50000'; // Set lower threshold for testing circuit breaker (Rp50.000)
+  process.env.CRON_SECRET = 'cron-secret-margin';
+  process.env.COST_DAILY_ALERT_IDR = '50000'; // Rp50.000 untuk pengujian circuit breaker
 
   await seedCreditPricesAndRates();
 
@@ -107,8 +125,6 @@ async function runStep8Tests() {
   console.log('✓ 4. Manajemen tarif vendor PUT /api/admin/credit-cost-rates berhasil diperbarui');
 
   // 5. Verifikasi Penjaga Margin Otomatis (Cron Margin Sentinel < 60%)
-  // Simulasikan sebuah aksi dengan COGS tinggi sehingga margin < 60%
-  // Gunakan aksi seo.relink yang belum memiliki riwayat ledger 7 hari
   const testWorkspaceId = randomUUID();
   await db.insert('credit_ledger', {
     workspace_id: testWorkspaceId,
@@ -134,15 +150,16 @@ async function runStep8Tests() {
   const relinkPriceRow = await db.findOne('credit_prices', { action_key: 'seo.relink' });
   assert.strictEqual(relinkPriceRow.needs_review, true, 'seo.relink must be marked needs_review = true');
 
-  // Verifikasi alert admin tercatat di credit_alerts
+  // Verifikasi alert admin benar-benar tersimpan di credit_alerts dengan workspace_id = SYSTEM_WORKSPACE_ID
   const alerts = await db.findMany('credit_alerts', { alert_type: 'margin_low' });
   assert.ok(alerts.length > 0, 'Margin low alert must be recorded in credit_alerts');
   const alertRow = alerts.find(a => a.metadata?.action_key === 'seo.relink');
-  assert.ok(alertRow, 'Alert for seo.relink must exist');
-  console.log('✓ 5. Penjaga margin otomatis berhasil mendeteksi margin < 60%, menandai needs_review=true, dan mengirim alert');
+  assert.ok(alertRow, 'Alert for seo.relink must exist in credit_alerts');
+  assert.strictEqual(alertRow.workspace_id, SYSTEM_WORKSPACE_ID, 'Alert workspace_id must be valid SYSTEM_WORKSPACE_ID sentinel');
+  assert.strictEqual(alertRow.metadata?.scope, 'system', 'Alert metadata must have scope: system');
+  console.log('✓ 5. Penjaga margin otomatis berhasil mendeteksi margin < 60%, menandai needs_review=true, dan menyimpan alert di credit_alerts (SYSTEM_WORKSPACE_ID)');
 
   // 6. Verifikasi Circuit Breaker Biaya Harian (Total API Cost > COST_DAILY_ALERT_IDR)
-  // Masukkan baris ledger dengan cost tinggi (Rp60.000 > Rp50.000)
   await db.insert('credit_ledger', {
     workspace_id: testWorkspaceId,
     delta: -60,
@@ -161,14 +178,23 @@ async function runStep8Tests() {
   });
 
   const breakerAlerts = await db.findMany('credit_alerts', { alert_type: 'cost_high' });
-  assert.ok(breakerAlerts.length > 0, 'Circuit breaker cost_high alert must be triggered');
-  console.log('✓ 6. Circuit breaker global berhasil memicu notifikasi peringatan saat biaya harian melebihi ambang batas');
+  assert.ok(breakerAlerts.length > 0, 'Circuit breaker cost_high alert must be triggered and stored');
+  const breakerAlert = breakerAlerts[0];
+  assert.strictEqual(breakerAlert.workspace_id, SYSTEM_WORKSPACE_ID, 'Circuit breaker alert workspace_id must be SYSTEM_WORKSPACE_ID');
+  assert.strictEqual(breakerAlert.metadata?.scope, 'system', 'Circuit breaker metadata must have scope: system');
+  console.log('✓ 6. Circuit breaker global berhasil memicu notifikasi peringatan saat biaya harian melebihi ambang batas dan tersimpan di DB');
 
-  console.log('ALL STEP 8 TESTS PASSED!');
+  console.log('ALL ADMIN MARGIN TESTS PASSED!');
+  if (standaloneTmp && fs.existsSync(standaloneTmp)) {
+    fs.unlinkSync(standaloneTmp);
+  }
   process.exit(0);
 }
 
-runStep8Tests().catch(err => {
-  console.error('Test Step 8 Failed:', err);
+runMarginTests().catch(err => {
+  console.error('Test Admin Margin Failed:', err);
+  if (standaloneTmp && fs.existsSync(standaloneTmp)) {
+    try { fs.unlinkSync(standaloneTmp); } catch {}
+  }
   process.exit(1);
 });

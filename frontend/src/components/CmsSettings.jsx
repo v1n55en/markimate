@@ -6,45 +6,45 @@ import { api, API_BASE_URL } from '../api';
 const CMS_META = {
   wordpress: {
     label: 'WordPress', color: '#21759b',
-    help: 'Buat Application Password di WordPress: Users → Profile → Application Passwords → beri nama "Markimate" → salin sandi 24 karakter. Akun harus bisa menulis post (Author/Editor/Admin).',
+    helpKey: 'seo.cms.helpWordpress',
     fields: [
-      { key: 'url', label: 'URL situs WordPress', placeholder: 'https://namadomain.com' },
-      { key: 'user', label: 'Username WordPress', placeholder: 'admin' },
-      { key: 'appPassword', label: 'Application Password', placeholder: 'xxxx xxxx xxxx xxxx xxxx xxxx', secret: true },
+      { key: 'url', label: 'WordPress Site URL', labelKey: 'seo.cms.fieldWpUrl', placeholder: 'https://namadomain.com' },
+      { key: 'user', label: 'WordPress Username', labelKey: 'seo.cms.fieldWpUser', placeholder: 'admin' },
+      { key: 'appPassword', label: 'Application Password', labelKey: 'seo.cms.fieldWpAppPassword', placeholder: 'xxxx xxxx xxxx xxxx xxxx xxxx', secret: true },
     ],
   },
   wix: {
     label: 'Wix Blog', color: '#7c3aed',
-    help: 'Buat API Key di Wix: Account → API Keys → Generate → izin "Blog" (opsional "Members") → salin key. Site ID ada di URL dashboard situs (manage.wix.com/dashboard/<site-id>/...). Situs harus sudah punya aplikasi Wix Blog.',
+    helpKey: 'seo.cms.helpWix',
     fields: [
-      { key: 'siteId', label: 'Site ID', placeholder: '1a2b3c4d-....' },
-      { key: 'apiKey', label: 'API Key (akun Wix)', placeholder: 'IST.eyJraWQ...', secret: true },
-      { key: 'memberId', label: 'Member ID penulis (opsional)', placeholder: 'otomatis diambil dari post terakhir' },
+      { key: 'siteId', label: 'Site ID', labelKey: 'seo.cms.fieldWixSiteId', placeholder: '1a2b3c4d-....' },
+      { key: 'apiKey', label: 'API Key (Wix Account)', labelKey: 'seo.cms.fieldWixApiKey', placeholder: 'IST.eyJraWQ...', secret: true },
+      { key: 'memberId', label: 'Member ID (optional)', labelKey: 'seo.cms.fieldWixMemberId', placeholder: 'otomatis diambil dari post terakhir' },
     ],
   },
   sanity: {
     label: 'Sanity', color: '#f43f5e',
-    help: 'Buka sanity.io/manage → pilih project → API → Tokens → Add API token → izin "Editor" → salin token. Project ID ada di halaman project. Artikel disimpan sebagai dokumen (default type "post", isi di field "body" berupa Portable Text) — sesuaikan bila skema Studio Anda berbeda.',
+    helpKey: 'seo.cms.helpSanity',
     fields: [
-      { key: 'projectId', label: 'Project ID', placeholder: 'abc123xy' },
-      { key: 'dataset', label: 'Dataset', placeholder: 'production' },
-      { key: 'token', label: 'API Token (izin Editor)', placeholder: 'sk...', secret: true },
-      { key: 'studioUrl', label: 'URL Sanity Studio (opsional, untuk link edit)', placeholder: 'https://namastudio.sanity.studio' },
-      { key: 'docType', label: 'Document type (opsional)', placeholder: 'post' },
-      { key: 'bodyField', label: 'Field isi artikel (opsional)', placeholder: 'body' },
-      { key: 'publicUrlPattern', label: 'Pola URL artikel publik (opsional)', placeholder: 'https://situsanda.com/blog/{slug}' },
+      { key: 'projectId', label: 'Project ID', labelKey: 'seo.cms.fieldSanityProjectId', placeholder: 'abc123xy' },
+      { key: 'dataset', label: 'Dataset', labelKey: 'seo.cms.fieldSanityDataset', placeholder: 'production' },
+      { key: 'token', label: 'API Token (Editor permission)', labelKey: 'seo.cms.fieldSanityToken', placeholder: 'sk...', secret: true },
+      { key: 'studioUrl', label: 'Sanity Studio URL (optional)', labelKey: 'seo.cms.fieldSanityStudioUrl', placeholder: 'https://namastudio.sanity.studio' },
+      { key: 'docType', label: 'Document type (optional)', labelKey: 'seo.cms.fieldSanityDocType', placeholder: 'post' },
+      { key: 'bodyField', label: 'Body field name (optional)', labelKey: 'seo.cms.fieldSanityBodyField', placeholder: 'body' },
+      { key: 'publicUrlPattern', label: 'Public article URL pattern (optional)', labelKey: 'seo.cms.fieldSanityUrlPattern', placeholder: 'https://situsanda.com/blog/{slug}' },
     ],
   },
   shopify: {
     label: 'Shopify Blog', color: '#5e8e3e',
-    help: 'Buka dev.shopify.com (Dev Dashboard) → Create app → Versions: pilih scope "read_content" & "write_content" → Release → Install app ke toko Anda → salin Client ID & Client Secret (Settings). Punya custom app lama? Cukup isi Admin API access token (shpat_…). Domain toko pakai format namatoko.myshopify.com.',
+    helpKey: 'seo.cms.helpShopify',
     fields: [
-      { key: 'shop', label: 'Domain toko (.myshopify.com)', placeholder: 'namatoko.myshopify.com' },
-      { key: 'clientId', label: 'Client ID (app Dev Dashboard)', placeholder: 'a1b2c3...' },
-      { key: 'clientSecret', label: 'Client Secret', placeholder: 'shpss_...', secret: true },
-      { key: 'accessToken', label: 'atau Admin API access token (custom app lama)', placeholder: 'shpat_...', secret: true },
-      { key: 'blogId', label: 'Blog tujuan (opsional, handle blog)', placeholder: 'news — kosong = blog pertama' },
-      { key: 'authorName', label: 'Nama penulis (opsional)', placeholder: 'default: nama brand' },
+      { key: 'shop', label: 'Store domain (.myshopify.com)', labelKey: 'seo.cms.fieldShopifyShop', placeholder: 'namatoko.myshopify.com' },
+      { key: 'clientId', label: 'Client ID (Dev Dashboard)', labelKey: 'seo.cms.fieldShopifyClientId', placeholder: 'a1b2c3...' },
+      { key: 'clientSecret', label: 'Client Secret', labelKey: 'seo.cms.fieldShopifyClientSecret', placeholder: 'shpss_...', secret: true },
+      { key: 'accessToken', label: 'Admin API access token (legacy)', labelKey: 'seo.cms.fieldShopifyToken', placeholder: 'shpat_...', secret: true },
+      { key: 'blogId', label: 'Blog ID / handle (optional)', labelKey: 'seo.cms.fieldShopifyBlogId', placeholder: 'news — kosong = blog pertama' },
+      { key: 'authorName', label: 'Author name (optional)', labelKey: 'seo.cms.fieldShopifyAuthor', placeholder: 'default: nama brand' },
     ],
   },
 };
@@ -197,7 +197,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
         method: 'PUT',
         body: { config: forms[type], articleSettings: articleSettings[type], test: false },
       });
-      setSettingsState(s => ({ ...s, [type]: { busy: false, success: true, msg: 'Pengaturan artikel berhasil disimpan!' } }));
+      setSettingsState(s => ({ ...s, [type]: { busy: false, success: true, msg: t('seo.cms.articleSettingsSaved') } }));
       setTimeout(() => setSettingsState(s => ({ ...s, [type]: { ...s[type], msg: '' } })), 3000);
       await refreshMe();
     } catch (e) {
@@ -280,10 +280,12 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
 
               {tab === 'creds' ? (
                 <>
-                  <p style={{ ...styles.sub, marginBottom: '1rem', lineHeight: 1.5 }}>{meta.help}</p>
+                  <p style={{ ...styles.sub, marginBottom: '1rem', lineHeight: 1.5 }}>
+                    {meta.helpKey ? t(meta.helpKey) : meta.help}
+                  </p>
                   {meta.fields.map(fl => (
                     <div className="form-group" key={fl.key}>
-                      <label className="form-label">{fl.label}</label>
+                      <label className="form-label">{fl.labelKey ? t(fl.labelKey) : fl.label}</label>
                       <input
                         className="form-input"
                         type={fl.secret ? 'password' : 'text'}
@@ -742,7 +744,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
             <div className="form-group"><label className="form-label">{t('seo.cms.brandNameLabel')}</label><input className="form-input" value={profile.brandName} onChange={e => setProfile({ ...profile, brandName: e.target.value })} /></div>
             <div className="form-group"><label className="form-label">{t('seo.cms.brandNicheLabel')}</label><input className="form-input" value={profile.niche} onChange={e => setProfile({ ...profile, niche: e.target.value })} placeholder={t('seo.cms.brandNichePlaceholder')} /></div>
             <button className="btn btn-primary" type="submit">{t('seo.cms.brandSaveBtn')}</button>
-            {profileMsg && <span style={{ ...styles.sub, marginLeft: '0.75rem' }}>{profileMsg === 'Profil disimpan.' ? t('seo.cms.brandSavedMsg') : profileMsg}</span>}
+            {profileMsg && <span style={{ ...styles.sub, marginLeft: '0.75rem' }}>{profileMsg}</span>}
           </form>
         </div>
 

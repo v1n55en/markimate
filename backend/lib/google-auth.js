@@ -137,7 +137,7 @@ export async function exchangeGoogleCode(code, codeVerifier, redirectUri) {
 
   const data = await resp.json();
   if (!resp.ok) {
-    throw new Error(data.error_description || data.error || 'Gagal menukarkan kode otorisasi dengan Google token');
+    throw Object.assign(new Error(data.error_description || data.error || 'Failed to exchange authorization code for Google token.'), { code: 'GOOGLE_TOKEN_EXCHANGE_FAILED' });
   }
 
   return data;
@@ -147,29 +147,29 @@ export async function exchangeGoogleCode(code, codeVerifier, redirectUri) {
  * Memverifikasi id_token Google
  */
 export async function verifyGoogleIdToken(idToken) {
-  if (!idToken) throw new Error('Google ID Token tidak ditemukan');
+  if (!idToken) throw Object.assign(new Error('Google ID token is required.'), { code: 'GOOGLE_TOKEN_REQUIRED' });
 
   const resp = await fetch(`${GOOGLE_TOKENINFO_ENDPOINT}?id_token=${encodeURIComponent(idToken)}`);
   const data = await resp.json();
 
   if (!resp.ok || data.error_description || data.error) {
-    throw new Error(data.error_description || data.error || 'ID Token Google tidak valid atau sudah kedaluwarsa');
+    throw Object.assign(new Error(data.error_description || data.error || 'Google ID token is invalid or has expired.'), { code: 'INVALID_GOOGLE_TOKEN' });
   }
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   if (clientId && data.aud !== clientId) {
-    throw new Error('ID Token aud mismatch (token tidak ditujukan untuk aplikasi Markimate ini)');
+    throw Object.assign(new Error('Google ID token audience mismatch (token is not intended for Markimate).'), { code: 'GOOGLE_AUD_MISMATCH' });
   }
 
   const isEmailVerified = data.email_verified === 'true' || data.email_verified === true;
   if (!isEmailVerified) {
-    throw new Error('Alamat email Google Anda belum terverifikasi oleh Google.');
+    throw Object.assign(new Error('Your Google email address has not been verified by Google.'), { code: 'GOOGLE_EMAIL_UNVERIFIED' });
   }
 
   return {
     sub: data.sub,
     email: String(data.email).toLowerCase(),
-    name: data.name || data.email?.split('@')[0] || 'Pengguna Google',
+    name: data.name || data.email?.split('@')[0] || 'Google User',
     picture: data.picture || null,
     emailVerified: true
   };

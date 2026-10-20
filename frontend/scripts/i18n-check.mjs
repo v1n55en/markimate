@@ -114,6 +114,42 @@ if (fs.existsSync(backendErrorCodesPath)) {
   console.log('   Notice: backend/lib/error-codes.js not found, skipping backend code sync check.');
 }
 
+// (b3) Single Source of Truth: Check for Forbidden Hardcoded Prices and Numbers (PRD F3 Poin 3)
+console.log('\n2c. Checking for Forbidden Hardcoded Prices & Numbers in Dictionaries...');
+const hardcodedChecks = [
+  { name: 'Hardcoded USD Price (\\$\\d+)', regex: /\$\d+/ },
+  { name: 'Hardcoded IDR Price (Rp\\s?\\d+)', regex: /Rp\s?\d+/i },
+  { name: 'Hardcoded Numbers (300, 16, 13)', regex: /\b(300|16|13)\b/ }
+];
+
+let hardcodedViolations = 0;
+const dicts = [{ lang: 'en', dict: flatEn }, { lang: 'id', dict: flatId }];
+
+for (const { lang, dict } of dicts) {
+  for (const [key, val] of Object.entries(dict)) {
+    if (typeof val !== 'string') continue;
+
+    // Allow legitimate exceptions:
+    // 1. Aspect ratio 16:9 and 9:16
+    // 2. Yearly discount percentage ~16.7%
+    const sanitized = val
+      .replace(/16:9|9:16/g, '')
+      .replace(/16[.,]7%/g, '');
+
+    for (const check of hardcodedChecks) {
+      if (check.regex.test(sanitized)) {
+        console.error(`❌ [${lang.toUpperCase()}] Hardcoded value detected in "${key}" (${check.name}): "${val}"`);
+        hardcodedViolations++;
+        errorCount++;
+      }
+    }
+  }
+}
+
+if (hardcodedViolations === 0) {
+  console.log('   OK - Zero hardcoded price or role numbers found in locale dictionaries!');
+}
+
 // Scan all JS/JSX files in src
 function getAllFiles(dir, exts = ['.js', '.jsx']) {
   let files = [];

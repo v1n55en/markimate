@@ -18,6 +18,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { getCredits, getCreditLedger, formatIDR, api } from '../../api';
+import { CREDIT_PRICE_IDR } from '../../config/pricing';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatDate as fmtDate, formatDateTime, formatNumber } from '../../lib/format';
 
@@ -28,9 +29,11 @@ export const TOPUP_PACKAGES = [
     price: 500000,
     credits: 500,
     bonus: 0,
-    tag: 'Dasar',
+    tag: 'Basic',
+    tagKey: 'billing.packageStarterTag',
     popular: false,
-    desc: 'Cukup untuk ±8 artikel lengkap dengan 3 gambar AI.',
+    desc: 'Sufficient for ±8 complete articles with 3 AI images.',
+    descKey: 'billing.packageStarterDesc',
   },
   {
     id: 'growth',
@@ -38,9 +41,11 @@ export const TOPUP_PACKAGES = [
     price: 1000000,
     credits: 1050,
     bonus: 50,
-    tag: 'Paling Populer',
+    tag: 'Most Popular',
+    tagKey: 'billing.packageGrowthTag',
     popular: true,
-    desc: 'Bonus +50 credit. Cukup untuk ±14 artikel bergambar & riset topik.',
+    desc: 'Bonus +50 credits. Sufficient for ±14 illustrated articles & topic research.',
+    descKey: 'billing.packageGrowthDesc',
   },
   {
     id: 'scale',
@@ -48,9 +53,11 @@ export const TOPUP_PACKAGES = [
     price: 2500000,
     credits: 2750,
     bonus: 250,
-    tag: 'Terbaik (Bonus 10%)',
+    tag: 'Best Value (10% Bonus)',
+    tagKey: 'billing.packageScaleTag',
     popular: false,
-    desc: 'Bonus +250 credit. Skala besar untuk tim agency & brand aktif.',
+    desc: 'Bonus +250 credits. Scaled for active brand teams & agencies.',
+    descKey: 'billing.packageScaleDesc',
   },
 ];
 
@@ -100,13 +107,13 @@ export default function CreditWalletPage({ me, onTopupClick }) {
             fetchWalletData();
             window.dispatchEvent(new Event('markimate:credits_updated'));
             window.dispatchEvent(new Event('supermat:credits_updated'));
-            setTopupNotice({ ok: true, text: `Pembayaran berhasil! +${pack.credits} credit telah ditambahkan ke wallet.` });
+            setTopupNotice({ ok: true, text: t('billing.topupSuccessNotice', { credits: pack.credits }) });
           },
           onPending: () => {
-            setTopupNotice({ ok: true, text: 'Pembayaran sedang diproses. Credit akan masuk setelah terkonfirmasi.' });
+            setTopupNotice({ ok: true, text: t('billing.topupPendingNotice') });
           },
           onError: (err) => {
-            setTopupNotice({ ok: false, text: err.status_message || 'Pembayaran gagal.' });
+            setTopupNotice({ ok: false, text: err.status_message || t('billing.topupFailedNotice') });
           },
           onClose: () => {
             fetchWalletData();
@@ -130,7 +137,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
           window.dispatchEvent(new Event('supermat:credits_updated'));
           setTopupNotice({
             ok: true,
-            text: `[Sandbox] Pembayaran ${pack.name} sukses! Saldo bertambah +${pack.credits} credit (berlaku 365 hari).`
+            text: t('billing.topupSandboxNotice', { name: pack.name, credits: pack.credits })
           });
         } catch (simErr) {
           setTopupNotice({ ok: false, text: simErr.message });
@@ -180,7 +187,16 @@ export default function CreditWalletPage({ me, onTopupClick }) {
   // Ekspor CSV
   const handleExportCsv = () => {
     if (filteredLedger.length === 0) return;
-    const headers = ['ID', 'Waktu (UTC)', 'Jenis', 'Aksi', 'Bucket', 'Perubahan (Credit)', 'Saldo Akhir', 'Catatan'];
+    const headers = [
+      t('billing.csvHeaderId'),
+      t('billing.csvHeaderTime'),
+      t('billing.csvHeaderType'),
+      t('billing.csvHeaderAction'),
+      t('billing.csvHeaderBucket'),
+      t('billing.csvHeaderDelta'),
+      t('billing.csvHeaderBalance'),
+      t('billing.csvHeaderNote')
+    ];
     const rows = filteredLedger.map((r) => [
       r.id,
       r.created_at,
@@ -240,7 +256,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
             {t('billing.managementTitle')}
           </h1>
           <p style={styles.subtitle}>
-            {t('billing.managementSubtitle')}
+            {t('billing.managementSubtitle', { rate: formatIDR(CREDIT_PRICE_IDR) })}
           </p>
         </div>
 
@@ -425,7 +441,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
             {pack.popular && (
               <div style={styles.popularBadge}>
                 <Sparkles size={12} color="#000" />
-                <span>{pack.tag}</span>
+                <span>{pack.tagKey ? t(pack.tagKey) : pack.tag}</span>
               </div>
             )}
             <h3 style={styles.packName}>{pack.name}</h3>
@@ -439,7 +455,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
                 <span style={styles.packBonusBadge}>+{pack.bonus} {t('billing.bonusBadge', 'bonus')}</span>
               )}
             </div>
-            <p style={styles.packDesc}>{pack.desc}</p>
+            <p style={styles.packDesc}>{pack.descKey ? t(pack.descKey) : pack.desc}</p>
             <button
               onClick={() => handleTopupPackage(pack)}
               disabled={topupBusy === pack.id}

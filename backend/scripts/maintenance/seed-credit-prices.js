@@ -1,5 +1,5 @@
 // Seed harga credit (PRD §2) dan tarif biaya API nyata (PRD §2b) secara idempoten.
-import { db, dbMode } from '../db.js';
+import { db, dbMode } from '../../db.js';
 
 export const DEFAULT_PRICES = [
   { action_key: 'seo.article', credits: 60, label: 'Generate artikel SEO (Review Ready)' },

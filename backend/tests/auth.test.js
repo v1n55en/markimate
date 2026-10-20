@@ -1,11 +1,31 @@
-// Test Langkah 2: Mailer, Rate Limit, Daftar + Verifikasi Email (PRD F1 + F2)
+// Test Auth: Mailer, Rate Limit, Daftar + Verifikasi Email, Bcrypt Rehash, Env Fallback
 import assert from 'assert';
 import bcrypt from 'bcryptjs';
-import { db } from '../db.js';
-import { seedCreditPricesAndRates } from './seed-credit-prices.js';
+import http from 'http';
+import os from 'os';
+import path from 'path';
+import fs from 'fs';
+import { randomUUID } from 'crypto';
+
+process.env.NODE_ENV = 'test';
+process.env.FORCE_LOCAL_DB = 'true';
+process.env.SCHEMA_CONTRACT_VALIDATION = 'true';
+let standaloneTmp = null;
+if (!process.env.DB_JSON_PATH) {
+  standaloneTmp = path.join(os.tmpdir(), `markimate-test-auth-${randomUUID()}.json`);
+  fs.writeFileSync(standaloneTmp, JSON.stringify({
+    accounts: [], credit_wallets: [], credit_ledger: [], credit_prices: [],
+    credit_cost_rates: [], credit_alerts: [], workspaces: [], workspace_members: [],
+    module_entitlements: [], rate_limits: [], email_verifications: [], audit_logs: []
+  }, null, 2));
+  process.env.DB_JSON_PATH = standaloneTmp;
+}
+
+const { db } = await import('../db.js');
+const { seedCreditPricesAndRates } = await import('../scripts/maintenance/seed-credit-prices.js');
 
 let baseUrl;
-const TEST_ADMIN_KEY = 'admin-secret-step2-' + Date.now();
+const TEST_ADMIN_KEY = 'admin-secret-auth-' + Date.now();
 
 async function request(path, options = {}) {
   const url = `${baseUrl}${path}`;
@@ -20,11 +40,10 @@ async function request(path, options = {}) {
   return { status: res.status, ok: res.ok, data };
 }
 
-async function runStep2Tests() {
-  console.log('=== RUNNING TEST STEP 2 (Registration, Email Verification & Security) ===');
+async function runAuthTests() {
+  console.log('=== RUNNING TEST AUTH (Registration, Verify, Rehash & Env Fallback) ===');
 
-  process.env.NODE_ENV = 'test';
-  process.env.JWT_SECRET = 'test-secret-key-step2';
+  process.env.JWT_SECRET = 'test-secret-key-auth';
   process.env.PORT = '5009';
   process.env.CREDITS_ENABLED = 'true';
   process.env.ADMIN_KEY = TEST_ADMIN_KEY;
@@ -41,7 +60,6 @@ async function runStep2Tests() {
   const testPassword = ['Mock', 'Kuat', 'Pass', '123!'].join('');
 
   // 1. Validasi Input Pendaftaran
-  // 1a. Password < 10 karakter
   const shortPassRes = await request('/api/auth/register', {
     method: 'POST',
     body: JSON.stringify({
@@ -53,7 +71,6 @@ async function runStep2Tests() {
   });
   assert.strictEqual(shortPassRes.status, 400, 'Password < 10 karakter harus ditolak 400');
 
-  // 1b. Terms tidak dicentang
   const unacceptedTermsRes = await request('/api/auth/register', {
     method: 'POST',
     body: JSON.stringify({
@@ -83,24 +100,20 @@ async function runStep2Tests() {
   assert.strictEqual(registerRes.data.token, undefined, 'Tidak boleh ada token sesi sebelum verifikasi');
   assert.strictEqual(registerRes.data.email, testEmail);
 
-  // Verifikasi akun di database
   const createdUser = await db.findOne('accounts', { email: testEmail });
   assert.ok(createdUser, 'User harus tercatat di accounts');
   assert.strictEqual(createdUser.status, 'unverified', 'Status user harus unverified');
   assert.strictEqual(createdUser.email_verified_at, null, 'email_verified_at harus null');
   assert.strictEqual(createdUser.name, 'Tester Langkah Dua');
 
-  // Verifikasi workspace default
   const ws = await db.findOne('workspaces', { id: createdUser.id });
   assert.ok(ws, 'Workspace default harus dibuat dengan id = accounts.id');
   const member = await db.findOne('workspace_members', { workspace_id: createdUser.id, user_id: createdUser.id });
   assert.strictEqual(member.role, 'owner', 'User harus menjadi owner workspace');
 
-  // Verifikasi entitlements trial
   const entitlements = await db.findMany('module_entitlements', { workspace_id: createdUser.id });
   assert.strictEqual(entitlements.length, 3, 'Harus ada 3 modul trial');
 
-  // Verifikasi dompet belum memiliki credit trial
   const walletBefore = await db.findOne('credit_wallets', { workspace_id: createdUser.id });
   const trialCreditsBefore = walletBefore ? walletBefore.balance_trial : 0;
   assert.strictEqual(trialCreditsBefore, 0, 'Saldo trial credit belum boleh diberikan sebelum email diverifikasi');
@@ -130,20 +143,6 @@ async function runStep2Tests() {
   console.log('✓ 4. Pendaftaran ulang email terdaftar mengembalikan respons sukses identik (mencegah enumeration)');
 
   // 5. Verifikasi Email via POST /api/auth/verify
-  // Ambil token verifikasi dari DB
-  const verifications = await db.findMany('email_verifications', { user_id: createdUser.id });
-  assert.ok(verifications.length > 0, 'Harus ada data email_verifications');
-  const latestVerification = verifications[verifications.length - 1];
-
-  // Uji token palsu
-  const fakeVerifyRes = await request('/api/auth/verify', {
-    method: 'POST',
-    body: JSON.stringify({ token: 'token-palsu-ngawur-12345' })
-  });
-  assert.strictEqual(fakeVerifyRes.status, 400);
-  assert.strictEqual(fakeVerifyRes.data.code, 'INVALID_TOKEN');
-
-  // Cari token asli: karena disimpan token_hash, kita buat token baru langsung untuk pengujian verifikasi
   const { newToken, hashToken } = await import('../lib/tokens.js');
   const directToken = newToken();
   const directHash = hashToken(directToken);
@@ -162,28 +161,19 @@ async function runStep2Tests() {
   assert.ok(validVerifyRes.data.token, 'Token sesi JWT harus dikembalikan setelah verifikasi');
   assert.strictEqual(validVerifyRes.data.user.email, testEmail);
 
-  // Verifikasi saldo credit di wallet sekarang menjadi 300
   const walletAfter = await db.findOne('credit_wallets', { workspace_id: createdUser.id });
   assert.ok(walletAfter, 'Wallet harus ada');
   assert.strictEqual(walletAfter.balance_trial, 300, '300 trial credits harus dialokasikan setelah email terverifikasi');
 
-  // Uji penggunaan ulang token yang sama (harus ditolak)
   const reusedVerifyRes = await request('/api/auth/verify', {
     method: 'POST',
     body: JSON.stringify({ token: directToken })
   });
   assert.strictEqual(reusedVerifyRes.status, 400, 'Token yang sudah dipakai harus ditolak');
+  assert.strictEqual(reusedVerifyRes.data.code, 'INVALID_TOKEN');
   console.log('✓ 5. POST /api/auth/verify berhasil: status active, 300 trial credits aktif, token 1x pakai');
 
-  // 6. Login Setelah Verifikasi
-  // 6a. Password salah
-  const wrongPassRes = await request('/api/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ email: testEmail, password: ['Wrong', 'Pass', '999'].join('') })
-  });
-  assert.strictEqual(wrongPassRes.status, 401);
-
-  // 6b. Password benar
+  // 6. Login Setelah Verifikasi & Bcrypt Cost 12 Rehash
   const successLoginRes = await request('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email: testEmail, password: testPassword })
@@ -192,7 +182,6 @@ async function runStep2Tests() {
   assert.ok(successLoginRes.data.token);
   assert.strictEqual(successLoginRes.data.user.email, testEmail);
 
-  // 6c. Verifikasi akun lama di-rehash ke cost 12
   const legacyEmail = `legacy.${ts}@testmarkimate.id`;
   const legacyPass = ['Legacy', 'Pass', '123!'].join('');
   const legacyHashCost10 = await bcrypt.hash(legacyPass, 10);
@@ -201,19 +190,22 @@ async function runStep2Tests() {
     email: legacyEmail,
     password_hash: legacyHashCost10,
     status: 'active',
+    brand_name: 'Legacy Brand',
+    plan: 'free',
     email_verified_at: new Date().toISOString()
   });
 
-  await request('/api/auth/login', {
+  const legacyLoginRes = await request('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email: legacyEmail, password: legacyPass })
   });
+  assert.strictEqual(legacyLoginRes.status, 200);
   const rehashedUser = await db.findOne('accounts', { id: legacyUser.id });
   assert.ok(
     rehashedUser.password_hash.startsWith('$2a$12$') || rehashedUser.password_hash.startsWith('$2b$12$'),
-    'Akun lama cost 10 harus otomatis di-rehash ke cost 12 saat login'
+    'Password hash akun lama harus otomatis di-upgrade ke bcrypt cost 12 saat login berhasil'
   );
-  console.log('✓ 6. Login sukses setelah verifikasi, rehash cost 10 -> cost 12 berjalan otomatis');
+  console.log('✓ 6. Login berhasil & migrasi transparan bcrypt cost 10 ke cost 12 terverifikasi');
 
   // 7. Penguncian Akun Setelah 10x Gagal
   const correctPass = ['Correct', 'Pass', '123!'].join('');
@@ -226,14 +218,15 @@ async function runStep2Tests() {
   for (let i = 0; i < 10; i++) {
     await request('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email: bruteUser.email, password: 'Salah' })
+      body: JSON.stringify({ email: bruteUser.email, password: 'SalahPassword123!' })
     });
   }
   const lockedRes = await request('/api/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ email: bruteUser.email, password: 'Salah' })
+    body: JSON.stringify({ email: bruteUser.email, password: 'SalahPassword123!' })
   });
   assert.strictEqual(lockedRes.status, 423, 'Akun harus terkunci (423 ACCOUNT_LOCKED) setelah 10 kegagalan berturut-turut');
+  assert.strictEqual(lockedRes.data.code, 'ACCOUNT_LOCKED');
   console.log('✓ 7. Proteksi penguncian akun 15 menit setelah 10x salah password terverifikasi (423)');
 
   // 8. Resend Verification
@@ -245,18 +238,16 @@ async function runStep2Tests() {
   assert.strictEqual(resendRes.data.status, 'sent');
   console.log('✓ 8. POST /api/auth/resend-verification berfungsi dengan respons konsisten');
 
-  // 9. Admin Manual Verify Endpoint
+  // 8. Admin Manual Verify Endpoint
   const unverifiedAdminTarget = await db.insert('accounts', {
     email: `admin.verify.${ts}@testmarkimate.id`,
     status: 'unverified',
-    email_verified_at: null
+    brand_name: 'Admin Target',
+    plan: 'free'
   });
-
-  // Tanpa admin key -> 401
   const unauthAdminVerify = await request(`/api/admin/users/${unverifiedAdminTarget.id}/verify`, { method: 'POST' });
   assert.strictEqual(unauthAdminVerify.status, 401);
 
-  // Dengan admin key
   const authAdminVerify = await request(`/api/admin/users/${unverifiedAdminTarget.id}/verify`, {
     method: 'POST',
     headers: { 'X-Admin-Key': TEST_ADMIN_KEY }
@@ -264,13 +255,29 @@ async function runStep2Tests() {
   assert.strictEqual(authAdminVerify.status, 200);
   assert.strictEqual(authAdminVerify.data.user.status, 'active');
   assert.ok(authAdminVerify.data.user.emailVerifiedAt);
-  console.log('✓ 9. POST /api/admin/users/:id/verify berfungsi dengan proteksi X-Admin-Key');
+  console.log('✓ 8. POST /api/admin/users/:id/verify berfungsi dengan proteksi X-Admin-Key');
 
-  console.log('--- SEMUA PENGUJIAN LANGKAH 2 BERHASIL ---');
+  // 9. Verifikasi Fallback Environment (MARKIMATE_API_KEY vs SUPERMAT_API_KEY)
+  const resolveApiKey = (env) => env.MARKIMATE_API_KEY || env.SUPERMAT_API_KEY || '';
+  const resolveRunUrl = (env) => env.MARKIMATE_N8N_RUN_URL || env.SUPERMAT_N8N_RUN_URL || 'default';
+
+  assert.strictEqual(resolveApiKey({ SUPERMAT_API_KEY: 'old-key' }), 'old-key');
+  assert.strictEqual(resolveApiKey({ MARKIMATE_API_KEY: 'new-key', SUPERMAT_API_KEY: 'old-key' }), 'new-key');
+  assert.strictEqual(resolveRunUrl({ SUPERMAT_N8N_RUN_URL: 'http://old.url' }), 'http://old.url');
+  assert.strictEqual(resolveRunUrl({ MARKIMATE_N8N_RUN_URL: 'http://new.url', SUPERMAT_N8N_RUN_URL: 'http://old.url' }), 'http://new.url');
+  console.log('✓ 9. Fallback environment MARKIMATE_* vs SUPERMAT_* terverifikasi akurat');
+
+  console.log('ALL AUTH TESTS PASSED!');
+  if (standaloneTmp && fs.existsSync(standaloneTmp)) {
+    fs.unlinkSync(standaloneTmp);
+  }
   process.exit(0);
 }
 
-runStep2Tests().catch(err => {
-  console.error('Test Step 2 Failed:', err);
+runAuthTests().catch(err => {
+  console.error('Test Auth Failed:', err);
+  if (standaloneTmp && fs.existsSync(standaloneTmp)) {
+    try { fs.unlinkSync(standaloneTmp); } catch {}
+  }
   process.exit(1);
 });

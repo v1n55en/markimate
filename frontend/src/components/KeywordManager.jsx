@@ -78,7 +78,7 @@ function MarkdownRenderer({ content, images = [], imagePrompts = [] }) {
         const isExternal = /^https?:\/\//i.test(url);
         let domain = '';
         if (isExternal) {
-          try { domain = new URL(url).hostname.replace('www.', ''); } catch (e) { domain = 'link luar'; }
+          try { domain = new URL(url).hostname.replace('www.', ''); } catch (e) { domain = t('seo.keywords.externalLinkDomainFallback'); }
         }
 
         parts.push(
@@ -194,9 +194,9 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
       upsertRow(d.keyword); refreshMe();
       window.dispatchEvent(new Event('markimate:credits_updated'));
       window.dispatchEvent(new Event('supermat:credits_updated'));
-      if (d.keyword.status === 'Review Ready') flash('Artikel siap ditinjau di Web Approver.');
-      else if (d.keyword.status === 'Draft Created') flash('Draf berhasil dibuat di ' + (CMS_LABEL[d.keyword.cms] || d.keyword.cms) + '.');
-      else if (d.keyword.status === 'Duplicate') flash('Topik mirip sudah ada di CMS (status Duplicate). Kuota tidak berkurang.');
+      if (d.keyword.status === 'Review Ready') flash(t('seo.keywords.flashReviewReady'));
+      else if (d.keyword.status === 'Draft Created') flash(t('seo.keywords.flashDraftCreated', { cms: CMS_LABEL[d.keyword.cms] || d.keyword.cms }));
+      else if (d.keyword.status === 'Duplicate') flash(t('seo.keywords.flashDuplicate'));
       else if (d.keyword.error) setError(d.keyword.error);
     } catch (e) {
       setError(e.message); await load();
@@ -237,7 +237,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
       upsertRow(d.keyword);
       window.dispatchEvent(new Event('markimate:credits_updated'));
       window.dispatchEvent(new Event('supermat:credits_updated'));
-      flash(action === 'publish' ? 'Artikel diterbitkan.' : 'Draf dibuat di CMS.');
+      flash(action === 'publish' ? t('seo.keywords.flashPublished') : t('seo.keywords.flashDraftMade'));
     } catch (e) { setError(e.message); } finally { setBusyFor(id, null); }
   };
 
@@ -272,7 +272,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
       });
       upsertRow(res.keyword);
       setDrawer(res.keyword);
-      flash('Perubahan draf berhasil disimpan.');
+      flash(t('seo.keywords.flashDraftSaved'));
     } catch (e) { setDrawerError(e.message); } finally { setDrawerBusy(''); }
   };
 
@@ -289,8 +289,8 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
       window.dispatchEvent(new Event('markimate:credits_updated'));
       window.dispatchEvent(new Event('supermat:credits_updated'));
       flash(action === 'publish'
-        ? 'Artikel berhasil diterbitkan di ' + (CMS_LABEL[d.keyword.cms] || d.keyword.cms) + '.'
-        : 'Draf tersimpan di ' + (CMS_LABEL[d.keyword.cms] || d.keyword.cms) + '. Cek di CMS tujuan.');
+        ? t('seo.keywords.flashPublishSuccess', { cms: CMS_LABEL[d.keyword.cms] || d.keyword.cms })
+        : t('seo.keywords.flashDraftSavedCms', { cms: CMS_LABEL[d.keyword.cms] || d.keyword.cms }));
     } catch (e) { setDrawerError(e.message); setDrawerBusy(''); }
   };
 

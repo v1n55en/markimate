@@ -1,38 +1,33 @@
 import { spawnSync } from 'child_process';
 import path from 'path';
+import fs from 'fs';
+import os from 'os';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const backendDir = path.resolve(__dirname, '..');
+const dbJsonPath = path.join(backendDir, 'database.json');
 
-const TEST_FILES = [
-  'test-schema-contract.js',
-  'test-auth.js',
-  'test-credits.js',
-  'test-step-d-security.js',
-  'test-step1-billing-leak.js',
-  'test-step1-migration.js',
-  'test-step2.js',
-  'test-step2-auth.js',
-  'test-step2-rename.js',
-  'test-step3.js',
-  'test-step3-session.js',
-  'test-step4.js',
-  'test-step4-account.js',
-  'test-step5.js',
-  'test-step5-workspace.js',
-  'test-step6.js',
-  'test-step6-members.js',
-  'test-step7.js',
-  'test-step7-entitlements.js',
-  'test-step8.js',
-  'test-step8-account-lifecycle.js',
-  'test-step9-google-auth.js',
-  'test-step12-locale-mailer.js'
-];
+function computeMd5(filePath) {
+  if (!fs.existsSync(filePath)) return null;
+  const content = fs.readFileSync(filePath);
+  return crypto.createHash('md5').update(content).digest('hex');
+}
+
+// 1. Dynamic discovery *.test.js
+const allFiles = fs.readdirSync(__dirname);
+const TEST_FILES = allFiles
+  .filter(f => f.endsWith('.test.js'))
+  .sort((a, b) => a.localeCompare(b));
 
 console.log(`\n======================================================`);
-console.log(`🧪 MENJALANKAN SELURUH TEST SUITE BACKEND (${TEST_FILES.length} TESTS)`);
+console.log(`🧪 MENJALANKAN TEST SUITE BACKEND DENGAN ISOLASI DATABASE`);
+console.log(`Ditemukan ${TEST_FILES.length} file test (*.test.js)`);
 console.log(`======================================================\n`);
+
+// 2. Simpan hash awal database.json
+const initialDbMd5 = computeMd5(dbJsonPath);
 
 const results = [];
 let hasFailure = false;
@@ -44,16 +39,32 @@ for (let i = 0; i < TEST_FILES.length; i++) {
 
   console.log(`[${i + 1}/${TEST_FILES.length}] Menjalankan tests/${file}...`);
 
+  // 3. Buat file temporary DB terisolasi di os.tmpdir() dengan skema bersih
+  const tmpDbPath = path.join(os.tmpdir(), `markimate-runner-${crypto.randomUUID()}.json`);
+  fs.writeFileSync(tmpDbPath, JSON.stringify({
+    accounts: [], credit_wallets: [], credit_ledger: [], credit_prices: [],
+    credit_cost_rates: [], credit_alerts: [], workspaces: [], workspace_members: [],
+    workspace_invites: [], module_entitlements: [], rate_limits: [], refresh_tokens: [],
+    workspace_api_keys: [], keywords: [], audit_logs: [], credit_orders: [],
+    cms_connections: [], seo_topic_sources: [], credit_trials: []
+  }, null, 2));
+
   const proc = spawnSync('node', [filePath], {
-    cwd: path.resolve(__dirname, '..'),
+    cwd: backendDir,
     env: {
       ...process.env,
       NODE_ENV: 'test',
       FORCE_LOCAL_DB: 'true',
-      SCHEMA_CONTRACT_VALIDATION: 'true'
+      SCHEMA_CONTRACT_VALIDATION: 'true',
+      DB_JSON_PATH: tmpDbPath
     },
     stdio: 'inherit'
   });
+
+  // Hapus temporary DB setelah test selesai
+  if (fs.existsSync(tmpDbPath)) {
+    try { fs.unlinkSync(tmpDbPath); } catch {}
+  }
 
   const duration = ((Date.now() - start) / 1000).toFixed(2);
 
@@ -67,6 +78,18 @@ for (let i = 0; i < TEST_FILES.length; i++) {
   }
 }
 
+// 4. Verifikasi md5 database.json tidak berubah
+const finalDbMd5 = computeMd5(dbJsonPath);
+let dbTampered = false;
+if (initialDbMd5 !== finalDbMd5) {
+  console.error(`\n❌ ERROR: database.json telah termodifikasi selama pengujian!`);
+  console.error(`MD5 Awal  : ${initialDbMd5}`);
+  console.error(`MD5 Akhir : ${finalDbMd5}`);
+  dbTampered = true;
+} else {
+  console.log(`🔒 Verifikasi Integritas DB: database.json tidak tersentuh (MD5: ${initialDbMd5})`);
+}
+
 console.log(`\n======================================================`);
 console.log(`📊 RINGKASAN HASIL TEST BACKEND`);
 console.log(`======================================================`);
@@ -78,10 +101,10 @@ for (const res of results) {
 const passedCount = results.filter(r => r.passed).length;
 console.log(`\nTotal: ${passedCount}/${TEST_FILES.length} lolos.`);
 
-if (hasFailure) {
-  console.error('\n❌ Ada test yang gagal. Silakan periksa log di atas.\n');
+if (hasFailure || dbTampered) {
+  console.error('\n❌ Ada test yang gagal atau database terkontaminasi. Silakan periksa log di atas.\n');
   process.exit(1);
 } else {
-  console.log('\n🎉 SEMUA TEST BACKEND LOLOS 100%!\n');
+  console.log('\n🎉 SEMUA TEST BACKEND LOLOS 100% TANPA MENGOTORI DATABASE!\n');
   process.exit(0);
 }

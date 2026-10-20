@@ -64,5 +64,17 @@ export const errors = {
   "VALIDATION_ERROR": "Validation failed.",
   "NOT_FOUND": "Resource not found.",
   "INTERNAL_ERROR": "An internal server error occurred.",
-  "UNKNOWN": "An unexpected error occurred. Please try again."
+  "UNKNOWN": "An unexpected error occurred. Please try again.",
+  "SIMILAR_TOPIC_EXISTS": "A similar topic already exists in CMS.",
+  "ACCOUNT_DELETION_SCHEDULED": "Account deletion scheduled successfully.",
+  "ACCOUNT_DELETION_CANCELLED": "Account deletion schedule has been cancelled.",
+  "WORKSPACE_OWNERSHIP_TRANSFERRED": "Workspace ownership successfully transferred.",
+  "INVALID_TOPUP_PACKAGE": "Invalid top-up package.",
+  "ORDER_NOT_FOUND": "Order not found.",
+  "GOOGLE_TOKEN_EXCHANGE_FAILED": "Failed to exchange authorization code for Google token.",
+  "GOOGLE_TOKEN_REQUIRED": "Google ID token is required.",
+  "INVALID_GOOGLE_TOKEN": "Google ID token is invalid or has expired.",
+  "GOOGLE_AUD_MISMATCH": "Google ID token audience mismatch.",
+  "GOOGLE_EMAIL_UNVERIFIED": "Your Google email address has not been verified by Google.",
+  "SIMULATION_PAYMENT_SUCCESS": "Simulated payment successful."
 };

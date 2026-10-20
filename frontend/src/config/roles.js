@@ -458,6 +458,8 @@ export const ROLES = [
 
 export const AVAILABLE_ROLES = ROLES.filter((r) => r.status === 'available');
 export const SOON_ROLES = ROLES.filter((r) => r.status === 'soon');
+export const ACTIVE_ROLES_COUNT = AVAILABLE_ROLES.length;
+export const TOTAL_ROLES_COUNT = ROLES.length;
 
 /**
  * Returns a localized role object based on current language ('en' | 'id')

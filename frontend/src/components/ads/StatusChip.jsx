@@ -1,11 +1,11 @@
 // Komponen chip status koneksi dan laporan iklan
-import { useLanguage } from '../../i18n/LanguageContext';
+import { useLanguage } from '../../context/LanguageContext';
 
 const STATUS_CONFIGS = {
   // Status Koneksi Platform
   connected: {
     key: 'ads.status.connected',
-    fallback: 'Terhubung',
+    fallback: 'Connected',
     bg: 'rgba(16, 185, 129, 0.12)',
     color: '#10b981',
     border: 'rgba(16, 185, 129, 0.25)',
@@ -13,7 +13,7 @@ const STATUS_CONFIGS = {
   },
   disconnected: {
     key: 'ads.status.disconnected',
-    fallback: 'Belum terhubung',
+    fallback: 'Disconnected',
     bg: 'rgba(113, 113, 122, 0.12)',
     color: '#a1a1aa',
     border: 'rgba(113, 113, 122, 0.25)',
@@ -21,7 +21,7 @@ const STATUS_CONFIGS = {
   },
   expired: {
     key: 'ads.status.expired',
-    fallback: 'Perlu dihubungkan ulang',
+    fallback: 'Reconnection required',
     bg: 'rgba(239, 68, 68, 0.12)',
     color: '#ef4444',
     border: 'rgba(239, 68, 68, 0.25)',
@@ -29,7 +29,7 @@ const STATUS_CONFIGS = {
   },
   pending_approval: {
     key: 'ads.status.pendingApproval',
-    fallback: 'Menunggu persetujuan platform',
+    fallback: 'Pending platform approval',
     bg: 'rgba(245, 158, 11, 0.12)',
     color: '#f59e0b',
     border: 'rgba(245, 158, 11, 0.25)',
@@ -39,7 +39,7 @@ const STATUS_CONFIGS = {
   // Status Laporan Bulanan
   'Diproses': {
     key: 'ads.status.processing',
-    fallback: 'Diproses',
+    fallback: 'Processing',
     bg: 'rgba(6, 182, 212, 0.12)',
     color: '#06b6d4',
     border: 'rgba(6, 182, 212, 0.25)',
@@ -47,7 +47,7 @@ const STATUS_CONFIGS = {
   },
   'Menunggu approve 3Our': {
     key: 'ads.status.waitingApproval',
-    fallback: 'Menunggu approve 3Our',
+    fallback: 'Waiting 3Our approval',
     bg: 'rgba(245, 158, 11, 0.12)',
     color: '#f59e0b',
     border: 'rgba(245, 158, 11, 0.25)',
@@ -55,7 +55,7 @@ const STATUS_CONFIGS = {
   },
   'Terkirim': {
     key: 'ads.status.sent',
-    fallback: 'Terkirim',
+    fallback: 'Sent',
     bg: 'rgba(16, 185, 129, 0.12)',
     color: '#10b981',
     border: 'rgba(16, 185, 129, 0.25)',
@@ -63,7 +63,7 @@ const STATUS_CONFIGS = {
   },
   'Gagal': {
     key: 'ads.status.failed',
-    fallback: 'Gagal',
+    fallback: 'Failed',
     bg: 'rgba(239, 68, 68, 0.12)',
     color: '#ef4444',
     border: 'rgba(239, 68, 68, 0.25)',
@@ -71,7 +71,7 @@ const STATUS_CONFIGS = {
   },
   'Dilewati – tidak ada iklan': {
     key: 'ads.status.skipped',
-    fallback: 'Dilewati – tidak ada iklan',
+    fallback: 'Skipped – no ads',
     bg: 'rgba(113, 113, 122, 0.12)',
     color: '#a1a1aa',
     border: 'rgba(113, 113, 122, 0.25)',

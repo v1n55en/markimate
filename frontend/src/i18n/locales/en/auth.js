@@ -83,7 +83,7 @@ export const auth = {
   "verifyTitle": "Verify Your Email Address",
   "verifySubtitle": "Verifying your Markimate account...",
   "verifySuccessTitle": "Email Verification Successful!",
-  "verifySuccessDesc": "Welcome to Markimate! Your account has been verified and 300 free trial credits have been credited to your workspace.",
+  "verifySuccessDesc": "Welcome to Markimate! Your account has been verified and {credits} free trial credits have been credited to your workspace.",
   "btnEnterDashboard": "Enter Markimate Dashboard",
   "verifyErrorTitle": "Verification Link Invalid or Expired",
   "verifyResendInstruction": "Enter your registered email address to receive a new verification link:",

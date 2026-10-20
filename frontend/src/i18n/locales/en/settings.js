@@ -19,7 +19,8 @@ export const settings = {
     "labelId": "Bahasa Indonesia",
     "subId": "Standard Indonesian (formal pronoun “Anda”)",
     "subEn": "International English",
-    "saved": "Language preference updated successfully."
+    "saved": "Language preference updated successfully.",
+    "error": "Failed to save language preference."
   },
   "profile": {
     "title": "Profile Information",
@@ -35,6 +36,7 @@ export const settings = {
     "saveBtn": "Save Changes",
     "saving": "Saving...",
     "saved": "Profile updated successfully.",
+    "error": "Failed to save profile.",
     "placeholderFullName": "Your Full Name",
     "placeholderBrandName": "Your Brand or Startup",
     "placeholderNiche": "e.g. Technology, Fashion, Culinary"
@@ -59,6 +61,10 @@ export const settings = {
     "submitBtn": "Send New Email Verification Link",
     "processing": "Sending Link...",
     "successNotice": "A confirmation link has been sent to your new email address.",
+    "invalidFormat": "Invalid email address format.",
+    "sameEmail": "New email address is identical to current email address.",
+    "passwordRequired": "Account password is required for security verification.",
+    "error": "Failed to request email change.",
     "placeholderNewEmail": "new.email@business.com",
     "placeholderVerifyPassword": "Enter account password to verify"
   },
@@ -72,6 +78,9 @@ export const settings = {
     "submitBtn": "Update Password",
     "processing": "Updating...",
     "successNotice": "Password updated successfully. Other device sessions revoked.",
+    "minChars": "New password must be at least 10 characters.",
+    "mismatch": "Password confirmation does not match.",
+    "error": "Failed to update password.",
     "placeholderCurrentPassword": "Enter current password",
     "placeholderNewPassword": "New password (min 10 characters)",
     "placeholderConfirmPassword": "Retype new password"
@@ -84,7 +93,8 @@ export const settings = {
     "gdprNotice": "Data will be exported in standard JSON format which you can store or use as a backup (GDPR data portability). CMS connection credentials and password hashes are automatically excluded for security.",
     "exportBtn": "Download Export File (.JSON)",
     "exporting": "Preparing File...",
-    "successNotice": "Data exported successfully."
+    "successNotice": "Data exported successfully.",
+    "error": "Failed to download export file."
   },
   "members": {
     "title": "Members & Team",
@@ -118,6 +128,11 @@ export const settings = {
     "revokeInviteError": "Failed to cancel invitation.",
     "changeRoleError": "Failed to update member role.",
     "removeMemberError": "Failed to remove member.",
+    "loadError": "Failed to load workspace members.",
+    "inviteSuccess": "Invitation sent successfully to {email}",
+    "inviteError": "Failed to send invitation.",
+    "transferSuccess": "Workspace ownership transferred successfully.",
+    "transferError": "Failed to transfer workspace ownership.",
     "activeWorkspaceFallback": "Active Workspace",
     "userFallback": "Markimate User",
     "confirmLeave": "Are you sure you want to leave this workspace?",
@@ -145,6 +160,7 @@ export const settings = {
     "blockedNotice": "You are the sole Owner of one or more active workspaces. Please transfer ownership or delete the workspaces first.",
     "placeholderAccountPassword": "Enter your account password",
     "scheduledSuccess": "Your account has been scheduled for deletion in 30 days.",
-    "passwordRequired": "Account password is required for confirmation."
+    "passwordRequired": "Account password is required for confirmation.",
+    "error": "Failed to schedule account deletion."
   }
 };
