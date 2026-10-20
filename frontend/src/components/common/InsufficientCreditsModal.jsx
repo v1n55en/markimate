@@ -65,7 +65,7 @@ export default function InsufficientCreditsModal() {
               </span>
             </div>
           </div>
-          <button onClick={handleClose} style={styles.closeBtn} aria-label="Close modal">
+          <button onClick={handleClose} style={styles.closeBtn} aria-label={t('common.closeModal')}>
             <X size={18} />
           </button>
         </div>

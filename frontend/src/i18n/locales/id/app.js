@@ -97,7 +97,9 @@ export const app = {
     "creditsLabel": "Saldo Kredit",
     "logout": "Keluar",
     "lockedBadge": "Terkunci",
-    "soonBadge": "Segera"
+    "soonBadge": "Segera",
+    "admin3Our": "Admin 3Our",
+    "myBrand": "Brand Saya"
   },
   "activatePage": {
     "title": "Aktivasi Modul Role",
@@ -157,7 +159,10 @@ export const app = {
     "btnCancel": "Batal",
     "btnCreate": "Simpan & Buat Brand",
     "failedCreate": "Gagal menambahkan brand.",
-    "saving": "Menyimpan..."
+    "saving": "Menyimpan...",
+    "nicheDigitalMarketing": "Digital Marketing",
+    "defaultNiche": "Brand",
+    "defaultWorkspace": "Workspace"
   },
   "moduleGuard": {
     "inactiveTitle": "Modul Belum Diaktifkan",

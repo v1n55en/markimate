@@ -107,7 +107,7 @@ async function runStep4Tests() {
     body: JSON.stringify({ email: testEmail })
   });
   assert.strictEqual(forgotRes.status, 200, 'Permintaan lupa password harus 200');
-  assert.ok(forgotRes.data.message.includes('Jika alamat email terdaftar'), 'Respons harus netral mencegah enumeration');
+  assert.ok(forgotRes.data.message.includes('registered') || forgotRes.data.message.includes('Jika alamat email terdaftar'), 'Respons harus netral mencegah enumeration');
 
   // Periksa apakah token tersimpan di password_resets
   const resetRecords = await db.findMany('password_resets', { user_id: registeredUser.id });

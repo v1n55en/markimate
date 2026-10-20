@@ -1,7 +1,7 @@
 // Test Langkah 7: Verifikasi Konfigurasi Pricing, FAQ, dan i18n (PRD §5 & §7)
 import assert from 'assert';
 import { TRIAL, MODULE_CREDITS, TOPUP_PACKS, MODULE_PRICES } from '../../frontend/src/config/pricing.js';
-import { TRANSLATIONS } from '../../frontend/src/i18n/translations.js';
+import { TRANSLATIONS } from '../../frontend/src/i18n/index.js';
 
 async function runStep7Tests() {
   console.log('=== RUNNING TEST STEP 7 (Pricing Config, FAQ & i18n) ===');
@@ -47,7 +47,7 @@ async function runStep7Tests() {
   assert.ok(TRANSLATIONS.id.faq.q4, 'ID FAQ must have q4');
   assert.ok(TRANSLATIONS.id.faq.q5, 'ID FAQ must have q5 (trial)');
   assert.ok(TRANSLATIONS.id.faq.q6, 'ID FAQ must have q6 (topup)');
-  assert.ok(TRANSLATIONS.id.faq.a5.includes('300 credit'), 'ID a5 must mention 300 credit');
+  assert.ok(TRANSLATIONS.id.faq.a5.includes('300 kredit') || TRANSLATIONS.id.faq.a5.includes('300 credit'), 'ID a5 must mention 300 credit/kredit');
   console.log('✓ 4. Terjemahan FAQ i18n ID & EN lengkap untuk credit, trial 7 hari, dan masa berlaku top-up');
 
   console.log('ALL STEP 7 TESTS PASSED!');

@@ -11,7 +11,7 @@ const GOOGLE_AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const GOOGLE_TOKENINFO_ENDPOINT = 'https://oauth2.googleapis.com/tokeninfo';
 
-import { getAppUrl } from './config.js';
+import { getAppUrl, TRIAL_CONFIG } from './config.js';
 
 /**
  * Menentukan redirect URI yang valid menggunakan allowlist exact match (Langkah 1.8).
@@ -245,7 +245,7 @@ export async function processGoogleAuth({ googleProfile, req, res }) {
       // Berikan trial jika memenuhi syarat
       const trialRes = await grantTrialIfEligible(wsId, updated.email);
       if (trialRes && trialRes.granted) {
-        const endsAt = trialRes.expiresAt ? new Date(trialRes.expiresAt).toISOString() : new Date(Date.now() + 7 * 86400 * 1000).toISOString();
+        const endsAt = trialRes.expiresAt ? new Date(trialRes.expiresAt).toISOString() : new Date(Date.now() + TRIAL_CONFIG.days * 86400 * 1000).toISOString();
         for (const mod of ['ads_report', 'ads_spy']) {
           await db.upsert('module_entitlements', { workspace_id: wsId, module: mod }, {
             active: true,
@@ -352,7 +352,7 @@ export async function processGoogleAuth({ googleProfile, req, res }) {
   // Berikan trial credit (300 credit + 7 hari module entitlements)
   const trialRes = await grantTrialIfEligible(defaultWs.id, newAccount.email);
   if (trialRes && trialRes.granted) {
-    const endsAt = trialRes.expiresAt ? new Date(trialRes.expiresAt).toISOString() : new Date(Date.now() + 7 * 86400 * 1000).toISOString();
+    const endsAt = trialRes.expiresAt ? new Date(trialRes.expiresAt).toISOString() : new Date(Date.now() + TRIAL_CONFIG.days * 86400 * 1000).toISOString();
     for (const mod of ['ads_report', 'ads_spy']) {
       await db.upsert('module_entitlements', { workspace_id: defaultWs.id, module: mod }, {
         active: true,

@@ -213,12 +213,13 @@ export default function AccountSettingsPage({ me, refreshMe }) {
     setDeleteSuccess('');
     setBlockedWorkspaces([]);
 
-    if (confirmWord !== 'HAPUS') {
-      setDeleteError('Harap ketik kata "HAPUS" untuk konfirmasi.');
+    const expectedWord = t('settings.deletion.confirmWord');
+    if (confirmWord !== expectedWord && confirmWord !== 'HAPUS' && confirmWord !== 'DELETE') {
+      setDeleteError(t('settings.deletion.confirmInstruction', { word: expectedWord }));
       return;
     }
     if (!deletePassword) {
-      setDeleteError('Kata sandi wajib diisi untuk konfirmasi penghapusan.');
+      setDeleteError(t('settings.deletion.passwordRequired'));
       return;
     }
 
@@ -231,7 +232,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
           confirm: confirmWord
         }
       });
-      setDeleteSuccess(res.message || 'Akun Anda telah dijadwalkan untuk dihapus dalam 30 hari.');
+      setDeleteSuccess(res.message || t('settings.deletion.scheduledSuccess'));
       setDeletePassword('');
       setConfirmWord('');
 
@@ -501,7 +502,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
                 <input
                   type="text"
                   className="auth-input"
-                  placeholder="Nama Lengkap Anda"
+                  placeholder={t('settings.profile.placeholderFullName')}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                 />
@@ -512,7 +513,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
                 <input
                   type="text"
                   className="auth-input"
-                  placeholder="Nama Brand atau Startup"
+                  placeholder={t('settings.profile.placeholderBrandName')}
                   value={brandName}
                   onChange={(e) => setBrandName(e.target.value)}
                 />
@@ -523,7 +524,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
                 <input
                   type="text"
                   className="auth-input"
-                  placeholder="Misal: Teknologi, Fashion, Kuliner"
+                  placeholder={t('settings.profile.placeholderNiche')}
                   value={niche}
                   onChange={(e) => setNiche(e.target.value)}
                 />
@@ -579,7 +580,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
                 <input
                   type="password"
                   className="auth-input"
-                  placeholder="Masukkan kata sandi saat ini"
+                  placeholder={t('settings.passwordChange.placeholderCurrentPassword')}
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   required
@@ -591,7 +592,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
                 <input
                   type="password"
                   className="auth-input"
-                  placeholder="Kata sandi baru minimal 10 karakter"
+                  placeholder={t('settings.passwordChange.placeholderNewPassword')}
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   minLength={10}
@@ -604,7 +605,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
                 <input
                   type="password"
                   className="auth-input"
-                  placeholder="Ketik ulang kata sandi baru"
+                  placeholder={t('settings.passwordChange.placeholderConfirmPassword')}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
@@ -679,7 +680,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
                 <input
                   type="email"
                   className="auth-input"
-                  placeholder="email.baru@bisnis.com"
+                  placeholder={t('settings.emailChange.placeholderNewEmail')}
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
                   required
@@ -691,7 +692,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
                 <input
                   type="password"
                   className="auth-input"
-                  placeholder="Masukkan kata sandi akun untuk verifikasi"
+                  placeholder={t('settings.emailChange.placeholderVerifyPassword')}
                   value={emailPassword}
                   onChange={(e) => setEmailPassword(e.target.value)}
                   required
@@ -848,7 +849,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
                 <input
                   type="password"
                   className="auth-input"
-                  placeholder="Masukkan kata sandi Anda"
+                  placeholder={t('settings.deletion.placeholderAccountPassword')}
                   value={deletePassword}
                   onChange={(e) => setDeletePassword(e.target.value)}
                   required
@@ -857,12 +858,12 @@ export default function AccountSettingsPage({ me, refreshMe }) {
 
               <div className="auth-field">
                 <label className="auth-field-label">
-                  {t('settings.deletion.confirmInstruction', { word: 'HAPUS' })}
+                  {t('settings.deletion.confirmInstruction', { word: t('settings.deletion.confirmWord') })}
                 </label>
                 <input
                   type="text"
                   className="auth-input"
-                  placeholder="HAPUS"
+                  placeholder={t('settings.deletion.confirmWord')}
                   value={confirmWord}
                   onChange={(e) => setConfirmWord(e.target.value)}
                   required
@@ -872,7 +873,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
               <div style={{ marginTop: '0.5rem' }}>
                 <button
                   type="submit"
-                  disabled={deletingAccount || confirmWord !== 'HAPUS'}
+                  disabled={deletingAccount || (confirmWord !== t('settings.deletion.confirmWord') && confirmWord !== 'HAPUS' && confirmWord !== 'DELETE')}
                   style={{
                     backgroundColor: '#dc2626',
                     color: '#ffffff',
@@ -881,15 +882,15 @@ export default function AccountSettingsPage({ me, refreshMe }) {
                     padding: '8px 16px',
                     fontSize: '0.85rem',
                     fontWeight: 600,
-                    cursor: (deletingAccount || confirmWord !== 'HAPUS') ? 'not-allowed' : 'pointer',
-                    opacity: (deletingAccount || confirmWord !== 'HAPUS') ? 0.6 : 1,
+                    cursor: (deletingAccount || (confirmWord !== t('settings.deletion.confirmWord') && confirmWord !== 'HAPUS' && confirmWord !== 'DELETE')) ? 'not-allowed' : 'pointer',
+                    opacity: (deletingAccount || (confirmWord !== t('settings.deletion.confirmWord') && confirmWord !== 'HAPUS' && confirmWord !== 'DELETE')) ? 0.6 : 1,
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '6px'
                   }}
                 >
                   <Trash2 size={15} />
-                  <span>{deletingAccount ? 'Memproses Penghapusan…' : 'Jadwalkan Penghapusan Akun (30 Hari)'}</span>
+                  <span>{deletingAccount ? t('settings.deletion.deleting') : t('settings.deletion.deleteBtn')}</span>
                 </button>
               </div>
             </form>

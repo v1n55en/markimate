@@ -51,7 +51,7 @@ function MarkdownRenderer({ content, images = [], imagePrompts = [] }) {
         if (uploadedImg && uploadedImg.url) {
           parts.push(
             <div key={`img-${idx}-${match.index}`} style={styles.renderedImgContainer}>
-              <img src={uploadedImg.url} alt={altOrAnchor || 'AI Image'} style={styles.renderedImg} />
+              <img src={uploadedImg.url} alt={altOrAnchor || t('seo.defaultAiImage')} style={styles.renderedImg} />
               <div style={styles.renderedImgCaption}>
                 <span style={styles.badgeSuccessSmall}>{t('seo.keywords.uploadedToCms')}</span>
                 <span>{altOrAnchor || promptObj?.alt || `Gambar ${idx}`}</span>
@@ -68,8 +68,8 @@ function MarkdownRenderer({ content, images = [], imagePrompts = [] }) {
                 </div>
                 <span style={styles.badgeMuted}>{t('seo.keywords.createdOnPublish')}</span>
               </div>
-              <div style={styles.placeholderPrompt}><b>{'Alt:'}</b> {altOrAnchor || promptObj?.alt || '–'}</div>
-              {promptObj?.prompt && <div style={styles.placeholderPrompt}><b>{'Prompt AI:'}</b> {promptObj.prompt}</div>}
+              <div style={styles.placeholderPrompt}><b>{t('seo.altPrefix')}</b> {altOrAnchor || promptObj?.alt || '–'}</div>
+              {promptObj?.prompt && <div style={styles.placeholderPrompt}><b>{t('seo.promptAiPrefix')}</b> {promptObj.prompt}</div>}
             </div>
           );
         }
@@ -207,7 +207,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
   const addKeyword = async (e) => {
     e.preventDefault();
     if (!form.keyword.trim()) return;
-    if (!anyCms.length) { setError('Hubungkan CMS dulu di menu Pengaturan CMS & API.'); return; }
+    if (!anyCms.length) { setError(t('seo.keywords.errConnectCmsFirst')); return; }
     setError('');
     try {
       const d = await api('/api/keywords', {
@@ -216,12 +216,12 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
       });
       upsertRow(d.keyword); setForm(f => ({ ...f, keyword: '' }));
       if (form.schedule === 'immediate') runKeyword(d.keyword.id);
-      else flash('Keyword dijadwalkan. Artikel pertama dibuat otomatis sesuai jadwal.');
+      else flash(t('seo.keywords.flashScheduled'));
     } catch (err) { setError(err.message); if (err.status === 402 && goTo) setTimeout(() => goTo('billing/credits'), 1500); }
   };
 
   const deleteKeyword = async (id) => {
-    if (!window.confirm('Hapus keyword ini dari Markimate? (Post di CMS tidak ikut terhapus)')) return;
+    if (!window.confirm(t('seo.keywords.confirmDeleteKw'))) return;
     setBusyFor(id, 'delete');
     try {
       await api(`/api/keywords/${id}`, { method: 'DELETE' });
@@ -332,6 +332,15 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
     return keywords.filter(k => k.status === st).length;
   };
 
+  const filterTabs = useMemo(() => [
+    { id: 'all', label: t('seo.tabAll') },
+    { id: 'Review Ready', label: t('seo.tabReviewReady') },
+    { id: 'draft_pub', label: t('seo.tabDraftPub') },
+    { id: 'Suggested', label: t('seo.tabSuggested') },
+    { id: 'Duplicate', label: t('seo.tabDuplicate') },
+    { id: 'Error', label: t('seo.tabError') },
+  ], [t]);
+
   const wordCount = draft ? draft.bodyMarkdown.split(/\s+/).filter(Boolean).length : 0;
   const currentLinks = drawer?.links || drawer?.article?.links || { internal: [], external: [] };
   const currentImages = drawer?.images || drawer?.article?.images || [];
@@ -418,14 +427,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
       {/* Filter Tabs & Header */}
       <div style={styles.filterBar}>
         <div style={styles.filterTabs}>
-          {[
-            { id: 'all', label: t('seo.tabAll') },
-            { id: 'Review Ready', label: t('seo.tabReviewReady') },
-            { id: 'draft_pub', label: t('seo.tabDraftPub') },
-            { id: 'Suggested', label: t('seo.tabSuggested') },
-            { id: 'Duplicate', label: t('seo.tabDuplicate') },
-            { id: 'Error', label: t('seo.tabError') },
-          ].map(tTab => (
+          {filterTabs.map(tTab => (
             <button
               key={tTab.id}
               onClick={() => setStatusFilter(tTab.id)}
@@ -521,7 +523,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                     <td>
                       <span className={`badge ${STATUS_BADGE[kw.status] || 'badge-secondary'}`}>
                         {kw.status === 'AI Writing...' && <Loader2 size={12} className="spin-icon" />}
-                        {isDuplicate ? 'Duplicate' : isSuggested ? 'Suggested' : kw.status}
+                        {isDuplicate ? t('seo.statusDuplicate') : isSuggested ? t('seo.statusSuggested') : kw.status}
                       </span>
                       {kw.warnings?.length > 0 && (
                         <div style={{ ...styles.sub, color: 'var(--accent-yellow)', marginTop: '0.2rem' }} title={kw.warnings[0]}>
@@ -584,7 +586,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                               {b === 'publish' ? <Loader2 size={14} className="spin-icon" /> : <Rocket size={14} />} {t('seo.btnPublish')}
                             </button>
                             {a && webApprover && (
-                              <button className="btn btn-secondary" style={styles.smallBtn} onClick={() => openDrawer(kw)} title="Review / Edit">
+                              <button className="btn btn-secondary" style={styles.smallBtn} onClick={() => openDrawer(kw)} title={t('seo.keywords.btnReviewDraft')}>
                                 <FileText size={14} />
                               </button>
                             )}
@@ -599,7 +601,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                               </a>
                             )}
                             {a && webApprover && (
-                              <button className="btn btn-secondary" style={styles.smallBtn} onClick={() => openDrawer(kw)} title="Review / Edit">
+                              <button className="btn btn-secondary" style={styles.smallBtn} onClick={() => openDrawer(kw)} title={t('seo.keywords.btnReviewDraft')}>
                                 <Eye size={14} />
                               </button>
                             )}
@@ -722,8 +724,8 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                         </div>
                         <span style={styles.badgeMuted}>{t('seo.heroAutoNote')}</span>
                       </div>
-                      <div style={styles.placeholderPrompt}><b>{'Alt:'}</b> {heroPromptObj.alt}</div>
-                      <div style={styles.placeholderPrompt}><b>{'Prompt AI:'}</b> {heroPromptObj.prompt}</div>
+                      <div style={styles.placeholderPrompt}><b>{t('seo.altPrefix')}</b> {heroPromptObj.alt}</div>
+                      <div style={styles.placeholderPrompt}><b>{t('seo.promptAiPrefix')}</b> {heroPromptObj.prompt}</div>
                     </div>
                   ) : null}
 
@@ -731,7 +733,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                   <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.6rem', color: 'var(--text-primary)' }}>{draft.title || t('seo.noTitlePlaceholder')}</h1>
                   {draft.excerpt && (
                     <div style={styles.previewExcerpt}>
-                      <b>{'Meta Description:'}</b> {draft.excerpt}
+                      <b>{t('seo.metaDescriptionPrefix')}</b> {draft.excerpt}
                     </div>
                   )}
 
@@ -781,7 +783,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                   <div className="form-group" style={{ marginBottom: 0, flex: 1, display: 'flex', flexDirection: 'column' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
                       <label className="form-label" style={{ margin: 0 }}>{t('seo.articleBodyMarkdown')}</label>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{'Placeholder: '}<code>{'![alt](markimate:image:1)'}</code></span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{t('seo.placeholderPrefix')}<code>{'![alt](markimate:image:1)'}</code></span>
                     </div>
                     <textarea
                       className="form-input"
@@ -871,7 +873,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                               className="form-input"
                               value={img.alt || ''}
                               onChange={e => updateImagePrompt(img.idx, 'alt', e.target.value)}
-                              placeholder="SEO image description..."
+                              placeholder={t('seo.keywords.placeholderAlt')}
                             />
                           </div>
 
@@ -882,7 +884,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                               rows={2}
                               value={img.prompt || ''}
                               onChange={e => updateImagePrompt(img.idx, 'prompt', e.target.value)}
-                              placeholder="Prompt visual detail..."
+                              placeholder={t('seo.keywords.placeholderPrompt')}
                             />
                           </div>
                         </div>

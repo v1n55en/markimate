@@ -43,7 +43,7 @@ import {
   clearRefreshTokenCookie,
   signAccessToken
 } from './lib/session.js';
-import { getAppUrl } from './lib/config.js';
+import { getAppUrl, TRIAL_CONFIG } from './lib/config.js';
 import {
   requireWorkspace,
   resolveWorkspaceForUser,
@@ -131,10 +131,7 @@ const monthStart = () => { const d = new Date(); return new Date(Date.UTC(d.getU
 const mask = (s) => { s = String(s || ''); return s.length <= 6 ? (s ? '••••' : '') : s.slice(0, 3) + '••••' + s.slice(-3); };
 
 async function usageOf(workspaceId) {
-  let rows = await db.findMany('keywords', { workspace_id: workspaceId });
-  if (!rows || rows.length === 0) {
-    rows = await db.findMany('keywords', { user_id: workspaceId });
-  }
+  const rows = await db.findMany('keywords', { workspace_id: workspaceId });
   const since = monthStart();
   const countedStatuses = new Set(['Review Ready', 'Draft Created', 'Published']);
   return (rows || []).filter(k => k.last_run_at && k.last_run_at >= since && countedStatuses.has(k.status)).length;
@@ -144,10 +141,10 @@ const planOf = (u) => PLANS[u.plan] || PLANS.free;
 function friendlyN8nError(status, text) {
   let parsed = null; try { parsed = JSON.parse(text); } catch (e) {}
   const msg = parsed && (parsed.message || parsed.error);
-  if (status === 404 || /not registered/i.test(text)) return 'Endpoint n8n belum aktif (404). Pastikan workflow n8n sudah dipublish.';
-  if (status === 401) return 'Backend ditolak n8n (401): MARKIMATE_API_KEY / SUPERMAT_API_KEY di server tidak cocok dengan key di n8n.';
-  if (status === 409 || (parsed && parsed.status === 'duplicate')) return (parsed && parsed.message) || 'Topik mirip sudah ada di CMS.';
-  if (/Error in workflow/i.test(text)) return 'Terjadi error di workflow n8n. Cek eksekusi terakhir di n8n.';
+  if (status === 404 || /not registered/i.test(text)) return 'n8n endpoint not active (404). Ensure n8n workflow is published.';
+  if (status === 401) return 'Backend rejected by n8n (401): API key mismatch with n8n workflow.';
+  if (status === 409 || (parsed && parsed.status === 'duplicate')) return (parsed && parsed.message) || 'Similar topic already exists in CMS.';
+  if (/Error in workflow/i.test(text)) return 'Error in n8n workflow execution. Check n8n execution history.';
   return msg || `n8n HTTP ${status}`;
 }
 
@@ -345,8 +342,8 @@ app.post('/api/auth/register', wrap(async (req, res) => {
     role: 'owner'
   });
 
-  // 4. Entitlements trial 7 hari untuk 3 modul utama
-  const trialEnds = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
+  // 4. Entitlements trial dari config untuk 3 modul utama
+  const trialEnds = new Date(Date.now() + TRIAL_CONFIG.days * 24 * 3600 * 1000).toISOString();
   for (const mod of ['seo', 'ads_report', 'ads_spy']) {
     await db.insert('module_entitlements', {
       workspace_id: user.id,
@@ -2331,68 +2328,132 @@ function normalizeConfig(type, input) {
 }
 async function testConnection(type, cfg) {
   try { return await testConnectionInner(type, cfg); }
-  catch (e) { return { ok: false, message: 'Tidak bisa menghubungi ' + (CMS_NAME[type] || type) + ': ' + e.message }; }
+  catch (e) {
+    return {
+      ok: false,
+      code: 'CMS_CONNECTION_FAILED',
+      params: { platform: CMS_NAME[type] || type, error: e.message },
+      message: 'Cannot reach ' + (CMS_NAME[type] || type) + ': ' + e.message
+    };
+  }
 }
 async function testConnectionInner(type, cfg) {
   if (type === 'wordpress') {
-    if (!cfg.url || !cfg.user || !cfg.appPassword) return { ok: false, message: 'Isi URL situs, username, dan Application Password.' };
-    const r = await fetch(cfg.url + '/wp-json/wp/v2/users/me?context=edit', { headers: { Authorization: 'Basic ' + Buffer.from(cfg.user + ':' + cfg.appPassword.replace(/\s+/g, '')).toString('base64'), 'User-Agent': 'Markimate/1.0' } });
+    if (!cfg.url || !cfg.user || !cfg.appPassword) {
+      return { ok: false, code: 'WP_MISSING_FIELDS', message: 'Enter site URL, username, and Application Password.' };
+    }
+    const r = await fetch(cfg.url + '/wp-json/wp/v2/users/me?context=edit', {
+      headers: { Authorization: 'Basic ' + Buffer.from(cfg.user + ':' + cfg.appPassword.replace(/\s+/g, '')).toString('base64'), 'User-Agent': 'Markimate/1.0' }
+    });
     const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch (e) {}
-    if (r.ok && j && j.id) { const caps = j.capabilities || {}; const canWrite = caps.edit_posts !== false; return { ok: true, message: `Terhubung sebagai ${j.name || j.slug}${canWrite ? '' : ' (tidak punya izin menulis post)'}`, meta: { userId: j.id, name: j.name } }; }
-    if (r.status === 401 || r.status === 403) return { ok: false, message: 'WordPress menolak login (' + r.status + '). Pastikan Application Password benar (Users → Profile → Application Passwords).' };
-    if (r.status === 404) return { ok: false, message: 'REST API tidak ditemukan. Pastikan URL benar dan /wp-json aktif.' };
-    return { ok: false, message: 'Gagal: HTTP ' + r.status + ' ' + (j && j.message ? j.message : '') };
+    if (r.ok && j && j.id) {
+      const caps = j.capabilities || {};
+      const canWrite = caps.edit_posts !== false;
+      const userName = j.name || j.slug || 'User';
+      return {
+        ok: true,
+        code: canWrite ? 'WP_CONNECTED' : 'WP_CONNECTED_NO_WRITE',
+        params: { name: userName },
+        message: `Connected as ${userName}${canWrite ? '' : ' (no permission to write posts)'}`,
+        meta: { userId: j.id, name: j.name }
+      };
+    }
+    if (r.status === 401 || r.status === 403) {
+      return { ok: false, code: 'WP_AUTH_FAILED', params: { status: r.status }, message: `WordPress authentication failed (${r.status}). Verify Application Password.` };
+    }
+    if (r.status === 404) {
+      return { ok: false, code: 'WP_REST_NOT_FOUND', message: 'REST API not found. Verify URL and ensure /wp-json is enabled.' };
+    }
+    return { ok: false, code: 'WP_ERROR', params: { status: r.status, details: j && j.message ? j.message : '' }, message: 'Failed: HTTP ' + r.status + ' ' + (j && j.message ? j.message : '') };
   }
   if (type === 'sanity') return testSanity(cfg);
   if (type === 'shopify') return testShopify(cfg);
-  if (!cfg.siteId || !cfg.apiKey) return { ok: false, message: 'Isi Site ID dan API Key Wix.' };
-  const r = await fetch('https://www.wixapis.com/blog/v3/posts?paging.limit=1', { headers: { Authorization: cfg.apiKey, 'wix-site-id': cfg.siteId } });
+  if (!cfg.siteId || !cfg.apiKey) {
+    return { ok: false, code: 'WIX_MISSING_FIELDS', message: 'Enter Wix Site ID and API Key.' };
+  }
+  const r = await fetch('https://www.wixapis.com/blog/v3/posts?paging.limit=1', {
+    headers: { Authorization: cfg.apiKey, 'wix-site-id': cfg.siteId }
+  });
   const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch (e) {}
-  if (r.ok) return { ok: true, message: 'Terhubung ke Wix Blog' + (j && j.posts && j.posts.length ? ' (post terakhir: ' + j.posts[0].title + ')' : ' (belum ada post)'), meta: { memberId: j && j.posts && j.posts[0] ? j.posts[0].memberId : '' } };
-  if (r.status === 401 || r.status === 403) return { ok: false, message: 'Wix menolak API key / Site ID (' + r.status + '). Buat API key di Wix Account → API Keys dengan izin Blog.' };
-  return { ok: false, message: 'Gagal: HTTP ' + r.status + ' ' + (j && j.message ? j.message : '') };
+  if (r.ok) {
+    const hasPosts = j && j.posts && j.posts.length > 0;
+    const lastPost = hasPosts ? j.posts[0].title : '';
+    return {
+      ok: true,
+      code: hasPosts ? 'WIX_CONNECTED_WITH_POST' : 'WIX_CONNECTED',
+      params: { lastPost },
+      message: 'Connected to Wix Blog' + (hasPosts ? ' (latest post: ' + lastPost + ')' : ' (no posts yet)'),
+      meta: { memberId: j && j.posts && j.posts[0] ? j.posts[0].memberId : '' }
+    };
+  }
+  if (r.status === 401 || r.status === 403) {
+    return { ok: false, code: 'WIX_AUTH_FAILED', params: { status: r.status }, message: `Wix rejected API key / Site ID (${r.status}).` };
+  }
+  return { ok: false, code: 'WIX_ERROR', params: { status: r.status, details: j && j.message ? j.message : '' }, message: 'Failed: HTTP ' + r.status + ' ' + (j && j.message ? j.message : '') };
 }
 // Sanity: baca jumlah dokumen (cek project/dataset/token) + dry-run mutation (cek izin tulis, tidak menyimpan apa pun)
 async function testSanity(cfg) {
-  if (!cfg.projectId || !cfg.token) return { ok: false, message: 'Isi Project ID dan API Token Sanity.' };
-  if (!/^[a-z0-9]+$/.test(cfg.projectId) || !/^[a-z0-9_-]+$/i.test(cfg.dataset)) return { ok: false, message: 'Format Project ID / dataset tidak valid.' };
-  if (!/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(cfg.docType) || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(cfg.bodyField)) return { ok: false, message: 'Nama document type / field isi tidak valid.' };
+  if (!cfg.projectId || !cfg.token) return { ok: false, code: 'SANITY_MISSING_FIELDS', message: 'Enter Sanity Project ID and API Token.' };
+  if (!/^[a-z0-9]+$/.test(cfg.projectId) || !/^[a-z0-9_-]+$/i.test(cfg.dataset)) {
+    return { ok: false, code: 'SANITY_INVALID_ID', message: 'Invalid Project ID or dataset format.' };
+  }
+  if (!/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(cfg.docType) || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(cfg.bodyField)) {
+    return { ok: false, code: 'SANITY_INVALID_DOCTYPE', message: 'Invalid document type or content field name.' };
+  }
   const api = `https://${cfg.projectId}.api.sanity.io/v2025-02-19/data`;
   const headers = { Authorization: 'Bearer ' + cfg.token, 'Content-Type': 'application/json' };
   const q = await fetch(`${api}/query/${encodeURIComponent(cfg.dataset)}`, { method: 'POST', headers, body: JSON.stringify({ query: 'count(*[_type == $t])', params: { t: cfg.docType } }) });
   const qj = await q.json().catch(() => ({}));
-  if (q.status === 401) return { ok: false, message: 'Token Sanity tidak valid (401). Buat token di sanity.io/manage → API → Tokens.' };
-  if (q.status === 404) return { ok: false, message: 'Project ID atau dataset tidak ditemukan (404).' };
-  if (!q.ok) return { ok: false, message: 'Gagal membaca Sanity: HTTP ' + q.status + ' ' + ((qj.error && (qj.error.description || qj.error)) || '') };
+  if (q.status === 401) return { ok: false, code: 'SANITY_INVALID_TOKEN', message: 'Sanity token is invalid (401).' };
+  if (q.status === 404) return { ok: false, code: 'SANITY_NOT_FOUND', message: 'Project ID or dataset not found (404).' };
+  if (!q.ok) return { ok: false, code: 'SANITY_QUERY_FAILED', params: { status: q.status, details: (qj.error && (qj.error.description || qj.error)) || '' }, message: 'Failed to read Sanity: HTTP ' + q.status };
   const m = await fetch(`${api}/mutate/${encodeURIComponent(cfg.dataset)}?dryRun=true`, { method: 'POST', headers, body: JSON.stringify({ mutations: [{ createOrReplace: { _id: 'drafts.markimate-connection-test', _type: cfg.docType, title: 'Markimate connection test' } }] }) });
-  if (m.status === 401 || m.status === 403) return { ok: false, message: 'Token Sanity hanya bisa membaca (' + m.status + '). Buat token dengan izin Editor.' };
-  if (!m.ok) { const mj = await m.json().catch(() => ({})); return { ok: false, message: 'Tes tulis Sanity gagal: HTTP ' + m.status + ' ' + ((mj.error && (mj.error.description || mj.error)) || '') }; }
-  return { ok: true, message: `Terhubung ke Sanity (${cfg.projectId}/${cfg.dataset}) — ${qj.result ?? 0} dokumen "${cfg.docType}", izin tulis OK` };
+  if (m.status === 401 || m.status === 403) return { ok: false, code: 'SANITY_READ_ONLY_TOKEN', params: { status: m.status }, message: `Sanity token has read-only access (${m.status}).` };
+  if (!m.ok) {
+    const mj = await m.json().catch(() => ({}));
+    return { ok: false, code: 'SANITY_MUTATE_FAILED', params: { status: m.status, details: (mj.error && (mj.error.description || mj.error)) || '' }, message: 'Sanity write test failed: HTTP ' + m.status };
+  }
+  return {
+    ok: true,
+    code: 'SANITY_CONNECTED',
+    params: { projectId: cfg.projectId, dataset: cfg.dataset, count: qj.result ?? 0, docType: cfg.docType },
+    message: `Connected to Sanity (${cfg.projectId}/${cfg.dataset}) — ${qj.result ?? 0} "${cfg.docType}" documents, write permissions OK`
+  };
 }
 // Shopify: (tukar Client ID/Secret → token 24 jam bila perlu) lalu baca toko, blog, dan scope app
 async function testShopify(cfg) {
-  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(cfg.shop || '')) return { ok: false, message: 'Domain toko harus berformat namatoko.myshopify.com (lihat Settings → Domains di Shopify Admin).' };
+  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(cfg.shop || '')) {
+    return { ok: false, code: 'SHOPIFY_INVALID_DOMAIN', message: 'Store domain must follow storename.myshopify.com format.' };
+  }
   let token = cfg.accessToken;
   if (!token) {
-    if (!cfg.clientId || !cfg.clientSecret) return { ok: false, message: 'Isi Admin API access token, atau Client ID + Client Secret dari app Dev Dashboard.' };
+    if (!cfg.clientId || !cfg.clientSecret) return { ok: false, code: 'SHOPIFY_MISSING_CREDS', message: 'Enter Admin API access token, or Client ID + Client Secret.' };
     const t = await fetch(`https://${cfg.shop}/admin/oauth/access_token`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: new URLSearchParams({ grant_type: 'client_credentials', client_id: cfg.clientId, client_secret: cfg.clientSecret }) });
     const tj = await t.json().catch(() => ({}));
-    if (!t.ok || !tj.access_token) return { ok: false, message: 'Client ID/Secret ditolak (' + t.status + '): ' + (tj.error_description || tj.error || 'pastikan app sudah di-install di toko ini dan app & toko satu organisasi Shopify.') };
+    if (!t.ok || !tj.access_token) return { ok: false, code: 'SHOPIFY_OAUTH_FAILED', params: { status: t.status, details: tj.error_description || tj.error || '' }, message: 'Client ID/Secret rejected (' + t.status + ')' };
     token = tj.access_token;
   }
   const r = await fetch(`https://${cfg.shop}/admin/api/2026-07/graphql.json`, { method: 'POST', headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' }, body: JSON.stringify({ query: '{ shop { name } blogs(first: 20) { nodes { id handle title } } currentAppInstallation { accessScopes { handle } } }' }) });
   const j = await r.json().catch(() => ({}));
-  if (r.status === 401) return { ok: false, message: 'Token Shopify tidak valid (401).' };
-  if (r.status === 403) return { ok: false, message: 'Token Shopify tidak punya izin (403). Tambahkan scope read_content & write_content lalu install ulang app.' };
-  if (r.status === 404) return { ok: false, message: 'Toko tidak ditemukan (404). Cek domain .myshopify.com.' };
-  if (!r.ok || !j.data) return { ok: false, message: 'Gagal membaca toko: ' + (j.errors ? JSON.stringify(j.errors).slice(0, 160) : 'HTTP ' + r.status) };
+  if (r.status === 401) return { ok: false, code: 'SHOPIFY_INVALID_TOKEN', message: 'Shopify token is invalid (401).' };
+  if (r.status === 403) return { ok: false, code: 'SHOPIFY_INSUFFICIENT_SCOPE', message: 'Shopify token lacks permissions (403). Add read_content & write_content scopes.' };
+  if (r.status === 404) return { ok: false, code: 'SHOPIFY_STORE_NOT_FOUND', message: 'Store not found (404).' };
+  if (!r.ok || !j.data) return { ok: false, code: 'SHOPIFY_READ_FAILED', params: { details: j.errors ? JSON.stringify(j.errors).slice(0, 160) : 'HTTP ' + r.status }, message: 'Failed to read store: HTTP ' + r.status };
   const scopes = ((j.data.currentAppInstallation || {}).accessScopes || []).map(x => x.handle);
-  if (scopes.length && !scopes.some(x => x === 'write_content' || x === 'write_online_store_pages')) return { ok: false, message: 'App belum punya scope write_content. Tambahkan di Dev Dashboard → Versions → Access scopes, rilis versi baru, lalu install ulang.' };
+  if (scopes.length && !scopes.some(x => x === 'write_content' || x === 'write_online_store_pages')) {
+    return { ok: false, code: 'SHOPIFY_WRITE_SCOPE_MISSING', message: 'App lacks write_content scope.' };
+  }
   const blogs = (j.data.blogs && j.data.blogs.nodes) || [];
-  if (!blogs.length) return { ok: false, message: 'Terhubung ke ' + j.data.shop.name + ', tapi toko belum punya blog. Buat dulu di Online Store → Blog posts → Manage blogs.' };
+  if (!blogs.length) return { ok: false, code: 'SHOPIFY_NO_BLOGS', params: { shopName: j.data.shop.name }, message: 'Connected to ' + j.data.shop.name + ', but store has no blogs.' };
   const chosen = cfg.blogId ? blogs.find(b => b.id === cfg.blogId || b.id.endsWith('/' + cfg.blogId) || b.handle === cfg.blogId) : blogs[0];
-  if (!chosen) return { ok: false, message: 'Blog "' + cfg.blogId + '" tidak ditemukan. Blog yang ada: ' + blogs.map(b => b.handle).join(', ') };
-  return { ok: true, message: `Terhubung ke ${j.data.shop.name} — artikel masuk ke blog "${chosen.title}" (${blogs.length} blog tersedia: ${blogs.map(b => b.handle).join(', ')})`, meta: { blogs } };
+  if (!chosen) return { ok: false, code: 'SHOPIFY_BLOG_NOT_FOUND', params: { blogId: cfg.blogId, available: blogs.map(b => b.handle).join(', ') }, message: 'Blog "' + cfg.blogId + '" not found.' };
+  return {
+    ok: true,
+    code: 'SHOPIFY_CONNECTED',
+    params: { shopName: j.data.shop.name, blogTitle: chosen.title, blogCount: blogs.length, blogs: blogs.map(b => b.handle).join(', ') },
+    message: `Connected to ${j.data.shop.name} — articles saved to "${chosen.title}"`,
+    meta: { blogs }
+  };
 }
 export const DEFAULT_ARTICLE_SETTINGS = {
   images: {
@@ -3153,8 +3214,7 @@ app.post('/api/seo/topic-sources/:id/run', auth, requireWorkspace('admin'), requ
 
 // ---------- Billing (dummy) ----------
 app.get('/api/billing', auth, requireWorkspace('viewer'), wrap(async (req, res) => {
-  let subs = await db.findMany('subscriptions', { workspace_id: req.workspace.id }, { orderBy: 'created_at' });
-  if (!subs.length) subs = await db.findMany('subscriptions', { user_id: req.user.id }, { orderBy: 'created_at' });
+  const subs = await db.findMany('subscriptions', { workspace_id: req.workspace.id }, { orderBy: 'created_at' });
   res.json({
     plans: Object.values(PLANS),
     current: planOf(req.user),
@@ -3166,13 +3226,13 @@ app.get('/api/billing', auth, requireWorkspace('viewer'), wrap(async (req, res) 
 app.post('/api/billing/checkout', auth, requireWorkspace('admin'), wrap(async (req, res) => {
   if (process.env.BILLING_DUMMY !== 'true') {
     return res.status(403).json({
-      error: 'Pembayaran langsung belum tersedia. Hubungi 3Our untuk aktivasi paket.',
+      error: 'Direct checkout is not available. Contact 3Our to activate your plan.',
       code: 'BILLING_DISABLED'
     });
   }
   const planKey = req.body.plan;
   const plan = PLANS[planKey] ? planKey : 'premium';
-  if (plan === 'free') throw Object.assign(new Error('Pilih paket berbayar.'), { status: 400 });
+  if (plan === 'free') throw Object.assign(new Error('Please select a paid plan.'), { status: 400, code: 'PAID_PLAN_REQUIRED' });
   const method = String(req.body.method || 'qris');
   const planData = PLANS[plan];
   const endsAt = new Date(Date.now() + 30 * 86400e3);
@@ -3235,8 +3295,7 @@ app.post('/api/billing/checkout', auth, requireWorkspace('admin'), wrap(async (r
   });
 }));
 app.post('/api/billing/cancel', auth, requireWorkspace('admin'), wrap(async (req, res) => {
-  let subs = await db.findMany('subscriptions', { workspace_id: req.workspace.id, status: 'active' });
-  if (!subs.length) subs = await db.findMany('subscriptions', { user_id: req.user.id, status: 'active' });
+  const subs = await db.findMany('subscriptions', { workspace_id: req.workspace.id, status: 'active' });
   for (const s of subs) await db.update('subscriptions', { id: s.id }, { status: 'cancelled' });
   const u = await db.update('accounts', { id: req.user.id }, { plan: 'free' });
   res.json({ user: publicUser(u) });
@@ -3277,16 +3336,14 @@ app.post('/api/v1/articles/generate', apiKeyAuth, requireModule('seo'), wrap(asy
 }));
 app.post('/api/v1/articles/:id/publish', apiKeyAuth, requireModule('seo'), wrap(async (req, res) => {
   const wsId = req.workspace ? req.workspace.id : req.user.id;
-  let k = await db.findOne('keywords', { id: req.params.id, workspace_id: wsId });
-  if (!k) k = await db.findOne('keywords', { id: req.params.id, user_id: req.user.id });
+  const k = await db.findOne('keywords', { id: req.params.id, workspace_id: wsId });
   if (!k) throw Object.assign(new Error('Article not found.'), { status: 404, code: 'NOT_FOUND' });
   const row = await publishFor(req.user, k, req.body.action === 'publish' ? 'publish' : 'draft', req.body.article || null);
   res.json({ status: 'ok', id: row.id, postId: row.post_id, draftEditUrl: row.draft_url, publicUrl: row.public_url, postStatus: row.post_status, warnings: row.warnings || [] });
 }));
 app.get('/api/v1/articles', apiKeyAuth, requireModule('seo'), wrap(async (req, res) => {
   const wsId = req.workspace ? req.workspace.id : req.user.id;
-  let articles = await db.findMany('keywords', { workspace_id: wsId }, { orderBy: 'created_at' });
-  if (!articles.length) articles = await db.findMany('keywords', { user_id: req.user.id }, { orderBy: 'created_at' });
+  const articles = await db.findMany('keywords', { workspace_id: wsId }, { orderBy: 'created_at' });
   res.json({ status: 'ok', articles: articles.map(kwPublic) });
 }));
 

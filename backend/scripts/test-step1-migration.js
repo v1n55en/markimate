@@ -1,7 +1,7 @@
-// Test Langkah 1: Migrasi Database & db.js (PRD F1 + F2)
 import assert from 'assert';
 import fs from 'fs';
 import path from 'path';
+import { randomUUID } from 'crypto';
 import { fileURLToPath } from 'url';
 import { db, TABLES } from '../db.js';
 import { PLANS } from '../lib/plans.js';
@@ -72,8 +72,8 @@ async function runStep1Tests() {
   console.log('✓ 4. PLANS.modules terdefinisi dengan tepat di backend/lib/plans.js');
 
   // 5. Verifikasi Operasi CRUD pada Tabel Baru
-  const testWsId = 'ws-test-' + Date.now();
-  const testUserId = 'user-test-' + Date.now();
+  const testWsId = randomUUID();
+  const testUserId = randomUUID();
 
   const ws = await db.insert('workspaces', {
     id: testWsId,

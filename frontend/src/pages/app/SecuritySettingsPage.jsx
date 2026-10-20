@@ -152,10 +152,10 @@ export default function SecuritySettingsPage() {
                     {getDeviceIcon(s.userAgent)}
                   </div>
 
-                  <div className="session-text-content">
-                    <div className="session-ua-title">
-                      <span>{s.userAgent || 'Web Device'}</span>
-                      {s.current && (
+                    <div className="session-text-content">
+                      <div className="session-ua-title">
+                        <span>{s.userAgent || t('settings.security.webDeviceFallback')}</span>
+                        {s.current && (
                         <span style={{
                           fontSize: '0.7rem',
                           fontWeight: 700,

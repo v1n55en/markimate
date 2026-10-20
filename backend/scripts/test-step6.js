@@ -1,8 +1,6 @@
 // Test Langkah 6: Midtrans Snap Top-up Sandbox & Webhook Verification (PRD §4.3 & §6)
 import assert from 'assert';
 import crypto from 'crypto';
-import { db } from '../db.js';
-import { seedCreditPricesAndRates } from './seed-credit-prices.js';
 
 let baseUrl;
 const TEST_SERVER_KEY = 'test-midtrans-server-key-step6';
@@ -28,12 +26,18 @@ function computeSignature(orderId, statusCode, grossAmount, serverKey) {
 async function runStep6Tests() {
   console.log('=== RUNNING TEST STEP 6 (Midtrans Snap Top-up & Webhook) ===');
 
+  process.env.FORCE_LOCAL_DB = 'true';
   process.env.NODE_ENV = 'production'; // so signature verification is strictly enforced
-  process.env.JWT_SECRET = 'test-secret-key-for-step6';
+  process.env.JWT_SECRET = 'test-secret-key-for-step6-min-32-chars!';
+  process.env.CMS_CRED_KEY = Buffer.from('12345678901234567890123456789012').toString('base64');
+  process.env.ADMIN_KEY = 'test-admin-key-step6';
   process.env.PORT = '5006';
   process.env.CREDITS_ENABLED = 'true';
   process.env.MIDTRANS_SERVER_KEY = TEST_SERVER_KEY;
   process.env.MIDTRANS_CLIENT_KEY = 'test-midtrans-client-key';
+
+  const { db } = await import('../db.js');
+  const { seedCreditPricesAndRates } = await import('./seed-credit-prices.js');
 
   await seedCreditPricesAndRates();
 
@@ -43,14 +47,33 @@ async function runStep6Tests() {
   const testEmail = `step6-${Date.now()}@example.com`;
   const regRes = await request('/api/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ email: testEmail, password: 'password123', name: 'Step 6 Tester' })
+    body: JSON.stringify({
+      email: testEmail,
+      password: 'password123',
+      name: 'Step 6 Tester',
+      acceptTerms: true
+    })
   });
   assert.strictEqual(regRes.status, 200, 'Register should succeed');
-  const token = regRes.data.token;
-  const userId = regRes.data.user.id;
+
+  const userRow = await db.findOne('accounts', { email: testEmail });
+  assert(userRow, 'User must exist in db');
+  const userId = userRow.id;
+
+  await request(`/api/admin/users/${userId}/verify`, {
+    method: 'POST',
+    headers: { 'X-Admin-Key': process.env.ADMIN_KEY }
+  });
+
+  const loginRes = await request('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email: testEmail, password: 'password123' })
+  });
+  assert.strictEqual(loginRes.status, 200, 'Login should succeed');
+  const token = loginRes.data.token || loginRes.data.accessToken;
   const authHeaders = { Authorization: `Bearer ${token}` };
 
-  console.log('1. User registered with 300 trial credits');
+  console.log('1. User registered and verified with 300 trial credits');
 
   // Test 1: Inisiasi Top-up Paket Growth (Rp1.000.000 / 1.050 credit)
   const topupRes = await request('/api/credits/topup', {

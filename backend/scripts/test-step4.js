@@ -27,6 +27,7 @@ async function main() {
   process.env.JWT_SECRET = 'test-secret-key-for-step4';
   process.env.PORT = '5004';
   process.env.CREDITS_ENABLED = 'true';
+  process.env.ADMIN_KEY = 'test-admin-key-step4';
 
   await seedCreditPricesAndRates();
 
@@ -39,14 +40,33 @@ async function main() {
     body: JSON.stringify({
       email: testEmail,
       password: 'password123',
-      name: 'Step 4 Tester'
+      name: 'Step 4 Tester',
+      acceptTerms: true
     })
   });
   assert.strictEqual(registerRes.status, 200, 'Register should succeed');
-  const token = registerRes.data.token;
+
+  const userRow = await db.findOne('accounts', { email: testEmail });
+  assert(userRow, 'User must exist');
+  const userId = userRow.id;
+
+  await request(`/api/admin/users/${userId}/verify`, {
+    method: 'POST',
+    headers: { 'X-Admin-Key': process.env.ADMIN_KEY }
+  });
+
+  const loginRes = await request('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({
+      email: testEmail,
+      password: 'password123'
+    })
+  });
+  assert.strictEqual(loginRes.status, 200, 'Login should succeed');
+  const token = loginRes.data.token || loginRes.data.accessToken;
   const authHeaders = { Authorization: `Bearer ${token}` };
 
-  console.log('1. User registered with 300 trial credits');
+  console.log('1. User registered and verified with 300 trial credits');
 
   // Test 1: Fetch initial ledger
   const ledger1 = await request('/api/credits/ledger', { headers: authHeaders });
@@ -69,7 +89,6 @@ async function main() {
 
   // Test 3: Insufficient credits check (402)
   // Set user's credits to 10 so running seo.article (60 credits) triggers 402
-  const userId = registerRes.data.user.id;
   await db.update('credit_wallets', { workspace_id: userId }, { balance_trial: 10 });
 
   // Connect dummy CMS so keyword can be created

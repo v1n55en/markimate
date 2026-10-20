@@ -52,7 +52,7 @@ export default function PublicNavbar() {
             type="button"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             style={styles.mobileToggleBtn}
-            aria-label="Toggle Navigation Menu"
+            aria-label={t('common.toggleNav')}
           >
             {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
           </button>

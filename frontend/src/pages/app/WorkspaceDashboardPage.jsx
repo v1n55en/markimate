@@ -80,8 +80,8 @@ export default function WorkspaceDashboardPage({ me }) {
           </div>
           <div>
             <div style={styles.brandTitleRow}>
-              <h1 style={styles.brandTitle}>{activeWorkspace?.name || 'Workspace'}</h1>
-              <span style={styles.nicheBadge}>{activeWorkspace?.niche || 'Digital Marketing'}</span>
+              <h1 style={styles.brandTitle}>{activeWorkspace?.name || t('app.workspaceSelector.defaultWorkspace')}</h1>
+              <span style={styles.nicheBadge}>{activeWorkspace?.niche || t('app.workspaceSelector.nicheDigitalMarketing')}</span>
             </div>
             <p style={styles.headerSub}>
               {t('app.dashboard.headerSub')}
@@ -244,7 +244,7 @@ export default function WorkspaceDashboardPage({ me }) {
                   <div style={styles.kpiBlock}>
                     <span style={styles.kpiLabel}>{t('app.dashboard.adsTotalSpend')}</span>
                     <strong style={styles.kpiValue}>
-                      {adsSummary ? formatCompactIDR(adsSummary.totals.spend) : 'Rp 0'}
+                      {adsSummary ? formatCompactIDR(adsSummary.totals.spend) : formatCompactIDR(0)}
                     </strong>
                   </div>
                   <div style={styles.kpiBlock}>
@@ -257,8 +257,8 @@ export default function WorkspaceDashboardPage({ me }) {
               )}
               <div style={styles.subMetaRow}>
                 <span>{t('app.dashboard.adsConnectedPlatforms', { count: connectedCount })}</span>
-                <span>{'·'}</span>
-                <span>{adsSummary?.period || 'September 2026'}</span>
+                {adsSummary?.period && <span>{'·'}</span>}
+                {adsSummary?.period && <span>{adsSummary.period}</span>}
               </div>
               <Link to="/app/ads" style={styles.cardActionBtn}>
                 <span>{t('app.dashboard.viewAdReports')}</span>

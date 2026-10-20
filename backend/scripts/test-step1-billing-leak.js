@@ -78,7 +78,7 @@ async function runStep1BillingLeakTests() {
   });
   assert.strictEqual(leakRes.status, 403, 'Checkout harus ditolak 403');
   assert.strictEqual(leakRes.data.code, 'BILLING_DISABLED');
-  assert.strictEqual(leakRes.data.error, 'Pembayaran langsung belum tersedia. Hubungi 3Our untuk aktivasi paket.');
+  assert.strictEqual(leakRes.data.error, 'Direct checkout is not available. Contact 3Our to activate your plan.');
 
   // Pastikan saldo TIDAK bertambah dan paket user tetap 'free'
   const creditCheck1 = await request('/api/credits', { headers: authHeaders });
@@ -145,8 +145,8 @@ async function runStep1BillingLeakTests() {
 
   // Cek ledger entry grant_sub
   const ledgerRows = await db.findMany('credit_ledger', { workspace_id: user.id });
-  const subLedger = ledgerRows.find(r => r.kind === 'grant_sub' && r.note === 'Aktivasi manual oleh admin');
-  assert.ok(subLedger, 'Harus ada ledger entry grant_sub dengan note "Aktivasi manual oleh admin"');
+  const subLedger = ledgerRows.find(r => r.kind === 'grant_sub' && (r.note?.includes('Aktivasi manual') || r.meta?.note === 'Aktivasi manual oleh admin'));
+  assert.ok(subLedger, 'Harus ada ledger entry grant_sub dengan note aktivasi manual oleh admin');
   console.log('✓ 4. POST /api/admin/subscriptions berhasil mengaktifkan paket manual & mencatat grant_sub di ledger');
 
   // 5. Uji POST /api/admin/credits/grant

@@ -110,14 +110,14 @@ export default function MembersSettingsPage({ me, refreshMe }) {
 
   // Handler: Cabut / Batalkan Undangan
   const handleRevokeInvite = async (inviteId) => {
-    if (!window.confirm('Batalkan undangan ini?')) return;
+    if (!window.confirm(t('settings.members.revokeInviteConfirm'))) return;
     try {
       await api(`/api/workspaces/${currentWorkspaceId}/invites/${inviteId}`, {
         method: 'DELETE'
       });
       await loadMembersAndInvites();
     } catch (err) {
-      alert(err.message || 'Gagal membatalkan undangan.');
+      alert(err.message || t('settings.members.revokeInviteError'));
     }
   };
 
@@ -130,15 +130,15 @@ export default function MembersSettingsPage({ me, refreshMe }) {
       });
       await loadMembersAndInvites();
     } catch (err) {
-      alert(err.message || 'Gagal mengubah role anggota.');
+      alert(err.message || t('settings.members.changeRoleError'));
     }
   };
 
   // Handler: Hapus Anggota / Keluar
   const handleRemoveMember = async (userId, isSelf) => {
     const confirmMsg = isSelf
-      ? 'Apakah Anda yakin ingin keluar dari workspace ini?'
-      : 'Apakah Anda yakin ingin mengeluarkan anggota ini?';
+      ? t('settings.members.confirmLeave')
+      : t('settings.members.confirmRemove');
 
     if (!window.confirm(confirmMsg)) return;
 
@@ -152,7 +152,7 @@ export default function MembersSettingsPage({ me, refreshMe }) {
         await loadMembersAndInvites();
       }
     } catch (err) {
-      alert(err.message || 'Gagal mengeluarkan anggota.');
+      alert(err.message || t('settings.members.removeMemberError'));
     }
   };
 
@@ -211,7 +211,7 @@ export default function MembersSettingsPage({ me, refreshMe }) {
             color: 'var(--accent-cyan)',
             fontWeight: '600'
           }}>
-            {activeWorkspace?.name || 'Workspace Aktif'}
+            {activeWorkspace?.name || t('settings.members.activeWorkspaceFallback')}
           </span>
         </div>
         <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', margin: 0 }}>
@@ -254,7 +254,7 @@ export default function MembersSettingsPage({ me, refreshMe }) {
             <div style={{ flex: '1 1 240px' }}>
               <input
                 type="email"
-                placeholder="nama.rekan@perusahaan.com"
+                placeholder={t('settings.members.inviteEmailPlaceholder')}
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 className="input"
@@ -327,7 +327,7 @@ export default function MembersSettingsPage({ me, refreshMe }) {
                     </div>
                     <div className="member-info-content">
                       <div className="member-name-title">
-                        <span>{member.name || 'Pengguna Markimate'}</span>
+                        <span>{member.name || t('settings.members.userFallback')}</span>
                         {isSelf && (
                           <span style={{ fontSize: '0.7rem', color: 'var(--accent-cyan)', fontWeight: '600' }}>
                             {t('settings.members.youTag')}

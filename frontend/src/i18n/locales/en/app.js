@@ -97,7 +97,9 @@ export const app = {
     "creditsLabel": "Credits",
     "logout": "Sign Out",
     "lockedBadge": "Locked",
-    "soonBadge": "Soon"
+    "soonBadge": "Soon",
+    "admin3Our": "Admin 3Our",
+    "myBrand": "My Brand"
   },
   "activatePage": {
     "title": "Activate Role Module",
@@ -157,7 +159,10 @@ export const app = {
     "btnCancel": "Cancel",
     "btnCreate": "Save & Create Brand",
     "failedCreate": "Failed to create brand workspace.",
-    "saving": "Saving..."
+    "saving": "Saving...",
+    "nicheDigitalMarketing": "Digital Marketing",
+    "defaultNiche": "Brand",
+    "defaultWorkspace": "Workspace"
   },
   "moduleGuard": {
     "inactiveTitle": "Module Not Activated",

@@ -8,6 +8,7 @@ async function testStep2() {
   await seedCreditPricesAndRates();
 
   // Load app (akan start di PORT jika belum)
+  process.env.ADMIN_KEY = 'test-admin-key-step2';
   process.env.PORT = '5002';
   await import('../index.js');
   const port = process.env.PORT || '5002';
@@ -27,15 +28,32 @@ async function testStep2() {
         email: testEmail,
         password: testPassword,
         brandName: 'Test Brand',
-        niche: 'Fashion'
+        niche: 'Fashion',
+        acceptTerms: true
       })
     });
 
     assert.strictEqual(regRes.status, 200, 'Registrasi harus berhasil (HTTP 200)');
-    const regData = await regRes.json();
-    assert(regData.token, 'Token JWT harus dikembalikan');
-    const token = regData.token;
-    const userId = regData.user.id;
+    const userRow = await db.findOne('accounts', { email: testEmail });
+    assert(userRow, 'User harus tersimpan di database');
+    const userId = userRow.id;
+
+    // Verifikasi user via admin endpoint
+    await fetch(`${baseUrl}/api/admin/users/${userId}/verify`, {
+      method: 'POST',
+      headers: { 'X-Admin-Key': process.env.ADMIN_KEY }
+    });
+
+    // Login user
+    const loginRes = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: testEmail, password: testPassword })
+    });
+    assert.strictEqual(loginRes.status, 200, 'Login harus berhasil');
+    const loginData = await loginRes.json();
+    const token = loginData.token || loginData.accessToken;
+    assert(token, 'Token JWT harus dikembalikan');
 
     // 2. Verifikasi credit_trials tercatat
     const trialRecord = await db.findOne('credit_trials', { email: testEmail });

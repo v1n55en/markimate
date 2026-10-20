@@ -34,7 +34,10 @@ export const settings = {
     "nicheLabel": "Niche / Industri Bisnis",
     "saveBtn": "Simpan Perubahan",
     "saving": "Menyimpan…",
-    "saved": "Profil berhasil diperbarui."
+    "saved": "Profil berhasil diperbarui.",
+    "placeholderFullName": "Nama Lengkap Anda",
+    "placeholderBrandName": "Nama Brand atau Startup",
+    "placeholderNiche": "Misal: Teknologi, Fashion, Kuliner"
   },
   "security": {
     "title": "Keamanan & Kata Sandi",
@@ -42,7 +45,8 @@ export const settings = {
     "sessionsTitle": "Perangkat & Sesi Aktif",
     "currentSession": "Sesi Saat Ini",
     "revokeBtn": "Cabut Sesi",
-    "revokeAllBtn": "Keluarkan Sesi Lainnya"
+    "revokeAllBtn": "Keluarkan Sesi Lainnya",
+    "webDeviceFallback": "Perangkat Web"
   },
   "emailChange": {
     "title": "Ubah Alamat Email",
@@ -54,7 +58,9 @@ export const settings = {
     "confirmPasswordLabel": "Konfirmasi Kata Sandi Akun",
     "submitBtn": "Kirim Tautan Verifikasi Email Baru",
     "processing": "Mengirimkan Tautan…",
-    "successNotice": "Tautan konfirmasi telah dikirimkan ke alamat email baru Anda."
+    "successNotice": "Tautan konfirmasi telah dikirimkan ke alamat email baru Anda.",
+    "placeholderNewEmail": "email.baru@bisnis.com",
+    "placeholderVerifyPassword": "Masukkan kata sandi akun untuk verifikasi"
   },
   "passwordChange": {
     "title": "Ubah Kata Sandi",
@@ -65,7 +71,10 @@ export const settings = {
     "confirmPasswordLabel": "Konfirmasi Kata Sandi Baru",
     "submitBtn": "Perbarui Kata Sandi",
     "processing": "Memperbarui…",
-    "successNotice": "Kata sandi berhasil diperbarui. Sesi perangkat lain telah dicabut."
+    "successNotice": "Kata sandi berhasil diperbarui. Sesi perangkat lain telah dicabut.",
+    "placeholderCurrentPassword": "Masukkan kata sandi saat ini",
+    "placeholderNewPassword": "Kata sandi baru minimal 10 karakter",
+    "placeholderConfirmPassword": "Ketik ulang kata sandi baru"
   },
   "export": {
     "title": "Ekspor Data Workspace",
@@ -104,7 +113,15 @@ export const settings = {
     "processingTransfer": "Memproses...",
     "roleOwner": "Owner (Pemilik)",
     "roleAdmin": "Admin",
-    "roleViewer": "Viewer (Pengamat)"
+    "roleViewer": "Viewer (Pengamat)",
+    "revokeInviteConfirm": "Batalkan undangan ini?",
+    "revokeInviteError": "Gagal membatalkan undangan.",
+    "changeRoleError": "Gagal mengubah role anggota.",
+    "removeMemberError": "Gagal mengeluarkan anggota.",
+    "activeWorkspaceFallback": "Workspace Aktif",
+    "userFallback": "Pengguna Markimate",
+    "confirmLeave": "Apakah Anda yakin ingin keluar dari workspace ini?",
+    "confirmRemove": "Apakah Anda yakin ingin mengeluarkan anggota ini?"
   },
   "deletion": {
     "title": "Hapus Akun",
@@ -125,6 +142,9 @@ export const settings = {
     "passwordLabel": "Kata Sandi Akun",
     "deleteBtn": "Hapus Akun Saya Secara Permanen",
     "deleting": "Memproses Penghapusan…",
-    "blockedNotice": "Anda adalah satu-satunya Pemilik dari satu atau lebih workspace aktif. Harap alihkan kepemilikan atau hapus workspace terlebih dahulu."
+    "blockedNotice": "Anda adalah satu-satunya Pemilik dari satu atau lebih workspace aktif. Harap alihkan kepemilikan atau hapus workspace terlebih dahulu.",
+    "placeholderAccountPassword": "Masukkan kata sandi Anda",
+    "scheduledSuccess": "Akun Anda telah dijadwalkan untuk dihapus dalam 30 hari.",
+    "passwordRequired": "Kata sandi wajib diisi untuk konfirmasi penghapusan."
   }
 };

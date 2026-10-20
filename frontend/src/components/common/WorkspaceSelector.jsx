@@ -99,7 +99,7 @@ export default function WorkspaceSelector() {
             {activeWorkspace?.name || t('app.workspaceSelector.selectWorkspace')}
           </span>
           <span style={styles.brandNiche}>
-            {activeWorkspace?.niche || 'Digital Marketing'}
+            {activeWorkspace?.niche || t('app.workspaceSelector.nicheDigitalMarketing')}
           </span>
         </div>
         <ChevronDown
@@ -141,7 +141,7 @@ export default function WorkspaceSelector() {
                       )}
                     </div>
                     <div style={styles.wsItemMeta}>
-                      <span>{ws.niche || 'Brand'}</span>
+                      <span>{ws.niche || t('app.workspaceSelector.defaultNiche')}</span>
                       <span>·</span>
                       <span style={{ color: 'var(--accent-cyan)' }}>
                         {ws.role ? `${ws.role}` : t('common.active')}

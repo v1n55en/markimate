@@ -20,6 +20,7 @@ export const billing = {
   "invId": "ID Faktur",
   "invDate": "Tanggal",
   "invModules": "Modul Tercakup",
+  "activeModules": "Modul Aktif",
   "invAmount": "Nominal",
   "invStatus": "Status",
   "invDownload": "Bukti",

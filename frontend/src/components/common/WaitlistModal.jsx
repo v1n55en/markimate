@@ -49,7 +49,7 @@ export default function WaitlistModal({ role, onClose }) {
   return (
     <div style={styles.overlay} onClick={onClose}>
       <div style={styles.modal} className="card" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} style={styles.closeBtn} aria-label="Close modal">
+        <button onClick={onClose} style={styles.closeBtn} aria-label={t('common.closeModal')}>
           <X size={18} />
         </button>
 

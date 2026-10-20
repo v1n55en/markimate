@@ -56,5 +56,7 @@ export const common = {
     "thu": "Kamis",
     "fri": "Jumat",
     "sat": "Sabtu"
-  }
+  },
+  "toggleNav": "Buka/Tutup Menu Navigasi",
+  "closeModal": "Tutup modal"
 };

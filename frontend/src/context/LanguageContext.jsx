@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, isValidElement, cloneElement } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, isValidElement, cloneElement } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Globe } from 'lucide-react';
 import { TRANSLATIONS } from '../i18n/index.js';
@@ -145,7 +145,7 @@ export function LanguageProvider({ children }) {
     if (typeof document !== 'undefined') document.documentElement.lang = resolved;
   }, [location?.pathname, navigate]);
 
-  const setLang = (newLang, { syncBackend = true } = {}) => {
+  const setLang = useCallback((newLang, { syncBackend = true } = {}) => {
     if (newLang !== 'en' && newLang !== 'id') return;
     try {
       storage.setItem('markimate_lang_selected', 'true');
@@ -166,13 +166,15 @@ export function LanguageProvider({ children }) {
         }).catch(() => {});
       } catch {}
     }
-  };
+  }, []);
 
-  const toggleLang = () => {
-    const next = lang === 'en' ? 'id' : 'en';
-    setLang(next);
-    return next;
-  };
+  const toggleLang = useCallback(() => {
+    setLangState((current) => {
+      const next = current === 'en' ? 'id' : 'en';
+      setLang(next);
+      return next;
+    });
+  }, [setLang]);
 
   /**
    * Helper penterjemah t(path, params, fallback)

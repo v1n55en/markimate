@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import { db } from '../db.js';
 import { PLANS } from './plans.js';
+import { TRIAL_CONFIG } from './config.js';
 
 import { sendMail } from './mailer.js';
 
@@ -90,7 +91,7 @@ export async function processDailyCreditAlerts() {
     // 2. Peringatan Saldo <= 20% (PRD §4.3: sekali per periode)
     const userPlan = user.plan || 'free';
     const planCredits = PLANS[userPlan]?.credits || 0;
-    const baseAllocation = planCredits > 0 ? planCredits : Number(process.env.TRIAL_CREDITS || 300);
+    const baseAllocation = planCredits > 0 ? planCredits : TRIAL_CONFIG.credits;
 
     if (baseAllocation > 0) {
       const threshold = Math.floor(baseAllocation * 0.2);

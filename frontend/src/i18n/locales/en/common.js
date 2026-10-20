@@ -56,5 +56,7 @@ export const common = {
     "thu": "Thursday",
     "fri": "Friday",
     "sat": "Saturday"
-  }
+  },
+  "toggleNav": "Toggle Navigation Menu",
+  "closeModal": "Close modal"
 };

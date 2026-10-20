@@ -258,7 +258,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             style={styles.hamburgerBtn}
-            aria-label="Toggle navigation"
+            aria-label={t('common.toggleNav')}
           >
             {mobileOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -314,10 +314,10 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
           </div>
           <div style={styles.userInfo}>
             <p style={styles.userName} title={activeWorkspace?.name || user?.brandName}>
-              {activeWorkspace?.name || user?.brandName || 'My Brand'}
+              {activeWorkspace?.name || user?.brandName || t('sidebar.myBrand')}
             </p>
             <span style={styles.userRole}>
-              {user?.role === 'admin' ? '🛡️ Admin 3Our' : user?.email}
+              {user?.role === 'admin' ? `🛡️ ${t('sidebar.admin3Our')}` : user?.email}
             </span>
           </div>
         </div>
@@ -337,7 +337,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
                 <Coins size={14} color={barColor} />
               </div>
               <span style={styles.creditChipLabel}>
-                {t('sidebar.creditsLabel', 'Saldo Credit')}
+                {t('sidebar.creditsLabel')}
               </span>
             </div>
             <div style={styles.creditChipRight}>
@@ -368,7 +368,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
           {isTrialActive && (
             <div style={styles.trialBadgeRow}>
               <span style={styles.trialBadge}>
-                {`⚡ ${t('sidebar.creditTrialBadge', 'Trial · sisa {days} hari').replace('{days}', trialDaysLeft)}`}
+                {`⚡ ${t('sidebar.creditTrialBadge', { days: trialDaysLeft })}`}
               </span>
             </div>
           )}

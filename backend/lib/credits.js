@@ -2,6 +2,7 @@
 // Logika dompet, estimasi, pemotongan idempoten, pelacakan biaya nyata (COGS), dan masa berlaku bucket.
 import { db } from '../db.js';
 import { DEFAULT_PRICES, DEFAULT_COST_RATES } from '../scripts/seed-credit-prices.js';
+import { TRIAL_CONFIG } from './config.js';
 
 let cachedPrices = null;
 let cachedPricesAt = 0;
@@ -495,8 +496,8 @@ export async function grantTrialIfEligible(workspaceId, email, cmsDomain = null)
     return { granted: false, reason: 'Trial sudah pernah diklaim untuk email ini.' };
   }
 
-  const trialCredits = Number(process.env.TRIAL_CREDITS || 300);
-  const trialDays = Number(process.env.TRIAL_DAYS || 7);
+  const trialCredits = TRIAL_CONFIG.credits;
+  const trialDays = TRIAL_CONFIG.days;
   const expiresAt = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
 
   await grant(workspaceId, 'trial', trialCredits, expiresAt, 'grant_trial', `Free trial ${trialDays} hari (${trialCredits} credit)`);

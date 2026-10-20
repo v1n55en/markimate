@@ -95,6 +95,7 @@ async function runStep3Tests() {
   process.env.SUPERMAT_N8N_PUBLISH_URL = `${mockN8nUrl}/publish`;
   process.env.SUPERMAT_N8N_TOPICS_URL = `${mockN8nUrl}/topics`;
   process.env.CRON_SECRET = 'test-cron-secret-123';
+  process.env.ADMIN_KEY = 'test-admin-key-step3';
   process.env.PORT = '5003';
 
   await import('../index.js');
@@ -106,9 +107,27 @@ async function runStep3Tests() {
     const regRes = await fetch(`${baseUrl}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: testEmail, password: 'Password123!', brandName: 'Brand 3', niche: 'Tech' })
+      body: JSON.stringify({ email: testEmail, password: 'Password123!', brandName: 'Brand 3', niche: 'Tech', acceptTerms: true })
     });
-    const { token, user } = await regRes.json();
+    assert.strictEqual(regRes.status, 200, 'Registrasi harus sukses');
+
+    const userRow = await db.findOne('accounts', { email: testEmail });
+    assert(userRow, 'User harus tersimpan di database');
+
+    await fetch(`${baseUrl}/api/admin/users/${userRow.id}/verify`, {
+      method: 'POST',
+      headers: { 'X-Admin-Key': process.env.ADMIN_KEY }
+    });
+
+    const loginRes = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: testEmail, password: 'Password123!' })
+    });
+    assert.strictEqual(loginRes.status, 200, 'Login harus sukses');
+    const loginData = await loginRes.json();
+    const token = loginData.token || loginData.accessToken;
+    const user = loginData.user;
     const authHeaders = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 
     // Simpan koneksi CMS dummy

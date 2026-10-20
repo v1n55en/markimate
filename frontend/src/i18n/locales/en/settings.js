@@ -34,7 +34,10 @@ export const settings = {
     "nicheLabel": "Business Niche / Category",
     "saveBtn": "Save Changes",
     "saving": "Saving...",
-    "saved": "Profile updated successfully."
+    "saved": "Profile updated successfully.",
+    "placeholderFullName": "Your Full Name",
+    "placeholderBrandName": "Your Brand or Startup",
+    "placeholderNiche": "e.g. Technology, Fashion, Culinary"
   },
   "security": {
     "title": "Security & Password",
@@ -42,7 +45,8 @@ export const settings = {
     "sessionsTitle": "Active Devices & Sessions",
     "currentSession": "Current Session",
     "revokeBtn": "Revoke",
-    "revokeAllBtn": "Sign Out Other Sessions"
+    "revokeAllBtn": "Sign Out Other Sessions",
+    "webDeviceFallback": "Web Device"
   },
   "emailChange": {
     "title": "Change Email Address",
@@ -54,7 +58,9 @@ export const settings = {
     "confirmPasswordLabel": "Confirm Account Password",
     "submitBtn": "Send New Email Verification Link",
     "processing": "Sending Link...",
-    "successNotice": "A confirmation link has been sent to your new email address."
+    "successNotice": "A confirmation link has been sent to your new email address.",
+    "placeholderNewEmail": "new.email@business.com",
+    "placeholderVerifyPassword": "Enter account password to verify"
   },
   "passwordChange": {
     "title": "Change Password",
@@ -65,7 +71,10 @@ export const settings = {
     "confirmPasswordLabel": "Confirm New Password",
     "submitBtn": "Update Password",
     "processing": "Updating...",
-    "successNotice": "Password updated successfully. Other device sessions revoked."
+    "successNotice": "Password updated successfully. Other device sessions revoked.",
+    "placeholderCurrentPassword": "Enter current password",
+    "placeholderNewPassword": "New password (min 10 characters)",
+    "placeholderConfirmPassword": "Retype new password"
   },
   "export": {
     "title": "Export Workspace Data",
@@ -104,7 +113,15 @@ export const settings = {
     "processingTransfer": "Processing...",
     "roleOwner": "Owner",
     "roleAdmin": "Admin",
-    "roleViewer": "Viewer"
+    "roleViewer": "Viewer",
+    "revokeInviteConfirm": "Cancel this invitation?",
+    "revokeInviteError": "Failed to cancel invitation.",
+    "changeRoleError": "Failed to update member role.",
+    "removeMemberError": "Failed to remove member.",
+    "activeWorkspaceFallback": "Active Workspace",
+    "userFallback": "Markimate User",
+    "confirmLeave": "Are you sure you want to leave this workspace?",
+    "confirmRemove": "Are you sure you want to remove this member?"
   },
   "deletion": {
     "title": "Delete Account",
@@ -121,10 +138,13 @@ export const settings = {
     "graceRule3": "Account data will be preserved for 30 days. If you change your mind, simply log in before the 30 days end to cancel the deletion.",
     "typeConfirmation": "Type DELETE to confirm:",
     "confirmInstruction": "Type the word {word} to confirm",
-    "confirmWord": "HAPUS",
+    "confirmWord": "DELETE",
     "passwordLabel": "Account Password",
     "deleteBtn": "Delete My Account Permanently",
     "deleting": "Processing Deletion...",
-    "blockedNotice": "You are the sole Owner of one or more active workspaces. Please transfer ownership or delete the workspaces first."
+    "blockedNotice": "You are the sole Owner of one or more active workspaces. Please transfer ownership or delete the workspaces first.",
+    "placeholderAccountPassword": "Enter your account password",
+    "scheduledSuccess": "Your account has been scheduled for deletion in 30 days.",
+    "passwordRequired": "Account password is required for confirmation."
   }
 };

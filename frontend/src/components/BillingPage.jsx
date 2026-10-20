@@ -730,7 +730,7 @@ export default function BillingPage({ refreshMe }) {
                   <td style={styles.historyTd}>
                     {Array.isArray(item.modules)
                       ? item.modules.join(', ')
-                      : 'Modul Aktif'}
+                      : t('billing.activeModules')}
                   </td>
                   <td style={styles.historyTd}>
                     <strong style={{ color: 'var(--text-primary)' }}>

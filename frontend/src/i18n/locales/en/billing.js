@@ -20,6 +20,7 @@ export const billing = {
   "invId": "Invoice ID",
   "invDate": "Date",
   "invModules": "Modules Covered",
+  "activeModules": "Active Modules",
   "invAmount": "Amount",
   "invStatus": "Status",
   "invDownload": "Receipt",

@@ -165,6 +165,17 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
     }));
   };
 
+  const formatCmsTestResult = (result) => {
+    if (!result) return '';
+    if (result.code) {
+      const translated = t(`seo.cms.test.${result.code}`, result.params || {});
+      if (translated && !translated.startsWith('seo.cms.test.')) {
+        return translated;
+      }
+    }
+    return result.message || '';
+  };
+
   const save = async (type) => {
     setState(s => ({ ...s, [type]: { busy: true } }));
     try {
@@ -195,7 +206,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
   };
 
   const remove = async (type) => {
-    if (!window.confirm(`Putuskan koneksi ${CMS_META[type].label}?`)) return;
+    if (!window.confirm(t('seo.cms.disconnectConfirm', { platform: CMS_META[type].label }))) return;
     await api(`/api/cms/${type}`, { method: 'DELETE' });
     setForms(f => ({ ...f, [type]: {} }));
     setState(s => ({ ...s, [type]: {} }));
@@ -203,7 +214,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
   };
   const saveProfile = async (e) => {
     e.preventDefault(); setProfileMsg('');
-    try { await api('/api/me', { method: 'PATCH', body: profile }); await refreshMe(); setProfileMsg('Profil disimpan.'); } catch (err) { setProfileMsg(err.message); }
+    try { await api('/api/me', { method: 'PATCH', body: profile }); await refreshMe(); setProfileMsg(t('seo.cms.brandSavedMsg')); } catch (err) { setProfileMsg(err.message); }
   };
   const toggleApprover = async (on) => { try { await api('/api/me', { method: 'PATCH', body: { webApprover: on } }); await refreshMe(); } catch (e) { alert(e.message); } };
   const copyKey = async () => { try { await navigator.clipboard.writeText(user.apiKey); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* abaikan */ } };
@@ -239,12 +250,12 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                 <div style={{ flex: 1 }}>
                   <h2 style={{ margin: 0, fontSize: '1rem' }}>{meta.label}</h2>
                   <span style={styles.sub}>
-                    {sv ? (sv.verified ? 'Terhubung & terverifikasi' : 'Tersimpan, belum terverifikasi') : 'Belum terhubung'}
+                    {sv ? (sv.verified ? t('seo.cms.connectedVerified') : t('seo.cms.savedUnverified')) : t('seo.cms.disconnected')}
                   </span>
                 </div>
                 {sv && (
                   <span className={`badge ${sv.verified ? 'badge-success' : 'badge-warning'}`}>
-                    {sv.verified ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />} {sv.verified ? 'OK' : 'Cek'}
+                    {sv.verified ? <CheckCircle2 size={12} /> : <AlertTriangle size={12} />} {sv.verified ? t('seo.cms.statusOk') : t('seo.cms.statusCheck')}
                   </span>
                 )}
               </div>
@@ -285,7 +296,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                   ))}
                   {st.result && (
                     <div style={st.result.ok ? styles.okBox : styles.errBox}>
-                      {st.result.ok ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />} {st.result.message}
+                      {st.result.ok ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />} {formatCmsTestResult(st.result)}
                     </div>
                   )}
                   <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
@@ -293,7 +304,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                       {st.busy ? <Loader2 size={16} className="spin-icon" /> : <Plug size={16} />} {t('seo.cms.saveAndTestBtn')}
                     </button>
                     {sv && (
-                      <button className="btn btn-secondary" onClick={() => remove(type)} title="Putuskan">
+                      <button className="btn btn-secondary" onClick={() => remove(type)} title={t('seo.cms.disconnectBtn')}>
                         <Trash2 size={16} />
                       </button>
                     )}
@@ -360,7 +371,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                             className="form-input"
                             value={setg.images?.style || ''}
                             onChange={e => setSettingPath(type, 'images', 'style', e.target.value)}
-                            placeholder="foto editorial, warna hangat, tanpa teks di gambar"
+                            placeholder={t('seo.cms.placeholderImgStyle')}
                           />
                         </div>
                       </div>
@@ -453,7 +464,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                                 e.target.value.split(',').map(s => s.trim()).filter(Boolean)
                               )
                             }
-                            placeholder="facebook.com, instagram.com, tiktok.com"
+                            placeholder={t('seo.cms.placeholderExcludedDomains')}
                           />
                         </div>
                       </div>
@@ -678,7 +689,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                             e.target.value.split(',').map(s => s.trim()).filter(Boolean)
                           )
                         }
-                        placeholder="seo, digital-marketing, tips"
+                        placeholder={t('seo.cms.placeholderShopifyTags')}
                       />
                     </div>
                   )}
@@ -719,7 +730,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                 {t('seo.cms.approverDesc')}
               </div>
             </div>
-            <label className="switch" title={isPremium ? '' : 'Fitur paket Pro'}>
+            <label className="switch" title={isPremium ? '' : t('seo.cms.proFeatureNotice')}>
               <input type="checkbox" checked={isPremium && user.webApprover !== false} disabled={!isPremium} onChange={e => toggleApprover(e.target.checked)} />
               <span className="slider round"></span>
             </label>

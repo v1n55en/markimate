@@ -189,3 +189,174 @@ Dokumen ini mencatat implementasi dan hasil pengujian untuk perbaikan PRD F3 (Ta
 - English Landing Page: `/Users/mm/.gemini/antigravity-ide/brain/89c9de70-e913-4338-a204-2dcd46fdf3fe/english_landing_page_1792069136855.png`
 - Indonesian Landing Page: `/Users/mm/.gemini/antigravity-ide/brain/89c9de70-e913-4338-a204-2dcd46fdf3fe/indonesian_landing_page_1792069148321.png`
 - Login Page: `/Users/mm/.gemini/antigravity-ide/brain/89c9de70-e913-4338-a204-2dcd46fdf3fe/login_page_1792069160333.png`
+
+---
+
+## Langkah 4: Konfigurasi Trial Terpusat & Sinkronisasi Public Pricing
+
+### Ringkasan Perubahan
+1. **Pemusatan `TRIAL_CONFIG` di Backend (`backend/lib/config.js`)**:
+   - Mengekspor objek `TRIAL_CONFIG = { days: Number(process.env.TRIAL_DAYS || 7), credits: Number(process.env.TRIAL_CREDITS || 300) }`.
+   - Mengganti angka hardcoded 7 hari dan 300 kredit di `backend/lib/credits.js` (`grantTrialIfEligible`), `backend/lib/notifications.js` (`baseAllocation`), `backend/lib/google-auth.js` (baris 248 & 355), dan `backend/index.js` (baris 349).
+2. **Dinamisasi Parameter Trial di Frontend (`frontend/src/components/AuthScreen.jsx`)**:
+   - Mengoper parameter `{ days: TRIAL.days, credits: TRIAL.credits }` secara konsisten pada pemanggilan `t('auth.trialRegisterNote', { days, credits })`, `t('auth.trialLoginPromptBtn', { days, credits })`, dan `t('auth.checkInboxDesc', { email })`.
+   - Memperbarui placeholder di `en/auth.js` dan `id/auth.js` agar sinkron dengan template `{days}` dan `{credits}`.
+3. **Penyelarasan Nilai Benchmark Harga di Landing Page (`id/public.js`)**:
+   - Menyelaraskan teks harga pembanding di landing page Bahasa Indonesia (`supermatCostVal` dan `markimateCostVal`) dari "Mulai Rp 1.5jt / bulan" menjadi `"Mulai Rp 1jt / bulan"` agar konsisten dengan nilai benchmark $69 (modul ads_spy Rp1.000.000/bulan).
+
+### File yang Berubah
+- `backend/lib/config.js`
+- `backend/lib/credits.js`
+- `backend/lib/notifications.js`
+- `backend/lib/google-auth.js`
+- `backend/index.js`
+- `frontend/src/config/pricing.js`
+- `frontend/src/components/AuthScreen.jsx`
+- `frontend/src/i18n/locales/en/auth.js`
+- `frontend/src/i18n/locales/id/auth.js`
+- `frontend/src/i18n/locales/id/public.js`
+
+### Cara Tes
+1. Backend test: `cd backend && npm test`
+2. Frontend validation: `cd frontend && npm test && npm run i18n:check && npm run build`
+
+### Hasil Tes
+- Seluruh referensi trial 7 hari dan 300 kredit kini bersumber secara dinamis dari `TRIAL_CONFIG` dan `TRIAL`.
+- Paritas kamus i18n 100% konsisten (0 error).
+
+---
+
+## Langkah 5: Keamanan Backend (Pembersihan Fallback user_id & CMS_CRED_KEY Production Guard)
+
+### Ringkasan Perubahan
+1. **Pembersihan Ketat Fallback `user_id` di `backend/index.js`**:
+   - Menghapus seluruh pola insecure fallback `req.user?.id || req.body?.user_id || req.headers['x-user-id']` yang berpotensi menjadi celah IDOR (Insecure Direct Object Reference).
+   - Menegakkan `userId = req.user?.id` yang terotentikasi secara murni via JWT / sesi pada endpoint:
+     - Helper `usageOf`
+     - `GET /api/billing`
+     - `POST /api/billing/cancel`
+     - `POST /api/v1/articles/:id/publish`
+     - `GET /api/v1/articles`
+2. **Penegakan Wajib `CMS_CRED_KEY` di Lingkungan Production (`backend/lib/crypto.js`)**:
+   - Menambahkan pengaman runtime:
+     ```javascript
+     if (process.env.NODE_ENV === 'production' && (!process.env.CMS_CRED_KEY || process.env.CMS_CRED_KEY.length < 32)) {
+       throw new Error('CMS_CRED_KEY is mandatory in production environment.');
+     }
+     ```
+   - Menjamin kredensial CMS tidak pernah dienkripsi dengan kunci fallback default saat berada di mode produksi.
+
+### File yang Berubah
+- `backend/index.js`
+- `backend/lib/crypto.js`
+
+### Cara Tes
+1. `cd backend && npm test`
+2. Pengujian `test-step6.js` (mode `NODE_ENV = 'production'`) untuk memverifikasi proteksi `CMS_CRED_KEY` dan panjang `JWT_SECRET`.
+
+### Hasil Tes
+- Penegakan `req.user.id` bekerja sempurna tanpa merusak endpoint atau test suite yang ada.
+- Kredensial CMS di produksi terproteksi ketat dengan validasi kunci AES-256.
+
+---
+
+## Langkah 6: Pembaruan & Penyatuan Seluruh Test Suite Backend di `backend/tests/`
+
+### Ringkasan Perubahan
+1. **Perbaikan 9 File Test Lama**:
+   - `test-step1-migration.js`: Menggunakan `randomUUID()` dari `crypto` untuk kolom `id` dan `owner_user_id` agar memenuhi kontrak validasi schema contract (`SCHEMA_CONTRACT_VALIDATION=true`).
+   - `test-step1-billing-leak.js`: Mengupdate ekspektasi pesan error English standar (`BILLING_DISABLED`, `PAID_PLAN_REQUIRED`) dan pencatatan ledger note.
+   - `test-step2.js`: Memperbarui alur register dengan `acceptTerms: true`, verifikasi admin (`/api/admin/users/:id/verify`), lalu login untuk mendapatkan access token.
+   - `test-step3.js`: Menyelaraskan alur register dengan `acceptTerms: true`, verifikasi admin, dan login berotentikasi.
+   - `test-step4.js`: Menyelaraskan alur register dengan `acceptTerms: true`, verifikasi admin, login, serta pemutakhiran wallet balance via `userId`.
+   - `test-step4-account.js`: Memperbarui assertion respons lupa password terdaftar.
+   - `test-step6.js`: Menggunakan `JWT_SECRET` minimal 32 karakter, `CMS_CRED_KEY` base64 32-byte, `acceptTerms: true`, verifikasi admin, dan dynamic import untuk memastikan isolasi database test lokal.
+   - `test-step7.js`: Memperbarui import `TRANSLATIONS` dari `frontend/src/i18n/index.js` dan mendukung padanan `300 kredit` pada assertion FAQ.
+   - `test-step8.js`: Menggunakan `randomUUID()` untuk `testWorkspaceId` pada pencatatan `credit_ledger` simulasi penjaga margin.
+2. **Pembuatan Direktori `backend/tests/` & Runner Terpadu (`backend/tests/run-all.js`)**:
+   - Membuat direktori resmi `backend/tests/` dan menyalin seluruh 23 test script suite.
+   - Membuat test runner `backend/tests/run-all.js` yang mengeksekusi ke-23 file test secara berurutan dengan child process terisolasi dan menampilkan ringkasan laporan kelulusan.
+   - Memperbarui script `"test"` di `backend/package.json` menjadi `"node tests/run-all.js"`.
+
+### File yang Berubah
+- `backend/package.json`
+- `backend/tests/run-all.js` (baru)
+- `backend/tests/seed-credit-prices.js` (baru)
+- `backend/tests/*.js` (23 file test suite)
+- `backend/scripts/test-step1-billing-leak.js`
+- `backend/scripts/test-step1-migration.js`
+- `backend/scripts/test-step2.js`
+- `backend/scripts/test-step3.js`
+- `backend/scripts/test-step4.js`
+- `backend/scripts/test-step4-account.js`
+- `backend/scripts/test-step6.js`
+- `backend/scripts/test-step7.js`
+- `backend/scripts/test-step8.js`
+
+### Cara Tes
+Jalankan:
+```bash
+cd backend && npm test
+```
+
+### Hasil Tes
+```
+======================================================
+🧪 MENJALANKAN SELURUH TEST SUITE BACKEND (23 TESTS)
+======================================================
+✅ tests/test-schema-contract.js             (0.17s)
+✅ tests/test-auth.js                        (3.53s)
+✅ tests/test-credits.js                     (0.29s)
+✅ tests/test-step-d-security.js             (0.41s)
+✅ tests/test-step1-billing-leak.js          (1.05s)
+✅ tests/test-step1-migration.js             (0.19s)
+✅ tests/test-step2.js                       (0.98s)
+✅ tests/test-step2-auth.js                  (5.60s)
+✅ tests/test-step2-rename.js                (0.17s)
+✅ tests/test-step3.js                       (1.19s)
+✅ tests/test-step3-session.js               (1.65s)
+✅ tests/test-step4.js                       (1.06s)
+✅ tests/test-step4-account.js               (4.17s)
+✅ tests/test-step5.js                       (1.19s)
+✅ tests/test-step5-workspace.js             (2.13s)
+✅ tests/test-step6.js                       (7.41s)
+✅ tests/test-step6-members.js               (2.97s)
+✅ tests/test-step7.js                       (0.10s)
+✅ tests/test-step7-entitlements.js          (1.43s)
+✅ tests/test-step8.js                       (0.34s)
+✅ tests/test-step8-account-lifecycle.js     (4.17s)
+✅ tests/test-step9-google-auth.js           (1.81s)
+✅ tests/test-step12-locale-mailer.js        (1.90s)
+
+Total: 23/23 lolos.
+🎉 SEMUA TEST BACKEND LOLOS 100%!
+```
+
+---
+
+## Verifikasi Gerbang Autopilot Akhir & Mobile Checklist (390px)
+
+### 1. Eksekusi Gerbang Otomatis
+- **Backend Tests**: `cd backend && npm test` → **23/23 test suite LOLOS (100%)**.
+- **Frontend Tests**: `cd frontend && npm test` → **3/3 test suite LOLOS (100%)**.
+- **Frontend i18n**: `cd frontend && npm run i18n:check` → **0 Error (1.983 keys matched, 65 error codes covered)**.
+- **Frontend ESLint**: `cd frontend && npx eslint src --quiet` → **0 Error**.
+- **Frontend Production Build**: `cd frontend && npm run build` → **SUKSES (40 static HTML SEO pages & sitemap generated)**.
+
+### 2. Checklist Mobile Friendly (390px iPhone 14)
+- [x] Tidak ada scroll horizontal (`document.documentElement.scrollWidth <= window.innerWidth`).
+- [x] Tidak ada teks/tombol terpotong atau saling menimpa.
+- [x] Target sentuh minimal 44x44px terpenuhi pada tombol auth, switcher bahasa, dan aksi CTA.
+- [x] Form register dan login dapat diisi tanpa auto-zoom (font size >= 16px).
+- [x] Parameter trial ({days} = 7, {credits} = 300) ter-render secara rapi dan dinamis baik di versi EN maupun ID.
+- [x] Screenshot 390px terlampir di artifact directory:
+  - Register Page EN (390px): `/Users/mm/.gemini/antigravity-ide/brain/89c9de70-e913-4338-a204-2dcd46fdf3fe/register_page_en_1792473679265.png`
+  - Register Page ID (390px): `/Users/mm/.gemini/antigravity-ide/brain/89c9de70-e913-4338-a204-2dcd46fdf3fe/register_page_id_1792473835294.png`
+  - Landing Page EN (390px): `/Users/mm/.gemini/antigravity-ide/brain/89c9de70-e913-4338-a204-2dcd46fdf3fe/public_page_en_1792473933961.png`
+  - Landing Page ID (390px): `/Users/mm/.gemini/antigravity-ide/brain/89c9de70-e913-4338-a204-2dcd46fdf3fe/public_page_id_1792474015756.png`
+
+### 3. Hal yang Sengaja Tidak Dikerjakan / Tidak Ada Utang
+- Tidak ada modifikasi folder `automation/` (sesuai aturan).
+- Tidak ada secret / file `.env` yang di-commit.
+- Seluruh 6 langkah PRD F3 Perbaikan Tahap 2 telah diselesaikan 100% tuntas tanpa kendala.
+

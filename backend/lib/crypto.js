@@ -9,6 +9,9 @@ function getKey() {
     // Fallback bila key diset string biasa bukan base64 32-byte
     return crypto.createHash('sha256').update(envKey).digest();
   }
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('CMS_CRED_KEY is mandatory in production environment.');
+  }
   // Fallback dev lokal jika CMS_CRED_KEY belum diset
   const fallback = process.env.JWT_SECRET || 'markimate-dev-key-fallback-32b!';
   return crypto.createHash('sha256').update(fallback).digest();

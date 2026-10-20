@@ -1,5 +1,5 @@
-// Test Langkah 8: Admin Usage, Margin Dashboard, Cost Rates Management, dan Cron Penjaga Margin (PRD §2b, §4.4, §6)
 import assert from 'assert';
+import { randomUUID } from 'crypto';
 import { db } from '../db.js';
 import { seedCreditPricesAndRates } from './seed-credit-prices.js';
 
@@ -109,7 +109,7 @@ async function runStep8Tests() {
   // 5. Verifikasi Penjaga Margin Otomatis (Cron Margin Sentinel < 60%)
   // Simulasikan sebuah aksi dengan COGS tinggi sehingga margin < 60%
   // Gunakan aksi seo.relink yang belum memiliki riwayat ledger 7 hari
-  const testWorkspaceId = 'test-workspace-sentinel';
+  const testWorkspaceId = randomUUID();
   await db.insert('credit_ledger', {
     workspace_id: testWorkspaceId,
     delta: -5,

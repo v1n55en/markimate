@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   BrowserRouter,
   Routes,
@@ -354,7 +354,12 @@ function AppContent() {
     }
   }, [setLang]);
 
+  const bootedRef = useRef(false);
+
   useEffect(() => {
+    if (bootedRef.current) return;
+    bootedRef.current = true;
+
     // Bersihkan sesi mock legacy & sisa key demo saat boot (PRD Hapus Mode Demo)
     [
       'user',

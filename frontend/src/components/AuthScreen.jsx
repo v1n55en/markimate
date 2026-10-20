@@ -6,6 +6,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { LocalizedLink } from '../lib/localized-router';
 import { SiteLink } from '../lib/hosts';
 import MarkimateLogo from './common/MarkimateLogo';
+import { TRIAL } from '../config/pricing.js';
 
 export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
   const [searchParams] = useSearchParams();
@@ -156,7 +157,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
             </h2>
 
             <p className="auth-verify-desc">
-              {t('auth.checkInboxDesc', { email: verificationSentEmail })}
+              {t('auth.checkInboxDesc', { email: verificationSentEmail, days: TRIAL.days, credits: TRIAL.credits })}
             </p>
 
             {resendNotice && (
@@ -224,7 +225,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
               onClick={() => { setIsLogin(false); setError(''); setErrorCode(''); }}
               className="auth-trial-prompt-btn"
             >
-              <span>{t('auth.trialLoginPromptBtn')}</span>
+              <span>{t('auth.trialLoginPromptBtn', { days: TRIAL.days, credits: TRIAL.credits })}</span>
             </button>
           </div>
         )}
@@ -288,7 +289,7 @@ export default function AuthScreen({ onLoginSuccess, initialMode = 'login' }) {
           <div className="auth-trial-box">
             <Coins size={16} color="var(--accent-cyan)" />
             <div className="auth-trial-box-text">
-              {t('auth.trialRegisterNote')}
+              {t('auth.trialRegisterNote', { days: TRIAL.days, credits: TRIAL.credits })}
             </div>
           </div>
         )}
