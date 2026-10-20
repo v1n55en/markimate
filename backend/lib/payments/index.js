@@ -23,6 +23,12 @@ export function getProvider(nameOverride) {
 
   let provider;
   if (providerName === 'mock') {
+    if (process.env.NODE_ENV === 'production') {
+      const err = new Error("Mock payment provider is strictly forbidden in production environment.");
+      err.status = 404;
+      err.code = 'NOT_FOUND';
+      throw err;
+    }
     provider = new MockPaymentProvider();
   } else if (providerName === 'doku') {
     provider = new DokuPaymentProvider();
