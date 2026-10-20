@@ -125,24 +125,56 @@ async function runAccountLifecycleTests() {
   let accessToken = loginRes.data.accessToken;
 
   // 2. Forgot Password Flow
-  console.log('2. Menguji alur forgot & reset password...');
+  console.log('2. Menguji alur forgot & reset password (netralitas anti-enumeration & single-use token)...');
+  
+  // 2a. Email kosong ditolak 400
+  const forgotEmptyRes = await req('/api/auth/forgot', {
+    method: 'POST',
+    body: { email: '' }
+  });
+  assert.strictEqual(forgotEmptyRes.status, 400, 'Email kosong harus ditolak 400');
+  assert.strictEqual(forgotEmptyRes.data.code, 'EMAIL_REQUIRED');
+
+  // 2b. Permintaan untuk email terdaftar
   const forgotRes = await req('/api/auth/forgot', {
     method: 'POST',
     body: { email: testEmail }
   });
-  assert.strictEqual(forgotRes.status, 200);
+  assert.strictEqual(forgotRes.status, 200, 'Permintaan lupa password email terdaftar harus 200');
+
+  // 2c. Permintaan untuk email TIDAK terdaftar (Anti-enumeration check)
+  const fakeEmail = `ghost.unregistered.${Date.now()}@testmarkimate.id`;
+  const forgotFakeRes = await req('/api/auth/forgot', {
+    method: 'POST',
+    body: { email: fakeEmail }
+  });
+  assert.strictEqual(forgotFakeRes.status, 200, 'Email tidak terdaftar harus tetap mengembalikan status 200');
+  assert.strictEqual(forgotFakeRes.status, forgotRes.status, 'Status code terdaftar vs tidak terdaftar harus identik');
+  assert.strictEqual(forgotFakeRes.data.success, forgotRes.data.success, 'Flag success harus identik');
+  assert.strictEqual(forgotFakeRes.data.message, forgotRes.data.message, 'Message respons harus identik untuk mencegah enumerasi');
+  assert.deepStrictEqual(Object.keys(forgotFakeRes.data).sort(), Object.keys(forgotRes.data).sort(), 'Bentuk struktur respons body harus identik');
 
   const resetRecord = await db.findOne('password_resets', { user_id: user.id });
-  assert.ok(resetRecord, 'Data password_resets harus tercatat');
+  assert.ok(resetRecord, 'Data password_resets harus tercatat di database');
+  assert.ok(resetRecord.token_hash, 'Token hash harus ada');
 
   const { newToken, hashToken } = await import('../lib/tokens.js');
   const directResetToken = newToken();
+  const directHash = hashToken(directResetToken);
   await db.insert('password_resets', {
     user_id: user.id,
-    token_hash: hashToken(directResetToken),
+    token_hash: directHash,
     expires_at: new Date(Date.now() + 3600e3).toISOString()
   });
 
+  // 2d. Password terlalu pendek ditolak
+  const shortPassRes = await req('/api/auth/reset', {
+    method: 'POST',
+    body: { token: directResetToken, password: 'short' }
+  });
+  assert.strictEqual(shortPassRes.status, 400, 'Password < 10 karakter harus ditolak 400');
+
+  // 2e. Reset password sukses
   const newPass = ['New', 'Cycle', 'Pass', '999!'].join('');
   const resetRes = await req('/api/auth/reset', {
     method: 'POST',
@@ -150,13 +182,27 @@ async function runAccountLifecycleTests() {
   });
   assert.strictEqual(resetRes.status, 200, 'Reset password harus sukses 200');
 
+  // 2f. Token tidak boleh bisa dipakai kedua kali (Single-use)
+  const reuseResetRes = await req('/api/auth/reset', {
+    method: 'POST',
+    body: { token: directResetToken, password: ['Second', 'Try', 'Pass', '888!'].join('') }
+  });
+  assert.strictEqual(reuseResetRes.status, 400, 'Token reset yang sudah dipakai harus ditolak');
+
+  // 2g. Sesi lama dicabut setelah reset
+  const oldSessionRefresh = await req('/api/auth/refresh', {
+    method: 'POST',
+    cookie: loginRes.rtCookie
+  });
+  assert.strictEqual(oldSessionRefresh.status, 401, 'Sesi lama harus dibatalkan setelah password di-reset');
+
   const reLoginRes = await req('/api/auth/login', {
     method: 'POST',
     body: { email: testEmail, password: newPass }
   });
   assert.strictEqual(reLoginRes.status, 200, 'Login dengan password baru harus sukses');
   accessToken = reLoginRes.data.accessToken;
-  console.log('✓ 2. Forgot & reset password berhasil dengan aman');
+  console.log('✓ 2. Forgot & reset password berhasil dengan netralitas anti-enumeration dan keamanan single-use token');
 
   // 3. Change Password
   console.log('3. Menguji perubahan password saat login...');
