@@ -113,23 +113,24 @@ Semua screenshot diambil pada viewport **390 × 844 px** dengan device scale fac
 ======================================================
 📊 RINGKASAN HASIL TEST BACKEND
 ======================================================
-✅ tests/account-lifecycle.test.js           (4.95s)
-✅ tests/admin-margin.test.js                (0.53s)
-✅ tests/admin-platform.test.js              (1.50s)
-✅ tests/auth.test.js                        (4.92s)
-✅ tests/credits.test.js                     (1.01s)
+✅ tests/account-lifecycle.test.js           (3.41s)
+✅ tests/admin-margin.test.js                (0.27s)
+✅ tests/admin-platform.test.js              (1.38s)
+✅ tests/auth.test.js                        (4.90s)
+✅ tests/credits.test.js                     (0.95s)
 ✅ tests/db-adapter.test.js                  (0.11s)
-✅ tests/entitlements.test.js                (0.84s)
+✅ tests/deploy-bundle.test.js               (0.19s)
+✅ tests/entitlements.test.js                (0.83s)
 ✅ tests/google-auth.test.js                 (1.41s)
-✅ tests/locale-mailer.test.js               (0.87s)
-✅ tests/members.test.js                     (2.28s)
-✅ tests/payments-doku.test.js               (0.99s)
-✅ tests/schema-contract.test.js             (0.12s)
-✅ tests/security.test.js                    (0.28s)
-✅ tests/session.test.js                     (1.69s)
-✅ tests/workspace.test.js                   (1.60s)
+✅ tests/locale-mailer.test.js               (0.83s)
+✅ tests/members.test.js                     (2.24s)
+✅ tests/payments-doku.test.js               (0.85s)
+✅ tests/schema-contract.test.js             (0.11s)
+✅ tests/security.test.js                    (0.25s)
+✅ tests/session.test.js                     (1.38s)
+✅ tests/workspace.test.js                   (1.40s)
 
-Total: 15/15 lolos (100%).
+Total: 16/16 lolos (100%).
 🔒 Isolasi Database Test: Seluruh test runner berjalan pada sandbox direktori sementara (tmpdir) sehingga database.json repositori tidak tersentuh selama pengujian.
 🎉 SEMUA TEST BACKEND LOLOS 100% TANPA MENGOTORI DATABASE!
 ```
@@ -138,6 +139,78 @@ Total: 15/15 lolos (100%).
 - **i18n Parity & AST Check**: 2.208 key kamus sinkron 100% antara EN dan ID, 0 error placeholder, dan seluruh pemanggilan `t()` mematuhi argumen placeholder yang disyaratkan.
 - **Hardcoded Text Check**: Seluruh 68 file `src/**/*.{js,jsx}` lolos pemindaian tanpa string bahasa Indonesia hardcoded.
 - **Production Build**: Berhasil membuat bundle Vite produksi dan men-generate 40 halaman static HTML SEO + `sitemap.xml`.
+
+---
+
+## Verifikasi Hotfix Pasca-Deploy Produksi (`api.markimate.com`)
+
+Setelah commit `20a2dc9` (`fix(backend): hotfix pisahkan credit-defaults dan uji isolasi bundle deploy`), modul runtime tidak lagi meng-import dari folder `scripts/`, dan verifikasi bundle deploy (`tests/deploy-bundle.test.js`) memastikan fungsi lambda Vercel dapat dijalankan secara mandiri.
+
+Hasil verifikasi langsung terhadap endpoint produksi `https://api.markimate.com`:
+
+### 1. Endpoint Health Check (`/api/health` → 200)
+```bash
+curl -i https://api.markimate.com/api/health
+```
+```http
+HTTP/2 200 
+access-control-allow-credentials: true
+content-type: application/json; charset=utf-8
+server: Vercel
+vary: Origin
+x-powered-by: Express
+
+{"status":"ok","db":"supabase","n8n":"https://n8n.3ourasia.id","time":"2026-10-20T13:55:46.874Z"}
+```
+
+### 2. Endpoint Login Password Salah (`/api/auth/login` → 401)
+```bash
+curl -i -X POST https://api.markimate.com/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@markimate.com","password":"wrongpassword123"}'
+```
+```http
+HTTP/2 401 
+access-control-allow-credentials: true
+content-type: application/json; charset=utf-8
+server: Vercel
+vary: Origin
+x-powered-by: Express
+
+{"error":"Invalid email or password.","code":"INVALID_CREDENTIALS"}
+```
+
+### 3. Proteksi Akses Source Code Statis (`/lib/crypto.js` → 404)
+```bash
+curl -i https://api.markimate.com/lib/crypto.js
+```
+```http
+HTTP/2 404 
+access-control-allow-credentials: true
+content-type: application/json; charset=utf-8
+server: Vercel
+vary: Origin
+x-powered-by: Express
+
+{"error":"Route not found.","code":"NOT_FOUND"}
+```
+
+### 4. Proteksi Webhook Tanpa Signature (`/api/webhooks/doku` → 401)
+```bash
+curl -i -X POST https://api.markimate.com/api/webhooks/doku \
+  -H "Content-Type: application/json" \
+  -d '{"order":{"invoice_number":"MKM-T-123"}}'
+```
+```http
+HTTP/2 401 
+access-control-allow-credentials: true
+content-type: application/json; charset=utf-8
+server: Vercel
+vary: Origin
+x-powered-by: Express
+
+{"error":"Invalid webhook signature","code":"INVALID_SIGNATURE"}
+```
 
 ---
 
