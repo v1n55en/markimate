@@ -1,0 +1,10 @@
+# Vercel deployment ignore for Markimate backend API
+# Mencegah file test, migrasi, dan file sensitif terunggah atau tersaji sebagai static files
+
+tests/
+migrations/
+database.json
+*.md
+.git*
+supabase.sql
+scripts/

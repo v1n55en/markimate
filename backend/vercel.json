@@ -1,8 +1,12 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/api" }],
   "functions": { "api/index.js": { "maxDuration": 60 } },
   "crons": [
     { "path": "/api/cron/run-scheduled", "schedule": "0 1 * * *" },
     { "path": "/api/cron/payments-reconcile", "schedule": "0 2 * * *" }
+  ],
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/index.js" },
+    { "src": "/api", "dest": "/api/index.js" },
+    { "src": "/(.*)", "dest": "/api/index.js" }
   ]
 }
