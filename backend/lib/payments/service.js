@@ -97,29 +97,44 @@ export async function createCheckout({ kind, itemId, workspaceId, userId, callba
     provider: providerName,
     invoice_number: invoiceNumber,
     status: 'pending',
+    fulfilled_at: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
   });
 
-  const appCallbackUrl = callbackUrl || `${process.env.APP_URL || 'https://markimate.com'}/app/billing/return?invoice=${invoiceNumber}`;
+  const appBaseUrl = process.env.APP_URL || 'https://app.markimate.com';
+  const appCallbackUrl = `${appBaseUrl}/app/billing/return?invoice=${invoiceNumber}`;
 
-  const checkoutResult = await provider.createCheckout({
-    invoiceNumber,
-    amount,
-    customer: {
-      name: user?.name || workspace.name || 'Markimate Customer',
-      email: user?.email || 'customer@markimate.com',
-      phone: ''
-    },
-    items: [{
-      id: itemId,
-      name: itemName,
-      price: amount,
-      quantity: 1
-    }],
-    callbackUrl: appCallbackUrl,
-    expiryMinutes
-  });
+  let checkoutResult;
+  try {
+    checkoutResult = await provider.createCheckout({
+      invoiceNumber,
+      amount,
+      customer: {
+        name: user?.name || workspace.name || 'Markimate Customer',
+        email: user?.email || 'customer@markimate.com',
+        phone: ''
+      },
+      items: [{
+        id: itemId,
+        name: itemName,
+        price: amount,
+        quantity: 1
+      }],
+      callbackUrl: appCallbackUrl,
+      expiryMinutes
+    });
+  } catch (err) {
+    // PRD F14 Poin 10: Tandai failed dan isi expires_at agar reconcile tidak polling selamanya
+    const nowIso = new Date().toISOString();
+    await db.update('payments', { id: payment.id }, {
+      status: 'failed',
+      expires_at: nowIso,
+      raw: { error: err.message },
+      updated_at: nowIso
+    });
+    throw err;
+  }
 
   await db.update('payments', { id: payment.id }, {
     checkout_url: checkoutResult.checkoutUrl,
@@ -145,8 +160,19 @@ export async function createCheckout({ kind, itemId, workspaceId, userId, callba
  * @param {Object} parsed
  */
 export async function fulfillPayment(payment, parsed = {}) {
-  // Cek idempotensi: jika fulfilled_at sudah terisi, abaikan
-  if (payment.fulfilled_at) {
+  // PRD F14 Poin 5: Fulfillment harus atomik. Gunakan update bersyarat (where id = ? and fulfilled_at is null)
+  // dan hanya berikan kredit kalau baris itu benar-benar ter-update.
+  const fulfilledAt = new Date().toISOString();
+  const claimed = await db.update('payments', {
+    id: payment.id,
+    fulfilled_at: null
+  }, {
+    fulfilled_at: fulfilledAt,
+    status: 'paid',
+    updated_at: fulfilledAt
+  });
+
+  if (!claimed) {
     return { fulfilled: false, reason: 'already_fulfilled' };
   }
 
@@ -283,13 +309,6 @@ export async function fulfillPayment(payment, parsed = {}) {
     }
   }
 
-  // Tandai fulfilled_at
-  const fulfilledAt = new Date().toISOString();
-  await db.update('payments', { id: payment.id }, {
-    fulfilled_at: fulfilledAt,
-    updated_at: fulfilledAt
-  });
-
   return { fulfilled: true, fulfilledAt };
 }
 
@@ -312,19 +331,53 @@ export async function handleNotification(providerName, req) {
 
   // 2. Parse payload notifikasi
   const parsed = provider.parseNotification(req.body);
-  const { invoiceNumber, status, paidAt, method, raw } = parsed;
+  const { invoiceNumber, amount, status, paidAt, method, raw } = parsed;
 
   if (!invoiceNumber) {
     return { status: 'ignored', reason: 'missing_invoice_number' };
   }
 
-  // 3. Catat webhook event untuk mencegah duplicate delivery (Idempotensi)
+  // 3. Ambil data payment terkait
+  const payment = await db.findOne('payments', { invoice_number: invoiceNumber });
+  if (!payment) {
+    return { status: 'ignored', reason: 'payment_not_found', invoiceNumber };
+  }
+
+  // PRD F14 Poin 6: Cocokkan nominal order.amount dengan amount di database
+  if (amount && Number(payment.amount) !== Number(amount)) {
+    console.error(`[PAYMENT-MISMATCH] Invoice ${invoiceNumber}: DB amount ${payment.amount} !== Notif amount ${amount}`);
+    return { status: 'ignored', reason: 'amount_mismatch', invoiceNumber };
+  }
+
+  // 4. Catat webhook event untuk mencegah duplicate delivery (Idempotensi)
   const eventKey = `${invoiceNumber}_${status}`;
   const existingEvent = await db.findOne('webhook_events', { source: providerName, event_id: eventKey });
   if (existingEvent) {
     return { status: 'already_processed', invoiceNumber };
   }
 
+  const nowIso = new Date().toISOString();
+
+  // 5. Update status pembayaran & berikan fulfillment jika 'paid'
+  if (status === 'paid') {
+    await fulfillPayment(payment, parsed);
+    await db.update('payments', { id: payment.id }, {
+      status: 'paid',
+      provider_status: raw?.transaction?.status || 'SUCCESS',
+      method: method || payment.method,
+      paid_at: paidAt || nowIso,
+      updated_at: nowIso
+    });
+  } else if (['expired', 'refunded'].includes(status)) {
+    // PRD F14 Poin 8: FAILED bukan status final untuk Checkout, hanya expired/refunded yang final
+    await db.update('payments', { id: payment.id }, {
+      status,
+      provider_status: raw?.transaction?.status || status.toUpperCase(),
+      updated_at: nowIso
+    });
+  }
+
+  // PRD F14 Poin 9: Event webhook dicatat SETELAH fulfill berhasil dilakukan
   await db.insert('webhook_events', {
     source: providerName,
     event_id: eventKey,
@@ -333,34 +386,6 @@ export async function handleNotification(providerName, req) {
     processed_at: new Date().toISOString(),
     created_at: new Date().toISOString()
   });
-
-  // 4. Ambil data payment terkait
-  const payment = await db.findOne('payments', { invoice_number: invoiceNumber });
-  if (!payment) {
-    return { status: 'ignored', reason: 'payment_not_found', invoiceNumber };
-  }
-
-  const nowIso = new Date().toISOString();
-
-  // 5. Update status pembayaran & berikan fulfillment jika 'paid'
-  if (status === 'paid') {
-    if (!payment.fulfilled_at) {
-      await fulfillPayment(payment, parsed);
-    }
-    await db.update('payments', { id: payment.id }, {
-      status: 'paid',
-      provider_status: raw?.transaction?.status || 'SUCCESS',
-      method: method || payment.method,
-      paid_at: paidAt || nowIso,
-      updated_at: nowIso
-    });
-  } else if (['failed', 'expired', 'refunded'].includes(status)) {
-    await db.update('payments', { id: payment.id }, {
-      status,
-      provider_status: raw?.transaction?.status || status.toUpperCase(),
-      updated_at: nowIso
-    });
-  }
 
   return { status: 'ok', invoiceNumber, paymentStatus: status };
 }
@@ -382,38 +407,39 @@ export async function reconcile() {
       continue;
     }
 
-    // Cek apakah sudah kedaluwarsa secara waktu
-    if (payment.expires_at && new Date(payment.expires_at).getTime() <= now) {
-      await db.update('payments', { id: payment.id }, {
-        status: 'expired',
-        updated_at: new Date().toISOString()
-      });
-      results.expired++;
-      continue;
-    }
-
-    // Query status langsung ke provider
+    // Query status langsung ke provider DOKU DULU sebelum memutuskan expired (PRD F14 Poin 7)
     try {
       const provider = getProvider(payment.provider);
       const statusRes = await provider.getStatus(payment.invoice_number);
 
       if (statusRes.status === 'paid' && !payment.fulfilled_at) {
-        await fulfillPayment(payment, statusRes);
-        await db.update('payments', { id: payment.id }, {
-          status: 'paid',
-          provider_status: statusRes.raw?.transaction?.status || 'SUCCESS',
-          method: statusRes.method || payment.method,
-          paid_at: statusRes.paidAt || new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-        results.fulfilled++;
-      } else if (['expired', 'failed', 'refunded'].includes(statusRes.status)) {
+        const fulfillRes = await fulfillPayment(payment, statusRes);
+        if (fulfillRes.fulfilled) {
+          await db.update('payments', { id: payment.id }, {
+            status: 'paid',
+            provider_status: statusRes.raw?.transaction?.status || 'SUCCESS',
+            method: statusRes.method || payment.method,
+            paid_at: statusRes.paidAt || new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+          results.fulfilled++;
+        } else {
+          results.unchanged++;
+        }
+      } else if (statusRes.status === 'expired' || statusRes.status === 'refunded') {
+        // PRD F14 Poin 8: Hanya status final resmi
         await db.update('payments', { id: payment.id }, {
           status: statusRes.status,
           updated_at: new Date().toISOString()
         });
         if (statusRes.status === 'expired') results.expired++;
-        if (statusRes.status === 'failed') results.failed++;
+      } else if (payment.expires_at && new Date(payment.expires_at).getTime() <= now) {
+        // Jika dari DOKU belum paid dan sudah lewat expires_at, barulah tandai expired
+        await db.update('payments', { id: payment.id }, {
+          status: 'expired',
+          updated_at: new Date().toISOString()
+        });
+        results.expired++;
       } else {
         results.unchanged++;
       }
@@ -424,4 +450,75 @@ export async function reconcile() {
   }
 
   return results;
+}
+
+/**
+ * Memeriksa langganan aktif yang akan berakhir dalam 7 hari (H-7) atau 1 hari (H-1)
+ * dan mengirim email pengingat perpanjangan secara idempoten (PRD F14 Poin 16)
+ */
+export async function processSubscriptionRenewalReminders() {
+  const activeSubs = await db.findMany('subscriptions', { status: 'active' });
+  const now = new Date();
+  const summary = { checked: 0, sentH7: 0, sentH1: 0, skipped: 0 };
+
+  for (const sub of activeSubs) {
+    if (!sub.ends_at) continue;
+    summary.checked++;
+    const endsAt = new Date(sub.ends_at);
+    const diffMs = endsAt.getTime() - now.getTime();
+    const daysRemaining = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+    if (daysRemaining === 7 || daysRemaining === 1) {
+      const tag = `sub_renew_reminder_h${daysRemaining}_${sub.id}_${sub.ends_at.slice(0, 10)}`;
+      // Cek apakah pengingat untuk tanggal berakhir ini sudah pernah dikirim
+      const existingAlert = await db.findOne('credit_alerts', {
+        workspace_id: sub.workspace_id,
+        alert_type: 'subscription_renewal',
+        period_key: tag
+      });
+      if (existingAlert) {
+        summary.skipped++;
+        continue;
+      }
+
+      // Ambil user dan workspace
+      const user = await db.findOne('accounts', { id: sub.user_id });
+      if (!user || !user.email) {
+        summary.skipped++;
+        continue;
+      }
+
+      const planName = sub.plan ? sub.plan.toUpperCase() : 'Markimate Subscription';
+      const renewUrl = `${process.env.APP_URL || 'https://app.markimate.com'}/app/billing`;
+
+      try {
+        const { sendSubscriptionRenewalReminderEmail } = await import('../mailer.js');
+        await sendSubscriptionRenewalReminderEmail({
+          to: user.email,
+          planName,
+          endsAt: sub.ends_at,
+          daysRemaining,
+          renewUrl,
+          locale: user.locale || 'id'
+        });
+
+        await db.insert('credit_alerts', {
+          workspace_id: sub.workspace_id,
+          alert_type: 'subscription_renewal',
+          sent_to: user.email,
+          period_key: tag,
+          metadata: { daysRemaining, planName, endsAt: sub.ends_at },
+          created_at: new Date().toISOString()
+        });
+
+        if (daysRemaining === 7) summary.sentH7++;
+        if (daysRemaining === 1) summary.sentH1++;
+      } catch (err) {
+        console.error(`[REMINDER] Failed to send subscription reminder to ${user.email}:`, err.message);
+        summary.skipped++;
+      }
+    }
+  }
+
+  return summary;
 }

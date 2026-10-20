@@ -95,7 +95,9 @@ class JsonStore {
     log('[DB] Mode fallback database.json (tanpa Supabase)');
   }
   save() { try { fs.writeFileSync(this.file, JSON.stringify(this.data, null, 2)); } catch (e) { log(`[DB] gagal tulis database.json: ${e.message}`); } }
-  _match(row, where) { return Object.entries(where).every(([k, v]) => row[k] === v); }
+  _match(row, where) {
+    return Object.entries(where).every(([k, v]) => row[k] === v || (v === null && (row[k] === undefined || row[k] === null)));
+  }
   async findOne(table, where) { return (this.data[table] || []).find(r => this._match(r, where)) || null; }
   async findMany(table, where = {}, opts = {}) {
     let rows = (this.data[table] || []).filter(r => this._match(r, where));

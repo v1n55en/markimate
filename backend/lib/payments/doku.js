@@ -8,8 +8,8 @@ import { PaymentProvider } from './provider.js';
 export class DokuPaymentProvider extends PaymentProvider {
   constructor(config = {}) {
     super();
-    this.clientId = config.clientId || process.env.DOKU_CLIENT_ID || '';
-    this.secretKey = config.secretKey || process.env.DOKU_SECRET_KEY || '';
+    this.clientId = config.clientId !== undefined ? config.clientId : (process.env.DOKU_CLIENT_ID || '');
+    this.secretKey = config.secretKey !== undefined ? config.secretKey : (process.env.DOKU_SECRET_KEY || '');
     this.env = (config.env || process.env.DOKU_ENV || 'sandbox').toLowerCase();
     this.baseUrl = this.env === 'production'
       ? 'https://api.doku.com'
@@ -131,7 +131,14 @@ export class DokuPaymentProvider extends PaymentProvider {
    * @param {import('./provider.js').CreateCheckoutParams} params
    */
   async createCheckout(params) {
-    const { invoiceNumber, amount, customer, items, callbackUrl, expiryMinutes = 60 } = params;
+    if (!this.clientId || !this.secretKey) {
+      const err = new Error('DOKU payment gateway is not configured (missing DOKU_CLIENT_ID / DOKU_SECRET_KEY).');
+      err.status = 503;
+      err.code = 'GATEWAY_NOT_CONFIGURED';
+      throw err;
+    }
+
+    const { invoiceNumber, amount, customer = {}, items = [], callbackUrl, expiryMinutes = 60 } = params || {};
 
     const payload = {
       order: {
@@ -174,6 +181,10 @@ export class DokuPaymentProvider extends PaymentProvider {
    * @param {import('express').Request} req
    */
   verifyNotification(req) {
+    if (!this.clientId || !this.secretKey) {
+      return false;
+    }
+
     const clientId = req.headers['client-id'] || req.headers['Client-Id'];
     const requestId = req.headers['request-id'] || req.headers['Request-Id'];
     const timestamp = req.headers['request-timestamp'] || req.headers['Request-Timestamp'];
@@ -183,16 +194,19 @@ export class DokuPaymentProvider extends PaymentProvider {
       return false;
     }
 
-    // Path URL notifikasi kita persis seperti yang didaftarkan di DOKU
-    const requestTarget = req.originalUrl || req.url || '/api/webhooks/doku';
-    // Path URL DOKU target hanya bagian path tanpa query string
-    const targetPath = requestTarget.split('?')[0];
+    // PRD F14 Poin 2: Client-Id di notifikasi dibandingkan dengan env, tidak pernah diambil dari header pengirim
+    if (clientId !== this.clientId) {
+      return false;
+    }
+
+    // PRD F14 Poin 11: Request-Target notifikasi di-hardcode ke /api/webhooks/doku
+    const targetPath = '/api/webhooks/doku';
 
     const rawBody = req.rawBody || (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
     const digest = this.calculateDigest(rawBody);
 
     const expectedSignature = this.generateSignature({
-      clientId: this.clientId || clientId,
+      clientId: this.clientId,
       requestId,
       timestamp,
       requestTarget: targetPath,
@@ -217,6 +231,7 @@ export class DokuPaymentProvider extends PaymentProvider {
     const order = body?.order || {};
     const transaction = body?.transaction || {};
     const invoiceNumber = order.invoice_number || body?.invoice_number || '';
+    const amount = Number(order.amount || body?.amount || 0);
     const rawStatus = (transaction.status || body?.status || '').toUpperCase();
 
     let status = 'pending';
@@ -227,7 +242,7 @@ export class DokuPaymentProvider extends PaymentProvider {
     } else if (rawStatus === 'REFUNDED') {
       status = 'refunded';
     } else if (rawStatus === 'FAILED') {
-      // PRD §3: FAILED diabaikan untuk Checkout, tetap pending sampai sukses atau expired
+      // PRD F14 Poin 8: FAILED bukan status final untuk Checkout, tetap pending sampai sukses atau expired
       status = 'pending';
     }
 
@@ -236,6 +251,7 @@ export class DokuPaymentProvider extends PaymentProvider {
 
     return {
       invoiceNumber,
+      amount,
       status,
       paidAt,
       method,
@@ -249,6 +265,13 @@ export class DokuPaymentProvider extends PaymentProvider {
    * @param {string} invoiceNumber
    */
   async getStatus(invoiceNumber) {
+    if (!this.clientId || !this.secretKey) {
+      const err = new Error('DOKU payment gateway is not configured (missing DOKU_CLIENT_ID / DOKU_SECRET_KEY).');
+      err.status = 503;
+      err.code = 'GATEWAY_NOT_CONFIGURED';
+      throw err;
+    }
+
     const path = `/orders/v1/status/${invoiceNumber}`;
     const res = await this.requestDoku('GET', path, null);
 
@@ -264,7 +287,8 @@ export class DokuPaymentProvider extends PaymentProvider {
     } else if (rawStatus === 'REFUNDED') {
       status = 'refunded';
     } else if (rawStatus === 'FAILED') {
-      status = 'failed';
+      // PRD F14 Poin 8: FAILED bukan status final untuk Checkout
+      status = 'pending';
     }
 
     const paidAt = status === 'paid' ? (transaction.date || new Date().toISOString()) : null;
