@@ -1,5 +1,5 @@
 import { db } from '../db.js';
-import { DEFAULT_PRICES, DEFAULT_COST_RATES } from '../scripts/maintenance/seed-credit-prices.js';
+import { DEFAULT_PRICES, DEFAULT_COST_RATES } from './credit-defaults.js';
 import { TRIAL_CONFIG } from './config.js';
 import { isWorkspacePlatformAdmin } from './admin.js';
 
