@@ -146,6 +146,36 @@ async function runDokuPaymentsTests() {
     (err) => err.status === 503 && err.code === 'GATEWAY_NOT_CONFIGURED'
   );
 
+  // 1b. Menguji outgoing requestDoku headers (memastikan Digest & Signature terpasang ke DOKU)
+  const origFetch = globalThis.fetch;
+  let interceptedHeaders = null;
+  let interceptedBody = null;
+  globalThis.fetch = async (url, options) => {
+    interceptedHeaders = options.headers;
+    interceptedBody = options.body;
+    return {
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({ response: { payment: { url: 'https://checkout.doku.com/123', token_id: 'TOK-123' } } })
+    };
+  };
+
+  await dokuAdapter.createCheckout({
+    invoiceNumber: 'MKM-T-TEST-HEADERS',
+    amount: 500000,
+    items: [{ name: 'Starter Pack', price: 500000, quantity: 1 }]
+  });
+
+  globalThis.fetch = origFetch;
+
+  assert.ok(interceptedHeaders, 'Outgoing requestDoku harus melakukan fetch');
+  assert.ok(interceptedHeaders['Digest'], 'Header Digest wajib dikirim ke DOKU pada request ber-body');
+  assert.ok(interceptedHeaders['Signature'], 'Header Signature wajib dikirim ke DOKU');
+  assert.strictEqual(interceptedHeaders['Client-Id'], TEST_CLIENT_ID);
+  const parsedOutgoing = JSON.parse(interceptedBody);
+  assert.strictEqual(parsedOutgoing.order.currency, 'IDR', 'Payload order harus memuat currency IDR');
+  assert.strictEqual(parsedOutgoing.customer.phone, undefined, 'Customer phone tidak boleh dikirim sebagai empty string');
+
   // ----------------------------------------------------
   // 2. Registrasi User & Pengujian Katalog
   // ----------------------------------------------------

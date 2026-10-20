@@ -130,7 +130,7 @@ export async function createCheckout({ kind, itemId, workspaceId, userId, callba
     await db.update('payments', { id: payment.id }, {
       status: 'failed',
       expires_at: nowIso,
-      raw: { error: err.message },
+      raw: { error: err.message, dokuResponse: err.dokuResponse || null },
       updated_at: nowIso
     });
     throw err;

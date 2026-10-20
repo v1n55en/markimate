@@ -76,6 +76,9 @@ export class DokuPaymentProvider extends PaymentProvider {
       'Request-Timestamp': timestamp,
       'Signature': signature
     };
+    if (digest) {
+      headers['Digest'] = digest;
+    }
     if (body) {
       headers['Content-Type'] = 'application/json';
     }
@@ -106,8 +109,16 @@ export class DokuPaymentProvider extends PaymentProvider {
         }
 
         if (!res.ok) {
-          const err = new Error(`DOKU API error: ${res.status} ${res.statusText}`);
+          const detail = json?.error?.message
+            || (Array.isArray(json?.message) ? json.message.join(', ') : json?.message)
+            || (Array.isArray(json?.error) ? json.error.join(', ') : json?.error)
+            || json?.description
+            || res.statusText;
+          const detailStr = typeof detail === 'string' ? detail : JSON.stringify(detail);
+          console.error(`[DOKU] API error ${res.status} on ${path}:`, detailStr, json);
+          const err = new Error(`DOKU API error (${res.status}): ${detailStr}`);
           err.status = res.status;
+          err.code = json?.error?.code || 'GATEWAY_ERROR';
           err.dokuResponse = json;
           throw err;
         }
@@ -144,6 +155,7 @@ export class DokuPaymentProvider extends PaymentProvider {
       order: {
         amount,
         invoice_number: invoiceNumber,
+        currency: 'IDR',
         callback_url: callbackUrl,
         line_items: items.map(item => ({
           name: item.name,
@@ -157,7 +169,7 @@ export class DokuPaymentProvider extends PaymentProvider {
       customer: {
         name: customer.name || 'Markimate Customer',
         email: customer.email,
-        phone: customer.phone || ''
+        ...(customer.phone && String(customer.phone).trim() ? { phone: String(customer.phone).trim() } : {})
       }
     };
 
