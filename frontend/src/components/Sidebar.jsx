@@ -540,7 +540,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
               type="button"
             >
               <div style={styles.soonHeaderLeft}>
-                <span style={styles.sectionGroupTitle}>{t('sidebar.sectionSoon', 'Coming Soon (13 Roles)')}</span>
+                <span style={styles.sectionGroupTitle}>{t('sidebar.sectionSoon', { soonRoles: soonRoles.length })}</span>
                 <span style={styles.soonCountBadge}>{soonRoles.length}</span>
               </div>
               {soonExpanded ? (

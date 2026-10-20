@@ -489,7 +489,7 @@ export default function BillingPage({ refreshMe }) {
                 </div>
                 <h4 style={styles.bundleTitle}>{t('billing.allInOneTitle')}</h4>
                 <p style={styles.bundleDesc}>
-                  {t('billing.allInOneDesc')}
+                  {t('billing.allInOneDesc', { totalRoles: ROLES.length })}
                 </p>
                 <div style={styles.bundlePriceRow}>
                   <strong style={styles.bundlePrice}>{formatIDR(7875000, lang)}</strong>

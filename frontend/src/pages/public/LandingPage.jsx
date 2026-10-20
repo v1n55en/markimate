@@ -42,6 +42,7 @@ import {
   formatIDR,
   formatCurrency,
   TRIAL,
+  CREDIT_PRICE_IDR,
 } from '../../config/pricing';
 import PublicNavbar from '../../components/PublicNavbar';
 import PublicFooter from '../../components/PublicFooter';
@@ -532,7 +533,7 @@ export default function LandingPage() {
             <div style={styles.planCard} className="card">
               <span style={styles.planBadgePreorder}>{t('bundles.preorderBadge', 'Pre-Order')}</span>
               <h3 style={styles.planName}>{t('bundles.allInOneTitle', 'All-in-One AI Team')}</h3>
-              <p style={styles.planDesc}>{t('bundles.allInOneDesc', 'Full access to all 16 AI marketing roles upon launch.')}</p>
+              <p style={styles.planDesc}>{t('bundles.allInOneDesc', { totalRoles: TOTAL_ROLES_COUNT })}</p>
               <div style={styles.planPriceRow}>
                 <span style={styles.planPriceVal}>{formatCurrency(allInOneBundle?.price, lang)}</span>
                 <span style={styles.planPeriod}>{t('bundles.perMonth', '/ month')}</span>
@@ -542,7 +543,7 @@ export default function LandingPage() {
               </div>
               <ul style={styles.planFeatures}>
                 <li>{t('bundles.allInOneFeat1', 'Instant access to all 3 currently available roles')}</li>
-                <li>{t('bundles.allInOneFeat2', 'Automatic access to upcoming 13 roles upon release')}</li>
+                <li>{t('bundles.allInOneFeat2', { soonRoles: SOON_ROLES.length })}</li>
                 <li>{t('bundles.allInOneFeat3', '2x article & competitor tracking quotas')}</li>
                 <li>{t('bundles.allInOneFeat4', 'Lifetime price-lock guarantee')}</li>
               </ul>
@@ -648,7 +649,7 @@ export default function LandingPage() {
                 {t('faq.q4')}
               </h4>
               <p style={styles.faqAnswer}>
-                {t('faq.a4')}
+                {t('faq.a4', { rate: formatCurrency(CREDIT_PRICE_IDR, lang) })}
               </p>
             </div>
 

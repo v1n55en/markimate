@@ -227,13 +227,18 @@ export function LanguageProvider({ children }) {
       val = actualFallback || path;
     }
 
-    if (typeof val === 'string' && actualParams && typeof actualParams === 'object') {
-      return val.replace(/\{([a-zA-Z0-9_]+)\}/g, (match, paramName) => {
-        return paramName in actualParams ? String(actualParams[paramName]) : match;
-      });
+    if (typeof val === 'string') {
+      let result = val;
+      if (actualParams && typeof actualParams === 'object') {
+        result = val.replace(/\{([a-zA-Z0-9_]+)\}/g, (match, paramName) => {
+          return paramName in actualParams ? String(actualParams[paramName]) : match;
+        });
+      }
+      if (import.meta.env?.DEV && /\{[a-zA-Z0-9_]+\}/.test(result)) {
+        console.error(`[i18n] Unresolved placeholder in key "${lookupKey}": "${result}"`);
+      }
+      return result;
     }
-
-    return val;
   };
 
   return (

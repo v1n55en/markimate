@@ -193,6 +193,41 @@ if (missingUsedKeys === 0) {
   console.log(`   OK - All ${usedKeys.size} referenced keys exist in dictionary.`);
 }
 
+// (e) Missing Parameter Check for Keys with Placeholders (PRD F3 Penutup)
+console.log('\n3b. Checking t("key") Calls for Missing Parameters...');
+let missingParamErrors = 0;
+const tCallRegex = /\bt\(\s*['"]([a-zA-Z0-9_.]+)['"]\s*([,)])/g;
+
+for (const file of allSrcFiles) {
+  const content = fs.readFileSync(file, 'utf8');
+  const relPath = path.relative(srcDir, file);
+  let match;
+  while ((match = tCallRegex.exec(content)) !== null) {
+    const key = match[1];
+    const delimiter = match[2];
+    const expected = enPlaceholders[key];
+
+    if (expected && expected.length > 0) {
+      if (delimiter === ')') {
+        console.error(`❌ [${relPath}] Key "${key}" expects parameters [${expected.join(', ')}] but was called without arguments: t('${key}')`);
+        missingParamErrors++;
+        errorCount++;
+      } else if (delimiter === ',') {
+        const rest = content.slice(match.index + match[0].length).trim();
+        if (rest.startsWith("'") || rest.startsWith('"') || rest.startsWith('`')) {
+          console.error(`❌ [${relPath}] Key "${key}" expects parameters [${expected.join(', ')}] but was passed a string fallback instead of parameter object: t('${key}', ...)`);
+          missingParamErrors++;
+          errorCount++;
+        }
+      }
+    }
+  }
+}
+
+if (missingParamErrors === 0) {
+  console.log('   OK - All t() calls for keys with placeholders provide parameter arguments.');
+}
+
 // Unused keys warning
 const unusedKeys = [...enKeys].filter(k => !usedKeys.has(k) && !k.startsWith('public.') && !k.startsWith('app.'));
 if (unusedKeys.length > 0) {

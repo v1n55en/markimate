@@ -6,6 +6,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import { LocalizedLink, useLocalizedNavigate } from '../../lib/localized-router';
 import { SiteLink } from '../../lib/hosts';
 import MarkimateLogo from '../../components/common/MarkimateLogo';
+import { TRIAL } from '../../config/pricing';
 
 export default function VerifyPage({ onLoginSuccess }) {
   const { t, lang, setLang } = useLanguage();
@@ -124,7 +125,7 @@ export default function VerifyPage({ onLoginSuccess }) {
               {t('auth.verifySuccessTitle')}
             </h2>
             <p style={{ fontSize: '0.875rem', lineHeight: 1.6, color: 'var(--text-secondary)', margin: '0 0 1.5rem 0' }}>
-              {t('auth.verifySuccessDesc')}
+              {t('auth.verifySuccessDesc', { credits: TRIAL.credits })}
             </p>
 
             <button

@@ -26,7 +26,7 @@ import {
   Bell,
 } from 'lucide-react';
 import { getRoleByKey } from '../../config/roles';
-import { MODULE_PRICES, MODULE_QUOTA, formatCurrency } from '../../config/pricing';
+import { MODULE_PRICES, MODULE_QUOTA, formatCurrency, TRIAL } from '../../config/pricing';
 import PublicNavbar from '../../components/PublicNavbar';
 import PublicFooter from '../../components/PublicFooter';
 import WaitlistModal from '../../components/common/WaitlistModal';
@@ -170,7 +170,7 @@ export default function RoleDetailPage() {
                     <ArrowRight size={15} />
                   </AppLink>
                   <AppLink to="/register" style={styles.secondaryActionBtn}>
-                    {t('finalCta.btnTrial', 'Start 7-Day Free Trial')}
+                    {t('finalCta.btnTrial', { days: TRIAL.days })}
                   </AppLink>
                 </div>
                 <div style={styles.guaranteeText}>
