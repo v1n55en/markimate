@@ -55,7 +55,8 @@ import {
 import {
   getModules,
   requireModule,
-  expireEntitlements
+  expireEntitlements,
+  ensureUnlimitedAccount
 } from './lib/entitlements.js';
 import {
   logAuditEvent,
@@ -462,6 +463,7 @@ app.post('/api/auth/verify', wrap(async (req, res) => {
 
   // Alokasikan 300 free trial credits (7 hari) HANYA setelah email terverifikasi
   await grantTrialIfEligible(user.id, user.email);
+  await ensureUnlimitedAccount(user.id, user.email);
 
   // Catat audit log
   await db.insert('audit_logs', {
@@ -612,6 +614,9 @@ app.post('/api/auth/login', wrap(async (req, res) => {
     ip: clientIp,
     meta: { email: user.email }
   });
+
+  // Pastikan akun khusus/owner memiliki status unlimited dan kredit penuh
+  await ensureUnlimitedAccount(user.id, user.email);
 
   // Terbitkan sesi baru (refresh token di cookie httpOnly + access token di memori)
   const session = await issueSession(res, user, req);

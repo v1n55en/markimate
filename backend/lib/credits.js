@@ -1,8 +1,6 @@
-// Sistem Credit & Free Trial Markimate
-// Logika dompet, estimasi, pemotongan idempoten, pelacakan biaya nyata (COGS), dan masa berlaku bucket.
 import { db } from '../db.js';
 import { DEFAULT_PRICES, DEFAULT_COST_RATES } from '../scripts/seed-credit-prices.js';
-import { TRIAL_CONFIG } from './config.js';
+import { TRIAL_CONFIG, isUnlimitedEmail } from './config.js';
 
 let cachedPrices = null;
 let cachedPricesAt = 0;
@@ -194,6 +192,16 @@ export async function assertAffordable(workspaceId, actionKey, qty = 1, extra = 
 
   if (need === 0) {
     return { affordable: true, need: 0, have: totalBalance, wallet };
+  }
+
+  // Bypass untuk akun khusus / Owner (Unlimited)
+  if (workspaceId) {
+    const ws = await db.findOne('workspaces', { id: workspaceId });
+    const ownerUserId = ws?.owner_user_id || workspaceId;
+    const owner = await db.findOne('accounts', { id: ownerUserId });
+    if (owner && isUnlimitedEmail(owner.email)) {
+      return { affordable: true, need: 0, have: 999999, wallet: { ...wallet, balance_topup: 999999 } };
+    }
   }
 
   // Cek daily cap pemakaian hari ini WIB
@@ -491,6 +499,22 @@ export async function expireBuckets(workspaceId = null) {
 export async function grantTrialIfEligible(workspaceId, email, cmsDomain = null) {
   if (!email || !workspaceId) return null;
   const em = String(email).trim().toLowerCase();
+
+  if (isUnlimitedEmail(em)) {
+    await db.upsert('credit_wallets', { workspace_id: workspaceId }, {
+      balance_topup: 999999,
+      daily_cap: 999999,
+      topup_expires_at: null
+    });
+    return {
+      granted: true,
+      credits: 999999,
+      days: 3650,
+      expiresAt: null,
+      unlimited: true
+    };
+  }
+
   const existing = await db.findOne('credit_trials', { email: em });
   if (existing) {
     return { granted: false, reason: 'Trial sudah pernah diklaim untuk email ini.' };

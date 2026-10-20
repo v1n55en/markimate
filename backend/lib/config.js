@@ -10,3 +10,16 @@ export const TRIAL_CONFIG = {
   days: Number(process.env.TRIAL_DAYS || 7),
   credits: Number(process.env.TRIAL_CREDITS || 300),
 };
+
+export const UNLIMITED_EMAILS = new Set([
+  '3our.id@gmail.com'
+]);
+
+export function isUnlimitedEmail(email) {
+  if (!email) return false;
+  const normalized = String(email).trim().toLowerCase();
+  if (UNLIMITED_EMAILS.has(normalized)) return true;
+  const extra = process.env.UNLIMITED_EMAILS ? process.env.UNLIMITED_EMAILS.split(',').map(e => e.trim().toLowerCase()) : [];
+  return extra.includes(normalized);
+}
+
