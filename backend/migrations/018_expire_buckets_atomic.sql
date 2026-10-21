@@ -40,7 +40,7 @@ begin
       v_wallet.balance_trial := 0;
     end if;
 
-    -- 2. Cek Subscription
+    -- 2. Cek Subscription / Monthly Grant
     if v_wallet.balance_sub > 0 and v_wallet.sub_expires_at is not null and v_wallet.sub_expires_at <= v_now then
       v_expired_sub := v_wallet.balance_sub;
       v_wallet.balance_sub := 0;
@@ -60,7 +60,7 @@ begin
           balance_sub = v_wallet.balance_sub,
           balance_topup = v_wallet.balance_topup,
           updated_at = v_now
-      where id = v_wallet.id;
+      where workspace_id = v_wallet.workspace_id;
 
       if v_expired_trial > 0 then
         insert into markimate.credit_ledger (
@@ -78,7 +78,7 @@ begin
           balance_after, usage, cost_actual_idr, note
         ) values (
           v_wallet.workspace_id, -v_expired_sub, 'sub', 'expire', null, null, null,
-          v_total_after + v_expired_topup, null, 0, 'Langganan bulanan kadaluarsa'
+          v_total_after + v_expired_topup, null, 0, 'Kredit bulanan modul kadaluarsa'
         );
       end if;
 
@@ -105,3 +105,7 @@ begin
 end $$;
 
 grant execute on function markimate.expire_buckets_atomic to service_role;
+revoke execute on function markimate.expire_buckets_atomic(uuid) from public, anon, authenticated;
+
+insert into markimate.schema_migrations (version) values ('018') on conflict do nothing;
+notify pgrst, 'reload schema';

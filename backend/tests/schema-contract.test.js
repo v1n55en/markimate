@@ -11,7 +11,7 @@ process.env.SCHEMA_CONTRACT_VALIDATION = 'true';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const { db, TABLES, JsonStore } = await import('../db.js');
-const { buildSchemaContract, validateRowContract } = await import('../lib/schema-contract.js');
+const { buildSchemaContract, validateRowContract, validateStaticSqlContract } = await import('../lib/schema-contract.js');
 
 async function runSchemaContractTests() {
   console.log('=== RUNNING TEST SCHEMA CONTRACT & MIGRATIONS ===');
@@ -265,6 +265,28 @@ async function runSchemaContractTests() {
     validateRowContract('module_entitlements', cleanEnt, false);
   }
   console.log('✓ 10. Login / aktivasi 3our.id@gmail.com terbukti lolos validasi kontrak skema 100%');
+ 
+  // 11. Uji Kontrak SQL Statis Migrasi (mendeteksi kesalahan referensi kolom seperti baris 63 versi lama)
+  console.log('11. Memverifikasi kontrak SQL statis pada file migrasi fungsi...');
+  const sqlErrors = validateStaticSqlContract(path.join(__dirname, '../migrations'), contract);
+  assert.strictEqual(sqlErrors.length, 0, `File migrasi fungsi tidak boleh memiliki referensi kolom ilegal: ${sqlErrors.join(', ')}`);
+
+  // Pastikan test ini benar-benar gagal jika ada baris seperti versi lama (where id = v_wallet.id di credit_wallets)
+  const scratchDir = path.join(__dirname, '../../.temp_scratch_sql_test');
+  fs.mkdirSync(scratchDir, { recursive: true });
+  try {
+    const rawSql = fs.readFileSync(path.join(__dirname, '../migrations/018_expire_buckets_atomic.sql'), 'utf8');
+    const buggySql = rawSql.replace('where workspace_id = v_wallet.workspace_id', 'where id = v_wallet.id');
+    fs.writeFileSync(path.join(scratchDir, '018_expire_buckets_atomic.sql'), buggySql);
+    const testErrors = validateStaticSqlContract(scratchDir, contract);
+    assert.ok(
+      testErrors.some(e => e.includes('Kolom WHERE "id" tidak ada di tabel "credit_wallets"')),
+      'Test kontrak SQL statis harus mendeteksi bug versi lama (where id = v_wallet.id)'
+    );
+  } finally {
+    fs.rmSync(scratchDir, { recursive: true, force: true });
+  }
+  console.log('✓ 11. Kontrak SQL statis terbukti mendeteksi bug kolom dan memverifikasi migrasi bersih 100%');
 
   console.log('ALL SCHEMA CONTRACT TESTS PASSED!');
   process.exit(0);

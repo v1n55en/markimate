@@ -214,3 +214,54 @@ export function validateRowContract(table, row, isInsert = true) {
 
   return true;
 }
+
+/**
+ * Memvalidasi file migrasi fungsi SQL secara statis:
+ * setiap 'update <table> set <kolom>' dan 'where <kolom> =' harus merujuk kolom yang sah di schema contract.
+ */
+export function validateStaticSqlContract(migrationsDir, contract) {
+  if (!migrationsDir) migrationsDir = path.join(ROOT_DIR, 'migrations');
+  if (!contract) contract = buildSchemaContract();
+
+  const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
+  const errors = [];
+
+  for (const file of files) {
+    const filePath = path.join(migrationsDir, file);
+    const sql = fs.readFileSync(filePath, 'utf8');
+
+    // Pola UPDATE [markimate.]<table_name> SET ... WHERE ...
+    const updateRegex = /update\s+(?:markimate\.)?([a-zA-Z0-9_]+)\s+set\s+([\s\S]*?)\s+where\s+([\s\S]*?)(?:;|loop|begin|end|\n\s*\n)/gi;
+    let uMatch;
+    while ((uMatch = updateRegex.exec(sql)) !== null) {
+      const tbl = uMatch[1].toLowerCase();
+      const setClause = uMatch[2];
+      const whereClause = uMatch[3];
+
+      if (!contract[tbl]) continue;
+
+      // Cek kolom di SET: <col> = ...
+      const setColRegex = /([a-zA-Z0-9_]+)\s*=/g;
+      let scMatch;
+      while ((scMatch = setColRegex.exec(setClause)) !== null) {
+        const col = scMatch[1].toLowerCase();
+        if (!contract[tbl].columns.has(col)) {
+          errors.push(`[${file}] Kolom SET "${col}" tidak ada di tabel "${tbl}"`);
+        }
+      }
+
+      // Cek kolom di WHERE: where <col> = atau and/or <col> =
+      const whereColRegex = /(?:where|\band|\bor)\s+([a-zA-Z0-9_]+)\s*(?:=|<|>|<=|>=|!=|is\b|in\b)/gi;
+      let wcMatch;
+      while ((wcMatch = whereColRegex.exec('where ' + whereClause)) !== null) {
+        const col = wcMatch[1].toLowerCase();
+        if (['not', 'null', 'exists', 'true', 'false'].includes(col)) continue;
+        if (!contract[tbl].columns.has(col)) {
+          errors.push(`[${file}] Kolom WHERE "${col}" tidak ada di tabel "${tbl}"`);
+        }
+      }
+    }
+  }
+
+  return errors;
+}
