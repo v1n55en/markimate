@@ -98,11 +98,35 @@ Pemilik Keputusan: 3Our Asia
 
 ---
 
+### Langkah 5: Top-up Custom Endpoint + Validasi Min/Max & Diskon Volume (PRD F15)
+- **Tujuan**: Mengimplementasikan endpoint top-up fleksibel `POST /api/billing/topup` yang menerima jumlah kredit kustom `{ credits }`, memvalidasi batas minimal 50 credit dan maksimal 50.000 credit, menghitung harga di server dengan diskon volume otomatis (5% untuk >= 1.000 credit, 10% untuk >= 2.500 credit), mengabaikan nominal `amount` dari client, serta mempertahankan backward compatibility untuk payload lama.
+- **File Berubah/Dibuat**:
+  - `backend/index.js`: Memperbarui `app.post('/api/billing/topup')` untuk meneruskan `credits` ke `createCheckout`.
+  - `backend/lib/payments/service.js`:
+    - Mengimpor `TOPUP` dan `quoteTopup` dari `../catalog.js`.
+    - Di `createCheckout`: mendeteksi input `credits`, memvalidasi `credits < TOPUP.min` atau `credits > TOPUP.max` dengan melempar error 400 `INVALID_TOPUP_AMOUNT`.
+    - Menghitung ulang harga secara independen di sisi server menggunakan `quoteTopup(numCredits)` sehingga nominal dari client diabaikan total.
+    - Menetapkan masa berlaku 365 hari pada bucket top-up.
+  - `backend/tests/custom-topup.test.js`: Suite test baru ke-20 yang memverifikasi:
+    1. Validasi penolakan kredit < 50 (49, 0, negatif) dengan 400 `INVALID_TOPUP_AMOUNT`.
+    2. Validasi penolakan kredit > 50.000 (50.001) dengan 400 `INVALID_TOPUP_AMOUNT`.
+    3. Normal top-up 75 credit seharga Rp75.000, serta verifikasi bahwa manipulasi `amount: 1000` dari client diabaikan total oleh server.
+    4. Diskon otomatis tier 1: 1.000 credit dipotong 5% menjadi Rp950.000.
+    5. Diskon otomatis tier 2: 2.500 credit dipotong 10% menjadi Rp2.250.000.
+    6. Fulfillment webhook DOKU untuk custom top-up (penambahan saldo top-up ke wallet).
+    7. Backward compatibility untuk payload lama `{ packageId: 'starter' }`.
+- **Hasil Test**:
+  - `cd backend && npm test`: 20/20 test suite lolos 100%.
+  - `cd frontend && npm run i18n:check`: 70/70 error codes ter-cover di kamus EN & ID.
+  - `cd frontend && npm run build`: Lolos 100%.
+
+---
+
 ## Rencana Langkah Selanjutnya
-- **Langkah 5**: Top-up custom endpoint `POST /api/billing/topup` ({ credits }, min 50, max 50.000, diskon 5%/10%, amount client diabaikan).
 - **Langkah 6**: Hapus langganan (410 `PLAN_DISCONTINUED`), free tier, ubah TRIAL_DAYS ke 30 dan pengaman trial.
 - **Langkah 7**: UI pricing + billing + kalkulator EN/ID + screenshot 390px dan 1280px asli.
 - **Langkah 8**: Admin laporan liabilitas dan revenue mix.
 - **Langkah 9**: Laporan final F15 dan mutation checks.
+
 
 
