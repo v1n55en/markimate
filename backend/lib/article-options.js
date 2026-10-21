@@ -217,3 +217,108 @@ export function estimateArticleCredits(options = {}) {
     actionKey: lenConfig.actionKey
   };
 }
+
+/**
+ * Normalisasi opsi artikel per keyword (PRD F6b §3.6)
+ * Memvalidasi preset, sanitasi tone custom, dan batas panjang serta jumlah gambar.
+ * Melempar error INVALID_TONE (400) bila tone custom tidak aman.
+ */
+export function normalizeKeywordArticleOptions(raw = null) {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const res = {};
+
+  // 1. Tone
+  if (raw.tone && typeof raw.tone === 'object') {
+    const preset = TONE_PRESETS[raw.tone.preset] ? raw.tone.preset : 'professional';
+    let custom = '';
+    if (preset === 'custom') {
+      custom = sanitizeCustomTone(raw.tone.custom || '');
+    }
+    res.tone = { preset, custom };
+  }
+
+  // 2. Length
+  if (raw.length) {
+    res.length = ARTICLE_LENGTHS[raw.length] ? raw.length : 'standard';
+  }
+
+  // 3. Images
+  if (raw.images && typeof raw.images === 'object') {
+    const mode = ['none', 'auto', 'manual'].includes(raw.images.mode)
+      ? raw.images.mode
+      : (raw.images.enabled === false ? 'none' : 'auto');
+
+    const hero = raw.images.hero !== undefined ? !!raw.images.hero : true;
+    const count = mode === 'none'
+      ? 0
+      : Math.min(Math.max(Number(raw.images.count) || 3, 1), 6);
+    const style = typeof raw.images.style === 'string' ? raw.images.style.trim() : DEFAULT_ARTICLE_OPTIONS.images.style;
+
+    res.images = {
+      mode,
+      count,
+      hero,
+      style
+    };
+  }
+
+  return Object.keys(res).length > 0 ? res : null;
+}
+
+/**
+ * Menghasilkan opsi artikel efektif dengan menggabungkan opsi spesifik keyword
+ * di atas pengaturan default workspace (PRD F6b §3.6).
+ */
+export function resolveEffectiveArticleOptions(keywordOptions = null, workspaceArtSet = {}) {
+  const wsImages = workspaceArtSet.images || {};
+  const wsTone = workspaceArtSet.tone || {};
+  const wsLength = workspaceArtSet.length || 'standard';
+
+  // Resolusi tone
+  const tonePreset = keywordOptions?.tone?.preset || wsTone.preset || DEFAULT_ARTICLE_OPTIONS.tone.preset;
+  let toneCustom = '';
+  if (tonePreset === 'custom') {
+    toneCustom = sanitizeCustomTone(keywordOptions?.tone?.custom ?? wsTone.custom ?? '');
+  }
+  const tone = { preset: tonePreset, custom: toneCustom };
+
+  // Resolusi length
+  const lengthKey = keywordOptions?.length || wsLength;
+  const length = ARTICLE_LENGTHS[lengthKey] ? lengthKey : 'standard';
+
+  // Resolusi images
+  let mode = keywordOptions?.images?.mode;
+  if (!mode) {
+    if (wsImages.mode) {
+      mode = wsImages.mode;
+    } else {
+      mode = wsImages.enabled === false ? 'none' : 'auto';
+    }
+  }
+  if (!['none', 'auto', 'manual'].includes(mode)) mode = 'auto';
+
+  const hero = keywordOptions?.images?.hero !== undefined
+    ? !!keywordOptions.images.hero
+    : (wsImages.hero !== undefined ? !!wsImages.hero : true);
+
+  const rawCount = keywordOptions?.images?.count !== undefined
+    ? Number(keywordOptions.images.count)
+    : (wsImages.count !== undefined ? Number(wsImages.count) : 3);
+
+  const count = mode === 'none' ? 0 : Math.min(Math.max(rawCount || 3, 1), 6);
+
+  const style = (keywordOptions?.images?.style || wsImages.style || DEFAULT_ARTICLE_OPTIONS.images.style).trim();
+
+  return {
+    tone,
+    length,
+    images: {
+      mode,
+      count,
+      hero,
+      style
+    }
+  };
+}
+

@@ -55,9 +55,26 @@ Pemilik Keputusan: 3Our Asia
 
 ---
 
+### Langkah 3: Backend Normalisasi, Validasi Opsi, Estimasi Endpoint, & Charge Dinamis (PRD F6b)
+- **Tujuan**:
+  1. Menambahkan fungsi `normalizeKeywordArticleOptions(raw)` dan `resolveEffectiveArticleOptions(keywordOptions, workspaceArtSet)` pada `backend/lib/article-options.js` dan `frontend/src/config/article-options.js`.
+  2. Memperbarui `DEFAULT_ARTICLE_SETTINGS` dan `normalizeArticleSettings(input)` di `backend/index.js` untuk mendukung tone preset/custom tersanitasi, pilihan panjang artikel (`short`, `standard`, `long`, `pillar`), serta mode gambar (`none`, `auto`, `manual`) dan jumlah gambar (0-6).
+  3. Memperbarui endpoint `GET /api/credits/estimate` dan `estimate()` di `backend/lib/credits.js` agar menerima parameter `length` dan `images` untuk estimasi live yang presisi (misal: long 1500 kata + 4 gambar = 100 credit).
+  4. Menghubungkan penyimpanan opsi artikel per-keyword di `POST /api/keywords` dan `PATCH /api/keywords/:id`, serta mengekspos `articleOptions` melalui `kwPublic`.
+  5. Menyesuaikan pemotongan kredit dinamis di `generateFor` sesuai panjang artikel (`seo.article.short`, `seo.article`, `seo.article.long`, `seo.article.pillar`), serta menjamin proteksi gambar gagal tidak dipotong di `publishFor` (hanya gambar berhasil dibuat yang dipotong 5 credit).
+  6. Menyiapkan endpoint baru `POST /api/keywords/:id/images/:idx/regenerate` di balik feature flag `SEO_IMAGE_REGEN_ENABLED` untuk Web Approver dengan pemotongan 5 credit idempoten per `requestId`.
+  7. Mendaftarkan kode error baru `SEO_IMAGE_REGEN_DISABLED` dan `INVALID_IMAGE_INDEX` (400) ke kamus error backend dan locale i18n (EN & ID).
+  8. Membuat test suite runtime baru `backend/tests/article-options-runtime.test.js` dengan isolasi database temporer untuk memverifikasi lifecycle lengkap.
+- **Hasil Test**:
+  - `node tests/article-options-runtime.test.js`: lolos 100%.
+  - `cd backend && npm test`: 25/25 test suite lolos 100%, 0 polusi di `database.json`.
+  - `cd frontend && npm run i18n:check`: 2371 keys parity in EN & ID, 73/73 error codes covered, 0 forbidden hardcoded numbers.
+  - `cd frontend && npm run build`: 42 static HTML & sitemap generated, build sukses.
+
+---
+
 ## Rencana Langkah Selanjutnya
-- **Langkah 3**: Backend normalisasi & validasi opsi (`normalizeArticleSettings`, `normalizeKeywordArticleOptions`), charge credit dinamis sesuai panjang artikel, dan endpoint estimasi live `GET /api/credits/estimate`.
-- **Langkah 4**: Automation n8n (payload, prompt kontekstual, webhook `supermat-image`, dan build workflows).
+- **Langkah 4**: Automation n8n (penyesuaian `main-auth-generate.js`, pemilihan kontekstual di `main-siapkan-prompt-link.js`, penempatan dinamis di `main-terapkan-link.js`, webhook `supermat-image`, dan `build-workflows.mjs`).
 - **Langkah 5**: Frontend UI settings workspace + form tambah keyword + estimasi live.
 - **Langkah 6**: Frontend Web Approver (pindah, urutkan, hapus, dan regenerate gambar).
 - **Langkah 7**: Laporan final F6b dan pengujian integrasi.

@@ -160,21 +160,34 @@ export async function getWallet(workspaceId) {
 
 export async function estimate(actionKey, qty = 1, extra = {}) {
   const prices = await getPrices();
-  const item = prices[actionKey];
+
+  // Jika extra.length diberikan, sesuaikan actionKey artikel SEO (PRD F6b §3.2)
+  let resolvedActionKey = actionKey || 'seo.article';
+  if (extra && extra.length) {
+    const { ARTICLE_LENGTHS } = await import('./article-options.js');
+    if (ARTICLE_LENGTHS[extra.length]) {
+      resolvedActionKey = ARTICLE_LENGTHS[extra.length].actionKey;
+    }
+  }
+
+  const item = prices[resolvedActionKey] || prices[actionKey];
   const unitPrice = item ? item.credits : 0;
   let totalCredits = unitPrice * Math.max(1, Number(qty || 1));
 
-  // Jika komposit seperti artikel dengan gambar tambahan
-  if (actionKey === 'seo.article' && extra && extra.images) {
+  // Jika komposit seperti artikel dengan gambar tambahan (PRD §4.2 & PRD F6b §3.2)
+  if (resolvedActionKey.startsWith('seo.article') && extra && extra.images !== undefined) {
     const imgPrice = prices['seo.image']?.credits ?? 5;
-    totalCredits += imgPrice * Number(extra.images);
+    const imgCount = Math.max(0, Number(extra.images || 0));
+    totalCredits += imgPrice * imgCount;
   }
 
   return {
-    actionKey,
+    actionKey: resolvedActionKey,
     qty: Number(qty || 1),
     unitPrice,
-    credits: totalCredits
+    credits: totalCredits,
+    ...(extra && extra.length ? { length: extra.length } : {}),
+    ...(extra && extra.images !== undefined ? { images: Number(extra.images || 0) } : {})
   };
 }
 

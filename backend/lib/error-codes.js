@@ -368,6 +368,16 @@ export const ERROR_CODES = {
     code: 'INVALID_TONE',
     status: 400,
     message: 'Custom writing tone contains invalid characters or exceeds limit.'
+  },
+  SEO_IMAGE_REGEN_DISABLED: {
+    code: 'SEO_IMAGE_REGEN_DISABLED',
+    status: 400,
+    message: 'Image regeneration feature is currently disabled.'
+  },
+  INVALID_IMAGE_INDEX: {
+    code: 'INVALID_IMAGE_INDEX',
+    status: 400,
+    message: 'Invalid image index provided.'
   }
 };
 

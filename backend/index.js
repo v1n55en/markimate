@@ -82,6 +82,15 @@ import {
   verifyGoogleIdToken,
   processGoogleAuth
 } from './lib/google-auth.js';
+import {
+  DEFAULT_ARTICLE_OPTIONS,
+  ARTICLE_LENGTHS,
+  sanitizeCustomTone,
+  resolveTonePrompt,
+  normalizeKeywordArticleOptions,
+  resolveEffectiveArticleOptions,
+  estimateArticleCredits
+} from './lib/article-options.js';
 
 export { PLANS };
 
@@ -115,6 +124,7 @@ const N8N_BASE_URL = (process.env.N8N_BASE_URL || 'https://n8n.3ourasia.id').rep
 const N8N_URL_RUN = process.env.MARKIMATE_N8N_RUN_URL || process.env.SUPERMAT_N8N_RUN_URL || `${N8N_BASE_URL}/webhook/supermat-trigger`;
 const N8N_URL_PUBLISH = process.env.MARKIMATE_N8N_PUBLISH_URL || process.env.SUPERMAT_N8N_PUBLISH_URL || `${N8N_BASE_URL}/webhook/supermat-publish`;
 const N8N_URL_TOPICS = process.env.MARKIMATE_N8N_TOPICS_URL || process.env.SUPERMAT_N8N_TOPICS_URL || (process.env.N8N_URL_TOPICS?.startsWith('http') ? process.env.N8N_URL_TOPICS : `${N8N_BASE_URL}${process.env.N8N_URL_TOPICS || '/webhook/supermat-topics'}`);
+const N8N_URL_IMAGE = process.env.MARKIMATE_N8N_IMAGE_URL || process.env.SUPERMAT_N8N_IMAGE_URL || `${N8N_BASE_URL}/webhook/supermat-image`;
 const MARKIMATE_API_KEY = process.env.MARKIMATE_API_KEY || process.env.SUPERMAT_API_KEY || ''; // key 3Our untuk memanggil n8n (header X-Supermat-Key)
 const CRON_SECRET = process.env.CRON_SECRET || '';
 
@@ -2028,8 +2038,11 @@ app.get('/api/credits', auth, requireWorkspace('viewer'), wrap(async (req, res) 
 }));
 
 app.get('/api/credits/estimate', auth, requireWorkspace('viewer'), wrap(async (req, res) => {
-  const { action, qty, images } = req.query;
-  const est = await estimate(action || 'seo.article', Number(qty || 1), { images: Number(images || 0) });
+  const { action, qty, images, length } = req.query;
+  const est = await estimate(action || 'seo.article', Number(qty || 1), {
+    images: images !== undefined ? Number(images) : undefined,
+    length: length ? String(length) : undefined
+  });
   res.json(est);
 }));
 
@@ -2525,9 +2538,16 @@ async function testShopify(cfg) {
   };
 }
 export const DEFAULT_ARTICLE_SETTINGS = {
+  tone: {
+    preset: 'professional',
+    custom: '',
+  },
+  length: 'standard',
   images: {
+    mode: 'auto',
     enabled: true,
     count: 3,
+    hero: true,
     style: 'foto editorial, warna hangat, tanpa teks di gambar',
     aspectHero: '16:9',
     aspectInline: '4:3',
@@ -2568,6 +2588,7 @@ export const DEFAULT_ARTICLE_SETTINGS = {
 export function normalizeArticleSettings(input = {}) {
   const d = DEFAULT_ARTICLE_SETTINGS;
   const img = input.images || {};
+  const tone = input.tone || {};
   const lnk = input.links || {};
   const dup = input.duplicateCheck || {};
   const san = input.sanity || {};
@@ -2575,10 +2596,41 @@ export function normalizeArticleSettings(input = {}) {
   const wx = input.wix || {};
   const sh = input.shopify || {};
 
+  // Tone (PRD F6b §3.1 & §3.5)
+  const tonePreset = ['professional', 'casual', 'educational', 'persuasive', 'storytelling', 'custom'].includes(tone.preset)
+    ? tone.preset
+    : d.tone.preset;
+  let toneCustom = '';
+  if (tonePreset === 'custom') {
+    toneCustom = sanitizeCustomTone(tone.custom || '');
+  }
+
+  // Length (PRD F6b §3.1)
+  const length = ['short', 'standard', 'long', 'pillar'].includes(input.length)
+    ? input.length
+    : d.length;
+
+  // Images (PRD F6b §3.1: mode none|auto|manual, count 0-6, hero boolean)
+  const imgMode = ['none', 'auto', 'manual'].includes(img.mode)
+    ? img.mode
+    : (img.enabled === false ? 'none' : 'auto');
+
+  const imgHero = img.hero !== undefined ? !!img.hero : d.images.hero;
+  const imgCount = imgMode === 'none'
+    ? 0
+    : Math.min(Math.max(Number(img.count) || d.images.count, 1), 6);
+
   return {
+    tone: {
+      preset: tonePreset,
+      custom: toneCustom,
+    },
+    length,
     images: {
-      enabled: img.enabled !== undefined ? !!img.enabled : d.images.enabled,
-      count: Math.min(Math.max(Number(img.count) || d.images.count, 1), 3),
+      mode: imgMode,
+      enabled: imgMode !== 'none',
+      count: imgCount,
+      hero: imgHero,
       style: typeof img.style === 'string' ? img.style : d.images.style,
       aspectHero: typeof img.aspectHero === 'string' ? img.aspectHero : d.images.aspectHero,
       aspectInline: typeof img.aspectInline === 'string' ? img.aspectInline : d.images.aspectInline,
@@ -2778,6 +2830,7 @@ const kwPublic = (k) => ({
   volume: k.volume,
   difficulty: k.difficulty,
   article: k.article || null,
+  articleOptions: k.article_options || null,
   postId: k.post_id || '',
   draftUrl: k.draft_url || '',
   publicUrl: k.public_url || '',
@@ -2805,6 +2858,10 @@ app.post('/api/keywords', auth, requireWorkspace('admin'), requireModule('seo'),
   const cms = String(b.cmsType || b.cms || 'wordpress').toLowerCase();
   const schedule = ['immediate', 'daily', 'weekly'].includes(b.schedule) ? b.schedule : 'immediate';
   if (schedule !== 'immediate' && planOf(req.user).id === 'free') throw Object.assign(new Error('Automated scheduling is only available on paid plans.'), { status: 402, code: 'UPGRADE_REQUIRED' });
+
+  // Validasi & normalisasi opsi artikel per-keyword (PRD F6b §3.6)
+  const articleOptions = normalizeKeywordArticleOptions(b.articleOptions || b.article_options);
+
   const row = await db.insert('keywords', {
     user_id: req.user.id,
     workspace_id: req.workspace.id,
@@ -2814,7 +2871,8 @@ app.post('/api/keywords', auth, requireWorkspace('admin'), requireModule('seo'),
     cms_type: cms,
     status: 'Pending',
     schedule,
-    next_run_at: nextRun(schedule)
+    next_run_at: nextRun(schedule),
+    article_options: articleOptions || null
   });
   res.json({ keyword: kwPublic(row) });
 }));
@@ -2835,6 +2893,9 @@ app.patch('/api/keywords/:id', auth, requireWorkspace('admin'), requireModule('s
     patch.links = b.links;
     patch.article = { ...(patch.article || k.article || {}), links: b.links };
   }
+  if (b.articleOptions !== undefined || b.article_options !== undefined) {
+    patch.article_options = normalizeKeywordArticleOptions(b.articleOptions ?? b.article_options);
+  }
   if (b.schedule) { patch.schedule = b.schedule; patch.next_run_at = nextRun(b.schedule); }
   if (b.status) patch.status = String(b.status);
   res.json({ keyword: kwPublic(await db.update('keywords', { id: k.id }, patch)) });
@@ -2848,10 +2909,17 @@ app.delete('/api/keywords/:id', auth, requireWorkspace('admin'), requireModule('
 
 async function generateFor(user, k) {
   const wsId = k.workspace_id || user.id;
+
+  const conn = k.cms_type ? await db.findOne('cms_connections', { workspace_id: wsId, cms_type: k.cms_type }) : null;
+  const connConfig = conn ? resolveConnConfig(conn) : null;
+  const artSet = conn ? normalizeArticleSettings(conn.article_settings) : normalizeArticleSettings({});
+  const effectiveOptions = resolveEffectiveArticleOptions(k.article_options, artSet);
+  const articleActionKey = ARTICLE_LENGTHS[effectiveOptions.length]?.actionKey || 'seo.article';
+
   const creditsEnabled = process.env.CREDITS_ENABLED !== 'false';
   if (creditsEnabled) {
-    // Assert credit sebelum aksi (PRD §4.2: seo.article)
-    await assertAffordable(wsId, 'seo.article', 1);
+    // Assert credit sebelum aksi (PRD §4.2 & PRD F6b §3.2)
+    await assertAffordable(wsId, articleActionKey, 1);
   } else {
     const plan = planOf(user);
     const used = await usageOf(wsId);
@@ -2859,10 +2927,6 @@ async function generateFor(user, k) {
   }
 
   await db.update('keywords', { id: k.id }, { status: 'AI Writing...', error: '' });
-
-  const conn = k.cms_type ? await db.findOne('cms_connections', { workspace_id: wsId, cms_type: k.cms_type }) : null;
-  const connConfig = conn ? resolveConnConfig(conn) : null;
-  const artSet = conn ? normalizeArticleSettings(conn.article_settings) : normalizeArticleSettings({});
 
   const options = {
     duplicateCheck: artSet.duplicateCheck?.enabled !== false,
@@ -2873,9 +2937,11 @@ async function generateFor(user, k) {
     externalLinks: artSet.links?.external !== false,
     maxExternal: artSet.links?.maxExternal ?? 2,
     excludeDomains: Array.isArray(artSet.links?.excludeDomains) ? artSet.links.excludeDomains : [],
-    imagePrompts: (planOf(user).images !== false) && (artSet.images?.enabled !== false),
-    imageCount: artSet.images?.count ?? 3,
-    imageStyle: artSet.images?.style || ''
+    imagePrompts: (planOf(user).images !== false) && (effectiveOptions.images.mode !== 'none'),
+    imageCount: effectiveOptions.images.count,
+    imageStyle: effectiveOptions.images.style || '',
+    imageMode: effectiveOptions.images.mode,
+    imageHero: effectiveOptions.images.hero !== false
   };
 
   const payload = {
@@ -2884,8 +2950,8 @@ async function generateFor(user, k) {
     Ln: k.ln,
     Client_Name: user.brand_name || 'Brand Anda',
     niche: user.niche || '',
-    tone: '',
-    wordCount: 900,
+    tone: resolveTonePrompt(effectiveOptions.tone, k.ln || 'id'),
+    wordCount: ARTICLE_LENGTHS[effectiveOptions.length]?.words || 900,
     requestId: k.id,
     ...(k.cms_type && connConfig ? {
       cmsType: k.cms_type,
@@ -2913,12 +2979,12 @@ async function generateFor(user, k) {
       next_run_at: nextRun(k.schedule)
     });
 
-    // Charge credit setelah sukses status Review Ready (PRD §4.2)
+    // Charge credit setelah sukses status Review Ready (PRD §4.2 & PRD F6b §3.2)
     if (creditsEnabled) {
-      await charge(wsId, 'seo.article', 1, {
+      await charge(wsId, articleActionKey, 1, {
         type: 'keyword',
         id: k.id,
-        note: `Generate artikel: ${k.keyword}`
+        note: `Generate artikel ${effectiveOptions.length} (${ARTICLE_LENGTHS[effectiveOptions.length]?.words || 900} kata): ${k.keyword}`
       }, usage);
     }
 
@@ -2926,7 +2992,7 @@ async function generateFor(user, k) {
   } catch (e) {
     const usage = e.usage || (e.n8n && e.n8n.usage) || null;
     if (creditsEnabled && usage) {
-      await recordFailedUsage(wsId, 'seo.article', usage, {
+      await recordFailedUsage(wsId, articleActionKey, usage, {
         type: 'keyword',
         id: k.id,
         note: e.message
@@ -2958,6 +3024,7 @@ async function publishFor(user, k, action, articleOverride) {
   if (!conn) throw Object.assign(new Error(`CMS credentials for ${k.cms_type} have not been configured yet.`), { status: 400, code: 'CMS_NOT_CONFIGURED' });
   const connConfig = resolveConnConfig(conn);
   const artSet = normalizeArticleSettings(conn.article_settings);
+  const effectiveOptions = resolveEffectiveArticleOptions(k.article_options, artSet);
   const plan = planOf(user);
 
   const cmsPayload = { ...connConfig };
@@ -2986,11 +3053,13 @@ async function publishFor(user, k, action, articleOverride) {
   if (!baseArticle.links && k.links) baseArticle.links = k.links;
 
   const useExisting = !!k.post_id && !articleOverride; // publish draf yang sudah ada tanpa perubahan konten
-  const makeImages = !useExisting && (plan.images !== false) && (artSet.images?.enabled !== false);
+  const makeImages = !useExisting && (plan.images !== false) && (effectiveOptions.images.mode !== 'none');
   const options = {
     images: makeImages,
-    imageCount: artSet.images?.count ?? 3,
-    imageStyle: artSet.images?.style || ''
+    imageCount: effectiveOptions.images.mode === 'none' ? 0 : effectiveOptions.images.count,
+    imageStyle: effectiveOptions.images.style || '',
+    imageMode: effectiveOptions.images.mode,
+    imageHero: effectiveOptions.images.hero !== false
   };
 
   const creditsEnabled = process.env.CREDITS_ENABLED !== 'false';
@@ -3079,6 +3148,97 @@ app.post('/api/keywords/:id/publish', auth, requireWorkspace('admin'), requireMo
   const action = req.body.action === 'publish' ? 'publish' : 'draft';
   const row = await publishFor(req.user, k, action, req.body.article || null);
   res.json({ keyword: kwPublic(row) });
+}));
+
+// Webhook regenerasi / penambahan gambar kontekstual Web Approver (PRD F6b §3.4)
+app.post('/api/keywords/:id/images/:idx/regenerate', auth, requireWorkspace('admin'), requireModule('seo'), requireUuidParam('id'), wrap(async (req, res) => {
+  const isRegenEnabled = process.env.SEO_IMAGE_REGEN_ENABLED !== 'false';
+  if (!isRegenEnabled) {
+    throw Object.assign(new Error('Fitur regenerasi gambar belum diaktifkan.'), { status: 400, code: 'SEO_IMAGE_REGEN_DISABLED' });
+  }
+
+  const k = await db.findOne('keywords', { id: req.params.id, workspace_id: req.workspace.id });
+  if (!k) throw Object.assign(new Error('Keyword not found.'), { status: 404, code: 'NOT_FOUND' });
+
+  const idx = parseInt(req.params.idx, 10);
+  if (isNaN(idx) || idx < 0 || idx > 5) {
+    throw Object.assign(new Error('Index gambar tidak valid (harus antara 0 dan 5).'), { status: 400, code: 'INVALID_IMAGE_INDEX' });
+  }
+
+  const b = req.body || {};
+  const sectionTitle = String(b.sectionTitle || '').trim();
+  const sectionText = String(b.sectionText || '').trim();
+  const style = String(b.style || k.article_options?.images?.style || 'foto editorial, warna hangat, tanpa teks di gambar').trim();
+  const aspect = String(b.aspect || (idx === 0 ? '16:9' : '4:3'));
+  const alt = String(b.alt || sectionTitle || k.keyword);
+  const requestId = String(b.requestId || `${k.id}_img_${idx}_${Date.now()}`);
+
+  const wsId = req.workspace.id;
+  const creditsEnabled = process.env.CREDITS_ENABLED !== 'false';
+  if (creditsEnabled) {
+    // Assert saldo gambar (5 credit, PRD F6b §3.4)
+    await assertAffordable(wsId, 'seo.image', 1);
+  }
+
+  const payload = {
+    sectionTitle,
+    sectionText,
+    style,
+    aspect,
+    alt,
+    requestId,
+    keyword: k.keyword,
+    Client_Name: req.user.brand_name || 'Brand Anda'
+  };
+
+  let generatedImage;
+  let usage = null;
+  try {
+    const out = await callN8n(N8N_URL_IMAGE, payload);
+    generatedImage = out.image || {
+      url: out.url || out.draftUrl || '',
+      base64: out.base64 || '',
+      alt: out.alt || alt,
+      placement: out.placement || (idx === 0 ? 'hero' : `h2:${idx}`),
+      aspect
+    };
+    usage = out.usage || null;
+  } catch (err) {
+    const errUsage = err.usage || (err.n8n && err.n8n.usage) || null;
+    if (creditsEnabled && errUsage) {
+      await recordFailedUsage(wsId, 'seo.image', errUsage, {
+        type: 'keyword_image_regen',
+        id: requestId,
+        note: err.message
+      });
+    }
+    throw err;
+  }
+
+  // Charge 5 credit setelah sukses (PRD F6b §3.4: idempoten per requestId)
+  if (creditsEnabled) {
+    await charge(wsId, 'seo.image', 1, {
+      type: 'keyword_image_regen',
+      id: requestId,
+      note: `Regenerate gambar index ${idx}: ${sectionTitle || k.keyword}`
+    }, usage);
+  }
+
+  // Update daftar gambar di keyword
+  const currentImages = Array.isArray(k.images) ? [...k.images] : [];
+  if (idx < currentImages.length) {
+    currentImages[idx] = generatedImage;
+  } else {
+    currentImages.push(generatedImage);
+  }
+
+  const currentArticle = k.article ? { ...k.article, images: currentImages } : { images: currentImages };
+  const updated = await db.update('keywords', { id: k.id }, {
+    images: currentImages,
+    article: currentArticle
+  });
+
+  res.json({ keyword: kwPublic(updated), image: generatedImage });
 }));
 
 // ---------- Topik Otomatis (SEO Topic Sources) ----------
