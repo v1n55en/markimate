@@ -344,6 +344,193 @@ async function runRuntimeTests() {
     assert.strictEqual(capturedTriggerPayload.options.imagePrompts, true, 'imagePrompts HARUS true untuk pembeli lifetime SEO');
 
     console.log('   ✓ Pembeli SEO lifetime berhasil mendapatkan fitur AI images & scheduling tanpa terhalang user.plan free.\n');
+
+    // 5. Menguji Endpoint HTTP GET /api/credits/estimate (PRD F6b Penutupan C)
+    console.log('5. Menguji Endpoint HTTP GET /api/credits/estimate...');
+    const authHeaders = {
+      Authorization: `Bearer ${token}`,
+      'X-Workspace-Id': testWsId
+    };
+
+    // Short 600 kata, 0 gambar -> 45
+    const resEstShort = await originalFetch(`http://localhost:${serverPort}/api/credits/estimate?action=seo.article&length=short&images=0`, {
+      headers: authHeaders
+    });
+    assert.strictEqual(resEstShort.status, 200);
+    const jsonEstShort = await resEstShort.json();
+    assert.strictEqual(jsonEstShort.credits, 45, 'Estimasi endpoint short 0 gambar harus 45 credit');
+    assert.strictEqual(jsonEstShort.actionKey, 'seo.article.short');
+
+    // Standard 900 kata, 3 gambar -> 75
+    const resEstStd = await originalFetch(`http://localhost:${serverPort}/api/credits/estimate?action=seo.article&length=standard&images=3`, {
+      headers: authHeaders
+    });
+    assert.strictEqual(resEstStd.status, 200);
+    const jsonEstStd = await resEstStd.json();
+    assert.strictEqual(jsonEstStd.credits, 75, 'Estimasi endpoint standard 3 gambar harus 75 credit');
+
+    // Long 1500 kata, 4 gambar -> 100
+    const resEstLong = await originalFetch(`http://localhost:${serverPort}/api/credits/estimate?action=seo.article&length=long&images=4`, {
+      headers: authHeaders
+    });
+    assert.strictEqual(resEstLong.status, 200);
+    const jsonEstLong = await resEstLong.json();
+    assert.strictEqual(jsonEstLong.credits, 100, 'Estimasi endpoint long 4 gambar harus 100 credit');
+
+    // Pillar 2500 kata, 6 gambar -> 140
+    const resEstPillar = await originalFetch(`http://localhost:${serverPort}/api/credits/estimate?action=seo.article&length=pillar&images=6`, {
+      headers: authHeaders
+    });
+    assert.strictEqual(resEstPillar.status, 200);
+    const jsonEstPillar = await resEstPillar.json();
+    assert.strictEqual(jsonEstPillar.credits, 140, 'Estimasi endpoint pillar 6 gambar harus 140 credit');
+
+    // Ads Report -> 400
+    const resEstAds = await originalFetch(`http://localhost:${serverPort}/api/credits/estimate?action=ads.report`, {
+      headers: authHeaders
+    });
+    assert.strictEqual(resEstAds.status, 200);
+    const jsonEstAds = await resEstAds.json();
+    assert.strictEqual(jsonEstAds.credits, 400);
+
+    // Spy Scan -> 40
+    const resEstSpy = await originalFetch(`http://localhost:${serverPort}/api/credits/estimate?action=spy.scan`, {
+      headers: authHeaders
+    });
+    assert.strictEqual(resEstSpy.status, 200);
+    const jsonEstSpy = await resEstSpy.json();
+    assert.strictEqual(jsonEstSpy.credits, 40);
+    console.log('   ✓ Endpoint HTTP GET /api/credits/estimate terbukti akurat untuk semua aksi.\n');
+
+    // 6. Menguji Artikel 600 kata tanpa gambar -> 45 credit dan 0 placeholder (PRD F6b Penutupan C)
+    console.log('6. Menguji pembuatan artikel 600 kata tanpa gambar -> tepat 45 credit & 0 placeholder...');
+    const walletBefore600 = (await getWallet(testWsId)).totalBalance;
+    const est600 = await estimate('seo.article', 1, { length: 'short', images: 0 });
+    assert.strictEqual(est600.credits, 45);
+    await charge(testWsId, est600.actionKey, 1, { note: 'Generate artikel 600 kata tanpa gambar' });
+    const walletAfter600 = (await getWallet(testWsId)).totalBalance;
+    assert.strictEqual(walletBefore600 - walletAfter600, 45, 'Saldo harus berkurang tepat 45 credit');
+
+    const kw600Id = randomUUID();
+    const article600Body = '# Strategi Meta Tag 2026\n\nIntro singkat.\n\n## Rekomendasi Tag Judul\n\nIsi rekomendasi panjang.\n\n## Optimasi Deskripsi\n\nIsi panduan penulisan deskripsi.';
+    await db.insert('keywords', {
+      id: kw600Id,
+      user_id: testUserId,
+      workspace_id: testWsId,
+      keyword: 'strategi meta tag 2026',
+      status: 'Ready',
+      article_options: { length: 'short', images: { mode: 'none', count: 0, hero: false } },
+      article: {
+        title: 'Strategi Meta Tag 2026',
+        bodyMarkdown: article600Body,
+        imagePrompts: []
+      }
+    });
+
+    const kw600InDb = await db.findOne('keywords', { id: kw600Id });
+    assert.strictEqual(kw600InDb.article.imagePrompts.length, 0);
+    assert.ok(!kw600InDb.article.bodyMarkdown.includes('markimate:image:'), 'Artikel 600 kata tanpa gambar tidak boleh punya placeholder');
+    console.log('   ✓ Artikel 600 kata tanpa gambar lolos: 45 credit & 0 placeholder.\n');
+
+    // 7. Menguji Pindah gambar ke H2 lain -> payload publish (adapter WordPress mock) mengikuti posisi baru (PRD F6b Penutupan C)
+    console.log('7. Menguji Pindah gambar ke H2 lain -> payload publish adapter WordPress mengikuti posisi baru...');
+    // Daftarkan koneksi CMS WordPress terverifikasi
+    await db.insert('cms_connections', {
+      id: randomUUID(),
+      user_id: testUserId,
+      workspace_id: testWsId,
+      cms_type: 'wordpress',
+      verified: true,
+      config: {
+        site_url: 'https://mytestblog.com',
+        username: 'admin',
+        app_password: 'xxxx-xxxx-xxxx-xxxx'
+      },
+      article_settings: {}
+    });
+
+    // Keyword dengan artikel awal: gambar berada di h2:1
+    const kwMoveId = randomUUID();
+    const originalMarkdownWithImage = '# Tutorial Optimasi WordPress\n\nIntro paragraf.\n\n## Kecepatan Hosting\n\n![Hosting Kencang](markimate:image:0)\n\nIsi pembahasan hosting.\n\n## Pengaturan Caching\n\nIsi pembahasan caching.\n\n## Optimasi Database\n\nIsi pembahasan database.';
+    await db.insert('keywords', {
+      id: kwMoveId,
+      user_id: testUserId,
+      workspace_id: testWsId,
+      keyword: 'tutorial optimasi wordpress',
+      status: 'Ready',
+      cms_type: 'wordpress',
+      images: [{ url: 'https://cdn.markimate.test/wp-speed.png', placement: 'h2:1', alt: 'Hosting Kencang' }],
+      image_prompts: [{ idx: 0, placement: 'h2:1', prompt: 'Gambar server cepat', alt: 'Hosting Kencang' }],
+      article: {
+        title: 'Tutorial Optimasi WordPress',
+        bodyMarkdown: originalMarkdownWithImage,
+        imagePrompts: [{ idx: 0, placement: 'h2:1', prompt: 'Gambar server cepat', alt: 'Hosting Kencang' }]
+      }
+    });
+
+    // User memindahkan gambar dari H2:1 ke H2:3 di Web Approver
+    const movedMarkdown = '# Tutorial Optimasi WordPress\n\nIntro paragraf.\n\n## Kecepatan Hosting\n\nIsi pembahasan hosting.\n\n## Pengaturan Caching\n\nIsi pembahasan caching.\n\n## Optimasi Database\n\n![Hosting Kencang](markimate:image:0)\n\nIsi pembahasan database.';
+    const movedImagePrompts = [{ idx: 0, placement: 'h2:3', prompt: 'Gambar server cepat', alt: 'Hosting Kencang' }];
+
+    let capturedPublishBody = null;
+    global.fetch = async (url, opts) => {
+      if (typeof url === 'string' && url.includes('supermat-publish')) {
+        capturedPublishBody = JSON.parse(opts.body);
+        return new Response(JSON.stringify({
+          ok: true,
+          postStatus: 'publish',
+          postId: 'wp_post_8899',
+          postUrl: 'https://mytestblog.com/tutorial-optimasi-wordpress'
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      return originalFetch(url, opts);
+    };
+
+    const resPublishMoved = await originalFetch(`http://localhost:${serverPort}/api/keywords/${kwMoveId}/publish`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        'X-Workspace-Id': testWsId
+      },
+      body: JSON.stringify({
+        action: 'publish',
+        article: {
+          bodyMarkdown: movedMarkdown,
+          imagePrompts: movedImagePrompts
+        }
+      })
+    });
+
+    assert.strictEqual(resPublishMoved.status, 200, 'Publish harus berhasil 200 OK');
+    assert.ok(capturedPublishBody, 'n8n WordPress publish workflow harus terpanggil');
+    assert.strictEqual(capturedPublishBody.cmsType, 'wordpress');
+
+    // Verifikasi payload yang dikirim ke n8n mengikuti posisi baru di bawah H2 3
+    const pubMarkdown = capturedPublishBody.article.bodyMarkdown;
+    const h2DatabaseIndex = pubMarkdown.indexOf('## Optimasi Database');
+    const imagePlaceholderIndex = pubMarkdown.indexOf('![Hosting Kencang](markimate:image:0)');
+    const h2HostingIndex = pubMarkdown.indexOf('## Kecepatan Hosting');
+
+    assert.ok(h2DatabaseIndex !== -1, 'Heading H2 3 harus ada');
+    assert.ok(imagePlaceholderIndex !== -1, 'Placeholder gambar harus ada');
+    assert.ok(
+      imagePlaceholderIndex > h2DatabaseIndex,
+      'Posisi gambar baru HARUS berada setelah heading H2:3 (Optimasi Database)'
+    );
+    assert.ok(
+      h2HostingIndex < h2DatabaseIndex && imagePlaceholderIndex > h2HostingIndex,
+      'Gambar tidak lagi berada di bawah H2:1 (Kecepatan Hosting)'
+    );
+    assert.strictEqual(
+      capturedPublishBody.article.imagePrompts[0].placement,
+      'h2:3',
+      'Placement imagePrompts pada payload publish harus h2:3'
+    );
+    console.log('   ✓ Pindah gambar ke H2 lain terbukti terkirim ke adapter publish WordPress pada posisi baru.\n');
   } finally {
     global.fetch = originalFetch;
     await new Promise((resolve) => server.close(resolve));

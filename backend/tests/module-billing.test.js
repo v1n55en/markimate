@@ -240,6 +240,15 @@ async function runModuleBillingTests() {
 
   // 7. Menguji Bundle Pricing saat sebagian modul sudah dimiliki
   console.log('6. Menguji Bundle Fokus 3 saat modul SEO sudah dimiliki (diskon & floor price)...');
+  // Pastikan workspace HANYA memiliki baris entitlement 'seo'
+  // (Hapus baris ads_report & ads_spy dari trial awal agar fulfillment bundle BENAR-BENAR melewati jalur INSERT)
+  await db.remove('module_entitlements', { workspace_id: workspaceId, module: 'ads_report' });
+  await db.remove('module_entitlements', { workspace_id: workspaceId, module: 'ads_spy' });
+
+  const onlySeoBefore = await db.findMany('module_entitlements', { workspace_id: workspaceId });
+  assert.strictEqual(onlySeoBefore.length, 1, 'Workspace harus hanya memiliki 1 baris entitlement sebelum beli bundle');
+  assert.strictEqual(onlySeoBefore[0].module, 'seo');
+
   // Modul dimiliki: seo (Rp1.990.000)
   // Modul belum dimiliki: ads_report (Rp1.990.000) + ads_spy (Rp1.490.000) = Rp3.480.000
   // Discounted = 4.490.000 - 1.990.000 = 2.500.000
@@ -283,6 +292,7 @@ async function runModuleBillingTests() {
   assert.strictEqual(hookBundleRes.status, 200);
 
   // Verifikasi semua modul lifetime aktif (ketiga modul aktif lifetime)
+  // seo melewati UPDATE, ads_report dan ads_spy melewati INSERT dengan created_at
   const entSeoAfter = await db.findOne('module_entitlements', { workspace_id: workspaceId, module: 'seo' });
   const entReport = await db.findOne('module_entitlements', { workspace_id: workspaceId, module: 'ads_report' });
   const entSpy = await db.findOne('module_entitlements', { workspace_id: workspaceId, module: 'ads_spy' });
@@ -291,9 +301,11 @@ async function runModuleBillingTests() {
   assert.strictEqual(entReport.active, true);
   assert.strictEqual(entReport.source, 'lifetime');
   assert.strictEqual(entReport.ends_at, null);
+  assert.strictEqual(entReport.payment_id, bundlePayment.id);
   assert.strictEqual(entSpy.active, true);
   assert.strictEqual(entSpy.source, 'lifetime');
   assert.strictEqual(entSpy.ends_at, null);
+  assert.strictEqual(entSpy.payment_id, bundlePayment.id);
 
   // Verifikasi total saldo bulanan upgrade ke 600 (100 + 400 + 100)
   const walletAfterBundle = await db.findOne('credit_wallets', { workspace_id: workspaceId });

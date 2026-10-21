@@ -277,8 +277,7 @@ export async function grantModulePayment(payment) {
         source: 'lifetime',
         starts_at: nowIso,
         ends_at: null,
-        payment_id: payment.id,
-        updated_at: nowIso
+        payment_id: payment.id
       });
     }
   }

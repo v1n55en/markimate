@@ -1,7 +1,7 @@
 # Laporan Implementasi PRD F6b: Opsi Artikel SEO (Tone, Panjang, Gambar Kontekstual)
 
 Tanggal: 21 Oktober 2026  
-Status: In Progress (Langkah 1 Selesai)  
+Status: Selesai (Lolos Seluruh Pengujian & Penutupan C)  
 Pemilik Keputusan: 3Our Asia  
 
 ---
@@ -160,24 +160,57 @@ Pemilik Keputusan: 3Our Asia
 
 - **Hasil Test**:
   - `cd backend && npm test`: **26/26 test suites lolos 100%**, MD5 `database.json` bersih tanpa polusi.
-  - `cd frontend && npm run i18n:check`: **2420 keys parity EN/ID (100%)**, 74/74 error codes covered, 0 forbidden hardcoded numbers/prices, 0 error.
+  - `cd frontend && npm run i18n:check`: **2427 keys parity EN/ID (100%)**, 75/75 error codes covered, 0 forbidden hardcoded numbers/prices, 0 error.
+  - `cd frontend && npm run lint`: **0 errors, 62 warnings** (100% clean check-hardcoded-id di 70 files).
   - `cd frontend && npm run build`: 42 static HTML & sitemap generated, build client sukses.
   - `node automation/build-workflows.mjs`: Seluruh 6 file workflow n8n JSON berhasil dikompilasi.
 
 ---
 
+### Langkah 7: Penutupan C & Pengujian Komprehensif Edge Case F6b
+- **Tujuan**:
+  1. **Artikel 600 Kata Tanpa Gambar (Short, 0 Gambar)**:
+     - Biaya kredit tepat 45 credit (action: `seo.article.short`), tanpa biaya gambar tambahan.
+     - Body markdown artikel terbukti 100% bebas dari placeholder `markimate:image:` maupun tag gambar apa pun.
+  2. **Artikel 1.500 Kata + 4 Gambar Auto (Long, 4 Gambar)**:
+     - Menguji algoritma penempatan kontekstual n8n (`automation/src/main-terapkan-link.js`).
+     - Terbukti menempatkan setiap gambar pada heading H2 yang berbeda tanpa terjadi tabrakan/duplikasi lokasi (`['h2:1', 'h2:2', 'h2:3', 'h2:4']`).
+  3. **Pindah Gambar ke H2 Lain (Web Approver -> WordPress)**:
+     - Menguji perubahan posisi gambar saat pengguna menggeser gambar dari H2:1 ke H2:3 pada Web Approver.
+     - Saat dipublikasikan ke WordPress (`POST /api/keywords/:id/publish`), payload adapter WordPress menerima `bodyMarkdown` dengan tag `![...](markimate:image:0)` berada tepat di bawah sub-bab H2:3 baru dan `imagePrompts[0].placement` bernilai `'h2:3'`.
+  4. **Pengujian Endpoint HTTP `GET /api/credits/estimate`**:
+     - Memverifikasi endpoint HTTP publik API:
+       - `action=seo.article&length=short&images=0` -> 45 credit
+       - `action=seo.article&length=standard&images=3` -> 75 credit
+       - `action=seo.article&length=long&images=4` -> 100 credit
+       - `action=seo.article&length=pillar&images=6` -> 140 credit
+       - `action=ads.report` -> 400 credit
+       - `action=spy.scan` -> 40 credit
+  5. **Pengujian Jalur Insert Entitlement pada Bundle Fokus 3**:
+     - Menguji fulfillment bundle di workspace yang hanya memiliki baris `seo`.
+     - Entitlement modul baru (`ads_report` dan `ads_spy`) benar-benar melewati jalur **INSERT** `module_entitlements` dan lolos validasi kontrak skema database.
+  6. **Autentikasi Retry Gemini MAX_TOKENS**:
+     - Node n8n "Terapkan Link & Gambar" diperbarui memanggil `this.helpers.httpRequestWithAuthentication.call(this, 'googlePalmApi', ...)` dengan kredensial resmi agar pengulangan saat respons terpotong berjalan sukses di produksi.
+
+- **Hasil Test**:
+  - `node tests/n8n-placement.test.js`: **6/6 pengujian penempatan gambar lolos 100%**.
+  - `node tests/article-options-runtime.test.js`: **7/7 alur runtime opsi artikel lolos 100%**.
+  - `node tests/module-billing.test.js`: **10/10 pengujian billing & bundle insert lolos 100%**.
+  - `npm test` backend: **26/26 lolos 100%**.
+
+---
+
 ## Instruksi untuk 3Our Asia (Import Workflow ke `n8n.3ourasia.id`)
 
-Sebelum melanjutkan, harap lakukan import workflow terbaru berikut ke instance n8n:
-
 1. Buka dashboard n8n di `https://n8n.3ourasia.id`.
-2. **Workflow: Regenerate Image** (Diperbarui dengan node Gemini Text Prompt Writer & Error 502):
-   - Buka / Replace workflow dari file lokal: [`automation/n8n-image-workflow.json`](file:///Users/mm/Supermat/automation/n8n-image-workflow.json) (10 nodes).
-   - Pastikan kredensial berikut terhubung:
+2. **Workflow: Supermat Main** (ID: `9cXOiWyr2L2qdWrv`):
+   - Buka workflow utama.
+   - Perbarui node Code **"Terapkan Link & Gambar"** dengan menyalin kode dari [`automation/src/main-terapkan-link.js`](file:///Users/mm/Supermat/automation/src/main-terapkan-link.js) (atau re-import [`automation/n8n-main-workflow.json`](file:///Users/mm/Supermat/automation/n8n-main-workflow.json)). Perubahan ini menambahkan pemanggilan kredensial `googlePalmApi` untuk retry otomatis saat `finishReason === 'MAX_TOKENS'`.
+   - Node **"Siapkan Prompt Link"** di produksi sudah memakai `maxOutputTokens: 8192` + `thinkingBudget: 0` (sudah sesuai).
+   - Pastikan status workflow diatur ke **Active**.
+3. **Workflow: Regenerate Image**:
+   - Pastikan workflow dari [`automation/n8n-image-workflow.json`](file:///Users/mm/Supermat/automation/n8n-image-workflow.json) (10 nodes) telah aktif dengan kredensial:
      - `Supermat API Key (Header)` pada node `Webhook Image`
      - `Google Gemini(PaLM) Api Veri` pada node `Gemini Prompt Writer`
      - `Gemini imagen` pada node `Nano Banana Image`
-   - Pastikan status workflow diatur ke **Active**.
-3. **Workflow: Supermat Main** (ID: `9cXOiWyr2L2qdWrv`):
-   - Pastikan versi dari [`automation/n8n-main-workflow.json`](file:///Users/mm/Supermat/automation/n8n-main-workflow.json) telah aktif.
 

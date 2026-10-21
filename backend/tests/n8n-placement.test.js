@@ -211,6 +211,47 @@ async function runPlacementTests() {
   );
   console.log('   ✓ Penanganan finishReason = MAX_TOKENS berhasil diverifikasi (retry 16384 tokens & warning jelas dicatat).\n');
 
+  // Kasus 5: 1.500 kata + 4 gambar auto -> setiap gambar di H2 berbeda
+  console.log('5. Menguji 1.500 kata + 4 gambar auto -> setiap gambar di H2 berbeda...');
+  const article5 = {
+    title: 'Panduan Komprehensif Arsitektur SEO 2026',
+    bodyMarkdown: '# Panduan Komprehensif Arsitektur SEO 2026\n\nIntro paragraf 1.\n\nIntro paragraf 2.\n\n## Riset Kata Kunci Mendalam\n\nIsi riset kata kunci.\n\n## Struktur Silo dan Topik Klaster\n\nIsi struktur silo.\n\n## Produksi dan Optimasi Konten\n\nIsi produksi konten.\n\n## Audit Teknis dan Kecepatan\n\nIsi audit teknis.'
+  };
+  const options5 = { imageMode: 'auto', imageCount: 4, imageHero: false };
+  const gemini5 = {
+    internal: [],
+    external: [],
+    imagePrompts: [
+      { idx: 0, placement: 'h2:1', prompt: 'Visualisasi riset kata kunci', alt: 'Riset Kata Kunci' },
+      { idx: 1, placement: 'h2:2', prompt: 'Diagram arsitektur silo', alt: 'Arsitektur Silo' },
+      { idx: 2, placement: 'h2:3', prompt: 'Infografis proses produksi konten', alt: 'Produksi Konten' },
+      { idx: 3, placement: 'h2:4', prompt: 'Dashboard audit teknis', alt: 'Audit Teknis' }
+    ]
+  };
+  const res5 = await runTerapkanLink(article5, options5, gemini5);
+  assert.strictEqual(res5.article.imagePrompts.length, 4, 'Harus menghasilkan tepat 4 gambar');
+  const placements5 = res5.article.imagePrompts.map(p => p.placement);
+  assert.deepStrictEqual(placements5, ['h2:1', 'h2:2', 'h2:3', 'h2:4'], 'Setiap gambar harus berada di H2 yang berbeda');
+  assert.strictEqual(new Set(placements5).size, 4, 'Tidak boleh ada dua gambar pada H2 yang sama');
+  console.log('   ✓ 1.500 kata + 4 gambar auto terbukti menempatkan setiap gambar pada H2 berbeda.\n');
+
+  // Kasus 6: Artikel 600 kata tanpa gambar -> 0 placeholder
+  console.log('6. Menguji artikel 600 kata tanpa gambar -> 0 placeholder...');
+  const article6 = {
+    title: 'Tips Singkat Optimasi Meta Tag',
+    bodyMarkdown: '# Tips Singkat Optimasi Meta Tag\n\nParagraf pembuka artikel 600 kata.\n\n## Panjang Tag Judul\n\nIsi rekomendasi panjang judul.\n\n## Deskripsi Meta Menarik\n\nIsi deskripsi meta.'
+  };
+  const options6 = { imageMode: 'none', imageCount: 0, imageHero: false };
+  const gemini6 = {
+    internal: [],
+    external: [],
+    imagePrompts: []
+  };
+  const res6 = await runTerapkanLink(article6, options6, gemini6);
+  assert.strictEqual(res6.article.imagePrompts.length, 0, 'Harus menghasilkan 0 image prompt');
+  assert.ok(!res6.article.bodyMarkdown.includes('markimate:image:'), 'Markdown artikel 600 kata tanpa gambar tidak boleh memuat placeholder markimate:image:');
+  console.log('   ✓ Artikel tanpa gambar terbukti menghasilkan 0 placeholder di markdown.\n');
+
   console.log('🎉 SEMUA PENGUJIAN PENEMPATAN GAMBAR N8N LOLOS 100%!\n');
   process.exit(0);
 }
