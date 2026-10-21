@@ -1,20 +1,21 @@
 import crypto from 'crypto';
 import { db } from '../../db.js';
-import { TOPUP_PACKAGES, PLANS } from '../catalog.js';
-import { grant } from '../credits.js';
+import { TOPUP_PACKAGES, PLANS, MODULES, BUNDLES } from '../catalog.js';
+import { grant, ensureMonthlyGrant } from '../credits.js';
 import {
   sendTopupSuccessEmail,
-  sendSubscriptionSuccessEmail
+  sendSubscriptionSuccessEmail,
+  sendModuleSuccessEmail
 } from '../mailer.js';
 import { getProvider } from './index.js';
 
 /**
- * Menghasilkan nomor invoice unik sesuai spesifikasi PRD F14 §3:
- * Format: MKM-{T|S}-{YYMMDD}-{6 karakter acak}
- * @param {'topup'|'subscription'} kind
+ * Menghasilkan nomor invoice unik sesuai spesifikasi PRD F14 §3 & PRD F15:
+ * Format: MKM-{T|S|M}-{YYMMDD}-{6 karakter acak}
+ * @param {'topup'|'subscription'|'module'} kind
  */
 export function generateInvoiceNumber(kind) {
-  const prefix = kind === 'topup' ? 'T' : 'S';
+  const prefix = kind === 'topup' ? 'T' : (kind === 'module' ? 'M' : 'S');
   const now = new Date();
   const yy = String(now.getUTCFullYear()).slice(-2);
   const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
@@ -27,15 +28,15 @@ export function generateInvoiceNumber(kind) {
 /**
  * Membuat transaksi checkout pembayaran
  * @param {Object} params
- * @param {'topup'|'subscription'} params.kind
+ * @param {'topup'|'subscription'|'module'} params.kind
  * @param {string} params.itemId
  * @param {string} params.workspaceId
  * @param {string} params.userId
- * @param {string} params.callbackUrl
+ * @param {string} [params.callbackUrl]
  */
 export async function createCheckout({ kind, itemId, workspaceId, userId, callbackUrl }) {
-  if (!['topup', 'subscription'].includes(kind)) {
-    throw Object.assign(new Error(`Invalid payment kind '${kind}'. Must be 'topup' or 'subscription'.`), {
+  if (!['topup', 'subscription', 'module'].includes(kind)) {
+    throw Object.assign(new Error(`Invalid payment kind '${kind}'. Must be 'topup', 'subscription', or 'module'.`), {
       status: 400,
       code: 'INVALID_PAYMENT_KIND'
     });
@@ -58,6 +59,60 @@ export async function createCheckout({ kind, itemId, workspaceId, userId, callba
     amount = pack.price;
     credits = pack.credits;
     periodDays = pack.periodDays || 365;
+  } else if (kind === 'module') {
+    const mod = MODULES[itemId];
+    const bun = BUNDLES[itemId];
+    if (!mod && !bun) {
+      throw Object.assign(new Error(`Invalid module or bundle '${itemId}'.`), {
+        status: 400,
+        code: 'INVALID_MODULE'
+      });
+    }
+
+    const existingEnts = await db.findMany('module_entitlements', { workspace_id: workspaceId });
+    const ownedLifetime = new Set(
+      (existingEnts || [])
+        .filter(e => e.source === 'lifetime' && e.active)
+        .map(e => e.module)
+    );
+
+    if (mod) {
+      if (ownedLifetime.has(mod.id)) {
+        throw Object.assign(new Error(`Workspace already owns module '${mod.name}'.`), {
+          status: 409,
+          code: 'MODULE_ALREADY_OWNED'
+        });
+      }
+      itemName = mod.name;
+      amount = mod.price;
+      credits = mod.monthlyCredits;
+      periodDays = null;
+    } else if (bun) {
+      const targetMods = bun.modules || [];
+      const unownedMods = targetMods.filter(m => !ownedLifetime.has(m));
+      if (unownedMods.length === 0) {
+        throw Object.assign(new Error(`Workspace already owns all modules in '${bun.name}'.`), {
+          status: 409,
+          code: 'MODULE_ALREADY_OWNED'
+        });
+      }
+
+      // PRD F15: Bundle saat sebagian modul sudah dimiliki -> harga bundle dikurangi harga modul
+      // yang sudah dimiliki, tapi tidak lebih rendah dari jumlah harga modul yang belum dimiliki x 0.8
+      const baseBundlePrice = bun.price;
+      const sumOwnedPrice = targetMods
+        .filter(m => ownedLifetime.has(m))
+        .reduce((sum, m) => sum + (MODULES[m]?.price || 0), 0);
+      const sumUnownedPrice = unownedMods
+        .reduce((sum, m) => sum + (MODULES[m]?.price || 0), 0);
+      const floorPrice = Math.round(sumUnownedPrice * 0.8);
+      const discountedBundlePrice = baseBundlePrice - sumOwnedPrice;
+
+      amount = Math.max(discountedBundlePrice, floorPrice);
+      itemName = bun.name;
+      credits = bun.monthlyCredits;
+      periodDays = null;
+    }
   } else {
     const plan = PLANS[itemId];
     if (!plan || itemId === 'free') {
@@ -98,6 +153,7 @@ export async function createCheckout({ kind, itemId, workspaceId, userId, callba
     invoice_number: invoiceNumber,
     status: 'pending',
     fulfilled_at: null,
+    granted_at: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString()
   });
@@ -345,6 +401,76 @@ export async function fulfillPayment(payment, parsed = {}) {
           endsAt: endsAt.toISOString(),
           locale: userLocale
         }).catch(err => console.error('[MAIL] Failed to send subscription success email:', err.message));
+      }
+    } else if (payment.kind === 'module') {
+      // PRD F15: Idempoten per payment.id memakai granted_at
+      if (payment.granted_at) {
+        return { fulfilled: false, reason: 'already_granted' };
+      }
+
+      let targetModules = [];
+      if (MODULES[payment.item_id]) {
+        targetModules = [payment.item_id];
+      } else if (BUNDLES[payment.item_id]) {
+        targetModules = BUNDLES[payment.item_id].modules || [];
+      } else {
+        targetModules = [payment.item_id];
+      }
+
+      const nowIso = now.toISOString();
+
+      // 1. Upsert module_entitlements (source: 'lifetime', ends_at: null, payment_id)
+      for (const modKey of targetModules) {
+        const existingEnt = await db.findOne('module_entitlements', {
+          workspace_id: payment.workspace_id,
+          module: modKey
+        });
+
+        if (existingEnt) {
+          await db.update('module_entitlements', {
+            workspace_id: payment.workspace_id,
+            module: modKey
+          }, {
+            active: true,
+            source: 'lifetime',
+            starts_at: existingEnt.starts_at || nowIso,
+            ends_at: null,
+            payment_id: payment.id,
+            updated_at: nowIso
+          });
+        } else {
+          await db.insert('module_entitlements', {
+            workspace_id: payment.workspace_id,
+            module: modKey,
+            active: true,
+            source: 'lifetime',
+            starts_at: nowIso,
+            ends_at: null,
+            payment_id: payment.id,
+            created_at: nowIso,
+            updated_at: nowIso
+          });
+        }
+      }
+
+      // 2. Langsung jalankan ensureMonthlyGrant
+      await ensureMonthlyGrant(payment.workspace_id);
+
+      // 3. Catat granted_at di baris payment
+      await db.update('payments', { id: payment.id }, {
+        granted_at: nowIso,
+        updated_at: nowIso
+      });
+
+      // 4. Kirim email notifikasi pembelian modul lifetime berhasil
+      if (user?.email) {
+        sendModuleSuccessEmail({
+          to: user.email,
+          invoiceNumber: payment.invoice_number,
+          moduleName: payment.item_name,
+          amount: payment.amount,
+          locale: userLocale
+        }).catch(err => console.error('[MAIL] Failed to send module success email:', err.message));
       }
     }
 
@@ -606,6 +732,18 @@ export async function reconcile() {
               console.error(`[RECONCILE] Error granting missing subscription credits for ${payment.invoice_number}:`, err.message);
             }
           }
+        }
+      }
+    }
+
+    // 4. PRD F15: Jika kind === 'module', pastikan entitlement lifetime aktif dan granted_at terisi
+    if (payment.kind === 'module') {
+      if (!payment.granted_at) {
+        try {
+          const fulfillRes = await fulfillPayment(payment);
+          if (fulfillRes.fulfilled) results.fulfilled++;
+        } catch (err) {
+          console.error(`[RECONCILE] Error fulfilling missing module grant for ${payment.invoice_number}:`, err.message);
         }
       }
     }

@@ -77,5 +77,9 @@ export const errors = {
   "INVALID_GOOGLE_TOKEN": "Google ID token is invalid or has expired.",
   "GOOGLE_AUD_MISMATCH": "Google ID token audience mismatch.",
   "GOOGLE_EMAIL_UNVERIFIED": "Your Google email address has not been verified by Google.",
-  "SIMULATION_PAYMENT_SUCCESS": "Simulated payment successful."
+  "SIMULATION_PAYMENT_SUCCESS": "Simulated payment successful.",
+  "MODULE_ALREADY_OWNED": "You already own this lifetime module.",
+  "INVALID_MODULE": "Invalid module or bundle.",
+  "INVALID_TOPUP_AMOUNT": "Top-up credits must be between 50 and 50,000.",
+  "PLAN_DISCONTINUED": "Monthly subscription plans have been discontinued. Please choose a lifetime module."
 };

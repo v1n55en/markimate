@@ -553,3 +553,47 @@ export async function sendSubscriptionRenewalReminderEmail({ to, planName, endsA
   });
 }
 
+/**
+ * 12. Kirim email konfirmasi pembelian modul lifetime aktif (PRD F15 Langkah 3)
+ */
+export async function sendModuleSuccessEmail({ to, invoiceNumber, moduleName, amount, locale = 'id' }) {
+  const lang = normalizeLocale(locale);
+  const isEn = lang === 'en';
+  const formattedAmount = 'Rp' + Number(amount || 0).toLocaleString('id-ID');
+
+  const subject = isEn
+    ? `Lifetime Module Activated: ${moduleName} (${invoiceNumber}) — Markimate`
+    : `Modul Lifetime Aktif: ${moduleName} (${invoiceNumber}) — Markimate`;
+
+  const html = isEn ? `
+    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 0;">Lifetime Module Activated!</h2>
+    <p>Hello,</p>
+    <p>Your payment for <strong>${moduleName}</strong> (${formattedAmount}) has been verified successfully.</p>
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0;">
+      <p style="margin: 0 0 8px;"><strong>Invoice:</strong> ${invoiceNumber}</p>
+      <p style="margin: 0 0 8px;"><strong>Module:</strong> ${moduleName}</p>
+      <p style="margin: 0;"><strong>Access:</strong> Lifetime (No recurring subscription fee)</p>
+    </div>
+    <p>Your monthly module credits have been added to your workspace wallet and will refresh at the beginning of each calendar month.</p>
+  ` : `
+    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 0;">Modul Lifetime Aktif!</h2>
+    <p>Halo,</p>
+    <p>Pembayaran Anda untuk <strong>${moduleName}</strong> (${formattedAmount}) telah berhasil diverifikasi.</p>
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0;">
+      <p style="margin: 0 0 8px;"><strong>Invoice:</strong> ${invoiceNumber}</p>
+      <p style="margin: 0 0 8px;"><strong>Modul:</strong> ${moduleName}</p>
+      <p style="margin: 0;"><strong>Akses:</strong> Seumur Hidup (Lifetime, tanpa biaya perpanjangan)</p>
+    </div>
+    <p>Kredit bulanan modul telah ditambahkan ke dompet workspace Anda dan diperbarui otomatis setiap awal bulan.</p>
+  `;
+
+  return sendMail({
+    to,
+    subject,
+    html,
+    locale: lang,
+    tag: 'module_success'
+  });
+}
+
+

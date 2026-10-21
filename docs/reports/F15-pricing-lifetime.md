@@ -50,11 +50,41 @@ Pemilik Keputusan: 3Our Asia
 
 ---
 
-## Rencana Langkah Selanjutnya (Setelah SQL 015 & 016 Dijalankan di Supabase)
-- **Langkah 3**: Fulfillment `module` + entitlement lifetime + idempotensi `granted_at`.
+### Langkah 3: Fulfillment `module` + Entitlement Lifetime + Idempotensi `granted_at` (PRD F15)
+- **Tujuan**: Mengimplementasikan endpoint pemesanan modul/bundle lifetime `POST /api/billing/modules`, perhitungan harga dinamis untuk Bundle Fokus 3 dengan floor price (diskon kepemilikan sebagian modul), fulfillment otomatis saat pembayaran sukses, aktivasi entitlement seumur hidup (`source: 'lifetime'`, `ends_at: null`), pencatatan status `granted_at` pada payment record untuk idempotensi mutlak, serta pengiriman email konfirmasi aktivasi modul lifetime.
+- **File Berubah/Dibuat**:
+  - `backend/index.js`: Menambahkan route `POST /api/billing/modules` (membutuhkan otentikasi role `admin` workspace, menerima parameter `{ module | bundle }`).
+  - `backend/lib/payments/service.js`:
+    - Prefix nomor invoice modul: `MKM-M-{YYMMDD}-{RANDOM}`.
+    - Validasi kepemilikan modul di `createCheckout`: menolak pembelian modul yang sudah dimiliki dengan 409 `MODULE_ALREADY_OWNED`.
+    - Perhitungan harga bundle dinamis jika sebagian modul telah dimiliki: `finalPrice = Math.max(bundlePrice - ownedModulesPrice, Math.round(unownedModulesPrice * 0.8))`.
+    - Fulfillment handler `kind === 'module'`: mengecek `payment.granted_at`, meng-upsert `module_entitlements` dengan `source: 'lifetime'`, `ends_at: null`, dan `payment_id`, memanggil `ensureMonthlyGrant(workspaceId)`, mencatat `granted_at`, dan mengirim email `sendModuleSuccessEmail`.
+    - Menambahkan penanganan rekonsiliasi payment kind `'module'` jika `granted_at` belum terisi.
+  - `backend/lib/mailer.js`: Menambahkan fungsi `sendModuleSuccessEmail` dwibahasa (EN & ID) dengan tag `module_success`.
+  - `backend/lib/error-codes.js`: Menambahkan `MODULE_ALREADY_OWNED` (409), `INVALID_MODULE` (400), `INVALID_TOPUP_AMOUNT` (400), dan `PLAN_DISCONTINUED` (410).
+  - `frontend/src/i18n/locales/en/errors.js` & `frontend/src/i18n/locales/id/errors.js`: Menambahkan padanan teks kamus untuk seluruh error code baru.
+  - `backend/tests/run-all.js`: Menambahkan `subscriptions` dan `webhook_events` pada template database isolasi testing.
+  - `backend/tests/module-billing.test.js`: Suite test baru ke-19 yang memvalidasi:
+    1. Single module checkout & invoice prefix `MKM-M-`.
+    2. Webhook DOKU success & fulfillment lifetime entitlement (`ends_at: null`) dan penerimaan 100 kredit bulanan.
+    3. Idempotensi webhook dan direct re-fulfillment via `granted_at` tanpa penambahan kredit duplikat.
+    4. Pencegahan pembelian ulang modul yang telah dimiliki (409 `MODULE_ALREADY_OWNED`).
+    5. Perhitungan diskon dan floor price Bundle Fokus 3 saat modul SEO sudah dimiliki (Rp2.784.000).
+    6. Fulfillment bundle Fokus 3 dan upgrade kuota bulanan menjadi 600 kredit (diff +500).
+    7. Pencegahan pembelian bundle saat semua modul sudah dimiliki (409 `MODULE_ALREADY_OWNED`).
+    8. Validasi input modul/bundle palsu atau kosong (400 `INVALID_MODULE`).
+- **Hasil Test**:
+  - `cd backend && npm test`: 19/19 test suite lolos 100%.
+  - `cd frontend && npm run i18n:check`: 70/70 backend error codes ter-cover di kamus EN & ID, 0 error.
+  - `cd frontend && npm run build`: Build client & generator SEO halaman statis sukses tanpa error.
+
+---
+
+## Rencana Langkah Selanjutnya
 - **Langkah 4**: Integrasi pemanggilan `ensureMonthlyGrant` di `/api/me`, `/api/billing`, dan sebelum `charge()`.
-- **Langkah 5**: Top-up custom endpoint + validasi.
-- **Langkah 6**: Hapus langganan, free tier, ubah TRIAL_DAYS ke 30 dan pengaman trial.
-- **Langkah 7**: UI pricing + billing + kalkulator EN/ID + screenshot asli.
+- **Langkah 5**: Top-up custom endpoint + validasi min/max/diskon, amount client diabaikan.
+- **Langkah 6**: Hapus langganan (410 `PLAN_DISCONTINUED`), free tier, ubah TRIAL_DAYS ke 30 dan pengaman trial.
+- **Langkah 7**: UI pricing + billing + kalkulator EN/ID + screenshot 390px dan 1280px asli.
 - **Langkah 8**: Admin laporan liabilitas dan revenue mix.
 - **Langkah 9**: Laporan final F15 dan mutation checks.
+

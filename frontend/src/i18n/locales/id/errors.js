@@ -77,5 +77,9 @@ export const errors = {
   "INVALID_GOOGLE_TOKEN": "ID token Google tidak valid atau sudah kedaluwarsa.",
   "GOOGLE_AUD_MISMATCH": "ID token Google tidak ditujukan untuk aplikasi Markimate ini.",
   "GOOGLE_EMAIL_UNVERIFIED": "Alamat email Google Anda belum diverifikasi oleh Google.",
-  "SIMULATION_PAYMENT_SUCCESS": "Pembayaran simulasi berhasil."
+  "SIMULATION_PAYMENT_SUCCESS": "Pembayaran simulasi berhasil.",
+  "MODULE_ALREADY_OWNED": "Workspace Anda sudah memiliki modul lifetime ini.",
+  "INVALID_MODULE": "Modul atau paket bundle tidak valid.",
+  "INVALID_TOPUP_AMOUNT": "Jumlah kredit top-up harus antara 50 dan 50.000 credit.",
+  "PLAN_DISCONTINUED": "Paket langganan bulanan telah dihentikan. Silakan beli modul lifetime."
 };

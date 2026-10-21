@@ -285,6 +285,26 @@ export const ERROR_CODES = {
     status: 502,
     message: 'Payment gateway rejected the request. Please try again or contact support.'
   },
+  MODULE_ALREADY_OWNED: {
+    code: 'MODULE_ALREADY_OWNED',
+    status: 409,
+    message: 'Workspace already owns this lifetime module.'
+  },
+  INVALID_MODULE: {
+    code: 'INVALID_MODULE',
+    status: 400,
+    message: 'Invalid module or bundle.'
+  },
+  INVALID_TOPUP_AMOUNT: {
+    code: 'INVALID_TOPUP_AMOUNT',
+    status: 400,
+    message: 'Top-up credits must be between 50 and 50,000.'
+  },
+  PLAN_DISCONTINUED: {
+    code: 'PLAN_DISCONTINUED',
+    status: 410,
+    message: 'Monthly subscription plans have been discontinued. Please choose a lifetime module.'
+  },
 
   // SEO & CMS
   UNSUPPORTED_CMS: {

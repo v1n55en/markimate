@@ -3298,6 +3298,24 @@ app.post('/api/billing/topup', auth, requireWorkspace('admin'), wrap(async (req,
   res.json(checkout);
 }));
 
+app.post('/api/billing/modules', auth, requireWorkspace('admin'), wrap(async (req, res) => {
+  const { module, bundle } = req.body || {};
+  const itemId = module || bundle;
+  if (!itemId) {
+    throw Object.assign(new Error('Please specify module or bundle to purchase.'), {
+      status: 400,
+      code: 'INVALID_MODULE'
+    });
+  }
+  const checkout = await createCheckout({
+    kind: 'module',
+    itemId,
+    workspaceId: req.workspace.id,
+    userId: req.user.id
+  });
+  res.json(checkout);
+}));
+
 app.post('/api/billing/checkout', auth, requireWorkspace('admin'), wrap(async (req, res) => {
   const { plan } = req.body || {};
   const checkout = await createCheckout({
