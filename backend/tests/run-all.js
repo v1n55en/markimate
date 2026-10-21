@@ -46,7 +46,7 @@ for (let i = 0; i < TEST_FILES.length; i++) {
     credit_cost_rates: [], credit_alerts: [], workspaces: [], workspace_members: [],
     workspace_invites: [], module_entitlements: [], rate_limits: [], refresh_tokens: [],
     workspace_api_keys: [], keywords: [], audit_logs: [], credit_orders: [],
-    cms_connections: [], seo_topic_sources: [], credit_trials: []
+    cms_connections: [], seo_topic_sources: [], credit_trials: [], payments: [], monthly_grants: []
   }, null, 2));
 
   const proc = spawnSync('node', [filePath], {

@@ -119,6 +119,17 @@ export function buildSchemaContract() {
       const tableDef = ensureTable(tableName);
       tableDef.notNullNoDefault.delete(colName);
     }
+
+    // 4. Parse ALTER TABLE ... ADD CONSTRAINT ... CHECK (...)
+    const alterAddConstraintRegex = /alter\s+table\s+(?:markimate\.)?([a-zA-Z0-9_]+)\s+add\s+constraint\s+([a-zA-Z0-9_]+)\s+check\s*\(\s*([a-zA-Z0-9_]+)\s+in\s*\(([^)]+)\)\s*\)/gi;
+    let addConstraintMatch;
+    while ((addConstraintMatch = alterAddConstraintRegex.exec(sql)) !== null) {
+      const tableName = addConstraintMatch[1];
+      const col = addConstraintMatch[3].toLowerCase();
+      const allowed = addConstraintMatch[4].split(',').map(s => s.trim().replace(/^['"]|['"]$/g, ''));
+      const tableDef = ensureTable(tableName);
+      tableDef.checkConstraints[col] = new Set(allowed);
+    }
   }
 
   // 4. Migrasi 010 menambahkan updated_at ke semua tabel

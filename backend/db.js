@@ -35,7 +35,8 @@ const TABLES = [
   'audit_logs',
   'webhook_events',
   'oauth_pending_links',
-  'payments'
+  'payments',
+  'monthly_grants'
 ];
 
 const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
@@ -81,7 +82,8 @@ class JsonStore {
       audit_logs: [],
       webhook_events: [],
       oauth_pending_links: [],
-      payments: []
+      payments: [],
+      monthly_grants: []
     };
     try {
       if (fs.existsSync(this.file)) {

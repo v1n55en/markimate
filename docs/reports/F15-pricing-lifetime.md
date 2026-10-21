@@ -24,8 +24,19 @@ Pemilik Keputusan: 3Our Asia
 
 ---
 
-## Rencana Langkah Selanjutnya
-- **Langkah 2**: SQL 015 `015_lifetime_modules.sql` (modifikasi constraint module entitlements, payments, dan tabel `monthly_grants`), update schema contract test, commit, dan berhenti untuk dijalankan user di Supabase.
+### Langkah 2: SQL 015 Migrasi Database Lifetime Modules & Monthly Grants (PRD F15)
+- **Tujuan**: Menyiapkan file migrasi SQL idempoten `backend/migrations/015_lifetime_modules.sql` untuk mendukung status kepemilikan seumur hidup (`source: 'lifetime'`), payment jenis `'module'`, idempotensi grant (`payments.granted_at`), relasi foreign key `module_entitlements.payment_id`, serta tabel pencatat kuota bulanan `markimate.monthly_grants`.
+- **File Berubah/Dibuat**:
+  - `backend/migrations/015_lifetime_modules.sql`: Script SQL idempoten dengan schema prefix `markimate.`, CHECK constraint `module_entitlements_source_check` (`free`, `trial`, `subscription`, `admin`, `lifetime`), CHECK constraint `payments_kind_check` (`topup`, `subscription`, `module`), kolom `granted_at` dan `payment_id`, serta tabel `monthly_grants` ber-RLS.
+  - `backend/lib/schema-contract.js`: Menambahkan parser `ALTER TABLE ... ADD CONSTRAINT ... CHECK (...)` sehingga migrasi enum baru terdeteksi otomatis pada runtime contract validation.
+  - `backend/db.js`: Mendaftarkan tabel `monthly_grants` ke array `TABLES` dan `JsonStore`.
+  - `backend/tests/run-all.js`: Menambahkan `monthly_grants` ke temporary test database schema.
+  - `backend/tests/schema-contract.test.js`: Menambahkan pengujian kontrak untuk `source: 'lifetime'`, `kind: 'module'`, dan tabel `monthly_grants`.
+- **Status Autopilot**: Sesuai instruksi PRD F15 poin 4 dan aturan `AGENTS.md`, agen **berhenti** setelah commit Langkah 2 dan menyerahkan SQL kepada user untuk dijalankan di Supabase sebelum melanjutkan langkah-langkah fulfillment runtime (Langkah 3 s/d 9).
+
+---
+
+## Rencana Langkah Selanjutnya (Setelah SQL Dijalankan di Supabase)
 - **Langkah 3**: Fulfillment `module` + entitlement lifetime + idempotensi `granted_at`.
 - **Langkah 4**: `ensureMonthlyGrant` lazy dengan overwrite dan hangus akhir bulan.
 - **Langkah 5**: Top-up custom endpoint + validasi.

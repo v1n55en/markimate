@@ -148,7 +148,7 @@ async function runSchemaContractTests() {
     }, true);
   }, /Column "source".*violates CHECK constraint/);
 
-  // Terima source: 'admin'
+  // Terima source: 'admin' dan 'lifetime' (PRD F15)
   assert.doesNotThrow(() => {
     validateRowContract('module_entitlements', {
       workspace_id: randomUUID(),
@@ -156,7 +156,52 @@ async function runSchemaContractTests() {
       source: 'admin'
     }, true);
   });
-  console.log('✓ 9. CHECK in (...) constraints membaca dan menolak nilai ilegal secara akurat');
+  assert.doesNotThrow(() => {
+    validateRowContract('module_entitlements', {
+      workspace_id: randomUUID(),
+      module: 'seo',
+      source: 'lifetime',
+      payment_id: randomUUID()
+    }, true);
+  });
+
+  // Terima payments.kind: 'module' dan kolom granted_at (PRD F15)
+  assert.doesNotThrow(() => {
+    validateRowContract('payments', {
+      id: randomUUID(),
+      workspace_id: randomUUID(),
+      user_id: randomUUID(),
+      kind: 'module',
+      item_id: 'seo',
+      item_name: 'SEO Specialist',
+      provider: 'doku',
+      invoice_number: 'INV-TEST-MOD-1',
+      amount: 1990000,
+      currency: 'IDR',
+      status: 'pending',
+      granted_at: new Date().toISOString()
+    }, true);
+  });
+
+  // Validasi tabel monthly_grants (PRD F15)
+  assert.doesNotThrow(() => {
+    validateRowContract('monthly_grants', {
+      workspace_id: randomUUID(),
+      period: '2026-10',
+      credits: 100,
+      granted_at: new Date().toISOString()
+    }, true);
+  });
+  assert.throws(() => {
+    validateRowContract('monthly_grants', {
+      workspace_id: randomUUID(),
+      period: '2026-10',
+      credits: 100,
+      kolom_ngawur: true
+    }, true);
+  }, /does not exist in table "monthly_grants"/);
+
+  console.log('✓ 9. CHECK in (...) constraints & migrasi 015 membaca dan memvalidasi tipe/kolom secara akurat');
 
   // 10. Menguji flow platform admin / 3our.id@gmail.com tidak melanggar schema contract
   console.log('10. Menguji flow platform admin / 3our.id@gmail.com mematuhi kontrak skema...');
