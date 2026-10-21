@@ -28,6 +28,8 @@ const STATUS_BADGE = {
   'Suggested': 'badge-primary',
 };
 
+const DEFAULT_IMAGE_MIME = 'image/png';
+
 // Helper: parse simple markdown blocks and inline links/images
 function MarkdownRenderer({ content, images = [], imagePrompts = [] }) {
   const { t } = useLanguage();
@@ -354,9 +356,10 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
   };
 
   // Image editing & contextual placement helpers (PRD F6b §3.3 & §3.4)
+  const draftBodyMarkdown = draft?.bodyMarkdown;
   const h2Sections = useMemo(() => {
-    if (!draft?.bodyMarkdown) return [];
-    const lines = draft.bodyMarkdown.split('\n');
+    if (!draftBodyMarkdown) return [];
+    const lines = draftBodyMarkdown.split('\n');
     const sections = [];
     let h2Idx = 1;
     for (const line of lines) {
@@ -367,7 +370,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
       }
     }
     return sections;
-  }, [draft?.bodyMarkdown]);
+  }, [draftBodyMarkdown]);
 
   const updateImagePrompt = (idx, field, val) => {
     if (!draft) return;
@@ -638,7 +641,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                         placeholder={t('seo.articleOptions.customTonePlaceholder')}
                       />
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                        {t('seo.articleOptions.customToneHint')} ({keywordOptions.tone.custom.length}/120)
+                        {t('seo.articleOptions.customToneHint')} {`(${keywordOptions.tone.custom.length}/120)`}
                       </div>
                     </div>
                   )}
@@ -1147,7 +1150,8 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                     draft.imagePrompts.map((img) => {
                       const isHero = img.idx === 0 || img.placement === 'hero';
                       const uploadedImg = currentImages.find(i => i.idx === img.idx);
-                      const imgSrc = uploadedImg?.url || (uploadedImg?.base64 ? `data:${uploadedImg.mime || 'image/png'};base64,${uploadedImg.base64}` : null);
+                      const mime = uploadedImg?.mime || DEFAULT_IMAGE_MIME;
+                      const imgSrc = uploadedImg?.url || (uploadedImg?.base64 ? `data:${mime};base64,${uploadedImg.base64}` : null);
 
                       return (
                         <div key={img.idx} className="approver-image-card">
@@ -1180,7 +1184,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
 
                           {imgSrc && (
                             <div style={{ borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-muted)', maxHeight: '200px' }}>
-                              <img src={imgSrc} alt={img.alt || 'Gambar'} style={{ maxHeight: '200px', width: '100%', objectFit: 'cover' }} />
+                              <img src={imgSrc} alt={img.alt || t('seo.defaultAiImage')} style={{ maxHeight: '200px', width: '100%', objectFit: 'cover' }} />
                             </div>
                           )}
 

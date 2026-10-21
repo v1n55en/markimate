@@ -367,7 +367,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                             placeholder={t('seo.articleOptions.customTonePlaceholder')}
                           />
                           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                            {t('seo.articleOptions.customToneHint')} ({(setg.tone?.custom || '').length}/120)
+                            {t('seo.articleOptions.customToneHint')} {`(${(setg.tone?.custom || '').length}/120)`}
                           </div>
                         </div>
                       )}

@@ -179,7 +179,7 @@ export default function WorkspaceDashboardPage({ me }) {
               </p>
               <div style={styles.lockedPriceBox}>
                 <span>{t('app.dashboard.fromPrice')} <strong>{formatIDR(MODULES.seo.price, lang)}</strong> • {t('bundles.lifetimeBadge', 'Lifetime Access')}</span>
-                <span style={styles.lockedQuotaText}>{MODULES.seo.monthlyCredits} credit / bulan ({MODULES.seo.desc})</span>
+                <span style={styles.lockedQuotaText}>{t('app.dashboard.seoQuotaMonthly', { credits: MODULES.seo.monthlyCredits })}</span>
               </div>
               <Link to="/app/modules/seo" style={styles.cardActivateBtn}>
                 <Sparkles size={14} />
@@ -273,7 +273,7 @@ export default function WorkspaceDashboardPage({ me }) {
               </p>
               <div style={styles.lockedPriceBox}>
                 <span>{t('app.dashboard.fromPrice')} <strong>{formatIDR(MODULES.ads_report.price, lang)}</strong> • {t('bundles.lifetimeBadge', 'Lifetime Access')}</span>
-                <span style={styles.lockedQuotaText}>{MODULES.ads_report.monthlyCredits} credit / bulan ({MODULES.ads_report.desc})</span>
+                <span style={styles.lockedQuotaText}>{t('app.dashboard.adsReportQuotaMonthly', { credits: MODULES.ads_report.monthlyCredits })}</span>
               </div>
               <Link to="/app/modules/ads_report" style={styles.cardActivateBtn}>
                 <Sparkles size={14} />
@@ -361,7 +361,7 @@ export default function WorkspaceDashboardPage({ me }) {
               </p>
               <div style={styles.lockedPriceBox}>
                 <span>{t('app.dashboard.fromPrice')} <strong>{formatIDR(MODULES.ads_spy.price, lang)}</strong> • {t('bundles.lifetimeBadge', 'Lifetime Access')}</span>
-                <span style={styles.lockedQuotaText}>{MODULES.ads_spy.monthlyCredits} credit / bulan ({MODULES.ads_spy.desc})</span>
+                <span style={styles.lockedQuotaText}>{t('app.dashboard.adsSpyQuotaMonthly', { credits: MODULES.ads_spy.monthlyCredits })}</span>
               </div>
               <Link to="/app/modules/ads_spy" style={styles.cardActivateBtn}>
                 <Sparkles size={14} />

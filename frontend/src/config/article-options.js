@@ -137,7 +137,7 @@ export function sanitizeCustomTone(text) {
   const str = String(text);
 
   if (/[\r\n]/.test(str)) {
-    throw Object.assign(new Error('Tone custom tidak boleh berisi baris baru (newline)'), {
+    throw Object.assign(new Error('Custom tone cannot contain newlines'), {
       status: 400,
       code: 'INVALID_TONE'
     });
@@ -145,7 +145,7 @@ export function sanitizeCustomTone(text) {
 
   const trimmed = str.trim();
   if (trimmed.length > 120) {
-    throw Object.assign(new Error('Tone custom maksimal 120 karakter'), {
+    throw Object.assign(new Error('Custom tone must be 120 characters or less'), {
       status: 400,
       code: 'INVALID_TONE'
     });
@@ -154,7 +154,7 @@ export function sanitizeCustomTone(text) {
   for (const pattern of FORBIDDEN_TONE_PATTERNS) {
     if (pattern.test(trimmed)) {
       throw Object.assign(
-        new Error('Tone custom mengandung karakter atau kata yang tidak diizinkan'),
+        new Error('Custom tone contains forbidden patterns or keywords'),
         { status: 400, code: 'INVALID_TONE' }
       );
     }
