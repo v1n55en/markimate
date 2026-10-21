@@ -98,6 +98,17 @@ ${external.length ? external.map(e => `${e.id} | ${e.domain} | ${e.title} | ${e.
 
 return [{ json: {
   skip: !internal.length && !external.length && !wantImages,
-  prompt, internalCandidates: internal, externalCandidates: external, wantImages,
-  geminiBody: { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 2048 } },
+  prompt,
+  internalCandidates: internal,
+  externalCandidates: external,
+  wantImages,
+  geminiBody: {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: {
+      responseMimeType: 'application/json',
+      temperature: 0.2,
+      maxOutputTokens: 8192,
+      thinkingConfig: { thinkingBudget: 0 }
+    }
+  },
 } }];

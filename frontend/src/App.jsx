@@ -247,6 +247,7 @@ function AppRoutes({ me, onLoginSuccess, onLogout, refreshMe }) {
       <Route path="/id/privacy" element={<PrivacyPage />} />
       <Route path="/id/terms" element={<TermsPage />} />
       <Route path="/id/data-deletion" element={<DataDeletionPage />} />
+      <Route path="/id/verify" element={<AuthLayout><VerifyPage onLoginSuccess={onLoginSuccess} /></AuthLayout>} />
 
       {/* Rute Auth (Kanonik tanpa prefix, dibungkus AuthLayout) */}
       <Route path="/verify" element={<AuthLayout><VerifyPage onLoginSuccess={onLoginSuccess} /></AuthLayout>} />

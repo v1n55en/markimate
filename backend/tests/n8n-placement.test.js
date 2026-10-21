@@ -8,24 +8,46 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const terapkanCode = fs.readFileSync(path.resolve(__dirname, '../../automation/src/main-terapkan-link.js'), 'utf8');
 
-function runTerapkanLink(article, options, parsedGemini) {
+async function runTerapkanLink(article, options, parsedGemini, extra = {}) {
+  const helpers = extra.helpers || null;
   const context = {
     $: (nodeName) => {
       if (nodeName === 'Susun Artikel') return { first: () => ({ json: { article: JSON.parse(JSON.stringify(article)) } }) };
-      if (nodeName === 'Siapkan Prompt Link') return { first: () => ({ json: { wantImages: options.imageCount, internalCandidates: [], externalCandidates: [] } }) };
+      if (nodeName === 'Siapkan Prompt Link') return {
+        first: () => ({
+          json: {
+            wantImages: options.imageCount,
+            internalCandidates: extra.internalCandidates || [],
+            externalCandidates: extra.externalCandidates || [],
+            geminiBody: extra.geminiBody || {
+              generationConfig: { maxOutputTokens: 8192, thinkingConfig: { thinkingBudget: 0 } }
+            }
+          }
+        })
+      };
       if (nodeName === 'Cek Duplikat') return { first: () => ({ json: { options } }) };
       throw new Error('Unknown node: ' + nodeName);
     },
     $input: {
-      first: () => ({ json: { candidates: [{ content: { parts: [{ text: JSON.stringify(parsedGemini) }] } }] } })
+      first: () => ({
+        json: extra.rawGeminiResponse || {
+          candidates: [{
+            content: { parts: [{ text: JSON.stringify(parsedGemini) }] },
+            finishReason: extra.finishReason || 'STOP'
+          }]
+        }
+      })
     },
+    helpers,
     console
   };
 
-  const wrapped = `(function() {\n${terapkanCode}\n})()`;
+  const thisObject = { helpers };
+  const wrapped = `(async function() {\n${terapkanCode}\n}).call(thisObject)`;
   const script = new vm.Script(wrapped);
-  const vmContext = vm.createContext(context);
-  const result = script.runInContext(vmContext);
+  const vmContext = vm.createContext(Object.assign(context, { thisObject }));
+  const resultPromise = script.runInContext(vmContext);
+  const result = await resultPromise;
   return JSON.parse(JSON.stringify(result[0].json));
 }
 
@@ -44,7 +66,7 @@ async function runPlacementTests() {
     external: [],
     imagePrompts: [{ idx: 0, placement: 'h2:1', prompt: 'Deskripsi gambar', alt: 'Alt 1' }]
   };
-  const res1 = runTerapkanLink(article1, options1, gemini1);
+  const res1 = await runTerapkanLink(article1, options1, gemini1);
   assert.strictEqual(res1.article.imagePrompts.length, 0, 'Mode none harus menghasilkan 0 image prompts');
   assert.ok(!res1.article.bodyMarkdown.includes('markimate:image:'), 'Body markdown tidak boleh memiliki placeholder');
   console.log('   ✓ Mode none berhasil diverifikasi (0 gambar).\n');
@@ -67,7 +89,7 @@ async function runPlacementTests() {
       { idx: 4, placement: 'h2:4', prompt: 'Image H2 4', alt: 'Kelebihan slot lagi' }
     ]
   };
-  const res2 = runTerapkanLink(article2, options2, gemini2);
+  const res2 = await runTerapkanLink(article2, options2, gemini2);
   // Total gambar yang berhasil: hero (idx 0) + h2:1 + h2:2 + intro (fallback) = 4 gambar (gambar ke-5 dilewati karena slot habis)
   assert.strictEqual(res2.article.imagePrompts.length, 4, 'Harus terbentuk tepat 4 gambar (hero, 2 H2, 1 intro fallback)');
   assert.strictEqual(res2.article.imagePrompts[0].placement, 'hero');
@@ -96,12 +118,91 @@ async function runPlacementTests() {
       { idx: 2, placement: 'h2:3', prompt: 'Evaluasi', alt: 'Alt 3' }
     ]
   };
-  const res3 = runTerapkanLink(article3, options3, gemini3);
+  const res3 = await runTerapkanLink(article3, options3, gemini3);
   assert.strictEqual(res3.article.imagePrompts.length, 3);
   const placements = res3.article.imagePrompts.map(p => p.placement);
   assert.deepStrictEqual(placements, ['h2:1', 'h2:2', 'h2:3'], 'Placement duplikat h2:1 harus dialihkan ke h2:2 yang kosong');
   assert.ok(res3.warnings.some(w => w.includes('dialihkan')), 'Harus mencatat warning pengalihan');
   console.log('   ✓ Placement duplikat berhasil dipindahkan ke H2 kosong terdekat.\n');
+
+  // Kasus 4: finishReason = MAX_TOKENS -> verifikasi retry dipanggil dengan batas token lebih besar & warning jelas dicatat
+  console.log('4. Menguji penanganan finishReason = MAX_TOKENS (retry batas lebih besar & warning jelas)...');
+  const article4 = {
+    title: 'Strategi Optimasi SEO Konten Panjang',
+    bodyMarkdown: '# Judul Utama\n\nParagraf pendahuluan strategi SEO.\n\n## Analisis Kata Kunci\n\nPenjelasan kata kunci mendalam.\n\n## Struktur Konten\n\nPenjelasan struktur konten.'
+  };
+  const options4 = { imageMode: 'auto', imageCount: 2, imageHero: true, internalLinks: true, maxInternal: 1 };
+
+  let retryConfigReceived = null;
+  const mockHelpers = {
+    httpRequest: async (config) => {
+      retryConfigReceived = config;
+      // Simulasi respons sukses setelah retry dengan token limit yang dinaikkan
+      return {
+        candidates: [{
+          content: {
+            parts: [{
+              text: JSON.stringify({
+                internal: [{ anchor: 'strategi SEO', url: 'https://mysite.com/seo-dasar', title: 'SEO Dasar' }],
+                external: [],
+                imagePrompts: [
+                  { idx: 0, placement: 'hero', prompt: 'Hero illustration for SEO', alt: 'Hero SEO' },
+                  { idx: 1, placement: 'h2:1', prompt: 'Keyword analysis workflow', alt: 'Keyword workflow' }
+                ]
+              })
+            }]
+          },
+          finishReason: 'STOP'
+        }]
+      };
+    }
+  };
+
+  const rawFirstResponse = {
+    candidates: [{
+      content: { parts: [{ text: '{"internal": [{"anchor": "strategi' }] },
+      finishReason: 'MAX_TOKENS'
+    }]
+  };
+
+  const res4 = await runTerapkanLink(article4, options4, null, {
+    rawGeminiResponse: rawFirstResponse,
+    internalCandidates: [{ id: 'I1', title: 'SEO Dasar', url: 'https://mysite.com/seo-dasar' }],
+    helpers: mockHelpers,
+    geminiBody: {
+      generationConfig: { maxOutputTokens: 8192, thinkingConfig: { thinkingBudget: 0 } }
+    }
+  });
+
+  // Verifikasi 1: helper httpRequest dipanggil untuk retry
+  assert.ok(retryConfigReceived, 'Retry HTTP request harus dipanggil saat finishReason = MAX_TOKENS');
+  assert.strictEqual(retryConfigReceived.method, 'POST');
+  assert.ok(
+    retryConfigReceived.body.generationConfig.maxOutputTokens > 8192,
+    `Batas token pada retry harus lebih besar dari 8192 (dapat: ${retryConfigReceived.body.generationConfig.maxOutputTokens})`
+  );
+  assert.strictEqual(
+    retryConfigReceived.body.generationConfig.maxOutputTokens,
+    16384,
+    'Batas token retry harus 16384 (2x dari 8192)'
+  );
+  assert.strictEqual(
+    retryConfigReceived.body.generationConfig.thinkingConfig.thinkingBudget,
+    0,
+    'thinkingBudget harus tetap 0'
+  );
+
+  // Verifikasi 2: hasil dari respons retry berhasil diterapkan ke artikel
+  assert.strictEqual(res4.article.imagePrompts.length, 2, 'Harus menghasilkan 2 image prompt dari respons retry');
+  assert.strictEqual(res4.article.links.internal.length, 1, 'Harus menghasilkan 1 internal link dari respons retry');
+  assert.ok(res4.article.bodyMarkdown.includes('[strategi SEO](https://mysite.com/seo-dasar)'), 'Link internal harus disisipkan ke markdown');
+
+  // Verifikasi 3: warning jelas tercatat mengenai MAX_TOKENS
+  assert.ok(
+    res4.warnings.some(w => w.includes('MAX_TOKENS') && w.includes('batas token')),
+    'Warning jelas harus mencatat bahwa respons terpotong karena batas token (MAX_TOKENS)'
+  );
+  console.log('   ✓ Penanganan finishReason = MAX_TOKENS berhasil diverifikasi (retry 16384 tokens & warning jelas dicatat).\n');
 
   console.log('🎉 SEMUA PENGUJIAN PENEMPATAN GAMBAR N8N LOLOS 100%!\n');
   process.exit(0);
