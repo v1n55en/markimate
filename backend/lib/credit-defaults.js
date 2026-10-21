@@ -1,6 +1,9 @@
 // Default harga credit dan tarif biaya API nyata untuk Markimate
 export const DEFAULT_PRICES = [
-  { action_key: 'seo.article', credits: 60, label: 'Generate artikel SEO (Review Ready)' },
+  { action_key: 'seo.article.short', credits: 45, label: 'Generate artikel SEO pendek (600 kata)' },
+  { action_key: 'seo.article', credits: 60, label: 'Generate artikel SEO standar (900 kata)' },
+  { action_key: 'seo.article.long', credits: 80, label: 'Generate artikel SEO panjang (1.500 kata)' },
+  { action_key: 'seo.article.pillar', credits: 110, label: 'Generate artikel SEO pilar (2.500 kata)' },
   { action_key: 'seo.image', credits: 5, label: 'Upload gambar artikel (per gambar)' },
   { action_key: 'seo.topics_run', credits: 10, label: 'Riset topik otomatis' },
   { action_key: 'seo.relink', credits: 5, label: 'Regenerate link/prompt' },

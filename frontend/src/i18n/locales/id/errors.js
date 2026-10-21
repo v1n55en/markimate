@@ -81,5 +81,6 @@ export const errors = {
   "MODULE_ALREADY_OWNED": "Workspace Anda sudah memiliki modul lifetime ini.",
   "INVALID_MODULE": "Modul atau paket bundle tidak valid.",
   "INVALID_TOPUP_AMOUNT": "Jumlah kredit top-up harus antara 50 dan 50.000 credit.",
-  "PLAN_DISCONTINUED": "Paket langganan bulanan telah dihentikan. Silakan beli modul lifetime."
+  "PLAN_DISCONTINUED": "Paket langganan bulanan telah dihentikan. Silakan beli modul lifetime.",
+  "INVALID_TONE": "Gaya tulisan (tone) custom mengandung karakter terlarang atau melebihi 120 karakter."
 };

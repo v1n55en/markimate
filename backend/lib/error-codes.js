@@ -363,6 +363,11 @@ export const ERROR_CODES = {
     code: 'INTERNAL_ERROR',
     status: 500,
     message: 'An internal server error occurred.'
+  },
+  INVALID_TONE: {
+    code: 'INVALID_TONE',
+    status: 400,
+    message: 'Custom writing tone contains invalid characters or exceeds limit.'
   }
 };
 

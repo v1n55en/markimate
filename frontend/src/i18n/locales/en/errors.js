@@ -81,5 +81,6 @@ export const errors = {
   "MODULE_ALREADY_OWNED": "You already own this lifetime module.",
   "INVALID_MODULE": "Invalid module or bundle.",
   "INVALID_TOPUP_AMOUNT": "Top-up credits must be between 50 and 50,000.",
-  "PLAN_DISCONTINUED": "Monthly subscription plans have been discontinued. Please choose a lifetime module."
+  "PLAN_DISCONTINUED": "Monthly subscription plans have been discontinued. Please choose a lifetime module.",
+  "INVALID_TONE": "Custom writing tone contains invalid characters or exceeds 120 characters limit."
 };
