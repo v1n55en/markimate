@@ -134,8 +134,10 @@ async function runPlacementTests() {
   const options4 = { imageMode: 'auto', imageCount: 2, imageHero: true, internalLinks: true, maxInternal: 1 };
 
   let retryConfigReceived = null;
+  let retryCredentialReceived = null;
   const mockHelpers = {
-    httpRequest: async (config) => {
+    httpRequestWithAuthentication: async function(credType, config) {
+      retryCredentialReceived = credType;
       retryConfigReceived = config;
       // Simulasi respons sukses setelah retry dengan token limit yang dinaikkan
       return {
@@ -155,6 +157,10 @@ async function runPlacementTests() {
           finishReason: 'STOP'
         }]
       };
+    },
+    httpRequest: async (config) => {
+      retryConfigReceived = config;
+      return null;
     }
   };
 
@@ -174,7 +180,8 @@ async function runPlacementTests() {
     }
   });
 
-  // Verifikasi 1: helper httpRequest dipanggil untuk retry
+  // Verifikasi 1: helper httpRequestWithAuthentication dipanggil untuk retry dengan kredensial googlePalmApi
+  assert.strictEqual(retryCredentialReceived, 'googlePalmApi', 'Kredensial n8n harus googlePalmApi');
   assert.ok(retryConfigReceived, 'Retry HTTP request harus dipanggil saat finishReason = MAX_TOKENS');
   assert.strictEqual(retryConfigReceived.method, 'POST');
   assert.ok(

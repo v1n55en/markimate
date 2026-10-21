@@ -16,7 +16,9 @@ if (finishReason === 'MAX_TOKENS') {
   const newLimit = Math.max(oldLimit * 2, 16384);
   warnings.push(`Peringatan: Respons AI terpotong karena mencapai batas token (finishReason = MAX_TOKENS). Mengulang sekali dengan batas token lebih besar (${newLimit}).`);
 
-  if (H && typeof H.httpRequest === 'function') {
+  const hasAuthReq = H && typeof H.httpRequestWithAuthentication === 'function';
+  const hasBasicReq = H && typeof H.httpRequest === 'function';
+  if (hasAuthReq || hasBasicReq) {
     try {
       const retryBody = JSON.parse(JSON.stringify(P.geminiBody || {}));
       if (!retryBody.generationConfig) retryBody.generationConfig = {};
@@ -24,13 +26,16 @@ if (finishReason === 'MAX_TOKENS') {
       if (retryBody.generationConfig.thinkingConfig) {
         retryBody.generationConfig.thinkingConfig.thinkingBudget = 0;
       }
-      const retryRes = await H.httpRequest({
+      const httpOptions = {
         method: 'POST',
         url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
         body: retryBody,
         json: true,
         timeout: 120000
-      });
+      };
+      const retryRes = hasAuthReq
+        ? await H.httpRequestWithAuthentication.call(this, 'googlePalmApi', httpOptions)
+        : await H.httpRequest(httpOptions);
       if (retryRes) {
         G = retryRes;
         const retryCand = (G.candidates || [])[0] || {};
