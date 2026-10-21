@@ -799,6 +799,7 @@ const styles = {
     flexWrap: 'wrap',
     fontSize: '0.825rem',
     color: 'var(--text-muted)',
+    marginTop: '0.5rem',
   },
   proofItem: {
     display: 'flex',
@@ -1424,14 +1425,18 @@ const styles = {
     fontSize: '0.85rem',
     fontWeight: 600,
     marginTop: '0.5rem',
+    marginBottom: '1.75rem',
     flexWrap: 'wrap',
     justifyContent: 'center',
+    maxWidth: '100%',
+    lineHeight: 1.4,
   },
   trialLink: {
     color: 'var(--accent-cyan)',
     fontWeight: 700,
     textDecoration: 'underline',
     marginLeft: '0.35rem',
+    whiteSpace: 'nowrap',
   },
   pricingTrialBanner: {
     marginBottom: '2rem',

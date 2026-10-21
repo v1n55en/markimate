@@ -11,5 +11,13 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  preview: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5001',
+        changeOrigin: true
+      }
+    }
   }
 });
