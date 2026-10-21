@@ -133,6 +133,24 @@ async function runCreditsTests() {
   w = await getWallet(testWorkspaceId);
   assert.strictEqual(w.totalBalance, 240, 'Saldo tidak boleh terpotong dua kali');
 
+  // Idempotensi grant(): Panggilan grant dengan refId yang sama 2x -> kredit masuk tepat 1x
+  const grantWsId = randomUUID();
+  const grantRef = { refId: 'grant-tx-' + randomUUID(), actionKey: 'billing.topup' };
+  const grantExp = new Date(Date.now() + 30 * 86400e3);
+
+  const firstGrant = await grant(grantWsId, 'topup', 100, grantExp, 'topup', 'First grant attempt', grantRef);
+  assert.strictEqual(firstGrant.idempotent, undefined, 'First grant call should not be idempotent');
+  let gw = await getWallet(grantWsId);
+  assert.strictEqual(gw.totalBalance, 100, 'Saldo harus 100 setelah first grant');
+
+  const secondGrant = await grant(grantWsId, 'topup', 100, grantExp, 'topup', 'Duplicate retry grant', grantRef);
+  assert.strictEqual(secondGrant.idempotent, true, 'Second grant call with same refId must return idempotent: true');
+  gw = await getWallet(grantWsId);
+  assert.strictEqual(gw.totalBalance, 100, 'Saldo kredit tidak boleh bertambah saat grant dipanggil ulang dengan refId sama');
+
+  const grantLedger = await db.findMany('credit_ledger', { workspace_id: grantWsId, ref_id: grantRef.refId });
+  assert.strictEqual(grantLedger.length, 1, 'Hanya boleh ada 1 record ledger untuk refId yang sama');
+
   // Multi-bucket deduction: trial (240) + sub (100) + topup (50)
   const in30Days = new Date(Date.now() + 30 * 24 * 3600 * 1000);
   const in365Days = new Date(Date.now() + 365 * 24 * 3600 * 1000);

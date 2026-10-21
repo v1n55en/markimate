@@ -60,20 +60,20 @@ function makeDokuWebhookHeaders(bodyObj, options = {}) {
   const ts = options.timestamp || new Date().toISOString().slice(0, 19) + 'Z';
   const rawBody = typeof bodyObj === 'string' ? bodyObj : JSON.stringify(bodyObj);
   const dokuHelper = new DokuPaymentProvider({
-    clientId: options.clientId || TEST_CLIENT_ID,
-    secretKey: options.secretKey || TEST_SECRET_KEY,
+    clientId: options.clientId !== undefined ? options.clientId : TEST_CLIENT_ID,
+    secretKey: options.secretKey !== undefined ? options.secretKey : TEST_SECRET_KEY,
     env: 'sandbox'
   });
   const digest = dokuHelper.calculateDigest(rawBody);
   const signature = options.invalidSignature
     ? 'HMACSHA256=invalid-signature'
     : dokuHelper.generateSignature({
-        clientId: options.clientId || TEST_CLIENT_ID,
+        clientId: options.clientId !== undefined ? options.clientId : TEST_CLIENT_ID,
         requestId: reqId,
         timestamp: ts,
         requestTarget: '/api/webhooks/doku',
         digest,
-        secretKey: options.secretKey || TEST_SECRET_KEY
+        secretKey: options.secretKey !== undefined ? options.secretKey : TEST_SECRET_KEY
       });
 
   return {
@@ -524,15 +524,28 @@ async function runDokuPaymentsTests() {
   process.env.NODE_ENV = 'test';
 
   // 6b. Test Empty Secret DOKU via HTTP -> 401
-  const origDokuSecret = dokuAdapter.secretKey;
-  dokuAdapter.secretKey = '';
+  // Test harus mengirim signature yang dihitung dengan KEY KOSONG, dan tetap ditolak 401 oleh guard
+  const origEnvSecret = process.env.DOKU_SECRET_KEY;
+  process.env.DOKU_SECRET_KEY = '';
+  const emptyDokuProvider = new DokuPaymentProvider({
+    clientId: TEST_CLIENT_ID,
+    secretKey: ''
+  });
+  setProvider(emptyDokuProvider);
+
+  const emptyKeyHeaders = makeDokuWebhookHeaders(retryWebhookPayload, {
+    clientId: TEST_CLIENT_ID,
+    secretKey: '' // sengaja dihitung dengan secretKey kosong
+  });
   const emptySecretRes = await req('/api/webhooks/doku', {
     method: 'POST',
-    headers: retryHeaders,
+    headers: emptyKeyHeaders,
     body: retryWebhookPayload
   });
-  assert.strictEqual(emptySecretRes.status, 401, 'Request HTTP ke /api/webhooks/doku saat secret kosong wajib ditolak 401');
-  dokuAdapter.secretKey = origDokuSecret;
+  assert.strictEqual(emptySecretRes.status, 401, 'Request HTTP ke /api/webhooks/doku dengan signature ber-key kosong wajib ditolak 401 oleh guard');
+
+  process.env.DOKU_SECRET_KEY = origEnvSecret;
+  setProvider(dokuAdapter);
 
   // ----------------------------------------------------
   // 7. Uji Proteksi Cron Reconcile & Eksekusi Sukses
@@ -586,6 +599,75 @@ async function runDokuPaymentsTests() {
   const reconciledPayment = await db.findOne('payments', { invoice_number: pendingOldInvoice });
   assert.strictEqual(reconciledPayment.status, 'paid');
   assert.ok(reconciledPayment.fulfilled_at);
+
+  // ----------------------------------------------------
+  // 7b. Test Reconcile Loop: Payment 'paid' tanpa baris credit_ledger -> reconcile -> kredit masuk 1x
+  // ----------------------------------------------------
+  console.log('7b. Menguji reconcile loop untuk payment paid tapi belum ter-grant...');
+  const paidWithoutGrantInvoice = generateInvoiceNumber('topup');
+  const pastTime2 = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+
+  // Ambil saldo sebelum
+  const preReconcileWallet = await db.findOne('credit_wallets', { workspace_id: userRow.id });
+  const preReconcileTopup = Number(preReconcileWallet?.balance_topup || 0);
+
+  const missingGrantPayment = await db.insert('payments', {
+    workspace_id: userRow.id,
+    user_id: userRow.id,
+    kind: 'topup',
+    item_id: 'starter',
+    item_name: 'Starter Pack',
+    amount: 500000,
+    currency: 'IDR',
+    credits: 500,
+    period_days: 365,
+    provider: 'doku',
+    invoice_number: paidWithoutGrantInvoice,
+    status: 'paid', // sudah berstatus paid
+    fulfilled_at: pastTime2, // sudah ditandai fulfilled
+    created_at: pastTime2,
+    updated_at: pastTime2
+  });
+
+  // Pastikan belum ada ledger row dengan ref_id payment ini
+  const ledgerBefore = await db.findMany('credit_ledger', {
+    workspace_id: userRow.id,
+    ref_id: missingGrantPayment.id
+  });
+  assert.strictEqual(ledgerBefore.length, 0, 'Sebelum reconcile, belum boleh ada baris ledger untuk payment ini');
+
+  // Jalankan reconcile via cron
+  const recRes = await req('/api/cron/payments-reconcile', {
+    headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` }
+  });
+  assert.strictEqual(recRes.status, 200);
+
+  // Verifikasi kredit bertambah 500
+  const postReconcileWallet = await db.findOne('credit_wallets', { workspace_id: userRow.id });
+  assert.strictEqual(
+    Number(postReconcileWallet.balance_topup),
+    preReconcileTopup + 500,
+    'Reconcile harus memulihkan kredit 500 untuk payment paid tanpa ledger'
+  );
+
+  // Verifikasi baris ledger tercipta
+  const ledgerAfter = await db.findMany('credit_ledger', {
+    workspace_id: userRow.id,
+    ref_id: missingGrantPayment.id
+  });
+  assert.strictEqual(ledgerAfter.length, 1, 'Reconcile harus membuat tepat 1 baris credit_ledger untuk payment.id ini');
+  assert.strictEqual(ledgerAfter[0].delta, 500);
+
+  // Jalankan reconcile sekali lagi -> saldo tidak boleh bertambah lagi (idempoten)
+  await req('/api/cron/payments-reconcile', {
+    headers: { Authorization: `Bearer ${process.env.CRON_SECRET}` }
+  });
+  const postReconcileWallet2 = await db.findOne('credit_wallets', { workspace_id: userRow.id });
+  assert.strictEqual(
+    Number(postReconcileWallet2.balance_topup),
+    preReconcileTopup + 500,
+    'Reconcile berulang tidak boleh menambah kredit dua kali'
+  );
 
   // ----------------------------------------------------
   // 8. Uji Pengingat Langganan H-7 dan H-1

@@ -338,11 +338,15 @@ export async function fulfillPayment(payment, parsed = {}) {
   } catch (err) {
     console.error(`[FULFILLMENT-FAILED] Error fulfilling payment ${payment.invoice_number}:`, err.message);
     // Rollback klaim agar baris tidak terkunci sebagai 'paid' tanpa kredit
-    await db.update('payments', { id: payment.id }, {
-      fulfilled_at: null,
-      status: 'pending',
-      updated_at: new Date().toISOString()
-    });
+    try {
+      await db.update('payments', { id: payment.id }, {
+        fulfilled_at: null,
+        status: 'pending',
+        updated_at: new Date().toISOString()
+      });
+    } catch (rbErr) {
+      console.error(`[CRITICAL] Rollback claim failed for payment ${payment.invoice_number} (id=${payment.id}): ${rbErr.message}. Reconcile loop will recover.`);
+    }
     throw err;
   }
 }

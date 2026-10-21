@@ -426,54 +426,55 @@ export async function grant(workspaceId, bucket, amount, expiresAt, kind = 'topu
   }
 
   const { wallet } = await getWallet(workspaceId);
-  const oldBalances = {
-    balance_trial: Number(wallet.balance_trial || 0),
-    trial_expires_at: wallet.trial_expires_at || null,
-    balance_sub: Number(wallet.balance_sub || 0),
-    sub_expires_at: wallet.sub_expires_at || null,
-    balance_topup: Number(wallet.balance_topup || 0),
-    topup_expires_at: wallet.topup_expires_at || null
-  };
-
-  const patch = {};
   const expIso = expiresAt instanceof Date ? expiresAt.toISOString() : (expiresAt || null);
 
+  let newTrial = Number(wallet.balance_trial || 0);
+  let newSub = Number(wallet.balance_sub || 0);
+  let newTopup = Number(wallet.balance_topup || 0);
+  const patch = {};
+
   if (bucket === 'trial') {
-    patch.balance_trial = Number(wallet.balance_trial || 0) + amt;
+    newTrial += amt;
+    patch.balance_trial = newTrial;
     patch.trial_expires_at = expIso;
   } else if (bucket === 'sub') {
     // PRD §4.3: balance_sub = credit paket (reset, bukan tambah)
-    patch.balance_sub = amt;
+    newSub = amt;
+    patch.balance_sub = newSub;
     patch.sub_expires_at = expIso;
   } else if (bucket === 'topup') {
-    patch.balance_topup = Number(wallet.balance_topup || 0) + amt;
+    newTopup += amt;
+    patch.balance_topup = newTopup;
     patch.topup_expires_at = expIso;
   }
 
+  const expectedTotalAfter = newTrial + newSub + newTopup;
+  const defaultActionKey = kind === 'grant_trial' ? 'auth.trial' : (bucket === 'sub' ? 'billing.sub' : 'billing.topup');
+
+  // Urutan 1: Catat mutasi di credit_ledger DULU
+  const ledgerRow = await db.insert('credit_ledger', {
+    workspace_id: workspaceId,
+    delta: amt,
+    bucket,
+    kind,
+    action_key: ref?.actionKey || defaultActionKey,
+    ref_type: ref?.refType || (kind === 'grant_trial' ? 'trial' : null),
+    ref_id: ref?.refId || null,
+    balance_after: expectedTotalAfter,
+    usage: null,
+    cost_actual_idr: 0,
+    note: note || `Grant ${bucket} +${amt}`
+  });
+
+  // Urutan 2: Update saldo di credit_wallets
   try {
     await db.update('credit_wallets', { workspace_id: workspaceId }, patch);
-    const { totalBalance } = await getWallet(workspaceId);
-
-    const defaultActionKey = kind === 'grant_trial' ? 'auth.trial' : (bucket === 'sub' ? 'billing.sub' : 'billing.topup');
-
-    const ledgerRow = await db.insert('credit_ledger', {
-      workspace_id: workspaceId,
-      delta: amt,
-      bucket,
-      kind,
-      action_key: ref.actionKey || defaultActionKey,
-      ref_type: ref.refType || (kind === 'grant_trial' ? 'trial' : null),
-      ref_id: ref.refId || null,
-      balance_after: totalBalance,
-      usage: null,
-      cost_actual_idr: 0,
-      note: note || `Grant ${bucket} +${amt}`
-    });
-
-    return { wallet: patch, ledgerRow, totalBalance };
+    return { wallet: patch, ledgerRow, totalBalance: expectedTotalAfter };
   } catch (err) {
-    // Rollback wallet balance jika proses pencatatan ledger gagal
-    await db.update('credit_wallets', { workspace_id: workspaceId }, oldBalances).catch(() => {});
+    // Jika update wallet gagal, rollback baris ledger yang baru dimasukkan.
+    // Jika penghapusan gagal, throw — jangan ditelan diam-diam.
+    console.error(`[CRITICAL] Gagal update credit_wallets setelah insert ledger. Melakukan rollback ledger ${ledgerRow.id}: ${err.message}`);
+    await db.remove('credit_ledger', { id: ledgerRow.id });
     throw err;
   }
 }
