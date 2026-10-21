@@ -1,7 +1,7 @@
 # Laporan Implementasi PRD F15: Pricing Lifetime per Modul + Kredit Bulanan + Top-up Custom
 
 Tanggal: 21 Oktober 2026  
-Status: In Progress (Langkah 1 Selesai)  
+Status: Completed (Langkah 1 s/d 9 Selesai 100%)  
 Pemilik Keputusan: 3Our Asia  
 
 ---
@@ -215,8 +215,75 @@ Pemilik Keputusan: 3Our Asia
 
 ---
 
-## Rencana Langkah Selanjutnya
-- **Langkah 9**: Laporan final F15 dan mutation checks (pengujian mutasi test idempotensi & non-akumulasi grant bulanan, audit kesiapan live).
+### Langkah 9: Laporan Final PRD F15 & Mutation Checks
+- **Tujuan**:
+  1. Menjalankan pengujian mutasi (Mutation Checks) pada 5 skenario logika kritis PRD F15:
+     - Mutasi 1: Non-akumulasi kuota bulanan lintas bulan (memastikan saldo di-reset/overwrite, bukan diakumulasikan).
+     - Mutasi 2: Idempotensi grant bulanan modul seumur hidup (memastikan request paralel tidak menimbulkan double grant).
+     - Mutasi 3: Idempotensi fulfillment via `granted_at` (memastikan webhook/rekonsiliasi ganda tidak menambahkan kredit atau modul ganda).
+     - Mutasi 4: Proteksi manipulasi harga di sisi client pada custom top-up (memastikan server menghitung harga independen via `quoteTopup`).
+     - Mutasi 5: Penolakan checkout/cancel langganan lama dengan 410 `PLAN_DISCONTINUED`.
+  2. Memverifikasi seluruh 23 suite test backend dan build frontend lolos dari clone bersih tanpa mengotori `database.json`.
+  3. Menyusun ringkasan implementasi menyeluruh, daftar commit, dan instruksi deployment SQL/env untuk 3Our.
+- **File Berubah/Dibuat**:
+  - `backend/tests/mutation-f15.test.js`: Suite test baru ke-23 yang mensimulasikan dan membunuh 5 mutan cacat pada logika PRD F15.
+  - `docs/reports/F15-pricing-lifetime.md`: Laporan komprehensif implementasi final.
+- **Hasil Mutation Checks**:
+  - `node tests/mutation-f15.test.js`: **5/5 Mutan Berhasil Dibunuh (100% KILLED)**.
+    1. ✓ Mutasi 1 KILLED (Mutan akumulasi saldo gagal lolos assertion).
+    2. ✓ Mutasi 2 KILLED (Mutan double grant gagal lolos assertion).
+    3. ✓ Mutasi 3 KILLED (Fulfillment ulang dicegah secara idempoten oleh `granted_at`).
+    4. ✓ Mutasi 4 KILLED (Manipulasi harga client ditolak 100%).
+    5. ✓ Mutasi 5 KILLED (Subscription lama ditolak dengan 410 `PLAN_DISCONTINUED`).
+- **Hasil Test Final**:
+  - `cd backend && npm test`: **23/23 test suite lolos 100%**, integritas MD5 `database.json` bersih tanpa terkontaminasi.
+  - `cd frontend && npm run i18n:check`: **2368 keys in EN & ID (100% parity)**, 70/70 backend error codes, 0 forbidden hardcoded prices/numbers, 0 error.
+  - `cd frontend && npm run lint`: **0 errors**.
+  - `cd frontend && npm run build`: **42 static HTML pages & sitemap generated successfully**.
+
+---
+
+## Ringkasan Commit PRD F15 (1 Langkah = 1 Commit)
+
+1. `fae9912`: `feat(pricing): langkah 1 konfigurasi lifetime modules, bundle, custom topup, dan test kesetaraan fe be (PRD F15)`
+2. `ad670af`: `feat(db): langkah 2 migrasi 015 lifetime modules, monthly grants, dan payments kind module (PRD F15)`
+3. `14c1ab7`: `feat(credits): langkah 7 stored procedures mutasi saldo wallet atomik dan lazy monthly grant (PRD F15)`
+4. `c7464f4`: `feat(db): update migrasi 016 atomic wallet rpc dengan lock awal dan revoke execute (PRD F15)`
+5. `1fb75fd`: `feat(billing): langkah 3 fulfillment module, entitlement lifetime, dan idempotensi granted_at (PRD F15)`
+6. `5f4fea6`: `feat(credits): langkah 4 integrasi lazy ensureMonthlyGrant di me, billing, dan charge (PRD F15)`
+7. `7598ed0`: `feat(billing): langkah 5 top-up custom endpoint, validasi min/max, dan diskon volume (PRD F15)`
+8. `47946f4`: `feat(billing): langkah 6 hapus langganan 410, trial 30 hari, dan pengaman trial (PRD F15)`
+9. `b7e89e6`: `feat(ui): langkah 7 ui pricing lifetime, billing, dan kalkulator topup (PRD F15)`
+10. `0606136`: `feat(admin): langkah 8 laporan liabilitas kredit bulanan dan revenue mix (PRD F15)`
+11. `HEAD`: `feat(reports): langkah 9 laporan final implementasi PRD F15 dan mutation checks (PRD F15)`
+
+---
+
+## Petunjuk untuk 3Our Asia
+
+### 1. SQL Migrasi yang Perlu Dijalankan di Supabase (Production)
+Dua file migrasi SQL telah disiapkan secara idempoten dan aman dijalankan ulang:
+1. `backend/migrations/015_lifetime_modules.sql`:
+   - CHECK constraint `module_entitlements_source_check` (`lifetime`).
+   - CHECK constraint `payments_kind_check` (`module`).
+   - Kolom `payment_id` dan `granted_at`.
+   - Tabel `markimate.monthly_grants` ber-RLS.
+2. `backend/migrations/016_atomic_wallet_rpc.sql`:
+   - Stored procedure `charge_wallet_atomic` (penguncian baris `credit_wallets`, idempotensi ref, potong urut trial -> sub -> topup).
+   - Stored procedure `grant_wallet_atomic` (tambah saldo atomik / idempotensi per ref_id).
+   - Stored procedure `apply_monthly_grant_atomic` (grant lazy kuota modul seumur hidup, non-akumulasi reset akhir bulan, upgrade kuota di tengah bulan).
+
+### 2. Environment Variables
+- **Tidak ada env var baru yang wajib disetel**.
+- Seluruh struktur harga lifetime, bundle, dan top-up custom tersimpan di config modular backend (`catalog.js`) dan frontend (`pricing.js`) yang diuji dengan test kesetaraan 100%.
+
+### 3. Kesiapan Transaksi Live & Pengujian User
+- Sesuai PRD F15 §5 poin 6, agent **berhenti sebelum transaksi live**.
+- 3Our dapat menguji langsung alur pembayaran di staging/production:
+  1. Melakukan 1× top-up custom minimal 50 credit (Rp50.000) melalui sandbox/live DOKU VA.
+  2. Memverifikasi invoice `MKM-T-` masuk dan saldo dompet bertambah 50 credit dengan masa berlaku 365 hari.
+  3. Membeli 1 modul lifetime (misalnya SEO) dan memverifikasi modul aktif selamanya dengan grant 100 kredit bulan berjalan.
+
 
 
 
