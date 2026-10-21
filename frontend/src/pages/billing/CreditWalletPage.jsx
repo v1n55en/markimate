@@ -1,26 +1,19 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   Coins,
-  ArrowUpRight,
-  ArrowDownRight,
   Clock,
   Download,
-  Filter,
-  CheckCircle,
-  AlertCircle,
-  Zap,
   Sparkles,
   HelpCircle,
-  ExternalLink,
-  ChevronRight,
-  TrendingUp,
   ShieldAlert,
-  ArrowRight,
 } from 'lucide-react';
 import { getCredits, getCreditLedger, formatIDR, api } from '../../api';
-import { CREDIT_PRICE_IDR } from '../../config/pricing';
+import { CREDIT_PRICE_IDR, MODULES } from '../../config/pricing';
+import TopupCalculator from '../../components/common/TopupCalculator';
 import { useLanguage } from '../../context/LanguageContext';
-import { formatDate as fmtDate, formatDateTime, formatNumber } from '../../lib/format';
+import { formatDateTime, formatNumber } from '../../lib/format';
+
+const LIFETIME_MODULE_KEYS = ['seo', 'ads_report', 'ads_spy'];
 
 export const TOPUP_PACKAGES = [
   {
@@ -89,40 +82,35 @@ export default function CreditWalletPage({ me, onTopupClick }) {
   const [topupNotice, setTopupNotice] = useState(null);
 
   const [payments, setPayments] = useState([]);
-  const [catalogPacks, setCatalogPacks] = useState(TOPUP_PACKAGES);
 
   const fetchWalletData = async () => {
     try {
       setLoading(true);
-      const [cData, lData, pData, catData] = await Promise.all([
+      const [cData, lData, pData] = await Promise.all([
         getCredits().catch(() => null),
         getCreditLedger({ limit: 100 }).catch(() => ({ ledger: [] })),
         api('/api/billing/payments').catch(() => ({ payments: [] })),
-        api('/api/billing/catalog').catch(() => null)
       ]);
 
       if (cData) setCredits(cData);
       if (lData?.ledger) setLedger(lData.ledger);
       if (pData?.payments) setPayments(pData.payments);
-      if (catData?.topupPackages && catData.topupPackages.length > 0) {
-        setCatalogPacks(catData.topupPackages);
-      }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleTopupPackage = async (pack) => {
+  const handleCustomTopup = async (creditsAmount) => {
     if (onTopupClick) {
-      onTopupClick(pack);
+      onTopupClick({ credits: creditsAmount });
       return;
     }
     try {
-      setTopupBusy(pack.id);
+      setTopupBusy('custom');
       setTopupNotice(null);
       const res = await api('/api/billing/topup', {
         method: 'POST',
-        body: { packageId: pack.id }
+        body: { credits: creditsAmount }
       });
 
       if (res?.checkoutUrl) {
@@ -217,15 +205,6 @@ export default function CreditWalletPage({ me, onTopupClick }) {
     }
   };
 
-  const formatSimpleDate = (iso) => {
-    if (!iso) return '-';
-    try {
-      return fmtDate(iso, lang);
-    } catch {
-      return iso;
-    }
-  };
-
   return (
     <div style={styles.container}>
       {/* 1. Header Banner Dompet Credit */}
@@ -309,10 +288,10 @@ export default function CreditWalletPage({ me, onTopupClick }) {
           </div>
         </div>
 
-        {/* Bucket Langganan */}
+        {/* Bucket Langganan / Kuota Bulanan Modul */}
         <div style={styles.bucketCard} className="card">
           <div style={styles.bucketCardTop}>
-            <span style={styles.bucketLabel}>{t('billing.bucketSub')}</span>
+            <span style={styles.bucketLabel}>{t('billing.bucketSubLifetime')}</span>
             <span style={styles.bucketMiniTag}>{t('billing.daysUnit', { days: 30 })}</span>
           </div>
           <div style={styles.bucketValRow}>
@@ -323,7 +302,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
             <Clock size={12} color="var(--text-muted)" />
             <span>
               {subEnds
-                ? t('billing.resetsOn', { date: formatDate(subEnds, lang) })
+                ? t('billing.resetsEndOfMonth', { date: formatDate(subEnds, lang) })
                 : t('billing.noActivePlan')}
             </span>
           </div>
@@ -396,7 +375,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
         </div>
       )}
 
-      {/* 3. Paket Top-up Tambahan */}
+      {/* 3. Top-Up Custom Fleksibel */}
       <div style={styles.sectionHeaderRow}>
         <div>
           <h2 style={styles.sectionTitle}>
@@ -424,48 +403,63 @@ export default function CreditWalletPage({ me, onTopupClick }) {
         </div>
       )}
 
-      <div style={styles.packsGrid}>
-        {catalogPacks.map((pack) => (
-          <div
-            key={pack.id}
-            style={{
-              ...styles.packCard,
-              ...(pack.popular ? styles.packCardPopular : {}),
-            }}
-            className="card"
-          >
-            {pack.popular && (
-              <div style={styles.popularBadge}>
-                <Sparkles size={12} color="#000" />
-                <span>{pack.tagKey ? t(pack.tagKey) : pack.tag}</span>
-              </div>
-            )}
-            <h3 style={styles.packName}>{pack.name}</h3>
-            <div style={styles.packPriceRow}>
-              <span style={styles.packPrice}>{formatIDR(pack.price, lang)}</span>
-            </div>
-            <div style={styles.packCreditBox}>
-              <Coins size={16} color="var(--accent-cyan)" />
-              <span style={styles.packCreditCount}>{formatNumber(pack.credits, lang)} {t('billing.creditsUnit')}</span>
-              {pack.bonus > 0 && (
-                <span style={styles.packBonusBadge}>+{pack.bonus} {t('billing.bonusBadge', 'bonus')}</span>
-              )}
-            </div>
-            <p style={styles.packDesc}>{pack.descKey ? t(pack.descKey) : pack.desc}</p>
-            <button
-              onClick={() => handleTopupPackage(pack)}
-              disabled={topupBusy === pack.id}
+      <div style={{ maxWidth: '640px', width: '100%' }}>
+        <TopupCalculator
+          onBuy={handleCustomTopup}
+          busy={Boolean(topupBusy)}
+          initialCredits={500}
+        />
+      </div>
+
+      {/* Modul Lifetime Saya */}
+      <div style={{ ...styles.sectionHeaderRow, marginTop: '2rem' }}>
+        <div>
+          <h2 style={styles.sectionTitle}>
+            {t('billing.myModulesTitle')}
+          </h2>
+          <p style={styles.sectionDesc}>
+            {t('billing.myModulesSubtitle')}
+          </p>
+        </div>
+      </div>
+
+      <div style={styles.myModulesGrid}>
+        {LIFETIME_MODULE_KEYS.map((modKey) => {
+          const modMeta = MODULES[modKey];
+          const isOwned = (me?.workspace?.modules || credits?.modules || []).includes(modKey);
+          return (
+            <div
+              key={modKey}
+              className="card"
               style={{
-                ...styles.packBuyBtn,
-                ...(pack.popular ? styles.packBuyBtnPopular : {}),
-                opacity: topupBusy === pack.id ? 0.7 : 1
+                ...styles.myModuleCard,
+                borderColor: isOwned ? 'var(--accent-cyan)' : 'var(--border-muted)',
+                opacity: isOwned ? 1 : 0.65
               }}
             >
-              <span>{topupBusy === pack.id ? t('billing.processing') : t('billing.buyCreditsBtn', { credits: pack.credits })}</span>
-              <ArrowRight size={14} />
-            </button>
-          </div>
-        ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', gap: '0.5rem' }}>
+                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {modMeta?.name || modKey}
+                </h3>
+                {isOwned ? (
+                  <span style={styles.ownedBadge}>
+                    <Sparkles size={11} />
+                    {t('billing.ownedLifetimeBadge')}
+                  </span>
+                ) : (
+                  <span style={styles.unownedBadge}>{t('billing.inactive')}</span>
+                )}
+              </div>
+              <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                {modMeta?.desc}
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent-cyan)' }}>
+                <Coins size={14} />
+                <span>{t('billing.monthlyGrantInfo', { credits: modMeta?.monthlyCredits || 100 })}</span>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* 4. Buku Besar Mutasi (Ledger) */}
@@ -1233,5 +1227,37 @@ const styles = {
     fontSize: '12px',
     color: '#059669',
     fontWeight: '600',
+  },
+  myModulesGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))',
+    gap: '1rem',
+    width: '100%',
+  },
+  myModuleCard: {
+    padding: '1.25rem',
+    borderRadius: '10px',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+  },
+  ownedBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.3rem',
+    fontSize: '0.72rem',
+    fontWeight: '700',
+    color: '#000000',
+    backgroundColor: 'var(--accent-cyan)',
+    borderRadius: '4px',
+    padding: '0.2rem 0.5rem',
+  },
+  unownedBadge: {
+    fontSize: '0.72rem',
+    fontWeight: '600',
+    color: 'var(--text-muted)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: '4px',
+    padding: '0.2rem 0.5rem',
   },
 };

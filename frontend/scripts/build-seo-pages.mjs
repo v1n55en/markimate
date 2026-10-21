@@ -48,6 +48,17 @@ async function run() {
       }
     },
     {
+      cleanPath: '/pricing',
+      en: {
+        title: 'Lifetime Pricing & Modules — Markimate',
+        description: 'Lifetime access to AI SEO, Ads Reporting, and Creative Spy modules. Pay once, use forever with free monthly credits and flexible custom top-up.'
+      },
+      id: {
+        title: 'Harga Lifetime & Modul AI — Markimate',
+        description: 'Akses seumur hidup modul AI SEO, Ads Reporting, dan Creative Spy. Sekali bayar tanpa langganan, kuota kredit bulanan gratis, dan top-up custom fleksibel.'
+      }
+    },
+    {
       cleanPath: '/privacy',
       en: {
         title: 'Privacy Policy — Markimate',

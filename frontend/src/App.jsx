@@ -234,6 +234,7 @@ function AppRoutes({ me, onLoginSuccess, onLogout, refreshMe }) {
     <Routes>
       {/* Rute Publik Kanonik (EN) */}
       <Route path="/" element={<LandingPage />} />
+      <Route path="/pricing" element={<LandingPage scrollToPricing />} />
       <Route path="/roles/:key" element={<RoleDetailPage />} />
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/terms" element={<TermsPage />} />
@@ -241,6 +242,7 @@ function AppRoutes({ me, onLoginSuccess, onLogout, refreshMe }) {
 
       {/* Rute Publik Terlokalisasi (ID) (PRD F3 §2.3) */}
       <Route path="/id" element={<LandingPage />} />
+      <Route path="/id/pricing" element={<LandingPage scrollToPricing />} />
       <Route path="/id/roles/:key" element={<RoleDetailPage />} />
       <Route path="/id/privacy" element={<PrivacyPage />} />
       <Route path="/id/terms" element={<TermsPage />} />

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LocalizedLink } from '../../lib/localized-router';
 import { AppLink } from '../../lib/hosts';
 import {
@@ -43,7 +43,11 @@ import {
   formatCurrency,
   TRIAL,
   CREDIT_PRICE_IDR,
+  MODULES,
+  LIFETIME_BUNDLES,
+  TOPUP,
 } from '../../config/pricing';
+import TopupCalculator from '../../components/common/TopupCalculator';
 import PublicNavbar from '../../components/PublicNavbar';
 import PublicFooter from '../../components/PublicFooter';
 import WaitlistModal from '../../components/common/WaitlistModal';
@@ -70,10 +74,21 @@ const ICON_MAP = {
   Compass,
 };
 
-export default function LandingPage() {
+export default function LandingPage({ scrollToPricing = false }) {
   const { t, lang } = useLanguage();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [activeWaitlistRole, setActiveWaitlistRole] = useState(null);
+
+  useEffect(() => {
+    if (scrollToPricing || window.location.hash === '#pricing' || window.location.pathname.endsWith('/pricing')) {
+      const el = document.getElementById('pricing');
+      if (el) {
+        setTimeout(() => {
+          el.scrollIntoView({ behavior: 'smooth' });
+        }, 150);
+      }
+    }
+  }, [scrollToPricing]);
 
   const localizedRoles = getLocalizedRoles(lang);
   const localizedCategories = getLocalizedCategories(lang);
@@ -476,102 +491,132 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div style={styles.pricingCardsGrid}>
-            {/* Paket 1: Beli Satuan */}
-            <div style={styles.planCard} className="card">
-              <span style={styles.planBadge}>{t('bundles.planBadgeModular', 'Modular')}</span>
-              <h3 style={styles.planName}>{t('bundles.modularTitle', 'Individual Roles')}</h3>
-              <p style={styles.planDesc}>
-                {t('bundles.modularDesc', 'Subscribe to individual roles based on your exact business needs.')}
-              </p>
-              <div style={styles.planPriceRow}>
-                <span style={styles.planPriceVal}>
-                  {t('bundles.modularPriceFrom', { price: formatCurrency(1000000, lang) }, `From ${formatCurrency(1000000, lang)}`)}
+          {/* Bundle Fokus 3 Hero Card (Best Value) */}
+          <div className="focus3-hero-card" style={{ marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div>
+                <span className="focus3-hero-badge">
+                  <Sparkles size={13} />
+                  {t('bundles.popularBadge')}
                 </span>
-                <span style={styles.planPeriod}>{t('bundles.perMonth', '/ month')}</span>
+                <h3 className="focus3-hero-title">{t('bundles.fokus3Title')}</h3>
+                <p className="focus3-hero-desc">{t('bundles.fokus3Desc')}</p>
               </div>
-              <ul style={styles.planFeatures}>
-                <li>{t('bundles.modularFeat1', 'AI SEO: 1,500 cr / mo (≈20 rich articles)')}</li>
-                <li>{t('bundles.modularFeat2', 'AI Ads Report: 1,500 cr / mo (3 ad accounts)')}</li>
-                <li>{t('bundles.modularFeat3', 'AI Ads Creative Spy: 1,000 cr / mo (5 competitors)')}</li>
-                <li>{t('bundles.modularFeat4', 'Credits usable across all active modules')}</li>
+              <div style={{ textAlign: 'right' }}>
+                <div className="focus3-price-val">{formatCurrency(LIFETIME_BUNDLES.focus3.price, lang)}</div>
+                <div className="focus3-one-time-label">{t('bundles.oneTime')}</div>
+                <div className="focus3-savings-badge">
+                  {t('bundles.bundleSavingsBadge', { amount: formatCurrency(LIFETIME_BUNDLES.focus3.savings, lang) })}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem', marginTop: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', color: 'var(--accent-cyan)', fontWeight: 700, fontSize: '0.95rem' }}>
+                <Coins size={18} />
+                <span>{t('bundles.monthlyCreditsForever', { credits: LIFETIME_BUNDLES.focus3.monthlyCredits })}</span>
+              </div>
+              <ul className="focus3-features-list">
+                <li>{t('bundles.fokus3Feat1')}</li>
+                <li>{t('bundles.fokus3Feat2')}</li>
+                <li>{t('bundles.fokus3Feat3')}</li>
+                <li>{t('bundles.fokus3Feat4', { credits: LIFETIME_BUNDLES.focus3.monthlyCredits })}</li>
+                <li>{t('bundles.fokus3Feat5')}</li>
+              </ul>
+              <div style={{ marginTop: '1.25rem' }}>
+                <AppLink to="/register" className="focus3-cta-btn">
+                  <span>{t('bundles.ctaBuyModule')}</span>
+                  <ArrowRight size={16} />
+                </AppLink>
+              </div>
+            </div>
+          </div>
+
+          {/* 3 Modul Lifetime Grid */}
+          <div className="pricing-lifetime-grid">
+            {/* 1. SEO */}
+            <div className="plan-card card" style={styles.planCard}>
+              <span className="plan-badge" style={styles.planBadge}>{t('bundles.lifetimeBadge')}</span>
+              <h3 className="plan-name" style={styles.planName}>{t('bundles.seoTitle')}</h3>
+              <p className="plan-desc" style={styles.planDesc}>{t('bundles.seoDesc')}</p>
+              <div className="plan-price-row" style={styles.planPriceRow}>
+                <span className="plan-price-val" style={styles.planPriceVal}>{formatCurrency(MODULES.seo.price, lang)}</span>
+                <span className="plan-period" style={styles.planPeriod}>{t('bundles.oneTime')}</span>
+              </div>
+              <div className="plan-credit-grant">
+                <Coins size={15} color="var(--accent-cyan)" />
+                <span>{t('bundles.monthlyCreditsForever', { credits: MODULES.seo.monthlyCredits })}</span>
+              </div>
+              <ul className="plan-features" style={styles.planFeatures}>
+                <li>{t('bundles.seoFeat1')}</li>
+                <li>{t('bundles.seoFeat2')}</li>
+                <li>{t('bundles.seoFeat3')}</li>
+                <li>{t('bundles.seoFeat4', { credits: MODULES.seo.monthlyCredits })}</li>
               </ul>
               <AppLink to="/register" style={styles.planBtnSecondary}>
-                {t('bundles.ctaSelect', 'Select Plan')}
+                {t('bundles.ctaSelect')}
               </AppLink>
             </div>
 
-            {/* Paket 2: Bundle Fokus 3 (Paling Populer) */}
-            <div style={{ ...styles.planCard, ...styles.planCardFeatured }} className="card">
-              <span style={styles.planBadgeFeatured}>{t('bundles.popularBadge', 'Best Value')}</span>
-              <h3 style={styles.planName}>{t('bundles.fokus3Title', 'Focus 3 Bundle')}</h3>
-              <p style={styles.planDesc}>{t('bundles.fokus3Desc', 'Activate any 3 available roles with an automatic 20% discount.')}</p>
-              <div style={styles.planPriceRow}>
-                <span style={styles.planPriceVal}>{formatCurrency(3200000, lang)}</span>
-                <span style={styles.planPeriod}>{t('bundles.perMonth', '/ month')}</span>
+            {/* 2. Ads Report */}
+            <div className="plan-card card" style={styles.planCard}>
+              <span className="plan-badge" style={styles.planBadge}>{t('bundles.lifetimeBadge')}</span>
+              <h3 className="plan-name" style={styles.planName}>{t('bundles.adsReportTitle')}</h3>
+              <p className="plan-desc" style={styles.planDesc}>{t('bundles.adsReportDesc')}</p>
+              <div className="plan-price-row" style={styles.planPriceRow}>
+                <span className="plan-price-val" style={styles.planPriceVal}>{formatCurrency(MODULES.ads_report.price, lang)}</span>
+                <span className="plan-period" style={styles.planPeriod}>{t('bundles.oneTime')}</span>
               </div>
-              <div style={styles.discountBadge}>
-                {t('bundles.fokus3SaveBadge', { amount: formatCurrency(4000000, lang) }, `Save 20% vs Standalone (${formatCurrency(4000000, lang)})`)}
+              <div className="plan-credit-grant">
+                <Coins size={15} color="var(--accent-cyan)" />
+                <span>{t('bundles.monthlyCreditsForever', { credits: MODULES.ads_report.monthlyCredits })}</span>
               </div>
-              <ul style={styles.planFeatures}>
-                <li>{t('bundles.fokus3Feat1', 'All SEO Specialist features (20 articles)')}</li>
-                <li>{t('bundles.fokus3Feat2', 'All Ads Report channels (Meta, Google, TikTok, Shopee)')}</li>
-                <li>{t('bundles.fokus3Feat3', 'All Ads Creative Spy tools (5 competitors)')}</li>
-                <li>{t('bundles.fokus3Feat4', 'Export to Google Slides & Google Sheets')}</li>
-                <li>{t('bundles.fokus3Feat5', 'Priority 3Our specialist support')}</li>
-              </ul>
-              <AppLink to="/register" style={styles.planBtnPrimary}>
-                {t('bundles.ctaSelect', 'Select Plan')}
-              </AppLink>
-            </div>
-
-            {/* Paket 3: All-in-One Pre-order */}
-            <div style={styles.planCard} className="card">
-              <span style={styles.planBadgePreorder}>{t('bundles.preorderBadge', 'Pre-Order')}</span>
-              <h3 style={styles.planName}>{t('bundles.allInOneTitle', 'All-in-One AI Team')}</h3>
-              <p style={styles.planDesc}>{t('bundles.allInOneDesc', { totalRoles: TOTAL_ROLES_COUNT })}</p>
-              <div style={styles.planPriceRow}>
-                <span style={styles.planPriceVal}>{formatCurrency(allInOneBundle?.price, lang)}</span>
-                <span style={styles.planPeriod}>{t('bundles.perMonth', '/ month')}</span>
-              </div>
-              <div style={styles.preorderNotice}>
-                {t('bundles.preorderNotice', 'Upcoming modules unlock automatically upon release at zero extra charge')}
-              </div>
-              <ul style={styles.planFeatures}>
-                <li>{t('bundles.allInOneFeat1', 'Instant access to all 3 currently available roles')}</li>
-                <li>{t('bundles.allInOneFeat2', { soonRoles: SOON_ROLES.length })}</li>
-                <li>{t('bundles.allInOneFeat3', '2x article & competitor tracking quotas')}</li>
-                <li>{t('bundles.allInOneFeat4', 'Lifetime price-lock guarantee')}</li>
+              <ul className="plan-features" style={styles.planFeatures}>
+                <li>{t('bundles.adsReportFeat1')}</li>
+                <li>{t('bundles.adsReportFeat2')}</li>
+                <li>{t('bundles.adsReportFeat3')}</li>
+                <li>{t('bundles.adsReportFeat4', { credits: MODULES.ads_report.monthlyCredits })}</li>
               </ul>
               <AppLink to="/register" style={styles.planBtnSecondary}>
-                {t('bundles.ctaPreorder', 'Pre-Order Access')}
+                {t('bundles.ctaSelect')}
               </AppLink>
             </div>
 
-            {/* Paket 4: Managed by 3Our */}
-            <div style={styles.planCard} className="card">
-              <span style={styles.planBadge}>{t('bundles.planBadgeManaged', 'Full Service')}</span>
-              <h3 style={styles.planName}>{t('bundles.managedTitle', 'Managed by 3Our')}</h3>
-              <p style={styles.planDesc}>{t('bundles.managedDesc', 'Hybrid AI team with dedicated human marketing specialists from 3Our Indonesia.')}</p>
-              <div style={styles.planPriceRow}>
-                <span style={styles.planPriceVal}>{t('bundles.managedPriceVal', 'Custom')}</span>
-                <span style={styles.planPeriod}>{t('bundles.managedPeriod', '/ retainer')}</span>
+            {/* 3. Ads Spy */}
+            <div className="plan-card card" style={styles.planCard}>
+              <span className="plan-badge" style={styles.planBadge}>{t('bundles.lifetimeBadge')}</span>
+              <h3 className="plan-name" style={styles.planName}>{t('bundles.adsSpyTitle')}</h3>
+              <p className="plan-desc" style={styles.planDesc}>{t('bundles.adsSpyDesc')}</p>
+              <div className="plan-price-row" style={styles.planPriceRow}>
+                <span className="plan-price-val" style={styles.planPriceVal}>{formatCurrency(MODULES.ads_spy.price, lang)}</span>
+                <span className="plan-period" style={styles.planPeriod}>{t('bundles.oneTime')}</span>
               </div>
-              <ul style={styles.planFeatures}>
-                <li>{t('bundles.managedFeat1', 'Markimate platform fully operated by 3Our specialists')}</li>
-                <li>{t('bundles.managedFeat2', '1-on-1 monthly strategic growth consultations')}</li>
-                <li>{t('bundles.managedFeat3', 'Hands-on creative production and media buying execution')}</li>
-                <li>{t('bundles.managedFeat4', 'Executive slide decks prepared for board meetings')}</li>
+              <div className="plan-credit-grant">
+                <Coins size={15} color="var(--accent-cyan)" />
+                <span>{t('bundles.monthlyCreditsForever', { credits: MODULES.ads_spy.monthlyCredits })}</span>
+              </div>
+              <ul className="plan-features" style={styles.planFeatures}>
+                <li>{t('bundles.adsSpyFeat1')}</li>
+                <li>{t('bundles.adsSpyFeat2')}</li>
+                <li>{t('bundles.adsSpyFeat3')}</li>
+                <li>{t('bundles.adsSpyFeat4', { credits: MODULES.ads_spy.monthlyCredits })}</li>
               </ul>
-              <a
-                href={managedBundle?.contactUrl || 'https://wa.me/6285179642520'}
-                target="_blank"
-                rel="noreferrer"
-                style={styles.planBtnContact}
-              >
-                <span>{t('bundles.ctaContactWA', 'Chat on WhatsApp')}</span>
-                <ExternalLink size={14} />
-              </a>
+              <AppLink to="/register" style={styles.planBtnSecondary}>
+                {t('bundles.ctaSelect')}
+              </AppLink>
+            </div>
+          </div>
+
+          {/* Topup Calculator Section */}
+          <div style={{ marginTop: '2.5rem' }}>
+            <div style={styles.sectionHeader}>
+              <h3 style={{ ...styles.sectionHeading, fontSize: '1.4rem' }}>{t('bundles.topupSectionTitle')}</h3>
+              <p style={styles.sectionSub}>
+                {t('bundles.topupSectionSubtitle', { min: TOPUP.min })}
+              </p>
+            </div>
+            <div style={{ maxWidth: '640px', margin: '0 auto' }}>
+              <TopupCalculator isPublic={true} initialCredits={500} />
             </div>
           </div>
         </section>
@@ -666,6 +711,46 @@ export default function LandingPage() {
               </h4>
               <p style={styles.faqAnswer}>
                 {t('faq.a6')}
+              </p>
+            </div>
+
+            <div style={styles.faqItem} className="card">
+              <h4 style={styles.faqQuestion}>
+                <HelpCircle size={17} color="var(--accent-cyan)" />
+                {t('faq.q7')}
+              </h4>
+              <p style={styles.faqAnswer}>
+                {t('faq.a7')}
+              </p>
+            </div>
+
+            <div style={styles.faqItem} className="card">
+              <h4 style={styles.faqQuestion}>
+                <HelpCircle size={17} color="var(--accent-cyan)" />
+                {t('faq.q8')}
+              </h4>
+              <p style={styles.faqAnswer}>
+                {t('faq.a8')}
+              </p>
+            </div>
+
+            <div style={styles.faqItem} className="card">
+              <h4 style={styles.faqQuestion}>
+                <HelpCircle size={17} color="var(--accent-cyan)" />
+                {t('faq.q9')}
+              </h4>
+              <p style={styles.faqAnswer}>
+                {t('faq.a9', { days: 7 })}
+              </p>
+            </div>
+
+            <div style={styles.faqItem} className="card">
+              <h4 style={styles.faqQuestion}>
+                <HelpCircle size={17} color="var(--accent-cyan)" />
+                {t('faq.q10')}
+              </h4>
+              <p style={styles.faqAnswer}>
+                {t('faq.a10', { min: TOPUP.min, rate: formatCurrency(TOPUP.pricePerCredit, lang) })}
               </p>
             </div>
           </div>

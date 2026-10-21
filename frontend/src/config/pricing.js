@@ -128,9 +128,10 @@ export const BUNDLES = [
 ];
 BUNDLES.focus3 = LIFETIME_BUNDLES.focus3;
 
-// Benchmark biaya tim in-house vs Markimate (dari kalkulator)
 export const TEAM_COST_BENCHMARK = {
   focus3: 29375000, // Rata-rata gaji 3 staf in-house (SEO Specialist, Media Buyer, Market Researcher)
+  focus3Markimate: 287083, // Amortisasi 24 bulan Bundle Fokus 3 (Rp4.490.000 / 24 = Rp187.083) + estimasi top-up Rp100.000
+  focus3Savings: 29087917, // Penghematan riil per bulan
   full: 64375000, // Gaji tim in-house lengkap 6-8 orang + tools berlangganan
 };
 
@@ -140,36 +141,36 @@ export const IN_HOUSE_COMPARISON = [
     role_id: 'SEO Specialist',
     role_en: 'SEO Specialist',
     inHouseMonthly: 9000000,
-    markimateMonthly: 1500000,
-    supermatMonthly: 1500000,
+    markimateMonthly: 182917,
+    supermatMonthly: 182917,
     deliverables: 'Riset keyword, penulisan artikel mendalam, dan penerbitan berkala ke CMS.',
     deliverables_id: 'Riset keyword, penulisan artikel mendalam, dan penerbitan berkala ke CMS.',
     deliverables_en: 'Keyword research, in-depth article writing, and scheduled publishing to your CMS.',
-    savingsPct: 83,
+    savingsPct: 98,
   },
   {
     role: 'Ads Specialist (Reporting)',
     role_id: 'Ads Specialist (Pelaporan)',
     role_en: 'Ads Specialist (Reporting)',
     inHouseMonthly: 11000000,
-    markimateMonthly: 1500000,
-    supermatMonthly: 1500000,
+    markimateMonthly: 82917,
+    supermatMonthly: 82917,
     deliverables: 'Konsolidasi performa multi-platform, analitik ROAS & GMV, slide presentasi.',
     deliverables_id: 'Konsolidasi performa multi-platform, analitik ROAS & GMV, slide presentasi.',
     deliverables_en: 'Multi-platform performance consolidation, ROAS & GMV analytics, executive slide decks.',
-    savingsPct: 86,
+    savingsPct: 99,
   },
   {
     role: 'Ads Creative Researcher (Spy)',
     role_id: 'Ads Creative Researcher (Spy)',
     role_en: 'Ads Creative Researcher (Spy)',
     inHouseMonthly: 9375000,
-    markimateMonthly: 1000000,
-    supermatMonthly: 1000000,
+    markimateMonthly: 112083,
+    supermatMonthly: 112083,
     deliverables: 'Pemantauan iklan kompetitor, kurasi winning ads, analisis formula hook.',
     deliverables_id: 'Pemantauan iklan kompetitor, kurasi winning ads, analisis formula hook.',
     deliverables_en: 'Competitor ad library tracking, winning creative curation, and hook formula analysis.',
-    savingsPct: 89,
+    savingsPct: 99,
   },
 ];
 

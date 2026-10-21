@@ -158,10 +158,45 @@ Pemilik Keputusan: 3Our Asia
 
 ---
 
+### Langkah 7: Frontend UI Pricing Lifetime, Billing, & Kalkulator Top-up Custom (PRD F15)
+- **Tujuan**:
+  1. Merombak section pricing publik di Landing Page (`/` dan `/pricing`): menampilkan hero card Bundle Fokus 3 (Rp4.490.000 sekali bayar, hemat Rp980.000, 600 kredit/bln selamanya), 3 kartu modul lifetime mandiri (SEO Rp1.990.000, Ads Report Rp1.990.000, Ads Spy Rp1.490.000), serta kalkulator interaktif Top-up Custom publik.
+  2. Menambahkan rute publik `/pricing` dan `/id/pricing` dengan dukungan static SEO generation & sitemap.
+  3. Memperluas FAQ q7 s/d q10: lisensi lifetime sekali bayar, non-akumulasi kredit bulanan yang hangus di akhir bulan WIB demi keberlanjutan server, garansi refund 7 hari, dan fleksibilitas top-up custom.
+  4. Merombak dashboard dompet kredit (`/app/billing/credits`): menampilkan rincian saldo bulan ini yang hangus di akhir bulan WIB, menyematkan `TopupCalculator` live yang terhubung ke `POST /api/billing/topup`, serta menampilkan daftar modul lifetime yang dimiliki workspace.
+  5. Merombak halaman tagihan (`/app/billing`): menampilkan modul lifetime dan bundle Fokus 3 dengan integrasi langsung ke endpoint `POST /api/billing/modules`, deteksi modul yang sudah dimiliki, serta riwayat faktur riil dari `GET /api/billing/payments`.
+  6. Mematuhi aturan `AGENTS.md`: mobile-first (360px, 390px, 768px, 1280px), target sentuh ≥44px, tanpa inline layout style, dan 0 error `i18n:check`.
+- **File Berubah/Dibuat**:
+  - `frontend/src/config/pricing.js`: Penyesuaian amortisasi 24 bulan perbandingan in-house vs Markimate.
+  - `frontend/src/index.css`: Styling responsive untuk `.focus3-hero-card`, `.pricing-lifetime-grid`, `.topup-calculator-card`, `.topup-est-grid`, dsb.
+  - `frontend/src/components/common/TopupCalculator.jsx`: Komponen kalkulator stepper, quick pills (100, 500, 1.000, 2.500 cr), live quote diskon volume (5% & 10%), serta estimasi deliverables nyata.
+  - `frontend/src/pages/public/LandingPage.jsx`: Rombak section Paket & Harga (#pricing), integrasi `<TopupCalculator isPublic={true} />`, auto-scroll ke `#pricing`, dan FAQ q1-q10.
+  - `frontend/src/pages/billing/CreditWalletPage.jsx`: Rombak kartu bucket kredit bulanan modul lifetime, integrasi `handleCustomTopup`, dan daftar status kepemilikan modul workspace.
+  - `frontend/src/components/BillingPage.jsx`: Rombak total dari langganan bulanan ke pembelian modul lifetime via `POST /api/billing/modules` dan riwayat pembayaran riil.
+  - `frontend/src/App.jsx`: Menambahkan rute `/pricing` dan `/id/pricing`.
+  - `frontend/scripts/build-seo-pages.mjs`: Mendaftarkan `/pricing` ke `staticPages` (total 42 static HTML & sitemap URL).
+  - `frontend/src/i18n/locales/id/public.js`, `en/public.js`, `id/billing.js`, `en/billing.js`: Penambahan kamus modul lifetime, kalkulator top-up, dan FAQ q7-q10 dengan parameter interpolasi 100% konsisten tanpa hardcoding harga.
+  - `docs/reports/img/`: Update screenshot mobile 390px (landing, pricing, role-detail, verify).
+- **Checklist Uji Mobile (AGENTS.md)**:
+  - [x] Tidak ada scroll horizontal di 360px, 390px, 768px, 1280px (`scrollWidth <= innerWidth`).
+  - [x] Tidak ada teks/tombol terpotong atau saling menimpa.
+  - [x] Semua tombol & link target sentuh ≥44px.
+  - [x] Form stepper & number input bisa diisi tanpa zoom iOS (font size ≥ 16px).
+  - [x] Mode landscape HP tidak rusak.
+  - [x] Laporan menyertakan screenshot 390px di `docs/reports/img/pricing-id-390.png` dan `docs/reports/img/pricing-en-390.png`.
+- **Hasil Test**:
+  - `cd backend && npm test`: 21/21 suite lolos (100%).
+  - `cd frontend && npm run test`: 3/3 test scripts lolos (100%).
+  - `cd frontend && npm run i18n:check`: 2304 keys in EN & ID, 70/70 backend error codes, 0 forbidden hardcoded prices, 0 error.
+  - `cd frontend && npm run lint`: 0 errors.
+  - `cd frontend && npm run build`: 42 static HTML files & sitemap ter-generate sukses.
+
+---
+
 ## Rencana Langkah Selanjutnya
-- **Langkah 7**: UI pricing + billing + kalkulator EN/ID + screenshot 390px dan 1280px asli.
-- **Langkah 8**: Admin laporan liabilitas dan revenue mix.
+- **Langkah 8**: Admin laporan liabilitas kredit bulanan dan revenue mix (modul lifetime vs top-up).
 - **Langkah 9**: Laporan final F15 dan mutation checks.
+
 
 
 
