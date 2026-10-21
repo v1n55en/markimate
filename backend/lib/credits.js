@@ -293,88 +293,47 @@ export async function charge(workspaceId, actionKey, qty = 1, ref = {}, usage = 
     };
   }
 
-  const now = new Date();
-
-  // 3. Potong berurutan: trial -> sub -> topup
-  let remaining = need;
-  let deductTrial = 0;
-  let deductSub = 0;
-  let deductTopup = 0;
-
-  if (wallet.balance_trial > 0 && (!wallet.trial_expires_at || new Date(wallet.trial_expires_at) > now)) {
-    deductTrial = Math.min(Number(wallet.balance_trial), remaining);
-    remaining -= deductTrial;
-  }
-  if (remaining > 0 && wallet.balance_sub > 0 && (!wallet.sub_expires_at || new Date(wallet.sub_expires_at) > now)) {
-    deductSub = Math.min(Number(wallet.balance_sub), remaining);
-    remaining -= deductSub;
-  }
-  if (remaining > 0 && wallet.balance_topup > 0 && (!wallet.topup_expires_at || new Date(wallet.topup_expires_at) > now)) {
-    deductTopup = Math.min(Number(wallet.balance_topup), remaining);
-    remaining -= deductTopup;
-  }
-
-  if (remaining > 0) {
-    const err = new Error('Insufficient credits.');
-    err.status = 402;
-    err.code = 'INSUFFICIENT_CREDITS';
-    err.need = need;
-    err.have = totalBalance;
-    throw err;
-  }
-
-  const newBalanceTrial = Number(wallet.balance_trial) - deductTrial;
-  const newBalanceSub = Number(wallet.balance_sub) - deductSub;
-  const newBalanceTopup = Number(wallet.balance_topup) - deductTopup;
-
-  await db.update(
-    'credit_wallets',
-    { workspace_id: workspaceId },
-    {
-      balance_trial: newBalanceTrial,
-      balance_sub: newBalanceSub,
-      balance_topup: newBalanceTopup
-    }
-  );
-
   const costActual = await costOf(usage);
-  const ledgerRows = [];
-  let rollingRemainingTotal = totalBalance;
 
-  const deductions = [
-    { bucket: 'trial', amount: deductTrial },
-    { bucket: 'sub', amount: deductSub },
-    { bucket: 'topup', amount: deductTopup }
-  ].filter(d => d.amount > 0);
+  const res = await db.rpc('charge_wallet_atomic', {
+    p_workspace_id: workspaceId,
+    p_need: need,
+    p_action_key: actionKey,
+    p_ref_type: refType,
+    p_ref_id: refId,
+    p_usage: usage || null,
+    p_cost_actual_idr: costActual,
+    p_note: ref?.note || `Pemakaian ${actionKey}`
+  });
 
-  // Tulis 1 baris ledger per bucket yang terpotong
-  for (let i = 0; i < deductions.length; i++) {
-    const d = deductions[i];
-    rollingRemainingTotal -= d.amount;
-    // Cantumkan cost actual dan usage pada baris pertama pemotongan
-    const isFirst = i === 0;
-    const row = await db.insert('credit_ledger', {
-      workspace_id: workspaceId,
-      delta: -d.amount,
-      bucket: d.bucket,
-      kind: 'usage',
-      action_key: actionKey,
-      ref_type: refType,
-      ref_id: refId,
-      balance_after: rollingRemainingTotal,
-      usage: isFirst ? usage || null : null,
-      cost_actual_idr: isFirst ? costActual : 0,
-      note: ref?.note || `Pemakaian ${actionKey}`
-    });
-    ledgerRows.push(row);
+  if (!res.success) {
+    if (res.error === 'INSUFFICIENT_CREDITS') {
+      const err = new Error('Insufficient credits.');
+      err.status = 402;
+      err.code = 'INSUFFICIENT_CREDITS';
+      err.need = res.need || need;
+      err.have = res.have ?? totalBalance;
+      err.topupUrl = '/app/billing/credits';
+      throw err;
+    }
+    throw new Error(res.error || 'Gagal memotong credit.');
+  }
+
+  if (res.idempotent) {
+    return {
+      charged: 0,
+      idempotent: true,
+      ledgerRows: res.ledgerRows || [],
+      note: res.note || 'Idempoten: sudah pernah dipotong sebelumnya.'
+    };
   }
 
   return {
     charged: need,
     idempotent: false,
-    ledgerRows,
+    ledgerRows: res.ledgerRows || [],
     costActualIdr: costActual,
-    balanceAfter: rollingRemainingTotal
+    balanceAfter: res.balance_after
   };
 }
 
@@ -407,76 +366,91 @@ export async function grant(workspaceId, bucket, amount, expiresAt, kind = 'topu
     throw new Error(`Invalid bucket: ${bucket}. Must be 'trial' | 'sub' | 'topup'.`);
   }
 
-  // Idempotensi per refId (misal payment.id) untuk mencegah penambahan kredit ganda saat retry
-  if (ref && ref.refId) {
-    const existingLedger = await db.findMany('credit_ledger', {
-      workspace_id: workspaceId,
-      ref_id: String(ref.refId)
-    });
-    const matchedGrant = (existingLedger || []).find(r => r.kind === kind || (r.delta && r.delta > 0));
-    if (matchedGrant) {
-      const { wallet, totalBalance } = await getWallet(workspaceId);
-      return {
-        wallet,
-        ledgerRow: matchedGrant,
-        totalBalance,
-        idempotent: true
-      };
+  const expIso = expiresAt instanceof Date ? expiresAt.toISOString() : (expiresAt || null);
+  const defaultActionKey = kind === 'grant_trial' ? 'auth.trial' : (bucket === 'sub' ? 'billing.sub' : 'billing.topup');
+
+  const res = await db.rpc('grant_wallet_atomic', {
+    p_workspace_id: workspaceId,
+    p_bucket: bucket,
+    p_amount: amt,
+    p_expires_at: expIso,
+    p_kind: kind,
+    p_action_key: ref?.actionKey || defaultActionKey,
+    p_ref_type: ref?.refType || (kind === 'grant_trial' ? 'trial' : null),
+    p_ref_id: ref?.refId ? String(ref.refId) : null,
+    p_note: note || `Grant ${bucket} +${amt}`
+  });
+
+  if (res.idempotent) {
+    const { wallet, totalBalance } = await getWallet(workspaceId);
+    return {
+      wallet,
+      ledgerRow: res.ledgerRow,
+      totalBalance: res.total_balance || totalBalance,
+      idempotent: true
+    };
+  }
+
+  return {
+    wallet: res.wallet,
+    ledgerRow: res.ledgerRow,
+    totalBalance: res.total_balance
+  };
+}
+
+export async function ensureMonthlyGrant(workspaceId, now = new Date()) {
+  if (!workspaceId) return { granted: false, credits: 0 };
+
+  // 1. Cek apakah admin platform (unlimited, tidak perlu grant bulanan)
+  if (await isWorkspacePlatformAdmin(workspaceId)) {
+    return { granted: false, admin: true, credits: 0 };
+  }
+
+  // 2. Tentukan periode YYYY-MM WIB dan akhir bulan WIB
+  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' });
+  const ymd = formatter.format(now); // 'YYYY-MM-DD'
+  const period = ymd.slice(0, 7); // 'YYYY-MM'
+
+  const [yearStr, monthStr] = period.split('-');
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10);
+  const lastDay = new Date(year, month, 0).getDate();
+  const expiresAt = new Date(`${period}-${String(lastDay).padStart(2, '0')}T23:59:59.999+07:00`).toISOString();
+
+  // 3. Hitung total kuota bulanan dari modul lifetime yang dimiliki
+  const entitlements = await db.findMany('module_entitlements', { workspace_id: workspaceId });
+  const activeModules = (entitlements || []).filter(e => e.source === 'lifetime');
+
+  const { MODULES } = await import('./catalog.js');
+  let totalCredits = 0;
+  for (const ent of activeModules) {
+    const modConfig = MODULES[ent.module];
+    if (modConfig && modConfig.monthlyCredits) {
+      totalCredits += Number(modConfig.monthlyCredits);
     }
   }
 
-  const { wallet } = await getWallet(workspaceId);
-  const expIso = expiresAt instanceof Date ? expiresAt.toISOString() : (expiresAt || null);
-
-  let newTrial = Number(wallet.balance_trial || 0);
-  let newSub = Number(wallet.balance_sub || 0);
-  let newTopup = Number(wallet.balance_topup || 0);
-  const patch = {};
-
-  if (bucket === 'trial') {
-    newTrial += amt;
-    patch.balance_trial = newTrial;
-    patch.trial_expires_at = expIso;
-  } else if (bucket === 'sub') {
-    // PRD §4.3: balance_sub = credit paket (reset, bukan tambah)
-    newSub = amt;
-    patch.balance_sub = newSub;
-    patch.sub_expires_at = expIso;
-  } else if (bucket === 'topup') {
-    newTopup += amt;
-    patch.balance_topup = newTopup;
-    patch.topup_expires_at = expIso;
+  if (totalCredits <= 0) {
+    return { granted: false, credits: 0, period };
   }
 
-  const expectedTotalAfter = newTrial + newSub + newTopup;
-  const defaultActionKey = kind === 'grant_trial' ? 'auth.trial' : (bucket === 'sub' ? 'billing.sub' : 'billing.topup');
-
-  // Urutan 1: Catat mutasi di credit_ledger DULU
-  const ledgerRow = await db.insert('credit_ledger', {
-    workspace_id: workspaceId,
-    delta: amt,
-    bucket,
-    kind,
-    action_key: ref?.actionKey || defaultActionKey,
-    ref_type: ref?.refType || (kind === 'grant_trial' ? 'trial' : null),
-    ref_id: ref?.refId || null,
-    balance_after: expectedTotalAfter,
-    usage: null,
-    cost_actual_idr: 0,
-    note: note || `Grant ${bucket} +${amt}`
+  // 4. Panggil RPC apply_monthly_grant_atomic
+  const res = await db.rpc('apply_monthly_grant_atomic', {
+    p_workspace_id: workspaceId,
+    p_period: period,
+    p_credits: totalCredits,
+    p_expires_at: expiresAt
   });
 
-  // Urutan 2: Update saldo di credit_wallets
-  try {
-    await db.update('credit_wallets', { workspace_id: workspaceId }, patch);
-    return { wallet: patch, ledgerRow, totalBalance: expectedTotalAfter };
-  } catch (err) {
-    // Jika update wallet gagal, rollback baris ledger yang baru dimasukkan.
-    // Jika penghapusan gagal, throw — jangan ditelan diam-diam.
-    console.error(`[CRITICAL] Gagal update credit_wallets setelah insert ledger. Melakukan rollback ledger ${ledgerRow.id}: ${err.message}`);
-    await db.remove('credit_ledger', { id: ledgerRow.id });
-    throw err;
-  }
+  return {
+    granted: !!res.granted,
+    alreadyGranted: !!res.already_granted,
+    upgraded: !!res.upgraded,
+    diff: res.diff,
+    credits: res.credits || totalCredits,
+    period,
+    expiresAt
+  };
 }
 
 export async function expireBuckets(workspaceId = null) {

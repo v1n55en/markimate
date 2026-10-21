@@ -36,9 +36,23 @@ Pemilik Keputusan: 3Our Asia
 
 ---
 
-## Rencana Langkah Selanjutnya (Setelah SQL Dijalankan di Supabase)
+### Langkah §7: Stored Procedures Mutasi Saldo Wallet Atomik & Lazy Monthly Grant (PRD F15 §7)
+- **Tujuan**: Mencegah race condition, double spending, dan konkurensi grant/charge melalui RPC Stored Procedures di level database PostgreSQL dengan penguncian pesimis (`SELECT ... FOR UPDATE`), serta penanganan in-memory atomik pada JsonStore fallback.
+- **File Berubah/Dibuat**:
+  - `backend/migrations/016_atomic_wallet_rpc.sql`:
+    1. `markimate.charge_wallet_atomic`: Pemotongan saldo berurutan (trial -> sub -> topup) dengan row-lock `credit_wallets`, idempotensi per `ref_type` & `ref_id`, penolakan `INSUFFICIENT_CREDITS`, dan pencatatan audit `credit_ledger` dalam 1 transaksi atomik.
+    2. `markimate.grant_wallet_atomic`: Penambahan kredit / overwrite paket bulanan atomik dengan idempotensi per `p_ref_id`.
+    3. `markimate.apply_monthly_grant_atomic`: Grant kuota bulanan modul lifetime secara lazy, non-akumulasi (reset kuota di awal bulan baru), dan penambahan selisih kuota jika modul baru dibeli di tengah bulan berjalan.
+  - `backend/db.js`: Mengimplementasikan RPC handler untuk ketiga fungsi di `JsonStore.rpc()`.
+  - `backend/lib/credits.js`: Memperbarui `charge()` dan `grant()` untuk memanggil atomic RPC, serta menambahkan fungsi `ensureMonthlyGrant(workspaceId, now)`.
+  - `backend/tests/monthly-grant-atomic.test.js`: Suite test baru (total 18 suite backend) yang memverifikasi pencegahan double spending pada dua pemotongan konkuren, idempotensi grant bersamaan, lazy grant kuota bulanan, upgrade kuota di tengah bulan, dan non-akumulasi kuota lintas bulan.
+- **Status Autopilot**: Sesuai instruksi user *"Kalau butuh RPC/SQL baru, berhenti lagi dan kirim SQL-nya"*, agen **berhenti** setelah commit Langkah §7 dan menyerahkan SQL migrasi 016 ini kepada 3Our untuk dijalankan di Supabase sebelum melanjutkan langkah berikutnya.
+
+---
+
+## Rencana Langkah Selanjutnya (Setelah SQL 015 & 016 Dijalankan di Supabase)
 - **Langkah 3**: Fulfillment `module` + entitlement lifetime + idempotensi `granted_at`.
-- **Langkah 4**: `ensureMonthlyGrant` lazy dengan overwrite dan hangus akhir bulan.
+- **Langkah 4**: Integrasi pemanggilan `ensureMonthlyGrant` di `/api/me`, `/api/billing`, dan sebelum `charge()`.
 - **Langkah 5**: Top-up custom endpoint + validasi.
 - **Langkah 6**: Hapus langganan, free tier, ubah TRIAL_DAYS ke 30 dan pengaman trial.
 - **Langkah 7**: UI pricing + billing + kalkulator EN/ID + screenshot asli.

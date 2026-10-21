@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { randomUUID } from 'crypto';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
+import { validateRowContract } from './lib/schema-contract.js';
 
 dotenv.config();
 
@@ -109,7 +110,6 @@ class JsonStore {
   }
   async insert(table, row) {
     if (process.env.SCHEMA_CONTRACT_VALIDATION === 'true') {
-      const { validateRowContract } = await import('./lib/schema-contract.js');
       validateRowContract(table, row, true);
     }
     if (!this.data[table]) this.data[table] = [];
@@ -120,7 +120,6 @@ class JsonStore {
   }
   async update(table, where, patch) {
     if (process.env.SCHEMA_CONTRACT_VALIDATION === 'true') {
-      const { validateRowContract } = await import('./lib/schema-contract.js');
       validateRowContract(table, patch, false);
     }
     const rows = (this.data[table] || []).filter(r => this._match(r, where));
@@ -130,7 +129,6 @@ class JsonStore {
   }
   async claim(table, id, patch, nullColumn = 'fulfilled_at') {
     if (process.env.SCHEMA_CONTRACT_VALIDATION === 'true') {
-      const { validateRowContract } = await import('./lib/schema-contract.js');
       validateRowContract(table, patch, false);
     }
     const row = (this.data[table] || []).find(r => r.id === id && (r[nullColumn] === undefined || r[nullColumn] === null));
@@ -166,6 +164,376 @@ class JsonStore {
       this.save();
       return record.count <= max;
     }
+
+    if (name === 'charge_wallet_atomic') {
+      const {
+        p_workspace_id, p_need, p_action_key,
+        p_ref_type, p_ref_id, p_usage, p_cost_actual_idr, p_note
+      } = params;
+
+      if (!p_need || p_need <= 0) {
+        return { success: true, charged: 0, idempotent: false };
+      }
+
+      // 1. Cek Idempotensi
+      if (p_ref_type && p_ref_id) {
+        const existing = (this.data.credit_ledger || []).find(r =>
+          r.workspace_id === p_workspace_id &&
+          r.action_key === p_action_key &&
+          r.ref_type === p_ref_type &&
+          r.ref_id === String(p_ref_id) &&
+          r.kind === 'usage'
+        );
+        if (existing) {
+          return {
+            success: true,
+            idempotent: true,
+            charged: 0,
+            note: 'Idempoten: sudah pernah dipotong sebelumnya.'
+          };
+        }
+      }
+
+      // 2. Ambil/buat wallet
+      if (!this.data.credit_wallets) this.data.credit_wallets = [];
+      let wallet = this.data.credit_wallets.find(w => w.workspace_id === p_workspace_id);
+      if (!wallet) {
+        wallet = {
+          id: randomUUID(),
+          workspace_id: p_workspace_id,
+          balance_trial: 0,
+          trial_expires_at: null,
+          balance_sub: 0,
+          sub_expires_at: null,
+          balance_topup: 0,
+          topup_expires_at: null,
+          daily_cap: 500,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        this.data.credit_wallets.push(wallet);
+      }
+
+      const now = new Date();
+      const trialValid = wallet.balance_trial > 0 && (!wallet.trial_expires_at || new Date(wallet.trial_expires_at) > now);
+      const subValid = wallet.balance_sub > 0 && (!wallet.sub_expires_at || new Date(wallet.sub_expires_at) > now);
+      const topupValid = wallet.balance_topup > 0 && (!wallet.topup_expires_at || new Date(wallet.topup_expires_at) > now);
+
+      const activeTrial = trialValid ? Number(wallet.balance_trial) : 0;
+      const activeSub = subValid ? Number(wallet.balance_sub) : 0;
+      const activeTopup = topupValid ? Number(wallet.balance_topup) : 0;
+      const totalBalance = activeTrial + activeSub + activeTopup;
+
+      if (totalBalance < p_need) {
+        return {
+          success: false,
+          error: 'INSUFFICIENT_CREDITS',
+          need: p_need,
+          have: totalBalance
+        };
+      }
+
+      let remaining = p_need;
+      let deductTrial = 0;
+      let deductSub = 0;
+      let deductTopup = 0;
+
+      if (trialValid && remaining > 0) {
+        deductTrial = Math.min(activeTrial, remaining);
+        remaining -= deductTrial;
+      }
+      if (subValid && remaining > 0) {
+        deductSub = Math.min(activeSub, remaining);
+        remaining -= deductSub;
+      }
+      if (topupValid && remaining > 0) {
+        deductTopup = Math.min(activeTopup, remaining);
+        remaining -= deductTopup;
+      }
+
+      const oldTrial = wallet.balance_trial;
+      const oldSub = wallet.balance_sub;
+      const oldTopup = wallet.balance_topup;
+
+      wallet.balance_trial -= deductTrial;
+      wallet.balance_sub -= deductSub;
+      wallet.balance_topup -= deductTopup;
+      wallet.updated_at = new Date().toISOString();
+
+      if (!this.data.credit_ledger) this.data.credit_ledger = [];
+      let rolling = totalBalance;
+      const ledgerRows = [];
+
+      const deductions = [
+        { bucket: 'trial', amt: deductTrial },
+        { bucket: 'sub', amt: deductSub },
+        { bucket: 'topup', amt: deductTopup }
+      ].filter(d => d.amt > 0);
+
+      try {
+        for (let i = 0; i < deductions.length; i++) {
+          const d = deductions[i];
+          rolling -= d.amt;
+          const isFirst = i === 0;
+          const row = await this.insert('credit_ledger', {
+            workspace_id: p_workspace_id,
+            delta: -d.amt,
+            bucket: d.bucket,
+            kind: 'usage',
+            action_key: p_action_key,
+            ref_type: p_ref_type || null,
+            ref_id: p_ref_id ? String(p_ref_id) : null,
+            balance_after: rolling,
+            usage: isFirst ? p_usage || null : null,
+            cost_actual_idr: isFirst ? Number(p_cost_actual_idr || 0) : 0,
+            note: p_note || `Pemakaian ${p_action_key}`
+          });
+          ledgerRows.push(row);
+        }
+        return {
+          success: true,
+          idempotent: false,
+          charged: p_need,
+          balance_after: rolling,
+          ledgerRows,
+          deductions: { trial: deductTrial, sub: deductSub, topup: deductTopup }
+        };
+      } catch (err) {
+        wallet.balance_trial = oldTrial;
+        wallet.balance_sub = oldSub;
+        wallet.balance_topup = oldTopup;
+        for (const row of ledgerRows) {
+          const idx = (this.data.credit_ledger || []).findIndex(r => r.id === row.id);
+          if (idx !== -1) this.data.credit_ledger.splice(idx, 1);
+        }
+        throw err;
+      }
+    }
+
+    if (name === 'grant_wallet_atomic') {
+      const {
+        p_workspace_id, p_bucket, p_amount, p_expires_at,
+        p_kind, p_action_key, p_ref_type, p_ref_id, p_note
+      } = params;
+
+      const amt = Number(p_amount || 0);
+      if (amt <= 0) throw new Error('Credit amount must be positive.');
+      if (!['trial', 'sub', 'topup'].includes(p_bucket)) {
+        throw new Error(`Invalid bucket: ${p_bucket}. Must be 'trial' | 'sub' | 'topup'.`);
+      }
+
+      // Idempotensi sinkron
+      if (p_ref_id) {
+        const existing = (this.data.credit_ledger || []).find(r =>
+          r.workspace_id === p_workspace_id &&
+          r.ref_id === String(p_ref_id) &&
+          (r.kind === p_kind || (r.delta && r.delta > 0))
+        );
+        if (existing) {
+          const w = (this.data.credit_wallets || []).find(w => w.workspace_id === p_workspace_id);
+          const total = w ? Number(w.balance_trial || 0) + Number(w.balance_sub || 0) + Number(w.balance_topup || 0) : 0;
+          return {
+            success: true,
+            idempotent: true,
+            ledgerRow: existing,
+            total_balance: total
+          };
+        }
+      }
+
+      if (!this.data.credit_wallets) this.data.credit_wallets = [];
+      let wallet = this.data.credit_wallets.find(w => w.workspace_id === p_workspace_id);
+      if (!wallet) {
+        wallet = {
+          id: randomUUID(),
+          workspace_id: p_workspace_id,
+          balance_trial: 0,
+          trial_expires_at: null,
+          balance_sub: 0,
+          sub_expires_at: null,
+          balance_topup: 0,
+          topup_expires_at: null,
+          daily_cap: 500,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        this.data.credit_wallets.push(wallet);
+      }
+
+      const expIso = p_expires_at instanceof Date ? p_expires_at.toISOString() : (p_expires_at || null);
+      const oldTrial = wallet.balance_trial;
+      const oldTrialExp = wallet.trial_expires_at;
+      const oldSub = wallet.balance_sub;
+      const oldSubExp = wallet.sub_expires_at;
+      const oldTopup = wallet.balance_topup;
+      const oldTopupExp = wallet.topup_expires_at;
+
+      if (p_bucket === 'trial') {
+        wallet.balance_trial = Number(wallet.balance_trial || 0) + amt;
+        wallet.trial_expires_at = expIso;
+      } else if (p_bucket === 'sub') {
+        wallet.balance_sub = amt; // overwrite / reset
+        wallet.sub_expires_at = expIso;
+      } else if (p_bucket === 'topup') {
+        wallet.balance_topup = Number(wallet.balance_topup || 0) + amt;
+        wallet.topup_expires_at = expIso;
+      }
+      wallet.updated_at = new Date().toISOString();
+
+      const totalAfter = Number(wallet.balance_trial || 0) + Number(wallet.balance_sub || 0) + Number(wallet.balance_topup || 0);
+      const defaultActionKey = p_kind === 'grant_trial' ? 'auth.trial' : (p_bucket === 'sub' ? 'billing.sub' : 'billing.topup');
+
+      try {
+        const row = await this.insert('credit_ledger', {
+          workspace_id: p_workspace_id,
+          delta: amt,
+          bucket: p_bucket,
+          kind: p_kind || 'topup',
+          action_key: p_action_key || defaultActionKey,
+          ref_type: p_ref_type || null,
+          ref_id: p_ref_id ? String(p_ref_id) : null,
+          balance_after: totalAfter,
+          usage: null,
+          cost_actual_idr: 0,
+          note: p_note || `Grant ${p_bucket} +${amt}`
+        });
+
+        return {
+          success: true,
+          idempotent: false,
+          delta: amt,
+          total_balance: totalAfter,
+          ledgerRow: row,
+          wallet
+        };
+      } catch (err) {
+        wallet.balance_trial = oldTrial;
+        wallet.trial_expires_at = oldTrialExp;
+        wallet.balance_sub = oldSub;
+        wallet.sub_expires_at = oldSubExp;
+        wallet.balance_topup = oldTopup;
+        wallet.topup_expires_at = oldTopupExp;
+        throw err;
+      }
+    }
+
+    if (name === 'apply_monthly_grant_atomic') {
+      const { p_workspace_id, p_period, p_credits, p_expires_at } = params;
+      const credits = Number(p_credits || 0);
+      if (credits <= 0) {
+        return { success: true, granted: false, credits: 0 };
+      }
+
+      if (!this.data.monthly_grants) this.data.monthly_grants = [];
+      let existingGrant = this.data.monthly_grants.find(g =>
+        g.workspace_id === p_workspace_id && g.period === p_period
+      );
+
+      if (!this.data.credit_wallets) this.data.credit_wallets = [];
+      let wallet = this.data.credit_wallets.find(w => w.workspace_id === p_workspace_id);
+      if (!wallet) {
+        wallet = {
+          id: randomUUID(),
+          workspace_id: p_workspace_id,
+          balance_trial: 0,
+          trial_expires_at: null,
+          balance_sub: 0,
+          sub_expires_at: null,
+          balance_topup: 0,
+          topup_expires_at: null,
+          daily_cap: 500,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        this.data.credit_wallets.push(wallet);
+      }
+
+      const expIso = p_expires_at instanceof Date ? p_expires_at.toISOString() : (p_expires_at || null);
+
+      if (existingGrant) {
+        if (existingGrant.credits >= credits) {
+          const totalAfter = Number(wallet.balance_trial || 0) + Number(wallet.balance_sub || 0) + Number(wallet.balance_topup || 0);
+          return {
+            success: true,
+            granted: false,
+            already_granted: true,
+            credits: existingGrant.credits,
+            total_balance: totalAfter
+          };
+        }
+
+        // Upgrade kuota di tengah bulan
+        const diff = credits - existingGrant.credits;
+        existingGrant.credits = credits;
+        wallet.balance_sub = Number(wallet.balance_sub || 0) + diff;
+        wallet.sub_expires_at = expIso;
+        wallet.updated_at = new Date().toISOString();
+
+        const totalAfter = Number(wallet.balance_trial || 0) + Number(wallet.balance_sub || 0) + Number(wallet.balance_topup || 0);
+
+        const ledgerRow = await this.insert('credit_ledger', {
+          workspace_id: p_workspace_id,
+          delta: diff,
+          bucket: 'sub',
+          kind: 'grant_monthly',
+          action_key: 'billing.monthly_grant',
+          ref_type: 'monthly_grant',
+          ref_id: `${p_period}_upgrade`,
+          balance_after: totalAfter,
+          usage: null,
+          cost_actual_idr: 0,
+          note: `Penambahan kuota modul baru periode ${p_period} (+${diff} credit)`
+        });
+
+        return {
+          success: true,
+          granted: true,
+          upgraded: true,
+          diff,
+          credits,
+          total_balance: totalAfter,
+          ledgerRow
+        };
+      }
+
+      // Grant awal periode
+      const newGrant = {
+        workspace_id: p_workspace_id,
+        period: p_period,
+        credits,
+        granted_at: new Date().toISOString()
+      };
+      this.data.monthly_grants.push(newGrant);
+
+      wallet.balance_sub = credits;
+      wallet.sub_expires_at = expIso;
+      wallet.updated_at = new Date().toISOString();
+
+      const totalAfter = Number(wallet.balance_trial || 0) + Number(wallet.balance_sub || 0) + Number(wallet.balance_topup || 0);
+
+      const ledgerRow = await this.insert('credit_ledger', {
+        workspace_id: p_workspace_id,
+        delta: credits,
+        bucket: 'sub',
+        kind: 'grant_monthly',
+        action_key: 'billing.monthly_grant',
+        ref_type: 'monthly_grant',
+        ref_id: p_period,
+        balance_after: totalAfter,
+        usage: null,
+        cost_actual_idr: 0,
+        note: `Kredit modul bulanan periode ${p_period}`
+      });
+
+      return {
+        success: true,
+        granted: true,
+        credits,
+        total_balance: totalAfter,
+        ledgerRow
+      };
+    }
+
     return true;
   }
 }
