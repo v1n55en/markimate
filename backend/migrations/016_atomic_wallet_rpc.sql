@@ -39,6 +39,9 @@ begin
     return jsonb_build_object('success', true, 'charged', 0, 'idempotent', false);
   end if;
 
+  -- 0. Kunci wallet lebih dulu supaya cek idempotensi tidak balapan (review 3Our)
+  perform 1 from markimate.credit_wallets where workspace_id = p_workspace_id for update;
+
   -- 1. Cek Idempotensi
   if p_ref_type is not null and p_ref_id is not null then
     select id into v_existing_id
@@ -201,6 +204,9 @@ begin
   if p_bucket not in ('trial', 'sub', 'topup') then
     raise exception 'Invalid bucket: %. Must be trial, sub, or topup.', p_bucket;
   end if;
+
+  -- 0. Kunci wallet lebih dulu supaya cek idempotensi tidak balapan (review 3Our)
+  perform 1 from markimate.credit_wallets where workspace_id = p_workspace_id for update;
 
   -- 1. Cek Idempotensi
   if p_ref_id is not null then
@@ -412,6 +418,12 @@ begin
 end $$;
 
 grant execute on function markimate.apply_monthly_grant_atomic to service_role;
+
+
+-- Hanya backend (service_role) yang boleh memanggil (review 3Our)
+revoke execute on function markimate.charge_wallet_atomic(uuid, integer, text, text, text, jsonb, numeric, text) from public, anon, authenticated;
+revoke execute on function markimate.grant_wallet_atomic(uuid, text, integer, timestamptz, text, text, text, text, text) from public, anon, authenticated;
+revoke execute on function markimate.apply_monthly_grant_atomic(uuid, text, integer, timestamptz) from public, anon, authenticated;
 
 insert into markimate.schema_migrations (version) values ('016') on conflict do nothing;
 notify pgrst, 'reload schema';
