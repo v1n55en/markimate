@@ -63,10 +63,14 @@ export const TOPUP = {
 export function quoteTopup(credits) {
   const c = Math.floor(Number(credits) || 0);
   let discountPct = 0;
-  if (c >= 2500) {
-    discountPct = 0.10;
-  } else if (c >= 1000) {
-    discountPct = 0.05;
+  if (Array.isArray(TOPUP.tiers)) {
+    const sorted = [...TOPUP.tiers].sort((a, b) => b.min - a.min);
+    for (const tier of sorted) {
+      if (c >= tier.min) {
+        discountPct = tier.disc;
+        break;
+      }
+    }
   }
   const unitPrice = TOPUP.pricePerCredit;
   const gross = c * unitPrice;
@@ -81,29 +85,10 @@ export function quoteTopup(credits) {
 }
 
 export const MODULE_CREDITS = {
-  seo: 1500, // 1.500 credit / bulan (≈ 20 artikel bergambar)
-  ads_report: 1500, // 1.500 credit / bulan
-  ads_spy: 1000, // 1.000 credit / bulan
-  focus3: 3200, // 3.200 credit / bulan
-  all_in_one: 7875, // 7.875 credit / bulan
-};
-
-export const TOPUP_PACKS = [
-  { id: 'starter', name: 'Starter Pack', price: 500000, credits: 500, bonus: 0, tag: 'Basic' },
-  { id: 'growth', name: 'Growth Pack', price: 1000000, credits: 1050, bonus: 50, popular: true, tag: 'Most Popular' },
-  { id: 'scale', name: 'Scale Pack', price: 2500000, credits: 2750, bonus: 250, tag: 'Best Value (+10% Bonus)' },
-];
-
-export const MODULE_PRICES = {
-  seo: 1500000, // Rp 1.500.000 / bulan
-  ads_report: 1500000, // Rp 1.500.000 / bulan
-  ads_spy: 1000000, // Rp 1.000.000 / bulan
-};
-
-export const MODULE_QUOTA = {
-  seo: '1.500 credit / bulan (≈ 20 artikel SEO + gambar AI)',
-  ads_report: '1.500 credit / bulan (Laporan akun iklan Meta & Google)',
-  ads_spy: '1.000 credit / bulan (Scan kompetitor Ad Library mingguan)',
+  seo: 100, // 100 credit / bulan
+  ads_report: 400, // 400 credit / bulan
+  ads_spy: 100, // 100 credit / bulan
+  focus3: 600, // 600 credit / bulan
 };
 
 export const BUNDLES = [
@@ -188,47 +173,3 @@ export const formatCurrency = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-I
 // Alias formatIDR
 export const formatIDR = (n) => formatCurrency(n);
 
-// Kalkulator harga modul modular
-export function calculatePricing({
-  selectedModules = [],
-  billingCycle = 'monthly', // 'monthly' | 'yearly'
-}) {
-  const isAllFocus3 =
-    selectedModules.length === 3 &&
-    ['seo', 'ads_report', 'ads_spy'].every((m) => selectedModules.includes(m));
-
-  // Hitung harga dasar bulanan
-  let baseMonthly = selectedModules.reduce((acc, mKey) => {
-    return acc + (MODULE_PRICES[mKey] || 0);
-  }, 0);
-
-  let discountPercent = 0;
-  let appliedBundle = null;
-
-  if (isAllFocus3) {
-    const focusBundle = BUNDLES.find((b) => b.key === 'focus3');
-    discountPercent = focusBundle?.discount || 0.2;
-    appliedBundle = 'focus3';
-  }
-
-  const discountedMonthly = Math.round(baseMonthly * (1 - discountPercent));
-
-  // Tahunan: Bayar 10 bulan untuk 12 bulan langganan (2 bulan gratis)
-  const isYearly = billingCycle === 'yearly';
-  const yearlyMultiplier = 10;
-  const annualTotal = discountedMonthly * yearlyMultiplier;
-  const effectiveMonthly = isYearly ? Math.round(annualTotal / 12) : discountedMonthly;
-
-  const savingsAnnual = isYearly ? discountedMonthly * 2 : 0;
-
-  return {
-    baseMonthly,
-    discountedMonthly,
-    appliedBundle,
-    discountPercent,
-    isYearly,
-    totalToPay: isYearly ? annualTotal : discountedMonthly,
-    effectiveMonthly,
-    savingsAnnual,
-  };
-}

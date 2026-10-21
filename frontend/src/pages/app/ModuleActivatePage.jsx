@@ -15,7 +15,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { getRoleByKey } from '../../config/roles';
-import { MODULE_PRICES, MODULE_QUOTA, formatCurrency } from '../../config/pricing';
+import { MODULES, formatCurrency } from '../../config/pricing';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useLanguage } from '../../context/LanguageContext';
 import WaitlistModal from '../../components/common/WaitlistModal';
@@ -50,8 +50,9 @@ export default function ModuleActivatePage() {
 
   const isAvailable = role.status === 'available';
   const isActive = isModuleActive(role.key);
-  const price = MODULE_PRICES[role.key] || 0;
-  const quota = MODULE_QUOTA[role.key] || t('app.activatePage.unlimitedAccess');
+  const modInfo = MODULES[role.key];
+  const price = modInfo?.price || 0;
+  const quota = modInfo ? `${modInfo.monthlyCredits} credit / bulan (${modInfo.desc})` : t('app.activatePage.unlimitedAccess');
 
   const getModuleHomePath = (roleKey) => {
     if (roleKey === 'seo') return '/app/seo/keywords';
@@ -192,7 +193,7 @@ export default function ModuleActivatePage() {
                     <span style={styles.planSub}>{t('activatePage.pricingCardTitle', 'Module Pricing')}</span>
                     <div style={styles.priceRow}>
                       <span style={styles.priceNumber}>{formatCurrency(price, lang)}</span>
-                      <span style={styles.pricePeriod}>{t('bundles.perMonth', '/ month')}</span>
+                      <span style={styles.pricePeriod}>{t('bundles.lifetimeBadge', 'Lifetime Access')}</span>
                     </div>
                   </div>
                 </div>

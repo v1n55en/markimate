@@ -26,7 +26,7 @@ import {
   Bell,
 } from 'lucide-react';
 import { getRoleByKey } from '../../config/roles';
-import { MODULE_PRICES, MODULE_QUOTA, formatCurrency, TRIAL } from '../../config/pricing';
+import { MODULES, formatCurrency, TRIAL } from '../../config/pricing';
 import PublicNavbar from '../../components/PublicNavbar';
 import PublicFooter from '../../components/PublicFooter';
 import WaitlistModal from '../../components/common/WaitlistModal';
@@ -85,8 +85,9 @@ export default function RoleDetailPage() {
 
   const IconComponent = ICON_MAP[role.iconName] || Sparkles;
   const isAvailable = role.status === 'available';
-  const price = MODULE_PRICES[role.key];
-  const quota = MODULE_QUOTA[role.key];
+  const modInfo = MODULES[role.key];
+  const price = modInfo?.price || 0;
+  const quota = modInfo ? `${modInfo.monthlyCredits} credit / bulan (${modInfo.desc})` : null;
 
   return (
     <div style={styles.page}>
@@ -155,7 +156,7 @@ export default function RoleDetailPage() {
                 </span>
                 <div style={styles.priceRow}>
                   <span style={styles.priceAmount}>{formatCurrency(price, lang)}</span>
-                  <span style={styles.pricePeriod}>{t('bundles.perMonth', '/ month')}</span>
+                  <span style={styles.pricePeriod}>{t('bundles.lifetimeBadge', 'Lifetime Access')}</span>
                 </div>
                 {quota && (
                   <div style={styles.quotaRow}>
@@ -166,7 +167,7 @@ export default function RoleDetailPage() {
                 )}
                 <div style={styles.pricingCtas}>
                   <AppLink to="/register" style={styles.primaryActionBtn}>
-                    <span>{t('bundles.ctaSelect', 'Start Subscription')}</span>
+                    <span>{t('bundles.ctaBuyModule', 'Get Lifetime Access')}</span>
                     <ArrowRight size={15} />
                   </AppLink>
                   <AppLink to="/register" style={styles.secondaryActionBtn}>

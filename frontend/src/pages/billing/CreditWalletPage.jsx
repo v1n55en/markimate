@@ -15,45 +15,6 @@ import { formatDateTime, formatNumber } from '../../lib/format';
 
 const LIFETIME_MODULE_KEYS = ['seo', 'ads_report', 'ads_spy'];
 
-export const TOPUP_PACKAGES = [
-  {
-    id: 'starter',
-    name: 'Starter Pack',
-    price: 500000,
-    credits: 500,
-    bonus: 0,
-    tag: 'Basic',
-    tagKey: 'billing.packageStarterTag',
-    popular: false,
-    desc: 'Sufficient for ±8 complete articles with 3 AI images.',
-    descKey: 'billing.packageStarterDesc',
-  },
-  {
-    id: 'growth',
-    name: 'Growth Pack',
-    price: 1000000,
-    credits: 1050,
-    bonus: 50,
-    tag: 'Most Popular',
-    tagKey: 'billing.packageGrowthTag',
-    popular: true,
-    desc: 'Bonus +50 credits. Sufficient for ±14 illustrated articles & topic research.',
-    descKey: 'billing.packageGrowthDesc',
-  },
-  {
-    id: 'scale',
-    name: 'Scale Pack',
-    price: 2500000,
-    credits: 2750,
-    bonus: 250,
-    tag: 'Best Value (10% Bonus)',
-    tagKey: 'billing.packageScaleTag',
-    popular: false,
-    desc: 'Bonus +250 credits. Scaled for active brand teams & agencies.',
-    descKey: 'billing.packageScaleDesc',
-  },
-];
-
 const PAYMENT_STATUS_CONFIG = {
   paid: { color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)', labelKey: 'billing.statusPaid' },
   pending: { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)', labelKey: 'billing.statusPending' },

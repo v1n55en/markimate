@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { db } from '../../db.js';
-import { TOPUP_PACKAGES, PLANS, MODULES, BUNDLES, TOPUP, quoteTopup } from '../catalog.js';
+import { PLANS, MODULES, BUNDLES, TOPUP, quoteTopup } from '../catalog.js';
 import { grant, ensureMonthlyGrant } from '../credits.js';
 import {
   sendTopupSuccessEmail,
@@ -49,37 +49,21 @@ export async function createCheckout({ kind, itemId, credits: inputCredits, work
   let periodDays = 30;
 
   if (kind === 'topup') {
-    // PRD F15: Top-up Custom Credits
+    // PRD F15: Top-up Custom Credits (hanya lewat credits)
     const rawCredits = inputCredits !== undefined ? inputCredits : itemId;
-    const isCustom = typeof rawCredits === 'number' || (!isNaN(Number(rawCredits)) && !TOPUP_PACKAGES[rawCredits]);
-
-    if (isCustom) {
-      const numCredits = Math.floor(Number(rawCredits));
-      if (isNaN(numCredits) || numCredits < TOPUP.min || numCredits > TOPUP.max) {
-        throw Object.assign(new Error(`Top-up credits must be between ${TOPUP.min} and ${TOPUP.max}.`), {
-          status: 400,
-          code: 'INVALID_TOPUP_AMOUNT'
-        });
-      }
-      const quote = quoteTopup(numCredits);
-      itemName = `Top-Up ${quote.credits.toLocaleString('id-ID')} Credit`;
-      amount = quote.amount; // Server-calculated amount; client amount is completely ignored
-      credits = quote.credits;
-      periodDays = TOPUP.validityDays || 365;
-      itemId = `custom_${quote.credits}`;
-    } else {
-      const pack = TOPUP_PACKAGES[itemId];
-      if (!pack) {
-        throw Object.assign(new Error(`Invalid top-up package '${itemId}'. Choose starter, growth, or scale.`), {
-          status: 400,
-          code: 'INVALID_PACKAGE'
-        });
-      }
-      itemName = pack.name;
-      amount = pack.price;
-      credits = pack.credits;
-      periodDays = pack.periodDays || 365;
+    const numCredits = Math.floor(Number(rawCredits));
+    if (isNaN(numCredits) || numCredits < TOPUP.min || numCredits > TOPUP.max) {
+      throw Object.assign(new Error(`Top-up credits must be between ${TOPUP.min} and ${TOPUP.max}.`), {
+        status: 400,
+        code: 'INVALID_TOPUP_AMOUNT'
+      });
     }
+    const quote = quoteTopup(numCredits);
+    itemName = `Top-Up ${quote.credits.toLocaleString('id-ID')} Credit`;
+    amount = quote.amount; // Server-calculated amount; client amount is completely ignored
+    credits = quote.credits;
+    periodDays = TOPUP.validityDays || 365;
+    itemId = `custom_${quote.credits}`;
   } else if (kind === 'module') {
     const mod = MODULES[itemId];
     const bun = BUNDLES[itemId];

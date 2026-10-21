@@ -52,10 +52,14 @@ export const TOPUP = {
 export function quoteTopup(credits) {
   const c = Math.floor(Number(credits) || 0);
   let discountPct = 0;
-  if (c >= 2500) {
-    discountPct = 0.10;
-  } else if (c >= 1000) {
-    discountPct = 0.05;
+  if (Array.isArray(TOPUP.tiers)) {
+    const sorted = [...TOPUP.tiers].sort((a, b) => b.min - a.min);
+    for (const tier of sorted) {
+      if (c >= tier.min) {
+        discountPct = tier.disc;
+        break;
+      }
+    }
   }
   const unitPrice = TOPUP.pricePerCredit;
   const gross = c * unitPrice;
@@ -69,44 +73,12 @@ export function quoteTopup(credits) {
   };
 }
 
-export const TOPUP_PACKAGES = {
-  starter: {
-    id: 'starter',
-    name: 'Starter Pack',
-    price: 500000,
-    credits: 500,
-    bonus: 0,
-    periodDays: 365,
-    desc: 'Cukup untuk ±8 artikel lengkap dengan 3 gambar AI.'
-  },
-  growth: {
-    id: 'growth',
-    name: 'Growth Pack',
-    price: 1000000,
-    credits: 1050,
-    bonus: 50,
-    periodDays: 365,
-    desc: 'Bonus +50 credit. Cukup untuk ±14 artikel bergambar & riset topik.'
-  },
-  scale: {
-    id: 'scale',
-    name: 'Scale Pack',
-    price: 2500000,
-    credits: 2750,
-    bonus: 250,
-    periodDays: 365,
-    desc: 'Bonus +250 credit. Skala besar untuk tim agency & brand aktif.'
-  }
-};
-
 export function getCatalog() {
   return {
     currency: 'IDR',
     modules: Object.values(MODULES),
     bundles: Object.values(BUNDLES),
-    topup: TOPUP,
-    topupPackages: Object.values(TOPUP_PACKAGES),
-    plans: Object.values(PLANS).filter(p => p.id !== 'free' && p.price > 0)
+    topup: TOPUP
   };
 }
 

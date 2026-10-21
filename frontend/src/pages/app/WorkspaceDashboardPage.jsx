@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { MODULE_PRICES, MODULE_QUOTA, formatIDR } from '../../config/pricing';
+import { MODULES, formatIDR } from '../../config/pricing';
 import { ROLES, SOON_ROLES, TOTAL_ROLES_COUNT } from '../../config/roles';
 import { getAdsSummary, listConnections } from '../../ads/adsApi';
 import { formatCompactIDR, formatRoas } from '../../ads/format';
@@ -178,8 +178,8 @@ export default function WorkspaceDashboardPage({ me }) {
                 {t('app.dashboard.seoDescLocked')}
               </p>
               <div style={styles.lockedPriceBox}>
-                <span>{t('app.dashboard.fromPrice')} <strong>{formatIDR(MODULE_PRICES.seo, lang)}</strong>{t('app.dashboard.perMonth')}</span>
-                <span style={styles.lockedQuotaText}>{MODULE_QUOTA.seo}</span>
+                <span>{t('app.dashboard.fromPrice')} <strong>{formatIDR(MODULES.seo.price, lang)}</strong> • {t('bundles.lifetimeBadge', 'Lifetime Access')}</span>
+                <span style={styles.lockedQuotaText}>{MODULES.seo.monthlyCredits} credit / bulan ({MODULES.seo.desc})</span>
               </div>
               <Link to="/app/modules/seo" style={styles.cardActivateBtn}>
                 <Sparkles size={14} />
@@ -272,8 +272,8 @@ export default function WorkspaceDashboardPage({ me }) {
                 {t('app.dashboard.adsDescLocked')}
               </p>
               <div style={styles.lockedPriceBox}>
-                <span>{t('app.dashboard.fromPrice')} <strong>{formatIDR(MODULE_PRICES.ads_report, lang)}</strong>{t('app.dashboard.perMonth')}</span>
-                <span style={styles.lockedQuotaText}>{MODULE_QUOTA.ads_report}</span>
+                <span>{t('app.dashboard.fromPrice')} <strong>{formatIDR(MODULES.ads_report.price, lang)}</strong> • {t('bundles.lifetimeBadge', 'Lifetime Access')}</span>
+                <span style={styles.lockedQuotaText}>{MODULES.ads_report.monthlyCredits} credit / bulan ({MODULES.ads_report.desc})</span>
               </div>
               <Link to="/app/modules/ads_report" style={styles.cardActivateBtn}>
                 <Sparkles size={14} />
@@ -360,8 +360,8 @@ export default function WorkspaceDashboardPage({ me }) {
                 {t('app.dashboard.spyDescLocked')}
               </p>
               <div style={styles.lockedPriceBox}>
-                <span>{t('app.dashboard.fromPrice')} <strong>{formatIDR(MODULE_PRICES.ads_spy, lang)}</strong>{t('app.dashboard.perMonth')}</span>
-                <span style={styles.lockedQuotaText}>{MODULE_QUOTA.ads_spy}</span>
+                <span>{t('app.dashboard.fromPrice')} <strong>{formatIDR(MODULES.ads_spy.price, lang)}</strong> • {t('bundles.lifetimeBadge', 'Lifetime Access')}</span>
+                <span style={styles.lockedQuotaText}>{MODULES.ads_spy.monthlyCredits} credit / bulan ({MODULES.ads_spy.desc})</span>
               </div>
               <Link to="/app/modules/ads_spy" style={styles.cardActivateBtn}>
                 <Sparkles size={14} />

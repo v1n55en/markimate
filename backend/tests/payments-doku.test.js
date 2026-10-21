@@ -205,9 +205,11 @@ async function runDokuPaymentsTests() {
   const catalogRes = await req('/api/billing/catalog');
   assert.strictEqual(catalogRes.status, 200);
   assert.strictEqual(catalogRes.data.currency, 'IDR');
-  assert.ok(Array.isArray(catalogRes.data.topupPackages));
-  assert.ok(Array.isArray(catalogRes.data.plans));
-  assert.strictEqual(catalogRes.data.topupPackages.length, 3);
+  assert.ok(catalogRes.data.topup);
+  assert.strictEqual(catalogRes.data.topup.pricePerCredit, 1000);
+  assert.strictEqual(catalogRes.data.topupPackages, undefined);
+  assert.ok(Array.isArray(catalogRes.data.modules));
+  assert.ok(Array.isArray(catalogRes.data.bundles));
 
   // ----------------------------------------------------
   // 3. Top-Up Credit Order & Checkout URL
@@ -224,7 +226,7 @@ async function runDokuPaymentsTests() {
   const topupRes = await req('/api/billing/topup', {
     method: 'POST',
     headers: authHeaders,
-    body: { packageId: 'growth' }
+    body: { credits: 1000 }
   });
   assert.strictEqual(topupRes.status, 200);
   assert.ok(topupRes.data.checkoutUrl);
@@ -234,8 +236,8 @@ async function runDokuPaymentsTests() {
   const paymentRecord = await db.findOne('payments', { invoice_number: topupInvoice });
   assert.ok(paymentRecord);
   assert.strictEqual(paymentRecord.status, 'pending');
-  assert.strictEqual(paymentRecord.amount, 1000000);
-  assert.strictEqual(paymentRecord.credits, 1050);
+  assert.strictEqual(paymentRecord.amount, 950000);
+  assert.strictEqual(paymentRecord.credits, 1000);
 
   // ----------------------------------------------------
   // 3b. Pengujian DOKU 400 Bad Request -> 502 PAYMENT_GATEWAY_REJECTED dan raw berisi body DOKU
@@ -271,7 +273,7 @@ async function runDokuPaymentsTests() {
   const errRes = await req('/api/billing/topup', {
     method: 'POST',
     headers: authHeaders,
-    body: { packageId: 'starter' }
+    body: { credits: 500 }
   });
 
   globalThis.fetch = origFetchFor400;
@@ -294,7 +296,7 @@ async function runDokuPaymentsTests() {
   // ----------------------------------------------------
   console.log('4. Menguji Webhook DOKU lewat HTTP sungguhan (/api/webhooks/doku)...');
   const validWebhookPayload = {
-    order: { invoice_number: topupInvoice, amount: 1000000 },
+    order: { invoice_number: topupInvoice, amount: 950000 },
     status: 'SUCCESS',
     transaction: { status: 'SUCCESS', date: new Date().toISOString() },
     channel: { id: 'QRIS' }
@@ -374,7 +376,7 @@ async function runDokuPaymentsTests() {
   assert.strictEqual(goodWebhookRes.data.paymentStatus, 'paid');
 
   const walletCheck1 = await req('/api/credits', { headers: authHeaders });
-  assert.strictEqual(walletCheck1.data.balance.topup, 1050, 'Kredit topup harus bertambah 1050');
+  assert.strictEqual(walletCheck1.data.balance.topup, 1000, 'Kredit topup harus bertambah 1000');
 
   const updatedPayment = await db.findOne('payments', { invoice_number: topupInvoice });
   assert.strictEqual(updatedPayment.status, 'paid');
@@ -390,7 +392,7 @@ async function runDokuPaymentsTests() {
   assert.strictEqual(repeatWebhookRes.data.status, 'already_processed');
 
   const walletCheck2 = await req('/api/credits', { headers: authHeaders });
-  assert.strictEqual(walletCheck2.data.balance.topup, 1050, 'Saldo kredit tidak boleh bertambah ganda');
+  assert.strictEqual(walletCheck2.data.balance.topup, 1000, 'Saldo kredit tidak boleh bertambah ganda');
 
   // ----------------------------------------------------
   // 5. Uji Atomisitas Fulfillment (Double Fulfill Concurrent)

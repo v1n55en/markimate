@@ -246,15 +246,15 @@ async function runCustomTopupTests() {
   const wallet = await db.findOne('credit_wallets', { workspace_id: workspaceId });
   assert.strictEqual(wallet.balance_topup, 75, 'Saldo topup harus bertambah 75 credit');
 
-  // 8. Backward Compatibility: Dukungan paket lama { packageId: 'starter' }
-  console.log('8. Menguji backward compatibility { packageId: "starter" }...');
+  // 8. Penolakan paket lama: Top-up hanya lewat { credits }
+  console.log('8. Menguji penolakan format lama { packageId: "starter" }...');
   const resStarter = await req('/api/billing/topup', {
     method: 'POST',
     headers: authHeaders,
     body: { packageId: 'starter' }
   });
-  assert.strictEqual(resStarter.status, 200);
-  assert.strictEqual(resStarter.data.amount, 500000);
+  assert.strictEqual(resStarter.status, 400);
+  assert.strictEqual(resStarter.data.code, 'INVALID_TOPUP_AMOUNT');
 
   console.log('✅ ALL CUSTOM TOP-UP & VALIDATION TESTS PASSED!');
 }

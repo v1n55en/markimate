@@ -327,7 +327,7 @@ export default function LandingPage({ scrollToPricing = false }) {
                 </span>
                 <span style={styles.inHouseTotal}>{formatIDR(TEAM_COST_BENCHMARK.focus3, lang)}{t('benchmark.perMonth', '/ mo')}</span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--accent-green)', fontWeight: '700' }}>
-                  {t('benchmark.focus3Badge', { amount: formatCurrency(3200000, lang) }, `Markimate Focus 3: ${formatCurrency(3200000, lang)}/mo`)}
+                  {t('benchmark.focus3Badge', { amount: formatCurrency(TEAM_COST_BENCHMARK.focus3Markimate, lang) }, `Markimate Focus 3: ${formatCurrency(TEAM_COST_BENCHMARK.focus3Markimate, lang)}/mo`)}
                 </span>
               </div>
             </div>
@@ -378,12 +378,17 @@ export default function LandingPage({ scrollToPricing = false }) {
                       </td>
                       <td style={{ ...styles.tdTotal, textAlign: 'right' }}>
                         <strong style={{ color: 'var(--accent-green)', fontSize: '1.05rem' }}>
-                          {formatCurrency(3200000, lang)} {t('benchmark.perMonth', '/ mo')} ({t('benchmark.totalDiscount', 'Discount Bundle')})
+                          {formatCurrency(TEAM_COST_BENCHMARK.focus3Markimate, lang)} {t('benchmark.perMonth', '/ mo')} ({t('benchmark.totalDiscount', 'Discount Bundle')})
                         </strong>
                       </td>
                     </tr>
                   </tbody>
                 </table>
+              </div>
+              <div style={styles.benchmarkNote}>
+                <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  * {t('benchmark.amortizationNote')}
+                </p>
               </div>
             </div>
 
@@ -446,14 +451,14 @@ export default function LandingPage({ scrollToPricing = false }) {
                       {t('benchmark.bundleMarkimateLabel', 'Markimate Bundle')}
                     </span>
                     <span style={styles.mobileTotalMarkimate}>
-                      {formatCurrency(3200000, lang)}{t('benchmark.perMonthShort', '/mo')}
+                      {formatCurrency(TEAM_COST_BENCHMARK.focus3Markimate, lang)}{t('benchmark.perMonthShort', '/mo')}
                     </span>
                   </div>
                 </div>
 
                 <div style={styles.mobileTotalNote}>
                   <Sparkles size={14} color="var(--accent-green)" style={{ flexShrink: 0 }} />
-                  <span>{t('benchmark.saveMonthlyNote', { amount: formatCurrency(26175000, lang) }, `You save ${formatCurrency(26175000, lang)} every month`)}</span>
+                  <span>{t('benchmark.saveMonthlyNote', { amount: formatCurrency(TEAM_COST_BENCHMARK.focus3Savings, lang) }, `You save ${formatCurrency(TEAM_COST_BENCHMARK.focus3Savings, lang)} every month`)}</span>
                 </div>
               </div>
             </div>
@@ -617,6 +622,11 @@ export default function LandingPage({ scrollToPricing = false }) {
             </div>
             <div style={{ maxWidth: '640px', margin: '0 auto' }}>
               <TopupCalculator isPublic={true} initialCredits={500} />
+            </div>
+            <div style={{ textAlign: 'center', marginTop: '1.75rem', fontSize: '0.825rem' }}>
+              <LocalizedLink to="/terms" style={{ color: 'var(--accent-cyan)', textDecoration: 'underline' }}>
+                {t('bundles.termsLink')}
+              </LocalizedLink>
             </div>
           </div>
         </section>
@@ -1164,6 +1174,11 @@ const styles = {
     padding: '0.85rem',
     borderTop: '2px solid var(--border-active)',
     color: 'var(--text-primary)',
+  },
+  benchmarkNote: {
+    padding: '0.85rem 0.25rem 0.25rem',
+    borderTop: '1px dashed var(--border-muted)',
+    marginTop: '0.75rem',
   },
   // Mobile Comparison Cards
   mobileCompCard: {

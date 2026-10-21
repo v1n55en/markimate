@@ -203,8 +203,8 @@ export const TERMS_CONTENT = {
       },
       {
         number: '4',
-        title: 'Sistem Credit, Free Trial & Ketentuan Refund',
-        content: `Setiap akun baru berhak atas free trial 7 hari dengan alokasi 300 credit tanpa kewajiban kartu kredit. Credit top-up berlaku selama 365 hari sejak tanggal pembelian. Paket langganan bulanan atau bundle yang telah diproses tidak dapat di-refund setelah kuota credit periode tersebut digunakan sebagian atau seluruhnya.`,
+        title: 'Sistem Kredit, Trial 30 Hari, Syarat Lifetime & Ketentuan Refund',
+        content: `Setiap akun baru berhak atas free trial 30 hari dengan alokasi 300 kredit tanpa kewajiban kartu kredit. Lisensi modul lifetime berlaku sekali bayar selama layanan Markimate beroperasi komersial, terikat per workspace, tidak dapat dipindahtangankan antar-workspace/entitas tanpa izin tertulis, dan tunduk pada kebijakan batas wajar (fair use). Kuota kredit bulanan dari modul lifetime di-grant pada awal bulan WIB dan hangus pada akhir bulan (tidak terakumulasi). Kredit top-up mandiri berlaku selama 365 hari sejak tanggal pembelian. Garansi pengembalian dana (refund) penuh berlaku selama 7 hari kalender sejak tanggal transaksi jika kredit bulanan atau kredit top-up terkait belum digunakan sama sekali.`,
       },
       {
         number: '5',
@@ -241,8 +241,8 @@ export const TERMS_CONTENT = {
       },
       {
         number: '4',
-        title: 'Credit System, Free Trial & Refund Policy',
-        content: `Every newly registered account receives a 7-day free trial containing 300 credits with zero credit card required. Top-up credit packs remain valid for 365 calendar days from the purchase date. Subscription and bundle payments are non-refundable once allocated credits have been partially or fully utilized during the billing cycle.`,
+        title: 'Credit System, 30-Day Trial, Lifetime Terms & Refund Policy',
+        content: `Each newly registered account receives a 30-day free trial containing 300 credits with zero credit card required. Lifetime module licenses are one-time purchases valid for the operational lifetime of the Markimate platform, bound to the purchasing workspace, non-transferable between workspaces or entities without written consent, and subject to fair use. Monthly credit allowances included with lifetime modules are refreshed at the start of each month (WIB) and expire at month-end (non-accumulating). Custom top-up credits remain valid for 365 calendar days from the purchase date. A 100% money-back refund guarantee applies within 7 calendar days of purchase, provided the associated monthly or top-up credits have not been utilized.`,
       },
       {
         number: '5',

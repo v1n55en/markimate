@@ -88,7 +88,7 @@ export const publicTranslations = {
     "supermatControlVal": "100% Human approval",
     "markimateControlVal": "100% Human approval",
     "savingsBadge": "Cost Savings Calculator",
-    "savingsTitle": "Save Up to 89% on Marketing Operating Costs",
+    "savingsTitle": "Save Up to 99% on Marketing Operating Costs",
     "inhouse3Title": "In-House 3-Role Payroll:",
     "focus3Badge": "Markimate Focus 3: {amount}/mo",
     "thRole": "Specialist Role",
@@ -99,11 +99,12 @@ export const publicTranslations = {
     "totalDiscount": "Discount Bundle",
     "saveMonthlyNote": "You save {amount} every month",
     "saveTag": "Save",
-    "focus3MobileBadge": "Focus 3 Bundle · Save 89%",
+    "focus3MobileBadge": "Focus 3 Bundle · Save 99%",
     "inhouseRolesLabel": "In-House 3 Roles",
     "bundleMarkimateLabel": "Markimate Bundle",
     "perMonthShort": "/mo",
-    "perMonth": "/ mo"
+    "perMonth": "/ mo",
+    "amortizationNote": "Estimated monthly cost is based on a 24-month amortization of the Focus 3 Lifetime Bundle plus estimated monthly credit top-ups."
   },
   "bundles": {
     "title": "Flexible Plans for Every Stage of Growth",
@@ -177,7 +178,8 @@ export const publicTranslations = {
     "ctaBuyModule": "Get Lifetime Access",
     "topupSectionTitle": "Custom Top-Up Calculator",
     "topupSectionSubtitle": "Need additional credits beyond your monthly quota? Flexible top-up from {min} credits with 365-day validity.",
-    "bundleSavingsBadge": "Save {amount} vs Standalone"
+    "bundleSavingsBadge": "Save {amount} vs Standalone",
+    "termsLink": "View Terms & Conditions for Lifetime License, 30-Day Trial, and 7-Day Refund Guarantee"
   },
   "integrations": {
     "title": "Integrated with the Tools You Use Every Day",

@@ -505,7 +505,7 @@ export async function expireBuckets(workspaceId = null) {
         ref_id: null,
         balance_after: currentTotal,
         cost_actual_idr: 0,
-        note: 'Trial 7 hari kadaluarsa'
+        note: 'Trial 30 hari kadaluarsa'
       });
     }
 

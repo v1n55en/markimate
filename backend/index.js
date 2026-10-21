@@ -3624,11 +3624,11 @@ app.get('/api/billing', auth, requireWorkspace('viewer'), wrap(async (req, res) 
 }));
 
 app.post('/api/billing/topup', auth, requireWorkspace('admin'), wrap(async (req, res) => {
-  const { credits, packageId } = req.body || {};
+  const { credits } = req.body || {};
   // PRD F15: Server menghitung ulang harga & tidak pernah menerima amount dari client
   const checkout = await createCheckout({
     kind: 'topup',
-    itemId: credits !== undefined ? credits : (packageId || 'starter'),
+    itemId: credits,
     credits,
     workspaceId: req.workspace.id,
     userId: req.user.id

@@ -4,7 +4,7 @@ import os from 'os';
 import path from 'path';
 import fs from 'fs';
 import { randomUUID } from 'crypto';
-import { TRIAL, MODULE_CREDITS, TOPUP_PACKS } from '../../frontend/src/config/pricing.js';
+import { TRIAL, MODULE_CREDITS, TOPUP } from '../../frontend/src/config/pricing.js';
 import { translate, TRANSLATIONS } from '../../frontend/src/i18n/index.js';
 
 process.env.NODE_ENV = 'test';
@@ -60,23 +60,16 @@ async function runEntitlementsTests() {
   assert.strictEqual(TRIAL.credits, 300, 'Trial credits must be 300');
   assert.strictEqual(TRIAL.noCardRequired, true);
 
-  assert.strictEqual(MODULE_CREDITS.seo, 1500);
-  assert.strictEqual(MODULE_CREDITS.ads_report, 1500);
-  assert.strictEqual(MODULE_CREDITS.ads_spy, 1000);
-  assert.strictEqual(MODULE_CREDITS.focus3, 3200);
-  assert.strictEqual(MODULE_CREDITS.all_in_one, 7875);
+  assert.strictEqual(MODULE_CREDITS.seo, 100);
+  assert.strictEqual(MODULE_CREDITS.ads_report, 400);
+  assert.strictEqual(MODULE_CREDITS.ads_spy, 100);
+  assert.strictEqual(MODULE_CREDITS.focus3, 600);
 
-  assert.strictEqual(TOPUP_PACKS.length, 3);
-  const starter = TOPUP_PACKS.find(p => p.id === 'starter');
-  const growth = TOPUP_PACKS.find(p => p.id === 'growth');
-  const scale = TOPUP_PACKS.find(p => p.id === 'scale');
-
-  assert.strictEqual(starter.credits, 500);
-  assert.strictEqual(starter.price, 500000);
-  assert.strictEqual(growth.credits, 1050);
-  assert.strictEqual(growth.price, 1000000);
-  assert.strictEqual(scale.credits, 2750);
-  assert.strictEqual(scale.price, 2500000);
+  assert.strictEqual(TOPUP.pricePerCredit, 1000);
+  assert.strictEqual(TOPUP.min, 50);
+  assert.strictEqual(TOPUP.max, 50000);
+  assert.strictEqual(TOPUP.validityDays, 365);
+  assert.strictEqual(TOPUP.tiers.length, 2);
 
   // Verifikasi FAQ: Pastikan ID menggunakan "kredit", bukan "credit"
   assert.ok(TRANSLATIONS.en.faq.q4);

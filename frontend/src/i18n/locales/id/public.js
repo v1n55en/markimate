@@ -88,7 +88,7 @@ export const publicTranslations = {
     "supermatControlVal": "100% Persetujuan manusia",
     "markimateControlVal": "100% Persetujuan manusia",
     "savingsBadge": "Kalkulator Penghematan",
-    "savingsTitle": "Hemat Hingga 89% Biaya Operasional Pemasaran",
+    "savingsTitle": "Hemat Hingga 99% Biaya Operasional Pemasaran",
     "inhouse3Title": "Gaji In-House 3 Role:",
     "focus3Badge": "Markimate Fokus 3: {amount}/bln",
     "thRole": "Role Spesialis",
@@ -99,11 +99,12 @@ export const publicTranslations = {
     "totalDiscount": "Bundle Hemat",
     "saveMonthlyNote": "Anda menghemat {amount} setiap bulan",
     "saveTag": "Hemat",
-    "focus3MobileBadge": "Paket Fokus 3 · Hemat 89%",
+    "focus3MobileBadge": "Paket Fokus 3 · Hemat 99%",
     "inhouseRolesLabel": "In-House 3 Role",
     "bundleMarkimateLabel": "Bundle Markimate",
     "perMonthShort": "/bln",
-    "perMonth": "/ bln"
+    "perMonth": "/ bln",
+    "amortizationNote": "Estimasi biaya per bulan dihitung dari amortisasi lisensi seumur hidup Bundle Fokus 3 selama 24 bulan ditambah estimasi top-up kredit bulanan."
   },
   "bundles": {
     "title": "Pilihan Paket Hemat & Bundling Fleksibel",
@@ -177,7 +178,8 @@ export const publicTranslations = {
     "ctaBuyModule": "Dapatkan Akses Lifetime",
     "topupSectionTitle": "Kalkulator Top-Up Custom",
     "topupSectionSubtitle": "Butuh tambahan kredit di luar kuota bulanan? Top-up fleksibel mulai {min} kredit dengan masa aktif 365 hari.",
-    "bundleSavingsBadge": "Hemat {amount} vs Beli Satuan"
+    "bundleSavingsBadge": "Hemat {amount} vs Beli Satuan",
+    "termsLink": "Lihat Syarat & Ketentuan Lisensi Lifetime, Trial 30 Hari, dan Garansi Refund 7 Hari"
   },
   "integrations": {
     "title": "Terhubung dengan Platform yang Anda Gunakan",
