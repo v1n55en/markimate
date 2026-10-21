@@ -201,7 +201,22 @@ async function runSchemaContractTests() {
     }, true);
   }, /does not exist in table "monthly_grants"/);
 
-  console.log('✓ 9. CHECK in (...) constraints & migrasi 015 membaca dan memvalidasi tipe/kolom secara akurat');
+  // Validasi kolom keywords.article_options (PRD F6b Migrasi 017)
+  assert.ok(contract.keywords.columns.has('article_options'), 'keywords harus memiliki kolom article_options');
+  assert.doesNotThrow(() => {
+    validateRowContract('keywords', {
+      id: randomUUID(),
+      user_id: randomUUID(),
+      keyword: 'test seo keyword',
+      article_options: {
+        tone: { preset: 'educational', custom: '' },
+        length: 'long',
+        images: { mode: 'auto', count: 4, hero: true }
+      }
+    }, true);
+  });
+
+  console.log('✓ 9. CHECK in (...) constraints & migrasi 015 & 017 membaca dan memvalidasi tipe/kolom secara akurat');
 
   // 10. Menguji flow platform admin / 3our.id@gmail.com tidak melanggar schema contract
   console.log('10. Menguji flow platform admin / 3our.id@gmail.com mematuhi kontrak skema...');

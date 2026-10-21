@@ -35,9 +35,28 @@ Pemilik Keputusan: 3Our Asia
 
 ---
 
+### Langkah 2: SQL Migrasi 017 `article_options` pada Tabel `markimate.keywords` (PRD F6b)
+- **Tujuan**:
+  1. Menyiapkan migrasi idempoten `backend/migrations/017_article_options.sql`:
+     ```sql
+     alter table markimate.keywords
+       add column if not exists article_options jsonb default null;
+
+     insert into markimate.schema_migrations (version) values ('017') on conflict do nothing;
+     notify pgrst, 'reload schema';
+     ```
+  2. Memperbarui kontrak skema pada `backend/tests/schema-contract.test.js` untuk memastikan kolom `article_options` diakui dalam skema tabel `keywords` dan struktur datanya valid.
+- **Hasil Test**:
+  - `backend/tests/schema-contract.test.js` lolos dan memvalidasi `keywords.article_options`.
+  - `cd backend && npm test`: 24/24 test suite lolos 100%.
+  - `cd frontend && npm run i18n:check && npm run build`: Lolos 100%.
+- **Instruksi untuk 3Our**:
+  - Jalankan script `backend/migrations/017_article_options.sql` di Supabase SQL Editor sebelum generate keyword dengan opsi custom di production.
+
+---
+
 ## Rencana Langkah Selanjutnya
-- **Langkah 2**: SQL migrasi `017_article_options.sql` untuk kolom `article_options` pada tabel `markimate.keywords`, update kontrak skema, lalu **berhenti** sesuai aturan `AGENTS.md` untuk dijalankan oleh 3Our di Supabase.
-- **Langkah 3**: Backend normalisasi, validasi opsi, charge credit dinamis, dan endpoint estimasi.
+- **Langkah 3**: Backend normalisasi & validasi opsi (`normalizeArticleSettings`, `normalizeKeywordArticleOptions`), charge credit dinamis sesuai panjang artikel, dan endpoint estimasi live `GET /api/credits/estimate`.
 - **Langkah 4**: Automation n8n (payload, prompt kontekstual, webhook `supermat-image`, dan build workflows).
 - **Langkah 5**: Frontend UI settings workspace + form tambah keyword + estimasi live.
 - **Langkah 6**: Frontend Web Approver (pindah, urutkan, hapus, dan regenerate gambar).
