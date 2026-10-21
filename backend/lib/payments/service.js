@@ -243,33 +243,46 @@ export async function fulfillPayment(payment, parsed = {}) {
       const planData = PLANS[planKey];
       const durationDays = payment.period_days || 30;
 
-      // Periksa apakah sudah ada langganan aktif untuk memperpanjang
-      const existingSubs = await db.findMany('subscriptions', {
-        workspace_id: payment.workspace_id,
-        status: 'active'
-      });
-
-      let baseTime = now.getTime();
-      for (const s of existingSubs) {
-        if (s.ends_at && new Date(s.ends_at).getTime() > baseTime) {
-          baseTime = new Date(s.ends_at).getTime();
-        }
+      // PRD F14 Tahap 3: Kunci langganan per payment.id (atau invoice_no) untuk mencegah duplikasi & dobel masa aktif saat retry
+      let sub = null;
+      if (payment.id) {
+        sub = await db.findOne('subscriptions', { payment_id: payment.id });
       }
-      const endsAt = new Date(baseTime + durationDays * 86400e3);
+      if (!sub && payment.invoice_number) {
+        sub = await db.findOne('subscriptions', { invoice_no: payment.invoice_number });
+      }
 
-      // 1. Buat record subscription
-      const sub = await db.insert('subscriptions', {
-        user_id: payment.user_id,
-        workspace_id: payment.workspace_id,
-        plan: planKey,
-        status: 'active',
-        method: parsed.method || payment.method || payment.provider,
-        amount: payment.amount,
-        invoice_no: payment.invoice_number,
-        started_at: now.toISOString(),
-        ends_at: endsAt.toISOString(),
-        dummy: false
-      });
+      if (!sub) {
+        // Periksa apakah sudah ada langganan aktif lain untuk memperpanjang
+        const existingSubs = await db.findMany('subscriptions', {
+          workspace_id: payment.workspace_id,
+          status: 'active'
+        });
+
+        let baseTime = now.getTime();
+        for (const s of existingSubs) {
+          if (s.ends_at && new Date(s.ends_at).getTime() > baseTime) {
+            baseTime = new Date(s.ends_at).getTime();
+          }
+        }
+        const endsAt = new Date(baseTime + durationDays * 86400e3);
+
+        sub = await db.insert('subscriptions', {
+          payment_id: payment.id || null,
+          user_id: payment.user_id,
+          workspace_id: payment.workspace_id,
+          plan: planKey,
+          status: 'active',
+          method: parsed?.method || payment.method || payment.provider,
+          amount: payment.amount,
+          invoice_no: payment.invoice_number,
+          started_at: now.toISOString(),
+          ends_at: endsAt.toISOString(),
+          dummy: false
+        });
+      }
+
+      const endsAt = new Date(sub.ends_at);
 
       if (user) {
         await db.update('accounts', { id: user.id }, { plan: planKey });
@@ -302,6 +315,7 @@ export async function fulfillPayment(payment, parsed = {}) {
       }
 
       // 3. Berikan credit paket subscription (reset/isi kuota bulanan)
+      // PRD F14 Tahap 3: Semua refId grant memakai payment.id
       const credits = (planData?.credits || payment.credits || 0);
       if (process.env.CREDITS_ENABLED !== 'false' && credits > 0) {
         await grant(
@@ -313,8 +327,8 @@ export async function fulfillPayment(payment, parsed = {}) {
           `Aktivasi paket ${payment.item_name} via ${payment.provider.toUpperCase()} (${payment.invoice_number})`,
           {
             actionKey: 'billing.sub',
-            refType: 'subscription',
-            refId: sub.id,
+            refType: 'payment',
+            refId: payment.id,
             invoiceNumber: payment.invoice_number
           }
         );
@@ -539,6 +553,59 @@ export async function reconcile() {
           results.fulfilled++;
         } catch (err) {
           console.error(`[RECONCILE] Error granting missing topup credits for ${payment.invoice_number}:`, err.message);
+        }
+      }
+    }
+
+    // 3. PRD F14 Tahap 3: Jika kind === 'subscription', pastikan subscription terdaftar dan credit paket ter-grant
+    if (payment.kind === 'subscription') {
+      let sub = null;
+      if (payment.id) {
+        sub = await db.findOne('subscriptions', { payment_id: payment.id });
+      }
+      if (!sub && payment.invoice_number) {
+        sub = await db.findOne('subscriptions', { invoice_no: payment.invoice_number });
+      }
+
+      if (!sub) {
+        try {
+          const fulfillRes = await fulfillPayment(payment);
+          if (fulfillRes.fulfilled) results.fulfilled++;
+        } catch (err) {
+          console.error(`[RECONCILE] Error recreating missing subscription for ${payment.invoice_number}:`, err.message);
+        }
+      } else {
+        const planKey = payment.item_id || 'seo';
+        const planData = PLANS[planKey];
+        const credits = (planData?.credits || payment.credits || 0);
+        if (process.env.CREDITS_ENABLED !== 'false' && credits > 0) {
+          const existingLedger = await db.findMany('credit_ledger', {
+            workspace_id: payment.workspace_id,
+            ref_id: payment.id
+          });
+          const hasGrantRow = (existingLedger || []).some(r => r.kind === 'grant_sub' || (r.delta && r.delta > 0));
+          if (!hasGrantRow) {
+            try {
+              const endsAt = sub.ends_at ? new Date(sub.ends_at) : new Date(Date.now() + 30 * 86400e3);
+              await grant(
+                payment.workspace_id,
+                'sub',
+                credits,
+                endsAt,
+                'grant_sub',
+                `Reconciliation: Paket ${payment.item_name} via ${payment.provider.toUpperCase()} (${payment.invoice_number})`,
+                {
+                  actionKey: 'billing.sub',
+                  refType: 'payment',
+                  refId: payment.id,
+                  invoiceNumber: payment.invoice_number
+                }
+              );
+              results.fulfilled++;
+            } catch (err) {
+              console.error(`[RECONCILE] Error granting missing subscription credits for ${payment.invoice_number}:`, err.message);
+            }
+          }
         }
       }
     }

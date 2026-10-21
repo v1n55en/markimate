@@ -500,6 +500,88 @@ async function runDokuPaymentsTests() {
   db.insert = origInsert;
 
   // ----------------------------------------------------
+  // 5c. Uji Aktivasi Langganan: Gagal setelah insert subscription -> Retry -> Tepat 1 subscription & 1 periode
+  // ----------------------------------------------------
+  console.log('5c. Menguji aktivasi langganan gagal sekali setelah insert subscription -> retry...');
+  const subInvoice = generateInvoiceNumber('subscription');
+  const subPayment = await db.insert('payments', {
+    workspace_id: userRow.id,
+    user_id: userRow.id,
+    kind: 'subscription',
+    item_id: 'seo',
+    item_name: 'SEO Specialist',
+    provider: 'doku',
+    amount: 1500000,
+    credits: 1500,
+    period_days: 30,
+    invoice_number: subInvoice,
+    status: 'pending',
+    fulfilled_at: null
+  });
+
+  const subWebhookPayload = {
+    order: { invoice_number: subInvoice, amount: 1500000 },
+    status: 'SUCCESS',
+    transaction: { status: 'SUCCESS', date: new Date().toISOString() },
+    channel: { id: 'QRIS' }
+  };
+  const subWebhookHeaders = makeDokuWebhookHeaders(subWebhookPayload);
+
+  // Mock sementara db.update('accounts') agar throw error SETELAH subscription di-insert
+  let failSubOnce = true;
+  const origUpdateForSub = db.update.bind(db);
+  db.update = async function (table, where, patch) {
+    if (table === 'accounts' && failSubOnce) {
+      failSubOnce = false;
+      throw new Error('Simulated Database I/O failure during accounts plan update');
+    }
+    return origUpdateForSub(table, where, patch);
+  };
+
+  // Panggilan 1: Webhook gagal (500), tapi baris subscription sudah terlanjur dibuat di DB
+  const failSubRes = await req('/api/webhooks/doku', {
+    method: 'POST',
+    headers: subWebhookHeaders,
+    body: subWebhookPayload
+  });
+  assert.strictEqual(failSubRes.status, 500, 'Webhook harus mengembalikan status 500 jika terjadi error fulfillment');
+
+  // Pulihkan db.update
+  db.update = origUpdateForSub;
+
+  // Verifikasi bahwa baris subscription sudah ada tetapi status pembayaran di-rollback ke pending
+  const rolledPayment = await db.findOne('payments', { id: subPayment.id });
+  assert.strictEqual(rolledPayment.status, 'pending');
+  assert.strictEqual(rolledPayment.fulfilled_at, null);
+
+  const subsAfterFail = await db.findMany('subscriptions', { workspace_id: userRow.id, invoice_no: subInvoice });
+  assert.strictEqual(subsAfterFail.length, 1, 'Baris subscription harus sudah terbentuk pada percobaan pertama');
+  const initialEndsAt = new Date(subsAfterFail[0].ends_at).getTime();
+
+  // Panggilan 2: Retry webhook sukses
+  const retrySubRes = await req('/api/webhooks/doku', {
+    method: 'POST',
+    headers: subWebhookHeaders,
+    body: subWebhookPayload
+  });
+  assert.strictEqual(retrySubRes.status, 200, 'Retry webhook harus berhasil 200');
+
+  // Verifikasi akhir:
+  // 1. Jumlah baris subscription untuk invoice ini TETAP 1 (tidak bertambah jadi 2)
+  const finalSubs = await db.findMany('subscriptions', { workspace_id: userRow.id, invoice_no: subInvoice });
+  assert.strictEqual(finalSubs.length, 1, 'Hanya boleh ada 1 baris subscription untuk invoice/payment ini');
+  assert.strictEqual(finalSubs[0].payment_id, subPayment.id, 'Kolom payment_id harus tersimpan pada baris subscription');
+
+  // 2. Masa aktif (ends_at) TIDAK berlipat ganda (sama dengan initialEndsAt)
+  const finalEndsAt = new Date(finalSubs[0].ends_at).getTime();
+  assert.strictEqual(finalEndsAt, initialEndsAt, 'Masa aktif langganan tidak boleh berlipat ganda (ends_at harus tetap 1 periode)');
+
+  // 3. Status payment menjadi 'paid'
+  const finalPayment = await db.findOne('payments', { id: subPayment.id });
+  assert.strictEqual(finalPayment.status, 'paid');
+  assert.ok(finalPayment.fulfilled_at);
+
+  // ----------------------------------------------------
   // 6. Uji Proteksi Webhook Mock di Mode Production & Empty Secret via HTTP
   // ----------------------------------------------------
   console.log('6. Menguji penolakan webhook mock di mode production & empty secret via HTTP...');
