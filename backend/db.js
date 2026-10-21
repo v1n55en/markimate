@@ -210,11 +210,11 @@ class SupabaseStore {
   }
   async upsert(table, where, row) { const ex = await this.findOne(table, where); return ex ? this.update(table, where, row) : this.insert(table, { ...where, ...row }); }
   async remove(table, where) {
-    let q = this.c.from(table).delete();
+    let q = this.c.from(table).delete({ count: 'exact' });
     q = this._applyFilters(q, where);
     const { error, count } = await q;
     if (error) throw new Error(`${table}: ${error.message}`);
-    return count ?? 1;
+    return count ?? 0;
   }
   async rpc(name, params = {}) {
     const { data, error } = await this.c.rpc(name, params);

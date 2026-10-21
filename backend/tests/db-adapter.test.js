@@ -67,8 +67,8 @@ function createMockSupabaseClient() {
           calls.push({ method: 'insert', table, row });
           return new MockQueryBuilder(table, 'insert');
         },
-        delete() {
-          calls.push({ method: 'delete', table });
+        delete(opts) {
+          calls.push({ method: 'delete', table, opts });
           return new MockQueryBuilder(table, 'delete');
         }
       };
@@ -145,13 +145,18 @@ function createMockSupabaseClient() {
   const { client, calls } = createMockSupabaseClient();
   const store = new SupabaseStore(client);
 
-  await store.remove('payments', { fulfilled_at: null });
+  const removedCount = await store.remove('payments', { fulfilled_at: null });
+
+  const deleteCalls = calls.filter(c => c.method === 'delete');
+  assert.strictEqual(deleteCalls.length, 1);
+  assert.deepStrictEqual(deleteCalls[0].opts, { count: 'exact' });
+  assert.strictEqual(removedCount, 1);
 
   const isCalls = calls.filter(c => c.method === 'is');
   assert.strictEqual(isCalls.length, 1);
   assert.strictEqual(isCalls[0].column, 'fulfilled_at');
   assert.strictEqual(isCalls[0].value, null);
-  console.log('✓ Test 4: remove dengan filter null menghasilkan .is(k, null) lolos');
+  console.log('✓ Test 4: remove dengan filter null menghasilkan .is(k, null) dan { count: \'exact\' } lolos');
 }
 
 // TEST 5: JsonStore claim() bekerja atomik dan menolak klaim kedua

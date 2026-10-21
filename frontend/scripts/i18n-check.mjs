@@ -281,7 +281,8 @@ for (const file of allSrcFiles) {
     });
     traverseAst(ast, relPath);
   } catch (err) {
-    // Abaikan jika ada file non-standard, tetap aman
+    console.error(`❌ Gagal mem-parse AST file ${relPath}: ${err.message}`);
+    errorCount++;
   }
 }
 
