@@ -1897,3 +1897,74 @@ h1, h2, h3, h4, h5, h6, p, span, strong, a {
   cursor: not-allowed;
 }
 
+/* ========================================================
+   Admin Reports: Lifetime Liability & Revenue Mix (PRD F15)
+   ======================================================== */
+.admin-reports-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.admin-mix-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .admin-mix-container {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.admin-mix-bar {
+  display: flex;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-muted);
+  margin: 1rem 0;
+}
+
+.admin-mix-segment-module {
+  background-color: var(--accent-cyan);
+  transition: width 0.3s ease;
+}
+
+.admin-mix-segment-topup {
+  background-color: var(--accent-green);
+  transition: width 0.3s ease;
+}
+
+.admin-mix-segment-sub {
+  background-color: var(--text-muted);
+  transition: width 0.3s ease;
+}
+
+.admin-mix-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  font-size: 0.82rem;
+}
+
+.admin-mix-legend-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.admin-mix-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 0.4rem;
+}
+
+

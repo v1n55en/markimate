@@ -193,9 +193,31 @@ Pemilik Keputusan: 3Our Asia
 
 ---
 
+### Langkah 8: Admin Laporan Liabilitas Kredit Bulanan & Revenue Mix (PRD F15)
+- **Tujuan**:
+  1. Menghitung proyeksi beban liabilitas kuota kredit gratis bulanan komitmen seumur hidup: `jumlah pemilik lifetime aktif bulan ini × kuota bulanan modul × biaya per credit nyata` (SEO Rp56/cr, Ads Report Rp4/cr, Ads Spy Rp62/cr) serta skenario buffer perencanaan Rp100/cr.
+  2. Menghitung bauran pendapatan (Revenue Mix) antara lisensi lifetime sekali bayar (`kind: 'module'`), kredit top-up kustom (`kind: 'topup'`), dan langganan bulanan lama (`kind: 'subscription'`) baik untuk bulan berjalan, kumulatif sepanjang masa (all-time), maupun tren riwayat bulanan.
+  3. Memisahkan workspace platform admin internal 3Our (unlimited/bypass) dari perhitungan liabilitas komersial.
+  4. Menyajikan visualisasi dashboard admin responsif dengan ringkasan metrik, tabel rincian modul, progress bar bauran pendapatan rasio, dan tabel tren bulanan di `AdminDashboardPage.jsx`.
+- **File Berubah/Dibuat**:
+  - `backend/lib/admin-reports.js`: Modul kalkulasi `getLifetimeLiability`, `getRevenueMix`, dan agregat `getAdminLifetimeReport`.
+  - `backend/index.js`: Endpoint `GET /api/admin/reports/lifetime-liability` (dengan `adminAuth`).
+  - `backend/lib/margin.js`: Mengintegrasikan `lifetime_liability` dan `revenue_mix` ke dalam `calculateUsageAndMargin` di `GET /api/admin/credits/margin`.
+  - `backend/tests/admin-reports.test.js`: Suite test baru ke-22 yang menguji liabilitas, revenue mix, integrasi margin, dan HTTP endpoint admin.
+  - `frontend/src/pages/admin/AdminDashboardPage.jsx`: Integrasi UI laporan liabilitas dan bauran pendapatan (revenue mix).
+  - `frontend/src/index.css`: Styles helper responsive `.admin-reports-grid`, `.admin-mix-container`, `.admin-mix-bar`, dsb.
+  - `frontend/src/i18n/locales/id/app.js` & `en/app.js`: 26 keys baru di kamus `adminDashboard` dengan interpolasi dinamis tanpa hardcoded prices.
+- **Hasil Test**:
+  - `cd backend && npm test`: 22/22 test suite lolos 100% tanpa modifikasi `database.json`.
+  - `cd frontend && npm run i18n:check`: 2368 keys in EN & ID, 70/70 backend error codes, 0 forbidden hardcoded prices, 0 error.
+  - `cd frontend && npm run lint`: 0 error.
+  - `cd frontend && npm run build`: 42 static HTML & sitemap generated successfully.
+
+---
+
 ## Rencana Langkah Selanjutnya
-- **Langkah 8**: Admin laporan liabilitas kredit bulanan dan revenue mix (modul lifetime vs top-up).
-- **Langkah 9**: Laporan final F15 dan mutation checks.
+- **Langkah 9**: Laporan final F15 dan mutation checks (pengujian mutasi test idempotensi & non-akumulasi grant bulanan, audit kesiapan live).
+
 
 
 

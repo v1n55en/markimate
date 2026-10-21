@@ -126,6 +126,18 @@ export async function calculateUsageAndMargin(monthStr = null) {
     ? Math.round(((totalRevenueIdr - totalCostActualIdr) / totalRevenueIdr) * 100)
     : 100;
 
+  let lifetimeLiability = null;
+  let revenueMix = null;
+  try {
+    const { getLifetimeLiability, getRevenueMix } = await import('./admin-reports.js');
+    [lifetimeLiability, revenueMix] = await Promise.all([
+      getLifetimeLiability(currentMonth),
+      getRevenueMix(currentMonth)
+    ]);
+  } catch (err) {
+    console.error('Error calculating lifetime liability or revenue mix:', err);
+  }
+
   return {
     month: currentMonth,
     actions: Object.values(byAction),
@@ -135,7 +147,9 @@ export async function calculateUsageAndMargin(monthStr = null) {
       total_cost_actual_idr: totalCostActualIdr,
       overall_margin_pct: overallMarginPct
     },
-    internal_admin_usage: internalAdminUsage
+    internal_admin_usage: internalAdminUsage,
+    lifetime_liability: lifetimeLiability,
+    revenue_mix: revenueMix
   };
 }
 

@@ -28,6 +28,7 @@ import { processDailyCreditAlerts } from './lib/notifications.js';
 import { getCatalog } from './lib/catalog.js';
 import { createCheckout, handleNotification, reconcile } from './lib/payments/service.js';
 import { calculateUsageAndMargin, checkMarginSentinel } from './lib/margin.js';
+import { getAdminLifetimeReport } from './lib/admin-reports.js';
 import {
   sendMail,
   sendVerificationEmail,
@@ -2101,6 +2102,11 @@ app.get('/api/admin/credits/usage', adminAuth, wrap(async (req, res) => {
 
 app.get('/api/admin/credits/margin', adminAuth, wrap(async (req, res) => {
   const result = await calculateUsageAndMargin(req.query.month);
+  res.json(result);
+}));
+
+app.get('/api/admin/reports/lifetime-liability', adminAuth, wrap(async (req, res) => {
+  const result = await getAdminLifetimeReport(req.query.month);
   res.json(result);
 }));
 

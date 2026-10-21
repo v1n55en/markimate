@@ -10,7 +10,8 @@ import {
   AlertCircle,
   CheckCircle2,
   Calendar,
-  Layers
+  Layers,
+  PieChart
 } from 'lucide-react';
 import { api, formatIDR } from '../../api';
 import { useLanguage } from '../../context/LanguageContext';
@@ -128,6 +129,8 @@ export default function AdminDashboardPage({ user }) {
   const totals = marginData?.totals || {};
   const internalAdmin = marginData?.internal_admin_usage || {};
   const actions = marginData?.actions || [];
+  const lifetimeLiability = marginData?.lifetime_liability || null;
+  const revenueMix = marginData?.revenue_mix || null;
 
   return (
     <div style={styles.container}>
@@ -270,6 +273,286 @@ export default function AdminDashboardPage({ user }) {
               </table>
             </div>
           </div>
+
+          {/* 4b. Laporan Liabilitas Kredit Bulanan (Modul Lifetime) (PRD F15 Langkah 8) */}
+          {lifetimeLiability && (
+            <div style={styles.reportSectionCard} className="card">
+              <div style={styles.sectionHeader}>
+                <div style={styles.headerTitleRow}>
+                  <Layers size={18} color="var(--accent-cyan)" />
+                  <h3 style={styles.cardHeading}>{t('adminDashboard.liabilityTitle')}</h3>
+                </div>
+                <p style={styles.sectionSubtitle}>{t('adminDashboard.liabilitySubtitle')}</p>
+              </div>
+
+              {/* 4 Cards Metrik Liabilitas */}
+              <div className="admin-reports-grid">
+                <div style={styles.subMetricCard}>
+                  <span style={styles.subMetricLabel}>{t('adminDashboard.totalActiveLifetimeOwners')}</span>
+                  <span style={styles.subMetricVal}>
+                    {t('adminDashboard.ratioSlash', {
+                      active: formatNumber(lifetimeLiability.summary?.active_lifetime_owners || 0, lang),
+                      total: formatNumber(lifetimeLiability.summary?.total_lifetime_owners || 0, lang)
+                    })}
+                  </span>
+                </div>
+
+                <div style={styles.subMetricCard}>
+                  <span style={styles.subMetricLabel}>{t('adminDashboard.totalCommittedCredits')}</span>
+                  <span style={{ ...styles.subMetricVal, color: 'var(--accent-cyan)' }}>
+                    {t('adminDashboard.creditsVal', {
+                      amount: formatNumber(lifetimeLiability.summary?.total_active_committed_credits || 0, lang)
+                    })}
+                  </span>
+                </div>
+
+                <div style={styles.subMetricCard}>
+                  <span style={styles.subMetricLabel}>{t('adminDashboard.estLiabilityReal')}</span>
+                  <span style={{ ...styles.subMetricVal, color: 'var(--accent-yellow)' }}>
+                    {formatIDR(lifetimeLiability.summary?.total_liability_real_idr || 0)}
+                  </span>
+                </div>
+
+                <div style={styles.subMetricCard}>
+                  <span style={styles.subMetricLabel}>{t('adminDashboard.estLiabilityBuffer', { rate: formatIDR(100) })}</span>
+                  <span style={{ ...styles.subMetricVal, color: 'var(--text-muted)' }}>
+                    {formatIDR(lifetimeLiability.summary?.total_liability_buffer_idr || 0)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Tabel Rincian per Modul Lifetime */}
+              <div style={styles.tableWrapper}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr style={styles.tableHeaderRow}>
+                      <th style={styles.th}>{t('adminDashboard.thModule')}</th>
+                      <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thOwners')}</th>
+                      <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thQuotaPerOwner')}</th>
+                      <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thTotalCredits')}</th>
+                      <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thCogsPerCredit')}</th>
+                      <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thLiabilityReal')}</th>
+                      <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thLiabilityBuffer', { rate: formatIDR(100) })}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.values(lifetimeLiability.by_module || {}).map((mod) => (
+                      <tr key={mod.module} style={styles.tr}>
+                        <td style={styles.tdBold}>{mod.name}</td>
+                        <td style={{ ...styles.td, textAlign: 'right' }}>
+                          {t('adminDashboard.ratioSlash', {
+                            active: formatNumber(mod.active_owners, lang),
+                            total: formatNumber(mod.total_owners, lang)
+                          })}
+                        </td>
+                        <td style={{ ...styles.td, textAlign: 'right' }}>
+                          {t('adminDashboard.creditsVal', {
+                            amount: formatNumber(mod.monthly_credits_per_owner, lang)
+                          })}
+                        </td>
+                        <td style={{ ...styles.td, textAlign: 'right', color: 'var(--accent-cyan)' }}>
+                          {t('adminDashboard.creditsVal', {
+                            amount: formatNumber(mod.active_committed_credits, lang)
+                          })}
+                        </td>
+                        <td style={{ ...styles.td, textAlign: 'right' }}>{formatIDR(mod.cogs_per_credit_real)}</td>
+                        <td style={{ ...styles.td, textAlign: 'right', fontWeight: '700', color: 'var(--accent-yellow)' }}>
+                          {formatIDR(mod.liability_real_idr)}
+                        </td>
+                        <td style={{ ...styles.td, textAlign: 'right', color: 'var(--text-muted)' }}>
+                          {formatIDR(mod.liability_buffer_idr)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={styles.safetyBox}>
+                <AlertCircle size={15} color="var(--accent-cyan)" />
+                <span style={styles.safetyText}>{t('adminDashboard.liabilitySafetyNotice')}</span>
+              </div>
+            </div>
+          )}
+
+          {/* 4c. Laporan Bauran Pendapatan (Revenue Mix: Lifetime vs Top-up) (PRD F15 Langkah 8) */}
+          {revenueMix && (
+            <div style={styles.reportSectionCard} className="card">
+              <div style={styles.sectionHeader}>
+                <div style={styles.headerTitleRow}>
+                  <PieChart size={18} color="var(--accent-green)" />
+                  <h3 style={styles.cardHeading}>{t('adminDashboard.revenueMixTitle')}</h3>
+                </div>
+                <p style={styles.sectionSubtitle}>{t('adminDashboard.revenueMixSubtitle')}</p>
+              </div>
+
+              {/* 2 Kartu Komparasi Bauran: Bulan Ini vs All-Time */}
+              <div className="admin-mix-container">
+                {/* Kartu Bulan Ini */}
+                <div style={styles.mixCard} className="card">
+                  <div style={styles.mixCardHeader}>
+                    <span style={styles.mixPeriodBadge}>{t('adminDashboard.revMonthMix', { month: revenueMix.period })}</span>
+                    <span style={styles.mixTotalAmount}>{formatIDR(revenueMix.this_month?.total_revenue_idr || 0)}</span>
+                  </div>
+
+                  <div className="admin-mix-bar">
+                    <div
+                      className="admin-mix-segment-module"
+                      style={{ width: `${revenueMix.this_month?.module?.pct || 0}%` }}
+                    />
+                    <div
+                      className="admin-mix-segment-topup"
+                      style={{ width: `${revenueMix.this_month?.topup?.pct || 0}%` }}
+                    />
+                    <div
+                      className="admin-mix-segment-sub"
+                      style={{ width: `${revenueMix.this_month?.subscription?.pct || 0}%` }}
+                    />
+                  </div>
+
+                  <div className="admin-mix-legend">
+                    <div className="admin-mix-legend-item">
+                      <div>
+                        <span className="admin-mix-dot" style={{ backgroundColor: 'var(--accent-cyan)' }} />
+                        <span>{t('adminDashboard.revLifetimeModule')}</span>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <strong>{formatIDR(revenueMix.this_month?.module?.revenue_idr || 0)}</strong>
+                        <span style={styles.mixPctLabel}>{t('adminDashboard.pctInParen', { pct: revenueMix.this_month?.module?.pct || 0 })}</span>
+                      </div>
+                    </div>
+
+                    <div className="admin-mix-legend-item">
+                      <div>
+                        <span className="admin-mix-dot" style={{ backgroundColor: 'var(--accent-green)' }} />
+                        <span>{t('adminDashboard.revTopup')}</span>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <strong>{formatIDR(revenueMix.this_month?.topup?.revenue_idr || 0)}</strong>
+                        <span style={styles.mixPctLabel}>{t('adminDashboard.pctInParen', { pct: revenueMix.this_month?.topup?.pct || 0 })}</span>
+                      </div>
+                    </div>
+
+                    {Boolean(revenueMix.this_month?.subscription?.revenue_idr) && (
+                      <div className="admin-mix-legend-item">
+                        <div>
+                          <span className="admin-mix-dot" style={{ backgroundColor: 'var(--text-muted)' }} />
+                          <span>{t('adminDashboard.revSubscription')}</span>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <strong>{formatIDR(revenueMix.this_month?.subscription?.revenue_idr || 0)}</strong>
+                          <span style={styles.mixPctLabel}>{t('adminDashboard.pctInParen', { pct: revenueMix.this_month?.subscription?.pct || 0 })}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Kartu Sepanjang Masa (All-Time) */}
+                <div style={styles.mixCard} className="card">
+                  <div style={styles.mixCardHeader}>
+                    <span style={styles.mixPeriodBadge}>{t('adminDashboard.revAllTimeMix')}</span>
+                    <span style={styles.mixTotalAmount}>{formatIDR(revenueMix.all_time?.total_revenue_idr || 0)}</span>
+                  </div>
+
+                  <div className="admin-mix-bar">
+                    <div
+                      className="admin-mix-segment-module"
+                      style={{ width: `${revenueMix.all_time?.module?.pct || 0}%` }}
+                    />
+                    <div
+                      className="admin-mix-segment-topup"
+                      style={{ width: `${revenueMix.all_time?.topup?.pct || 0}%` }}
+                    />
+                    <div
+                      className="admin-mix-segment-sub"
+                      style={{ width: `${revenueMix.all_time?.subscription?.pct || 0}%` }}
+                    />
+                  </div>
+
+                  <div className="admin-mix-legend">
+                    <div className="admin-mix-legend-item">
+                      <div>
+                        <span className="admin-mix-dot" style={{ backgroundColor: 'var(--accent-cyan)' }} />
+                        <span>{t('adminDashboard.revLifetimeModule')}</span>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <strong>{formatIDR(revenueMix.all_time?.module?.revenue_idr || 0)}</strong>
+                        <span style={styles.mixPctLabel}>{t('adminDashboard.pctInParen', { pct: revenueMix.all_time?.module?.pct || 0 })}</span>
+                      </div>
+                    </div>
+
+                    <div className="admin-mix-legend-item">
+                      <div>
+                        <span className="admin-mix-dot" style={{ backgroundColor: 'var(--accent-green)' }} />
+                        <span>{t('adminDashboard.revTopup')}</span>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <strong>{formatIDR(revenueMix.all_time?.topup?.revenue_idr || 0)}</strong>
+                        <span style={styles.mixPctLabel}>{t('adminDashboard.pctInParen', { pct: revenueMix.all_time?.topup?.pct || 0 })}</span>
+                      </div>
+                    </div>
+
+                    {Boolean(revenueMix.all_time?.subscription?.revenue_idr) && (
+                      <div className="admin-mix-legend-item">
+                        <div>
+                          <span className="admin-mix-dot" style={{ backgroundColor: 'var(--text-muted)' }} />
+                          <span>{t('adminDashboard.revSubscription')}</span>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <strong>{formatIDR(revenueMix.all_time?.subscription?.revenue_idr || 0)}</strong>
+                          <span style={styles.mixPctLabel}>{t('adminDashboard.pctInParen', { pct: revenueMix.all_time?.subscription?.pct || 0 })}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabel Riwayat Bulanan (Monthly Breakdown) */}
+              {Boolean(revenueMix.monthly_history?.length) && (
+                <div style={styles.tableWrapper}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr style={styles.tableHeaderRow}>
+                        <th style={styles.th}>{t('adminDashboard.thPeriod')}</th>
+                        <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thLifetimeRev')}</th>
+                        <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thTopupRev')}</th>
+                        <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thLegacyRev')}</th>
+                        <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thTotalRev')}</th>
+                        <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thMixRatio')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {revenueMix.monthly_history.map((row) => (
+                        <tr key={row.period} style={styles.tr}>
+                          <td style={styles.tdBold}>{row.period}</td>
+                          <td style={{ ...styles.td, textAlign: 'right', color: 'var(--accent-cyan)' }}>
+                            {formatIDR(row.module?.revenue_idr || 0)}
+                            <span style={styles.mixPctLabel}> {t('adminDashboard.pctInParen', { pct: row.module?.pct || 0 })}</span>
+                          </td>
+                          <td style={{ ...styles.td, textAlign: 'right', color: 'var(--accent-green)' }}>
+                            {formatIDR(row.topup?.revenue_idr || 0)}
+                            <span style={styles.mixPctLabel}> {t('adminDashboard.pctInParen', { pct: row.topup?.pct || 0 })}</span>
+                          </td>
+                          <td style={{ ...styles.td, textAlign: 'right', color: 'var(--text-muted)' }}>
+                            {formatIDR(row.subscription?.revenue_idr || 0)}
+                            <span style={styles.mixPctLabel}> {t('adminDashboard.pctInParen', { pct: row.subscription?.pct || 0 })}</span>
+                          </td>
+                          <td style={{ ...styles.td, textAlign: 'right', fontWeight: '700' }}>
+                            {formatIDR(row.total_revenue_idr || 0)}
+                          </td>
+                          <td style={{ ...styles.td, textAlign: 'right', fontWeight: '600' }}>
+                            {t('adminDashboard.ratioDisplay', { a: row.module?.pct || 0, b: row.topup?.pct || 0 })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 5. Operasi Admin: Manual Grant & Manual Subscription */}
           <div style={styles.operationsGrid}>
@@ -711,5 +994,102 @@ const styles = {
     cursor: 'pointer',
     marginTop: '0.5rem',
     width: '100%',
+  },
+  reportSectionCard: {
+    padding: '1.25rem',
+    marginBottom: '1.5rem',
+  },
+  sectionHeader: {
+    marginBottom: '1.25rem',
+  },
+  headerTitleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+  },
+  sectionSubtitle: {
+    fontSize: '0.82rem',
+    color: 'var(--text-secondary)',
+    marginTop: '0.35rem',
+    lineHeight: '1.4',
+  },
+  subMetricCard: {
+    padding: '1rem',
+    borderRadius: 'var(--radius-sm)',
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border-muted)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.35rem',
+  },
+  subMetricLabel: {
+    fontSize: '0.75rem',
+    color: 'var(--text-muted)',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: '0.02em',
+  },
+  subMetricVal: {
+    fontSize: '1.25rem',
+    fontWeight: '700',
+    color: 'var(--text-primary)',
+  },
+  subMetricDivider: {
+    margin: '0 0.25rem',
+    color: 'var(--text-muted)',
+    fontSize: '0.9rem',
+  },
+  subMetricTotal: {
+    fontSize: '0.9rem',
+    color: 'var(--text-secondary)',
+    fontWeight: '500',
+  },
+  safetyBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.65rem',
+    marginTop: '1rem',
+    padding: '0.75rem 1rem',
+    borderRadius: 'var(--radius-sm)',
+    backgroundColor: 'rgba(6, 182, 212, 0.08)',
+    border: '1px solid rgba(6, 182, 212, 0.25)',
+  },
+  safetyText: {
+    fontSize: '0.78rem',
+    color: 'var(--text-secondary)',
+    lineHeight: '1.4',
+  },
+  mixCard: {
+    padding: '1.25rem',
+    borderRadius: 'var(--radius-sm)',
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border-muted)',
+  },
+  mixCardHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: '0.5rem',
+    marginBottom: '0.5rem',
+  },
+  mixPeriodBadge: {
+    fontSize: '0.75rem',
+    fontWeight: '700',
+    padding: '0.2rem 0.5rem',
+    borderRadius: '4px',
+    backgroundColor: 'var(--bg-card)',
+    color: 'var(--accent-cyan)',
+    border: '1px solid var(--border-muted)',
+  },
+  mixTotalAmount: {
+    fontSize: '1.15rem',
+    fontWeight: '700',
+    color: 'var(--accent-green)',
+  },
+  mixPctLabel: {
+    fontSize: '0.75rem',
+    color: 'var(--text-muted)',
+    marginLeft: '0.25rem',
   },
 };
