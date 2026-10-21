@@ -139,7 +139,7 @@ async function runCreditsTests() {
   const grantExp = new Date(Date.now() + 30 * 86400e3);
 
   const firstGrant = await grant(grantWsId, 'topup', 100, grantExp, 'topup', 'First grant attempt', grantRef);
-  assert.strictEqual(firstGrant.idempotent, undefined, 'First grant call should not be idempotent');
+  assert.strictEqual(Boolean(firstGrant.idempotent), false, 'First grant call should not be idempotent');
   let gw = await getWallet(grantWsId);
   assert.strictEqual(gw.totalBalance, 100, 'Saldo harus 100 setelah first grant');
 
@@ -244,6 +244,38 @@ async function runCreditsTests() {
   assert.strictEqual(runRes.data.need, 60);
   assert.strictEqual(runRes.data.have, 10);
   assert.ok(runRes.data.topupUrl);
+
+  // 7. Pengujian expireBuckets (Kedaluwarsa Atomik & Bersyarat)
+  console.log('6. Menguji expireBuckets (kedaluwarsa atomik/bersyarat)...');
+  const expireWsId = randomUUID();
+  const pastDate = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const futureDate = new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString();
+
+  await db.insert('credit_wallets', {
+    workspace_id: expireWsId,
+    balance_trial: 0,
+    trial_expires_at: null,
+    balance_sub: 75,
+    sub_expires_at: pastDate, // expired kemarin
+    balance_topup: 200,
+    topup_expires_at: futureDate, // aktif 30 hari ke depan
+    daily_cap: 500
+  });
+
+  await expireBuckets(expireWsId);
+
+  const expWallet = await db.findOne('credit_wallets', { workspace_id: expireWsId });
+  assert.strictEqual(expWallet.balance_sub, 0, 'Saldo sub yang expired harus dinolkan');
+  assert.strictEqual(expWallet.balance_topup, 200, 'Saldo topup yang belum expired harus tetap utuh');
+
+  const expireLedger = await db.findMany('credit_ledger', {
+    workspace_id: expireWsId,
+    bucket: 'sub',
+    kind: 'expire'
+  });
+  assert.strictEqual(expireLedger.length, 1, 'Harus mencatat 1 transaksi expire di ledger');
+  assert.strictEqual(expireLedger[0].delta, -75);
+  assert.strictEqual(expireLedger[0].balance_after, 200);
 
   console.log('✅ ALL CREDITS TESTS PASSED!');
   if (standaloneTmp && fs.existsSync(standaloneTmp)) {

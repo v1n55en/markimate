@@ -534,6 +534,103 @@ class JsonStore {
       };
     }
 
+    if (name === 'expire_buckets_atomic') {
+      const { p_workspace_id } = params || {};
+      const now = new Date();
+      if (!this.data.credit_wallets) this.data.credit_wallets = [];
+      if (!this.data.credit_ledger) this.data.credit_ledger = [];
+
+      let wallets = p_workspace_id
+        ? this.data.credit_wallets.filter(w => w.workspace_id === p_workspace_id)
+        : this.data.credit_wallets;
+
+      let walletsAffected = 0;
+      let totalExpired = 0;
+
+      for (const w of wallets) {
+        let expTrial = 0;
+        let expSub = 0;
+        let expTopup = 0;
+
+        if (Number(w.balance_trial || 0) > 0 && w.trial_expires_at && new Date(w.trial_expires_at) <= now) {
+          expTrial = Number(w.balance_trial);
+          w.balance_trial = 0;
+        }
+
+        if (Number(w.balance_sub || 0) > 0 && w.sub_expires_at && new Date(w.sub_expires_at) <= now) {
+          expSub = Number(w.balance_sub);
+          w.balance_sub = 0;
+        }
+
+        if (Number(w.balance_topup || 0) > 0 && w.topup_expires_at && new Date(w.topup_expires_at) <= now) {
+          expTopup = Number(w.balance_topup);
+          w.balance_topup = 0;
+        }
+
+        if (expTrial > 0 || expSub > 0 || expTopup > 0) {
+          w.updated_at = new Date().toISOString();
+          const totalAfter = Number(w.balance_trial || 0) + Number(w.balance_sub || 0) + Number(w.balance_topup || 0);
+
+          if (expTrial > 0) {
+            await this.insert('credit_ledger', {
+              workspace_id: w.workspace_id,
+              delta: -expTrial,
+              bucket: 'trial',
+              kind: 'expire',
+              action_key: null,
+              ref_type: null,
+              ref_id: null,
+              balance_after: totalAfter + expSub + expTopup,
+              usage: null,
+              cost_actual_idr: 0,
+              note: 'Trial 30 hari kadaluarsa'
+            });
+          }
+
+          if (expSub > 0) {
+            await this.insert('credit_ledger', {
+              workspace_id: w.workspace_id,
+              delta: -expSub,
+              bucket: 'sub',
+              kind: 'expire',
+              action_key: null,
+              ref_type: null,
+              ref_id: null,
+              balance_after: totalAfter + expTopup,
+              usage: null,
+              cost_actual_idr: 0,
+              note: 'Langganan bulanan kadaluarsa'
+            });
+          }
+
+          if (expTopup > 0) {
+            await this.insert('credit_ledger', {
+              workspace_id: w.workspace_id,
+              delta: -expTopup,
+              bucket: 'topup',
+              kind: 'expire',
+              action_key: null,
+              ref_type: null,
+              ref_id: null,
+              balance_after: totalAfter,
+              usage: null,
+              cost_actual_idr: 0,
+              note: 'Topup 365 hari kadaluarsa'
+            });
+          }
+
+          walletsAffected++;
+          totalExpired += (expTrial + expSub + expTopup);
+        }
+      }
+
+      return {
+        success: true,
+        wallets_affected: walletsAffected,
+        total_expired: totalExpired
+      };
+    }
+
     return true;
   }
 }

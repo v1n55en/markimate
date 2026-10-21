@@ -1361,9 +1361,12 @@ app.get('/api/me', auth, wrap(async (req, res) => {
   const activeWorkspace = resolved?.workspace || (workspaces[0] ? { id: workspaces[0].id } : { id: req.user.id });
   const activeWsId = activeWorkspace.id;
 
-  // PRD F15: Lazy grant kuota bulanan modul lifetime saat user aktif
   if (activeWsId) {
-    try { await ensureMonthlyGrant(activeWsId); } catch (_) {}
+    try {
+      await ensureMonthlyGrant(activeWsId);
+    } catch (err) {
+      console.error(`[MONTHLY_GRANT_ERR] /api/auth/me grant check failed for workspace ${activeWsId}:`, err.message);
+    }
   }
 
   const conns = await db.findMany('cms_connections', { workspace_id: activeWsId });
@@ -3608,7 +3611,11 @@ app.get('/api/billing/catalog', wrap(async (_req, res) => {
 app.get('/api/billing', auth, requireWorkspace('viewer'), wrap(async (req, res) => {
   // PRD F15: Lazy grant kuota bulanan modul lifetime saat membuka halaman billing
   if (req.workspace?.id) {
-    try { await ensureMonthlyGrant(req.workspace.id); } catch (_) {}
+    try {
+      await ensureMonthlyGrant(req.workspace.id);
+    } catch (err) {
+      console.error(`[MONTHLY_GRANT_ERR] /api/billing grant check failed for workspace ${req.workspace.id}:`, err.message);
+    }
   }
 
   const subs = await db.findMany('subscriptions', { workspace_id: req.workspace.id }, { orderBy: 'created_at desc' });

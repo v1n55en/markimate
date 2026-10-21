@@ -117,7 +117,9 @@ export async function getWallet(workspaceId) {
   // PRD F15: Lazy grant kuota bulanan modul lifetime
   try {
     await ensureMonthlyGrant(workspaceId);
-  } catch (_) {}
+  } catch (err) {
+    console.error(`[MONTHLY_GRANT_ERR] getWallet background grant check failed for workspace ${workspaceId}:`, err.message);
+  }
 
   let wallet = await db.findOne('credit_wallets', { workspace_id: workspaceId });
   if (!wallet) {
@@ -255,7 +257,9 @@ export async function charge(workspaceId, actionKey, qty = 1, ref = {}, usage = 
   // PRD F15: Pastikan kredit bulanan modul lifetime sudah ter-grant sebelum pemotongan
   try {
     await ensureMonthlyGrant(workspaceId);
-  } catch (_) {}
+  } catch (err) {
+    console.error(`[MONTHLY_GRANT_ERR] charge background grant check failed for workspace ${workspaceId}:`, err.message);
+  }
 
   const refType = ref?.type || null;
   const refId = ref?.id ? String(ref.id) : null;
@@ -354,12 +358,15 @@ export async function charge(workspaceId, actionKey, qty = 1, ref = {}, usage = 
     };
   }
 
+  const { wallet: finalWallet, totalBalance: finalTotal } = await getWallet(workspaceId);
+
   return {
     charged: need,
     idempotent: false,
+    wallet: finalWallet,
     ledgerRows: res.ledgerRows || [],
     costActualIdr: costActual,
-    balanceAfter: res.balance_after
+    balanceAfter: res.balance_after ?? finalTotal
   };
 }
 
@@ -407,20 +414,14 @@ export async function grant(workspaceId, bucket, amount, expiresAt, kind = 'topu
     p_note: note || `Grant ${bucket} +${amt}`
   });
 
-  if (res.idempotent) {
-    const { wallet, totalBalance } = await getWallet(workspaceId);
-    return {
-      wallet,
-      ledgerRow: res.ledgerRow,
-      totalBalance: res.total_balance || totalBalance,
-      idempotent: true
-    };
-  }
+  const { wallet: finalWallet, totalBalance: finalTotal } = await getWallet(workspaceId);
 
   return {
-    wallet: res.wallet,
+    wallet: finalWallet,
     ledgerRow: res.ledgerRow,
-    totalBalance: res.total_balance
+    totalBalance: res.total_balance ?? finalTotal,
+    delta: res.delta ?? amt,
+    idempotent: Boolean(res.idempotent)
   };
 }
 
@@ -461,96 +462,127 @@ export async function ensureMonthlyGrant(workspaceId, now = new Date()) {
   }
 
   // 4. Panggil RPC apply_monthly_grant_atomic
-  const res = await db.rpc('apply_monthly_grant_atomic', {
-    p_workspace_id: workspaceId,
-    p_period: period,
-    p_credits: totalCredits,
-    p_expires_at: expiresAt
-  });
+  try {
+    const res = await db.rpc('apply_monthly_grant_atomic', {
+      p_workspace_id: workspaceId,
+      p_period: period,
+      p_credits: totalCredits,
+      p_expires_at: expiresAt
+    });
 
-  return {
-    granted: !!res.granted,
-    alreadyGranted: !!res.already_granted,
-    upgraded: !!res.upgraded,
-    diff: res.diff,
-    credits: res.credits || totalCredits,
-    period,
-    expiresAt
-  };
+    return {
+      granted: !!res.granted,
+      alreadyGranted: !!res.already_granted,
+      upgraded: !!res.upgraded,
+      diff: res.diff,
+      credits: res.credits || totalCredits,
+      period,
+      expiresAt
+    };
+  } catch (err) {
+    console.error(`[MONTHLY_GRANT_ERR] Failed to apply monthly grant for workspace ${workspaceId} period ${period}:`, err.message);
+    try {
+      const alertKey = `monthly_grant_failed:${ymd}`;
+      if (!(await hasAlertBeenSent(workspaceId, 'monthly_grant_failure', alertKey))) {
+        await recordAlertSent(workspaceId, 'monthly_grant_failure', 'admin@markimate.com', alertKey, {
+          period,
+          error: err.message
+        });
+      }
+    } catch (_) {}
+    throw err;
+  }
 }
 
 export async function expireBuckets(workspaceId = null) {
+  try {
+    const res = await db.rpc('expire_buckets_atomic', { p_workspace_id: workspaceId || null });
+    if (res && res.success !== undefined) {
+      return res;
+    }
+  } catch (rpcErr) {
+    console.warn('[EXPIRE_BUCKETS] RPC expire_buckets_atomic unavailable, using conditional bucket fallback:', rpcErr.message);
+  }
+
   const now = new Date();
   const wallets = workspaceId
     ? await db.findMany('credit_wallets', { workspace_id: workspaceId })
     : await db.findMany('credit_wallets', {});
 
   for (const w of wallets || []) {
-    let changed = false;
-    const patch = {};
-
-    // Cek trial
+    // 1. Cek Trial
     if (w.balance_trial > 0 && w.trial_expires_at && new Date(w.trial_expires_at) <= now) {
       const expiredAmt = Number(w.balance_trial);
-      patch.balance_trial = 0;
-      changed = true;
-      const currentTotal = (Number(w.balance_sub) || 0) + (Number(w.balance_topup) || 0);
-      await db.insert('credit_ledger', {
-        workspace_id: w.workspace_id,
-        delta: -expiredAmt,
-        bucket: 'trial',
-        kind: 'expire',
-        action_key: null,
-        ref_type: null,
-        ref_id: null,
-        balance_after: currentTotal,
-        cost_actual_idr: 0,
-        note: 'Trial 30 hari kadaluarsa'
+      const updated = await db.update('credit_wallets', {
+        workspace_id: w.workspace_id
+      }, {
+        balance_trial: 0
       });
+      if (updated) {
+        const currentTotal = (Number(updated.balance_sub) || 0) + (Number(updated.balance_topup) || 0);
+        await db.insert('credit_ledger', {
+          workspace_id: w.workspace_id,
+          delta: -expiredAmt,
+          bucket: 'trial',
+          kind: 'expire',
+          action_key: null,
+          ref_type: null,
+          ref_id: null,
+          balance_after: currentTotal,
+          cost_actual_idr: 0,
+          note: 'Trial 30 hari kadaluarsa'
+        });
+      }
     }
 
-    // Cek subscription
+    // 2. Cek Subscription
     if (w.balance_sub > 0 && w.sub_expires_at && new Date(w.sub_expires_at) <= now) {
       const expiredAmt = Number(w.balance_sub);
-      patch.balance_sub = 0;
-      changed = true;
-      const currentTotal = (patch.balance_trial ?? Number(w.balance_trial) ?? 0) + (Number(w.balance_topup) || 0);
-      await db.insert('credit_ledger', {
-        workspace_id: w.workspace_id,
-        delta: -expiredAmt,
-        bucket: 'sub',
-        kind: 'expire',
-        action_key: null,
-        ref_type: null,
-        ref_id: null,
-        balance_after: currentTotal,
-        cost_actual_idr: 0,
-        note: 'Langganan bulanan kadaluarsa'
+      const updated = await db.update('credit_wallets', {
+        workspace_id: w.workspace_id
+      }, {
+        balance_sub: 0
       });
+      if (updated) {
+        const currentTotal = (Number(updated.balance_trial) || 0) + (Number(updated.balance_topup) || 0);
+        await db.insert('credit_ledger', {
+          workspace_id: w.workspace_id,
+          delta: -expiredAmt,
+          bucket: 'sub',
+          kind: 'expire',
+          action_key: null,
+          ref_type: null,
+          ref_id: null,
+          balance_after: currentTotal,
+          cost_actual_idr: 0,
+          note: 'Langganan bulanan kadaluarsa'
+        });
+      }
     }
 
-    // Cek topup
+    // 3. Cek Topup
     if (w.balance_topup > 0 && w.topup_expires_at && new Date(w.topup_expires_at) <= now) {
       const expiredAmt = Number(w.balance_topup);
-      patch.balance_topup = 0;
-      changed = true;
-      const currentTotal = (patch.balance_trial ?? Number(w.balance_trial) ?? 0) + (patch.balance_sub ?? Number(w.balance_sub) ?? 0);
-      await db.insert('credit_ledger', {
-        workspace_id: w.workspace_id,
-        delta: -expiredAmt,
-        bucket: 'topup',
-        kind: 'expire',
-        action_key: null,
-        ref_type: null,
-        ref_id: null,
-        balance_after: currentTotal,
-        cost_actual_idr: 0,
-        note: 'Topup 365 hari kadaluarsa'
+      const updated = await db.update('credit_wallets', {
+        workspace_id: w.workspace_id
+      }, {
+        balance_topup: 0
       });
-    }
-
-    if (changed) {
-      await db.update('credit_wallets', { workspace_id: w.workspace_id }, patch);
+      if (updated) {
+        const currentTotal = (Number(updated.balance_trial) || 0) + (Number(updated.balance_sub) || 0);
+        await db.insert('credit_ledger', {
+          workspace_id: w.workspace_id,
+          delta: -expiredAmt,
+          bucket: 'topup',
+          kind: 'expire',
+          action_key: null,
+          ref_type: null,
+          ref_id: null,
+          balance_after: currentTotal,
+          cost_actual_idr: 0,
+          note: 'Topup 365 hari kadaluarsa'
+        });
+      }
     }
   }
 }

@@ -219,6 +219,25 @@ async function runCustomTopupTests() {
   assert.strictEqual(res2500.status, 200);
   assert.strictEqual(res2500.data.amount, 2250000, 'Top-up 2.500 credit harus mendapat diskon 10% (Rp2.250.000)');
 
+  // 6b. Pengujian Dinamis quoteTopup membaca TOPUP.tiers (Poin 13)
+  console.log('6b. Menguji quoteTopup dinamis membaca konfigurasi TOPUP.tiers...');
+  const { quoteTopup, TOPUP } = await import('../lib/catalog.js');
+  const quote1 = quoteTopup(2500);
+  assert.strictEqual(quote1.discountPct, 0.10);
+  assert.strictEqual(quote1.amount, 2250000);
+
+  // Simulasi tier kustom dinamis
+  const origTiers = TOPUP.tiers;
+  TOPUP.tiers = [
+    { min: 5000, disc: 0.20 },
+    { min: 2500, disc: 0.10 },
+    { min: 1000, disc: 0.05 }
+  ];
+  const quoteCustom = quoteTopup(5000);
+  assert.strictEqual(quoteCustom.discountPct, 0.20, 'Tier 5.000 harus otomatis menghasilkan diskon 20%');
+  assert.strictEqual(quoteCustom.amount, 4000000);
+  TOPUP.tiers = origTiers;
+
   // 7. Pengujian Fulfillment Webhook DOKU untuk Custom Top-up
   console.log('7. Menguji fulfillment custom top-up 75 credit via webhook...');
   const webhook75 = {

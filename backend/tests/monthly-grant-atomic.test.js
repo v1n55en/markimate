@@ -190,6 +190,43 @@ async function runAtomicWalletTests() {
   assert.strictEqual(w4.activeBuckets.sub, 40, 'Sisa saldo sub setelah lazy grant (100) dan charge (60) harus 40');
   console.log('   OK - charge() berhasil memicu ensureMonthlyGrant secara transparan dan otomatis.');
 
+  // 7. Menguji logging error & alert admin pada kegagalan ensureMonthlyGrant (Poin 11)
+  console.log('7. Menguji error handling & admin alert saat RPC ensureMonthlyGrant gagal...');
+  const wsFail = randomUUID();
+  await db.insert('module_entitlements', {
+    workspace_id: wsFail,
+    module: 'seo',
+    source: 'lifetime',
+    ends_at: null
+  });
+
+  const origRpc = db.rpc.bind(db);
+  db.rpc = async (name, params) => {
+    if (name === 'apply_monthly_grant_atomic' && params.p_workspace_id === wsFail) {
+      throw new Error('Simulated Database RPC failure');
+    }
+    return origRpc(name, params);
+  };
+
+  let failError = null;
+  try {
+    await ensureMonthlyGrant(wsFail, nowNov);
+  } catch (err) {
+    failError = err;
+  }
+  db.rpc = origRpc;
+
+  assert.ok(failError, 'ensureMonthlyGrant harus melempar error saat RPC gagal');
+  assert.strictEqual(failError.message, 'Simulated Database RPC failure');
+
+  const alert = await db.findOne('credit_alerts', {
+    workspace_id: wsFail,
+    alert_type: 'monthly_grant_failure'
+  });
+  assert.ok(alert, 'Alert kegagalan monthly grant harus tercatat di credit_alerts untuk admin');
+  assert.strictEqual(alert.sent_to, 'admin@markimate.com');
+  assert.strictEqual(alert.period_key, 'monthly_grant_failed:2026-11-01');
+
   console.log('✅ ALL ATOMIC WALLET & LAZY MONTHLY GRANTS TESTS PASSED!');
 }
 
