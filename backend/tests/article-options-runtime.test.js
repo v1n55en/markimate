@@ -443,8 +443,7 @@ async function runRuntimeTests() {
       verified: true,
       config: {
         site_url: 'https://mytestblog.com',
-        username: 'admin',
-        app_password: 'xxxx-xxxx-xxxx-xxxx'
+        username: 'mock-admin'
       },
       article_settings: {}
     });
