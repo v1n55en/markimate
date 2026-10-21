@@ -1,6 +1,6 @@
 // Modul Pengiriman Email Transaksional Markimate Bilingual (EN & ID) (PRD F3 Langkah 2)
 import dotenv from 'dotenv';
-import { getAppUrl } from './config.js';
+import { getAppUrl, TRIAL_CONFIG } from './config.js';
 dotenv.config();
 
 const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
@@ -160,12 +160,12 @@ export async function sendVerificationEmail({ to, token, locale = 'id' }) {
   const html = isEn ? `
     <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 0;">Welcome to Markimate</h2>
     <p>Hello,</p>
-    <p>Thank you for creating an account with Markimate. Please verify your email address to activate your 7-day free trial (300 credits).</p>
+    <p>Thank you for creating an account with Markimate. Please verify your email address to activate your ${TRIAL_CONFIG.days}-day free trial (${TRIAL_CONFIG.credits} credits).</p>
     <p>This verification link is valid for <strong>24 hours</strong>. Click the button below to confirm your account:</p>
   ` : `
     <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 0;">Selamat Datang di Markimate</h2>
     <p>Halo,</p>
-    <p>Terima kasih telah mendaftar di Markimate. Silakan verifikasi alamat email Anda untuk mengaktifkan uji coba gratis 7 hari (300 kredit).</p>
+    <p>Terima kasih telah mendaftar di Markimate. Silakan verifikasi alamat email Anda untuk mengaktifkan uji coba gratis ${TRIAL_CONFIG.days} hari (${TRIAL_CONFIG.credits} kredit).</p>
     <p>Tautan verifikasi ini berlaku selama <strong>24 jam</strong>. Klik tombol di bawah ini untuk mengonfirmasi akun Anda:</p>
   `;
 

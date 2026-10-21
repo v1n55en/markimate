@@ -243,7 +243,7 @@ export const app = {
     "placeholderReason": "mis. Kompensasi downtime / Enterprise POC",
     "optTopup": "topup (365 hari)",
     "optSub": "sub (bulanan)",
-    "optTrial": "trial (7 hari)",
+    "optTrial": "trial ({days} hari)",
     "granting": "Mengalokasikan...",
     "activating": "Mengaktifkan...",
     "planAllInOne": "All-in-One AI Team",

@@ -6,7 +6,7 @@ export const publicTranslations = {
     "privacy": "Privasi",
     "terms": "Syarat & Ketentuan",
     "login": "Masuk",
-    "register": "Coba Gratis 7 Hari",
+    "register": "Coba Gratis {days} Hari",
     "logout": "Keluar",
     "dashboard": "Dashboard"
   },

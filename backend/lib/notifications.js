@@ -71,7 +71,7 @@ export async function processDailyCreditAlerts() {
           await sendEmail({
             to: email,
             subject: `[Markimate] Free Trial Anda berakhir dalam ${daysText} hari`,
-            text: `Halo ${user.brand_name || 'Pelanggan'},\n\nMasa Free Trial 7 hari Markimate Anda akan berakhir dalam ${daysText} hari (saldo trial saat ini: ${w.balance_trial} credit).\n\nSegera pilih paket langganan untuk memastikan automasi konten dan publikasi artikel Anda tetap berjalan lancar.\n\nSalam,\nTim Markimate`,
+            text: `Halo ${user.brand_name || 'Pelanggan'},\n\nMasa Free Trial ${TRIAL_CONFIG.days} hari Markimate Anda akan berakhir dalam ${daysText} hari (saldo trial saat ini: ${w.balance_trial} credit).\n\nSegera pilih paket langganan untuk memastikan automasi konten dan publikasi artikel Anda tetap berjalan lancar.\n\nSalam,\nTim Markimate`,
             tag: 'trial_h2'
           });
           await recordAlertSent(w.workspace_id, 'trial_h2', email, trialPeriodKey, { hoursLeft });
@@ -86,7 +86,7 @@ export async function processDailyCreditAlerts() {
           await sendEmail({
             to: email,
             subject: `[Markimate] Masa Free Trial Anda telah berakhir`,
-            text: `Halo ${user.brand_name || 'Pelanggan'},\n\nMasa Free Trial 7 hari Markimate Anda telah berakhir dan saldo trial telah dinolkan.\n\nData dan pengaturan CMS Anda tetap tersimpan selama 30 hari. Aktifkan paket langganan sekarang untuk melanjutkan automasi.\n\nSalam,\nTim Markimate`,
+            text: `Halo ${user.brand_name || 'Pelanggan'},\n\nMasa Free Trial ${TRIAL_CONFIG.days} hari Markimate Anda telah berakhir dan saldo trial telah dinolkan.\n\nData dan pengaturan CMS Anda tetap tersimpan selama 30 hari. Aktifkan paket langganan sekarang untuk melanjutkan automasi.\n\nSalam,\nTim Markimate`,
             tag: 'trial_h0'
           });
           await recordAlertSent(w.workspace_id, 'trial_h0', email, trialPeriodKey, { expiredAt: w.trial_expires_at });

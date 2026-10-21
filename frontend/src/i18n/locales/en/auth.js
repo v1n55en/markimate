@@ -34,7 +34,7 @@ export const auth = {
   "forgotPasswordLink": "Forgot password?",
   "dontHaveAccount": "Don't have an account?",
   "alreadyHaveAccount": "Already have an account?",
-  "linkSignUp": "Start 7-Day Free Trial",
+  "linkSignUp": "Start {days}-Day Free Trial",
   "linkSignIn": "Sign in here",
   "termsAgreement": "By signing up, you agree to our Terms of Service and Privacy Policy.",
   "agreeTermsPrefix": "I agree to the",

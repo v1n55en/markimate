@@ -34,7 +34,7 @@ export const auth = {
   "forgotPasswordLink": "Lupa kata sandi?",
   "dontHaveAccount": "Belum memiliki akun?",
   "alreadyHaveAccount": "Sudah memiliki akun?",
-  "linkSignUp": "Mulai Uji Coba Gratis 7 Hari",
+  "linkSignUp": "Mulai Uji Coba Gratis {days} Hari",
   "linkSignIn": "Masuk di sini",
   "termsAgreement": "Dengan mendaftar, Anda menyetujui Syarat & Ketentuan serta Kebijakan Privasi kami.",
   "agreeTermsPrefix": "Saya menyetujui",

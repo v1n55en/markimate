@@ -56,7 +56,7 @@ async function runEntitlementsTests() {
 
   // --- BAGIAN 1: Validasi Konfigurasi Pricing & FAQ i18n ---
   console.log('1. Memvalidasi Konfigurasi Pricing & FAQ i18n...');
-  assert.strictEqual(TRIAL.days, 7, 'Trial days must be 7');
+  assert.strictEqual(TRIAL.days, 30, 'Trial days must be 30');
   assert.strictEqual(TRIAL.credits, 300, 'Trial credits must be 300');
   assert.strictEqual(TRIAL.noCardRequired, true);
 

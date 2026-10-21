@@ -487,8 +487,8 @@ app.post('/api/auth/verify', wrap(async (req, res) => {
   user.email_verified_at = now;
   user.status = 'active';
 
-  // Alokasikan 300 free trial credits (7 hari) HANYA setelah email terverifikasi
-  await grantTrialIfEligible(user.id, user.email);
+  // Alokasikan 300 free trial credits (30 hari) HANYA setelah email terverifikasi (PRD F15)
+  await grantTrialIfEligible(user.id, user.email, null, { clientIp });
   await ensurePlatformAdmin(user);
 
   // Catat audit log
@@ -1986,8 +1986,8 @@ app.get('/api/workspaces/:id/audit', auth, requireWorkspace('admin'), wrap(async
 // ---------- Credits & Dompet Workspace ----------
 app.get('/api/credits', auth, requireWorkspace('viewer'), wrap(async (req, res) => {
   const workspaceId = req.workspace.id;
-  // Otomatis grant trial jika user berhak dan belum pernah klaim
-  await grantTrialIfEligible(workspaceId, req.user.email);
+  // Otomatis grant trial jika user berhak dan belum pernah klaim (PRD F15: cek IP abuse)
+  await grantTrialIfEligible(workspaceId, req.user.email, null, { clientIp: getClientIp(req) });
 
   const { wallet, totalBalance, activeBuckets } = await getWallet(workspaceId);
   const dailyUsed = await getDailyUsage(workspaceId);
@@ -2310,8 +2310,8 @@ app.post('/api/admin/users/:id/verify', adminAuth, wrap(async (req, res) => {
   user.email_verified_at = now;
   user.status = 'active';
 
-  // Alokasikan trial jika eligible
-  await grantTrialIfEligible(user.id, user.email);
+  // Alokasikan trial jika eligible (PRD F15)
+  await grantTrialIfEligible(user.id, user.email, null, { clientIp: getClientIp(req) });
   await ensurePlatformAdmin(user);
 
   await db.insert('audit_logs', {
@@ -3330,14 +3330,10 @@ app.post('/api/billing/modules', auth, requireWorkspace('admin'), wrap(async (re
 }));
 
 app.post('/api/billing/checkout', auth, requireWorkspace('admin'), wrap(async (req, res) => {
-  const { plan } = req.body || {};
-  const checkout = await createCheckout({
-    kind: 'subscription',
-    itemId: plan || 'seo',
-    workspaceId: req.workspace.id,
-    userId: req.user.id
-  });
-  res.json(checkout);
+  throw Object.assign(
+    new Error('Monthly subscription plans have been discontinued. Please choose a lifetime module or top up credits.'),
+    { status: 410, code: 'PLAN_DISCONTINUED' }
+  );
 }));
 
 app.get('/api/billing/payments/:invoice', auth, requireWorkspace('viewer'), wrap(async (req, res) => {
@@ -3390,10 +3386,10 @@ app.get('/api/billing/payments', auth, requireWorkspace('viewer'), wrap(async (r
 }));
 
 app.post('/api/billing/cancel', auth, requireWorkspace('admin'), wrap(async (req, res) => {
-  const subs = await db.findMany('subscriptions', { workspace_id: req.workspace.id, status: 'active' });
-  for (const s of subs) await db.update('subscriptions', { id: s.id }, { status: 'cancelled' });
-  const u = await db.update('accounts', { id: req.user.id }, { plan: 'free' });
-  res.json({ user: publicUser(u) });
+  throw Object.assign(
+    new Error('Monthly subscription plans have been discontinued.'),
+    { status: 410, code: 'PLAN_DISCONTINUED' }
+  );
 }));
 
 // Cron rekonsiliasi pembayaran DOKU / provider (PRD F14 §2.8 & §4.6)
@@ -3539,14 +3535,8 @@ app.get('/api/cron/run-scheduled', wrap(async (req, res) => {
     log(`[CRON] topic sources check error: ${err.message}`);
   }
 
-  // 0d. Pengingat perpanjangan langganan H-7 dan H-1 (PRD F14 Poin 16)
-  let renewalReminderSummary = null;
-  try {
-    const { processSubscriptionRenewalReminders } = await import('./lib/payments/service.js');
-    renewalReminderSummary = await processSubscriptionRenewalReminders();
-  } catch (err) {
-    log(`[CRON] processSubscriptionRenewalReminders error: ${err.message}`);
-  }
+  // 0d. Pengingat perpanjangan langganan (PRD F15: langganan dihapus, pengingat dinonaktifkan)
+  const renewalReminderSummary = { status: 'discontinued', sentH7: 0, sentH1: 0 };
 
   res.json({
     ran: results.length,

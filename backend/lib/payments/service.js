@@ -135,17 +135,14 @@ export async function createCheckout({ kind, itemId, credits: inputCredits, work
       periodDays = null;
     }
   } else {
-    const plan = PLANS[itemId];
-    if (!plan || itemId === 'free') {
-      throw Object.assign(new Error(`Invalid subscription plan '${itemId}'. Choose an active paid plan.`), {
-        status: 400,
-        code: 'INVALID_PLAN'
-      });
-    }
-    itemName = plan.name;
-    amount = plan.price;
-    credits = plan.credits;
-    periodDays = 30;
+    // PRD F15: Langganan bulanan dihapus, mengembalikan 410 PLAN_DISCONTINUED
+    throw Object.assign(
+      new Error('Monthly subscription plans have been discontinued. Please choose a lifetime module.'),
+      {
+        status: 410,
+        code: 'PLAN_DISCONTINUED'
+      }
+    );
   }
 
   const workspace = await db.findOne('workspaces', { id: workspaceId });

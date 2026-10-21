@@ -7,8 +7,9 @@ export function getAppUrl() {
 }
 
 export const TRIAL_CONFIG = {
-  days: Number(process.env.TRIAL_DAYS || 7),
+  days: Number(process.env.TRIAL_DAYS || 30),
   credits: Number(process.env.TRIAL_CREDITS || 300),
 };
+export const TRIAL_DAYS = TRIAL_CONFIG.days;
 
 export const SYSTEM_WORKSPACE_ID = '00000000-0000-0000-0000-000000000000';

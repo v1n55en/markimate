@@ -15,6 +15,7 @@ import {
 import { api, formatIDR } from '../../api';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatNumber } from '../../lib/format';
+import { TRIAL_DAYS } from '../../config/pricing';
 
 export default function AdminDashboardPage({ user }) {
   const { t, lang } = useLanguage();
@@ -311,7 +312,7 @@ export default function AdminDashboardPage({ user }) {
                     >
                       <option value="topup">{t('adminDashboard.optTopup', 'topup (365 days)')}</option>
                       <option value="sub">{t('adminDashboard.optSub', 'sub (monthly)')}</option>
-                      <option value="trial">{t('adminDashboard.optTrial', 'trial (7 days)')}</option>
+                      <option value="trial">{t('adminDashboard.optTrial', { days: TRIAL_DAYS })}</option>
                     </select>
                   </div>
                   <div style={styles.formGroup}>

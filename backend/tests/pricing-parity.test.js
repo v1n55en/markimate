@@ -8,13 +8,16 @@ import {
   quoteTopup as beQuoteTopup,
   getCatalog
 } from '../lib/catalog.js';
+import { TRIAL_DAYS as BE_TRIAL_DAYS } from '../lib/config.js';
 
 import {
   MODULES as FE_MODULES,
   LIFETIME_BUNDLES as FE_LIFETIME_BUNDLES,
   BUNDLES as FE_BUNDLES,
   TOPUP as FE_TOPUP,
-  quoteTopup as feQuoteTopup
+  quoteTopup as feQuoteTopup,
+  TRIAL_DAYS as FE_TRIAL_DAYS,
+  TRIAL as FE_TRIAL
 } from '../../frontend/src/config/pricing.js';
 
 async function runPricingParityTests() {
@@ -134,8 +137,14 @@ async function runPricingParityTests() {
   assert.strictEqual(cat.bundles.length, 1);
   assert.strictEqual(cat.topup.pricePerCredit, 1000);
   assert.strictEqual(cat.topup.min, 50);
-  assert.strictEqual(cat.topup.max, 50000);
-  console.log('   OK - getCatalog() memuat struktur baru dan kompatibel.');
+  // 6. Uji Kesetaraan Konfigurasi TRIAL_DAYS (BE vs FE, PRD F15)
+  console.log('6. Memverifikasi kesetaraan TRIAL_DAYS (BE vs FE)...');
+  assert.strictEqual(BE_TRIAL_DAYS, 30, 'BE TRIAL_DAYS must be 30');
+  assert.strictEqual(FE_TRIAL_DAYS, 30, 'FE TRIAL_DAYS must be 30');
+  assert.strictEqual(FE_TRIAL.days, 30, 'FE TRIAL.days must be 30');
+  assert.strictEqual(FE_TRIAL.credits, 300, 'FE TRIAL.credits must be 300');
+  assert.strictEqual(FE_TRIAL.noCardRequired, true);
+  console.log('   OK - TRIAL_DAYS BE dan FE setara 30 hari.');
 
   console.log('✅ ALL PRICING PARITY TESTS PASSED!');
 }

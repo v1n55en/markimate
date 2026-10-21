@@ -6,7 +6,7 @@ export const publicTranslations = {
     "privacy": "Privacy",
     "terms": "Terms",
     "login": "Sign In",
-    "register": "Start 7-Day Free Trial",
+    "register": "Start {days}-Day Free Trial",
     "logout": "Sign Out",
     "dashboard": "Dashboard"
   },

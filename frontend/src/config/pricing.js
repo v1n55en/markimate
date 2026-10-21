@@ -3,8 +3,10 @@
 
 export const CREDIT_PRICE_IDR = 1000;
 
+export const TRIAL_DAYS = 30;
+
 export const TRIAL = {
-  days: 7,
+  days: TRIAL_DAYS,
   credits: 300,
   noCardRequired: true,
 };

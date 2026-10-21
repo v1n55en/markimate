@@ -4,6 +4,7 @@ import { ArrowRight, LogIn, Menu, X } from 'lucide-react';
 import { useLanguage, LanguageToggle } from '../context/LanguageContext';
 import { LocalizedLink, useLocalizedPath } from '../lib/localized-router';
 import { AppLink } from '../lib/hosts';
+import { TRIAL_DAYS } from '../config/pricing';
 import MarkimateLogo from './common/MarkimateLogo';
 
 export default function PublicNavbar() {
@@ -40,7 +41,7 @@ export default function PublicNavbar() {
             <span>{t('nav.login', 'Sign In')}</span>
           </AppLink>
           <AppLink to="/register" style={styles.registerBtn}>
-            <span>{t('nav.register', 'Start 7-Day Free Trial')}</span>
+            <span>{t('nav.register', { days: TRIAL_DAYS })}</span>
             <ArrowRight size={15} />
           </AppLink>
         </div>
@@ -107,7 +108,7 @@ export default function PublicNavbar() {
               style={styles.mobileRegisterBtn}
               onClick={() => setMobileMenuOpen(false)}
             >
-              <span>{t('nav.register', 'Start 7-Day Free Trial')}</span>
+              <span>{t('nav.register', { days: TRIAL_DAYS })}</span>
               <ArrowRight size={16} />
             </AppLink>
           </div>

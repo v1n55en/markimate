@@ -122,11 +122,47 @@ Pemilik Keputusan: 3Our Asia
 
 ---
 
+### Langkah 6: Hapus Langganan Lama (410 `PLAN_DISCONTINUED`), Free Tier 0, Trial 30 Hari, dan Pengaman Trial (PRD F15)
+- **Tujuan**:
+  1. Mengubah masa free trial menjadi 30 hari (`TRIAL_DAYS = 30`), kuota tetap 300 kredit sekali, dan semua teks trial di locale memakai `{days}` secara dinamis.
+  2. Menerapkan 4 lapis pengaman trial: 1x per email terverifikasi, 1x per workspace, 1x per akun Google (`google_sub`), serta alert admin otomatis ke `credit_alerts` jika terdapat >5 pendaftaran trial dari IP yang sama dalam 24 jam.
+  3. Menghapus kuota free tier 3 artikel/bulan (`FREE_MONTHLY_LIMIT = 0`, `free.monthlyArticles = 0`).
+  4. Menghapus harga paket langganan lama (`PLANS.*.price`), menonaktifkan cron pengingat perpanjangan langganan, dan mengembalikan status 410 `PLAN_DISCONTINUED` pada endpoint `/api/billing/checkout` dan `/api/billing/cancel`.
+- **File Berubah/Dibuat**:
+  - `backend/lib/config.js`: Default `TRIAL_CONFIG.days` diubah ke 30, mengekspor `TRIAL_DAYS`.
+  - `backend/lib/plans.js`: `FREE_MONTHLY_LIMIT = 0`, menghapus properti `price` dari semua paket `PLANS`, menghapus bullet 3 artikel dari free tier.
+  - `backend/lib/credits.js`:
+    - Mengimpor `SYSTEM_WORKSPACE_ID` serta helper alert `hasAlertBeenSent, recordAlertSent, sendEmail`.
+    - Memperbarui `grantTrialIfEligible` dengan validasi: 1x per email (`credit_trials`), 1x per workspace (`credit_trials`), 1x per akun Google (`accounts.google_sub`), pencatatan audit log `trial_granted` dengan IP, dan deteksi >5 registrasi dari IP sama dalam 24 jam (alert `trial_abuse_ip`).
+  - `backend/lib/google-auth.js`: Mengimpor `getClientIp` dan meneruskan `{ googleSub: sub, clientIp }` ke `grantTrialIfEligible`.
+  - `backend/index.js`:
+    - Meneruskan `clientIp` ke `grantTrialIfEligible` pada verifikasi email dan endpoint `/api/credits`.
+    - Mengubah `/api/billing/checkout` dan `/api/billing/cancel` agar selalu mengembalikan 410 `PLAN_DISCONTINUED`.
+    - Menonaktifkan eksekusi pengingat perpanjangan langganan pada cron harian `/api/cron/run-scheduled`.
+  - `backend/lib/payments/service.js`: Di `createCheckout`, melempar 410 `PLAN_DISCONTINUED` bila mencoba checkout subscription.
+  - `backend/lib/mailer.js`: Mengimpor `TRIAL_CONFIG` dan mengganti teks hardcoded 7 hari di email verifikasi dengan `${TRIAL_CONFIG.days}`.
+  - `backend/lib/notifications.js`: Mengganti teks hardcoded 7 hari di peringatan trial dengan `${TRIAL_CONFIG.days}`.
+  - `frontend/src/config/pricing.js`: Menetapkan `TRIAL_DAYS = 30` dan `TRIAL.days = TRIAL_DAYS`.
+  - `frontend/src/components/PublicNavbar.jsx`: Menggunakan `t('nav.register', { days: TRIAL_DAYS })`.
+  - `frontend/src/pages/admin/AdminDashboardPage.jsx`: Menggunakan `t('adminDashboard.optTrial', { days: TRIAL_DAYS })`.
+  - `frontend/src/i18n/locales/en/public.js` & `id/public.js`: `nav.register` menggunakan placeholder `{days}`.
+  - `frontend/src/i18n/locales/en/auth.js` & `id/auth.js`: `linkSignUp` menggunakan placeholder `{days}`.
+  - `frontend/src/i18n/locales/en/app.js` & `id/app.js`: `optTrial` menggunakan placeholder `{days}`.
+  - `backend/tests/entitlements.test.js`: Memperbarui assertion `TRIAL.days` ke 30.
+  - `backend/tests/pricing-parity.test.js`: Menambahkan pengujian kesetaraan `TRIAL_DAYS` antara backend dan frontend (30 hari).
+  - `backend/tests/trial-safeguards-discontinued.test.js`: Suite test baru ke-21 yang menguji seluruh pengaman trial (email, workspace, google_sub, IP abuse alert), penolakan 410 `PLAN_DISCONTINUED` di service dan route express, serta penonaktifan cron pengingat.
+- **Hasil Test**:
+  - `cd backend && npm test`: 21/21 test suite lolos 100% tanpa mengotori `database.json`.
+  - `cd frontend && npm run i18n:check`: 2213 keys in EN & ID, 70/70 error codes ter-cover, 0 hardcoded prices/numbers, 0 error.
+  - `cd frontend && npm run build`: Lolos 100%, 40 file statis HTML dan sitemap ter-generate.
+
+---
+
 ## Rencana Langkah Selanjutnya
-- **Langkah 6**: Hapus langganan (410 `PLAN_DISCONTINUED`), free tier, ubah TRIAL_DAYS ke 30 dan pengaman trial.
 - **Langkah 7**: UI pricing + billing + kalkulator EN/ID + screenshot 390px dan 1280px asli.
 - **Langkah 8**: Admin laporan liabilitas dan revenue mix.
 - **Langkah 9**: Laporan final F15 dan mutation checks.
+
 
 
 

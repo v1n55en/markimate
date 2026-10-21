@@ -6,6 +6,7 @@ import { createDefaultWorkspace, resolveWorkspaceForUser } from './workspaces.js
 import { grantTrialIfEligible } from './credits.js';
 import { logAuditEvent } from './account-lifecycle.js';
 import { newToken, hashToken } from './tokens.js';
+import { getClientIp } from './ratelimit.js';
 
 const GOOGLE_AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
@@ -185,6 +186,7 @@ export async function verifyGoogleIdToken(idToken) {
 export async function processGoogleAuth({ googleProfile, req, res }) {
   const { sub, email, name } = googleProfile;
   const normalizedEmail = email.trim().toLowerCase();
+  const clientIp = req ? getClientIp(req) : null;
 
   // 1. Cek berdasarkan google_sub
   const existingBySub = await db.findOne('accounts', { google_sub: sub });
@@ -245,8 +247,8 @@ export async function processGoogleAuth({ googleProfile, req, res }) {
       const wsResolved = await resolveWorkspaceForUser(updated.id);
       const wsId = wsResolved?.workspace?.id || updated.id;
 
-      // Berikan trial jika memenuhi syarat
-      const trialRes = await grantTrialIfEligible(wsId, updated.email);
+      // Berikan trial jika memenuhi syarat (PRD F15: pengaman googleSub & clientIp)
+      const trialRes = await grantTrialIfEligible(wsId, updated.email, null, { googleSub: sub, clientIp });
       if (trialRes && trialRes.granted) {
         const endsAt = trialRes.expiresAt ? new Date(trialRes.expiresAt).toISOString() : new Date(Date.now() + TRIAL_CONFIG.days * 86400 * 1000).toISOString();
         for (const mod of ['ads_report', 'ads_spy']) {
@@ -354,8 +356,8 @@ export async function processGoogleAuth({ googleProfile, req, res }) {
   // Buatkan Workspace default
   const defaultWs = await createDefaultWorkspace(newAccount.id, newAccount.brand_name || 'Workspace Utama');
 
-  // Berikan trial credit (300 credit + 7 hari module entitlements)
-  const trialRes = await grantTrialIfEligible(defaultWs.id, newAccount.email);
+  // Berikan trial credit (300 credit + 30 hari module entitlements)
+  const trialRes = await grantTrialIfEligible(defaultWs.id, newAccount.email, null, { googleSub: sub, clientIp });
   if (trialRes && trialRes.granted) {
     const endsAt = trialRes.expiresAt ? new Date(trialRes.expiresAt).toISOString() : new Date(Date.now() + TRIAL_CONFIG.days * 86400 * 1000).toISOString();
     for (const mod of ['ads_report', 'ads_spy']) {

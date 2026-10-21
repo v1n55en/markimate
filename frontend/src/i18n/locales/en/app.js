@@ -243,7 +243,7 @@ export const app = {
     "placeholderReason": "e.g. Downtime compensation / Enterprise POC",
     "optTopup": "topup (365 days)",
     "optSub": "sub (monthly)",
-    "optTrial": "trial (7 days)",
+    "optTrial": "trial ({days} days)",
     "granting": "Granting...",
     "activating": "Activating...",
     "planAllInOne": "All-in-One AI Team",

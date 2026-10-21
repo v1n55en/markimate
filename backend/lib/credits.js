@@ -1,7 +1,8 @@
 import { db } from '../db.js';
 import { DEFAULT_PRICES, DEFAULT_COST_RATES } from './credit-defaults.js';
-import { TRIAL_CONFIG } from './config.js';
+import { TRIAL_CONFIG, SYSTEM_WORKSPACE_ID } from './config.js';
 import { isWorkspacePlatformAdmin } from './admin.js';
+import { hasAlertBeenSent, recordAlertSent, sendEmail } from './notifications.js';
 
 let cachedPrices = null;
 let cachedPricesAt = 0;
@@ -541,13 +542,41 @@ export async function expireBuckets(workspaceId = null) {
   }
 }
 
-export async function grantTrialIfEligible(workspaceId, email, cmsDomain = null) {
+export async function grantTrialIfEligible(workspaceId, email, cmsDomain = null, { googleSub = null, clientIp = null } = {}) {
   if (!email || !workspaceId) return null;
   const em = String(email).trim().toLowerCase();
 
-  const existing = await db.findOne('credit_trials', { email: em });
-  if (existing) {
+  // 1. Pengaman: 1x per email terverifikasi (PRD F15 §1)
+  const existingEmail = await db.findOne('credit_trials', { email: em });
+  if (existingEmail) {
     return { granted: false, reason: 'Trial sudah pernah diklaim untuk email ini.' };
+  }
+
+  // 2. Pengaman: 1x per workspace (PRD F15 §1)
+  const existingWs = await db.findOne('credit_trials', { workspace_id: workspaceId });
+  if (existingWs) {
+    return { granted: false, reason: 'Trial sudah pernah diklaim untuk workspace ini.' };
+  }
+
+  // 3. Pengaman: 1x per akun Google (PRD F15 §1)
+  const account = await db.findOne('accounts', { email: em });
+  const targetSub = googleSub || account?.google_sub;
+  if (targetSub) {
+    const sameGoogleAccounts = await db.findMany('accounts', { google_sub: targetSub });
+    for (const acc of (sameGoogleAccounts || [])) {
+      if (acc.email && acc.email.toLowerCase() !== em) {
+        const trialByOtherAcc = await db.findOne('credit_trials', { email: acc.email.toLowerCase() });
+        if (trialByOtherAcc) {
+          return { granted: false, reason: 'Trial sudah pernah diklaim untuk akun Google ini.' };
+        }
+      }
+      if (acc.id && acc.id !== workspaceId) {
+        const trialByOtherWs = await db.findOne('credit_trials', { workspace_id: acc.id });
+        if (trialByOtherWs) {
+          return { granted: false, reason: 'Trial sudah pernah diklaim untuk akun Google ini.' };
+        }
+      }
+    }
   }
 
   const trialCredits = TRIAL_CONFIG.credits;
@@ -561,6 +590,46 @@ export async function grantTrialIfEligible(workspaceId, email, cmsDomain = null)
     granted_at: new Date().toISOString(),
     cms_domain: cmsDomain || null
   });
+
+  // 4. Catat audit log dan alert admin kalau ada >5 pendaftaran trial dari IP yang sama dalam 24 jam (PRD F15 §1)
+  if (clientIp) {
+    try {
+      await db.insert('audit_logs', {
+        user_id: account?.id || null,
+        workspace_id: workspaceId,
+        action: 'trial_granted',
+        ip: clientIp,
+        meta: { email: em, days: trialDays, credits: trialCredits },
+        created_at: new Date().toISOString()
+      });
+
+      const since24h = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+      const ipLogs = await db.findMany('audit_logs', { action: 'trial_granted', ip: clientIp });
+      const recentFromIp = (ipLogs || []).filter(l => l.created_at >= since24h);
+      if (recentFromIp.length > 5) {
+        const dateKey = new Date().toISOString().slice(0, 10);
+        const alertPeriodKey = `${clientIp}_${dateKey}`;
+        const alreadyAlerted = await hasAlertBeenSent(SYSTEM_WORKSPACE_ID, 'trial_abuse_ip', alertPeriodKey);
+        if (!alreadyAlerted) {
+          const adminEmail = process.env.ADMIN_ALERT_EMAIL || 'admin@markimate.com';
+          await recordAlertSent(SYSTEM_WORKSPACE_ID, 'trial_abuse_ip', adminEmail, alertPeriodKey, {
+            ip: clientIp,
+            count: recentFromIp.length
+          });
+          try {
+            await sendEmail({
+              to: adminEmail,
+              subject: `[Markimate Alert] Terdeteksi >5 Pendaftaran Trial dari IP ${clientIp}`,
+              text: `Peringatan Keamanan:\n\nTerdeteksi ${recentFromIp.length} pendaftaran trial dari IP ${clientIp} dalam 24 jam terakhir.\n\nHarap periksa kemungkinan penyalahgunaan (trial abuse / multi-account).`,
+              tag: 'trial_abuse_ip'
+            });
+          } catch (_) {}
+        }
+      }
+    } catch (err) {
+      console.warn('[Trial Security] Error checking IP abuse:', err.message);
+    }
+  }
 
   return {
     granted: true,
