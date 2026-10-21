@@ -108,6 +108,20 @@ export async function isModuleActive(workspaceId, moduleName) {
 }
 
 /**
+ * Mengecek apakah suatu modul aktif pada workspace dengan sumber valid (lifetime, trial, admin, subscription)
+ * Mengabaikan fallback free tier.
+ */
+export async function hasActiveModuleEntitlement(workspaceId, moduleName = 'seo') {
+  if (!workspaceId) return false;
+  if (await isWorkspacePlatformAdmin(workspaceId)) return true;
+  const now = new Date();
+  const ent = await db.findOne('module_entitlements', { workspace_id: workspaceId, module: moduleName });
+  if (!ent || ent.active === false) return false;
+  if (ent.ends_at && new Date(ent.ends_at) <= now) return false;
+  return ['lifetime', 'trial', 'admin', 'subscription'].includes(ent.source);
+}
+
+/**
  * Middleware express untuk membatasi endpoint berdasarkan entitlement modul
  * Mengembalikan HTTP 403 { code: 'MODULE_INACTIVE', module } jika modul tidak aktif.
  */

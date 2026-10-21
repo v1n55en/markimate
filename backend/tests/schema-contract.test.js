@@ -55,7 +55,15 @@ async function runSchemaContractTests() {
       kolom_ngawur_tidak_ada: 'value'
     }, true);
   }, /does not exist in table "accounts"/);
-  console.log('   OK - Kolom asing berhasil ditolak.');
+
+  assert.throws(() => {
+    validateRowContract('module_entitlements', {
+      workspace_id: randomUUID(),
+      module: 'seo',
+      created_at: new Date().toISOString()
+    }, true);
+  }, /Column "created_at" does not exist in table "module_entitlements"/);
+  console.log('   OK - Kolom asing (termasuk created_at di module_entitlements) berhasil ditolak.');
 
   // 4. Menguji penolakan kolom NOT NULL tanpa default yang tidak diisi
   console.log('4. Menguji penolakan insert tanpa kolom NOT NULL tanpa default...');

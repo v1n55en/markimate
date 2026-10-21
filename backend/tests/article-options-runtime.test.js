@@ -286,6 +286,64 @@ async function runRuntimeTests() {
     assert.strictEqual(kwDb2.images[0].url, oldImageUrl, 'Gambar lama harus tetap utuh saat n8n HTTP 502');
 
     console.log('   ✓ n8n membalas ok:false → kredit tidak berkurang & gambar lama tetap terbukti aman.\n');
+
+    // Skenario C: Pembeli lifetime SEO (user.plan: 'free') tetap mendapatkan gambar AI (imagePrompts & makeImages aktif)
+    console.log('4. Menguji pembeli SEO lifetime (user.plan free) tetap mendapat imagePrompts & makeImages...');
+    const userFree = await db.findOne('accounts', { id: testUserId });
+    assert.ok(!userFree.plan || userFree.plan === 'free', 'User harus ber-plan free');
+
+    // Aktifkan modul SEO lifetime pada workspace
+    await db.update('module_entitlements', { workspace_id: testWsId, module: 'seo' }, {
+      active: true,
+      source: 'lifetime',
+      starts_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+
+    let capturedTriggerPayload = null;
+    global.fetch = async (url, opts) => {
+      if (typeof url === 'string' && url.includes('supermat-trigger')) {
+        capturedTriggerPayload = JSON.parse(opts.body);
+        return new Response(JSON.stringify({
+          accepted: true,
+          status: 'accepted',
+          requestId: capturedTriggerPayload.requestId
+        }), { status: 202, headers: { 'Content-Type': 'application/json' } });
+      }
+      return originalFetch(url, opts);
+    };
+
+    // Test scheduling keyword tidak ditolak 402 walau user.plan free
+    const resCreateScheduled = await originalFetch(`http://localhost:${serverPort}/api/keywords`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        'X-Workspace-Id': testWsId
+      },
+      body: JSON.stringify({
+        keyword: 'smartphone kamera terbaik 2026',
+        schedule: 'daily',
+        articleOptions: { images: { mode: 'auto', count: 3 } }
+      })
+    });
+    assert.strictEqual(resCreateScheduled.status, 200, 'User SEO lifetime harus bisa menjadwalkan keyword');
+    const jsonCreated = await resCreateScheduled.json();
+
+    // Jalankan generateFor
+    const resRunLifetime = await originalFetch(`http://localhost:${serverPort}/api/keywords/${jsonCreated.keyword.id}/run`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        'X-Workspace-Id': testWsId
+      }
+    });
+    assert.strictEqual(resRunLifetime.status, 202);
+    assert.ok(capturedTriggerPayload, 'n8n trigger harus terpanggil');
+    assert.strictEqual(capturedTriggerPayload.options.imagePrompts, true, 'imagePrompts HARUS true untuk pembeli lifetime SEO');
+
+    console.log('   ✓ Pembeli SEO lifetime berhasil mendapatkan fitur AI images & scheduling tanpa terhalang user.plan free.\n');
   } finally {
     global.fetch = originalFetch;
     await new Promise((resolve) => server.close(resolve));

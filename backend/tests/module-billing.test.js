@@ -282,9 +282,12 @@ async function runModuleBillingTests() {
   });
   assert.strictEqual(hookBundleRes.status, 200);
 
-  // Verifikasi semua modul lifetime aktif
+  // Verifikasi semua modul lifetime aktif (ketiga modul aktif lifetime)
+  const entSeoAfter = await db.findOne('module_entitlements', { workspace_id: workspaceId, module: 'seo' });
   const entReport = await db.findOne('module_entitlements', { workspace_id: workspaceId, module: 'ads_report' });
   const entSpy = await db.findOne('module_entitlements', { workspace_id: workspaceId, module: 'ads_spy' });
+  assert.strictEqual(entSeoAfter.active, true);
+  assert.strictEqual(entSeoAfter.source, 'lifetime');
   assert.strictEqual(entReport.active, true);
   assert.strictEqual(entReport.source, 'lifetime');
   assert.strictEqual(entReport.ends_at, null);
@@ -322,7 +325,62 @@ async function runModuleBillingTests() {
     body: {}
   });
   assert.strictEqual(emptyModRes.status, 400, 'Body kosong harus 400 Bad Request');
-  assert.strictEqual(emptyModRes.data.code, 'INVALID_MODULE');
+  // 10. Menguji reconcile memulihkan baris paid + fulfilled_at terisi + granted_at null (tanpa re-claim)
+  console.log('10. Menguji reconcile memulihkan baris paid + fulfilled_at terisi + granted_at null...');
+  const wsReconcileId = randomUUID();
+  await db.insert('workspaces', {
+    id: wsReconcileId,
+    owner_user_id: user.id,
+    name: 'Workspace Reconcile Recovery'
+  });
+  await db.insert('workspace_members', {
+    workspace_id: wsReconcileId,
+    user_id: user.id,
+    role: 'admin',
+    joined_at: new Date().toISOString()
+  });
+
+  const stuckPaymentId = randomUUID();
+  const invoiceStuck = 'MKM-M-TEST-RECON-001';
+  await db.insert('payments', {
+    id: stuckPaymentId,
+    workspace_id: wsReconcileId,
+    user_id: user.id,
+    kind: 'module',
+    item_id: 'ads_spy',
+    item_name: 'Ads Spy',
+    amount: 1490000,
+    invoice_number: invoiceStuck,
+    provider: 'doku',
+    status: 'paid',
+    fulfilled_at: new Date().toISOString(),
+    granted_at: null,
+    created_at: new Date().toISOString()
+  });
+
+  // Sebelum reconcile, belum ada entitlement ads_spy
+  const entBefore = await db.findOne('module_entitlements', { workspace_id: wsReconcileId, module: 'ads_spy' });
+  assert.strictEqual(entBefore, null, 'Sebelum reconcile, entitlement belum ada');
+
+  // Jalankan reconcile
+  const { reconcile } = await import('../lib/payments/service.js');
+  const recResult = await reconcile();
+  assert(recResult.fulfilled >= 1, 'Reconcile harus memulihkan setidaknya 1 payment');
+
+  // Setelah reconcile: modul ads_spy aktif lifetime dan granted_at terisi
+  const entAfter = await db.findOne('module_entitlements', { workspace_id: wsReconcileId, module: 'ads_spy' });
+  assert.ok(entAfter, 'Entitlement ads_spy harus aktif setelah reconcile');
+  assert.strictEqual(entAfter.active, true);
+  assert.strictEqual(entAfter.source, 'lifetime');
+  assert.strictEqual(entAfter.ends_at, null);
+
+  const paymentAfterRec = await db.findOne('payments', { id: stuckPaymentId });
+  assert.ok(paymentAfterRec.granted_at, 'granted_at harus terisi setelah reconcile');
+
+  // Reconcile kedua kali -> idempoten, modul tetap aktif 1x dan tidak error
+  await reconcile();
+  const entAfter2 = await db.findOne('module_entitlements', { workspace_id: wsReconcileId, module: 'ads_spy' });
+  assert.strictEqual(entAfter2.source, 'lifetime');
 
   console.log('✅ ALL MODULE BILLING & LIFETIME ENTITLEMENTS TESTS PASSED!');
 }

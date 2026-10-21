@@ -247,6 +247,84 @@ export async function createCheckout({ kind, itemId, credits: inputCredits, work
 }
 
 /**
+ * Memberikan aktivasi modul lifetime dan kuota bulanan secara idempoten per payment.id
+ * @param {Object} payment
+ */
+export async function grantModulePayment(payment) {
+  if (payment.granted_at) {
+    return { granted: false, reason: 'already_granted' };
+  }
+
+  let targetModules = [];
+  if (MODULES[payment.item_id]) {
+    targetModules = [payment.item_id];
+  } else if (BUNDLES[payment.item_id]) {
+    targetModules = BUNDLES[payment.item_id].modules || [];
+  } else {
+    targetModules = [payment.item_id];
+  }
+
+  const nowIso = new Date().toISOString();
+
+  // 1. Upsert module_entitlements (source: 'lifetime', ends_at: null, payment_id)
+  for (const modKey of targetModules) {
+    const existingEnt = await db.findOne('module_entitlements', {
+      workspace_id: payment.workspace_id,
+      module: modKey
+    });
+
+    if (existingEnt) {
+      await db.update('module_entitlements', {
+        workspace_id: payment.workspace_id,
+        module: modKey
+      }, {
+        active: true,
+        source: 'lifetime',
+        starts_at: existingEnt.starts_at || nowIso,
+        ends_at: null,
+        payment_id: payment.id,
+        updated_at: nowIso
+      });
+    } else {
+      await db.insert('module_entitlements', {
+        workspace_id: payment.workspace_id,
+        module: modKey,
+        active: true,
+        source: 'lifetime',
+        starts_at: nowIso,
+        ends_at: null,
+        payment_id: payment.id,
+        updated_at: nowIso
+      });
+    }
+  }
+
+  // 2. Langsung jalankan ensureMonthlyGrant
+  await ensureMonthlyGrant(payment.workspace_id);
+
+  // 3. Catat granted_at di baris payment
+  await db.update('payments', { id: payment.id }, {
+    granted_at: nowIso,
+    updated_at: nowIso
+  });
+
+  // 4. Kirim email notifikasi pembelian modul lifetime berhasil
+  const user = payment.user_id ? await db.findOne('accounts', { id: payment.user_id }) : null;
+  const userLocale = user?.locale || 'id';
+  if (user?.email) {
+    sendModuleSuccessEmail({
+      to: user.email,
+      invoiceNumber: payment.invoice_number,
+      moduleName: payment.item_name,
+      amount: payment.amount,
+      locale: userLocale
+    }).catch(err => console.error('[MAIL] Failed to send module success email:', err.message));
+  }
+
+  return { granted: true };
+}
+
+/**
  * Memberikan reward / mengaktifkan entitlement paket secara idempoten
  * @param {Object} payment
  * @param {Object} parsed
@@ -421,74 +499,9 @@ export async function fulfillPayment(payment, parsed = {}) {
         }).catch(err => console.error('[MAIL] Failed to send subscription success email:', err.message));
       }
     } else if (payment.kind === 'module') {
-      // PRD F15: Idempoten per payment.id memakai granted_at
-      if (payment.granted_at) {
-        return { fulfilled: false, reason: 'already_granted' };
-      }
-
-      let targetModules = [];
-      if (MODULES[payment.item_id]) {
-        targetModules = [payment.item_id];
-      } else if (BUNDLES[payment.item_id]) {
-        targetModules = BUNDLES[payment.item_id].modules || [];
-      } else {
-        targetModules = [payment.item_id];
-      }
-
-      const nowIso = now.toISOString();
-
-      // 1. Upsert module_entitlements (source: 'lifetime', ends_at: null, payment_id)
-      for (const modKey of targetModules) {
-        const existingEnt = await db.findOne('module_entitlements', {
-          workspace_id: payment.workspace_id,
-          module: modKey
-        });
-
-        if (existingEnt) {
-          await db.update('module_entitlements', {
-            workspace_id: payment.workspace_id,
-            module: modKey
-          }, {
-            active: true,
-            source: 'lifetime',
-            starts_at: existingEnt.starts_at || nowIso,
-            ends_at: null,
-            payment_id: payment.id,
-            updated_at: nowIso
-          });
-        } else {
-          await db.insert('module_entitlements', {
-            workspace_id: payment.workspace_id,
-            module: modKey,
-            active: true,
-            source: 'lifetime',
-            starts_at: nowIso,
-            ends_at: null,
-            payment_id: payment.id,
-            created_at: nowIso,
-            updated_at: nowIso
-          });
-        }
-      }
-
-      // 2. Langsung jalankan ensureMonthlyGrant
-      await ensureMonthlyGrant(payment.workspace_id);
-
-      // 3. Catat granted_at di baris payment
-      await db.update('payments', { id: payment.id }, {
-        granted_at: nowIso,
-        updated_at: nowIso
-      });
-
-      // 4. Kirim email notifikasi pembelian modul lifetime berhasil
-      if (user?.email) {
-        sendModuleSuccessEmail({
-          to: user.email,
-          invoiceNumber: payment.invoice_number,
-          moduleName: payment.item_name,
-          amount: payment.amount,
-          locale: userLocale
-        }).catch(err => console.error('[MAIL] Failed to send module success email:', err.message));
+      const grantRes = await grantModulePayment(payment);
+      if (!grantRes.granted) {
+        return { fulfilled: false, reason: grantRes.reason };
       }
     }
 
@@ -701,68 +714,15 @@ export async function reconcile() {
       }
     }
 
-    // 3. PRD F14 Tahap 3: Jika kind === 'subscription', pastikan subscription terdaftar dan credit paket ter-grant
-    if (payment.kind === 'subscription') {
-      let sub = null;
-      if (payment.id) {
-        sub = await db.findOne('subscriptions', { payment_id: payment.id });
-      }
-      if (!sub && payment.invoice_number) {
-        sub = await db.findOne('subscriptions', { invoice_no: payment.invoice_number });
-      }
-
-      if (!sub) {
-        try {
-          const fulfillRes = await fulfillPayment(payment);
-          if (fulfillRes.fulfilled) results.fulfilled++;
-        } catch (err) {
-          console.error(`[RECONCILE] Error recreating missing subscription for ${payment.invoice_number}:`, err.message);
-        }
-      } else {
-        const planKey = payment.item_id || 'seo';
-        const planData = PLANS[planKey];
-        const credits = (planData?.credits || payment.credits || 0);
-        if (process.env.CREDITS_ENABLED !== 'false' && credits > 0) {
-          const existingLedger = await db.findMany('credit_ledger', {
-            workspace_id: payment.workspace_id,
-            ref_id: payment.id
-          });
-          const hasGrantRow = (existingLedger || []).some(r => r.kind === 'grant_sub' || (r.delta && r.delta > 0));
-          if (!hasGrantRow) {
-            try {
-              const endsAt = sub.ends_at ? new Date(sub.ends_at) : new Date(Date.now() + 30 * 86400e3);
-              await grant(
-                payment.workspace_id,
-                'sub',
-                credits,
-                endsAt,
-                'grant_sub',
-                `Reconciliation: Paket ${payment.item_name} via ${payment.provider.toUpperCase()} (${payment.invoice_number})`,
-                {
-                  actionKey: 'billing.sub',
-                  refType: 'payment',
-                  refId: payment.id,
-                  invoiceNumber: payment.invoice_number
-                }
-              );
-              results.fulfilled++;
-            } catch (err) {
-              console.error(`[RECONCILE] Error granting missing subscription credits for ${payment.invoice_number}:`, err.message);
-            }
-          }
-        }
-      }
-    }
-
-    // 4. PRD F15: Jika kind === 'module', pastikan entitlement lifetime aktif dan granted_at terisi
-    if (payment.kind === 'module') {
-      if (!payment.granted_at) {
-        try {
-          const fulfillRes = await fulfillPayment(payment);
-          if (fulfillRes.fulfilled) results.fulfilled++;
-        } catch (err) {
-          console.error(`[RECONCILE] Error fulfilling missing module grant for ${payment.invoice_number}:`, err.message);
-        }
+    // 3. PRD F15: Jalur pemulihan khusus untuk pembelian modul jika granted_at IS NULL.
+    // Jalur ini tidak perlu claim ulang (karena baris mungkin sudah paid + fulfilled_at terisi),
+    // cukup jalankan pemberian modul secara idempoten per payment.id.
+    if (payment.kind === 'module' && !payment.granted_at) {
+      try {
+        const grantRes = await grantModulePayment(payment);
+        if (grantRes.granted) results.fulfilled++;
+      } catch (err) {
+        console.error(`[RECONCILE] Error fulfilling missing module grant for ${payment.invoice_number}:`, err.message);
       }
     }
   }
