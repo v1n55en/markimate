@@ -501,90 +501,67 @@ export async function expireBuckets(workspaceId = null) {
       return res;
     }
   } catch (rpcErr) {
-    console.warn('[EXPIRE_BUCKETS] RPC expire_buckets_atomic unavailable, using conditional bucket fallback:', rpcErr.message);
+    const errCode = String(rpcErr.code || '');
+    const errMsg = String(rpcErr.message || '');
+    const isRpcMissing =
+      errCode === 'PGRST202' ||
+      errCode === '42883' ||
+      errMsg.includes('PGRST202') ||
+      errMsg.includes('42883') ||
+      errMsg.toLowerCase().includes('could not find the function') ||
+      errMsg.toLowerCase().includes('does not exist');
+
+    if (!isRpcMissing) {
+      console.error(`[CRITICAL] Error fatal saat eksekusi RPC expire_buckets_atomic: ${errMsg}`);
+      throw rpcErr;
+    }
+    console.warn('[EXPIRE_BUCKETS] RPC expire_buckets_atomic tidak ditemukan (PGRST202/42883), beralih ke fallback bersyarat per bucket:', errMsg);
   }
 
-  const now = new Date();
-  const wallets = workspaceId
-    ? await db.findMany('credit_wallets', { workspace_id: workspaceId })
-    : await db.findMany('credit_wallets', {});
+  const nowIso = new Date().toISOString();
+  let walletsAffected = 0;
+  let totalExpired = 0;
 
-  for (const w of wallets || []) {
-    // 1. Cek Trial
-    if (w.balance_trial > 0 && w.trial_expires_at && new Date(w.trial_expires_at) <= now) {
-      const expiredAmt = Number(w.balance_trial);
-      const updated = await db.update('credit_wallets', {
-        workspace_id: w.workspace_id
-      }, {
-        balance_trial: 0
-      });
-      if (updated) {
-        const currentTotal = (Number(updated.balance_sub) || 0) + (Number(updated.balance_topup) || 0);
+  const buckets = [
+    { key: 'trial', note: 'Trial 30 hari kadaluarsa' },
+    { key: 'sub', note: 'Kredit bulanan modul kadaluarsa' },
+    { key: 'topup', note: 'Topup 365 hari kadaluarsa' }
+  ];
+
+  for (const b of buckets) {
+    const updatedWallets = await db.expireBucket(workspaceId, b.key, nowIso);
+    for (const uw of updatedWallets || []) {
+      const expiredAmt = Number(uw.expiredAmount || 0);
+      if (expiredAmt > 0) {
+        walletsAffected++;
+        totalExpired += expiredAmt;
+        const currentTotal =
+          (Number(uw.balance_trial) || 0) +
+          (Number(uw.balance_sub) || 0) +
+          (Number(uw.balance_topup) || 0);
+
         await db.insert('credit_ledger', {
-          workspace_id: w.workspace_id,
+          workspace_id: uw.workspace_id,
           delta: -expiredAmt,
-          bucket: 'trial',
+          bucket: b.key,
           kind: 'expire',
           action_key: null,
           ref_type: null,
           ref_id: null,
           balance_after: currentTotal,
+          usage: null,
           cost_actual_idr: 0,
-          note: 'Trial 30 hari kadaluarsa'
-        });
-      }
-    }
-
-    // 2. Cek Subscription
-    if (w.balance_sub > 0 && w.sub_expires_at && new Date(w.sub_expires_at) <= now) {
-      const expiredAmt = Number(w.balance_sub);
-      const updated = await db.update('credit_wallets', {
-        workspace_id: w.workspace_id
-      }, {
-        balance_sub: 0
-      });
-      if (updated) {
-        const currentTotal = (Number(updated.balance_trial) || 0) + (Number(updated.balance_topup) || 0);
-        await db.insert('credit_ledger', {
-          workspace_id: w.workspace_id,
-          delta: -expiredAmt,
-          bucket: 'sub',
-          kind: 'expire',
-          action_key: null,
-          ref_type: null,
-          ref_id: null,
-          balance_after: currentTotal,
-          cost_actual_idr: 0,
-          note: 'Langganan bulanan kadaluarsa'
-        });
-      }
-    }
-
-    // 3. Cek Topup
-    if (w.balance_topup > 0 && w.topup_expires_at && new Date(w.topup_expires_at) <= now) {
-      const expiredAmt = Number(w.balance_topup);
-      const updated = await db.update('credit_wallets', {
-        workspace_id: w.workspace_id
-      }, {
-        balance_topup: 0
-      });
-      if (updated) {
-        const currentTotal = (Number(updated.balance_trial) || 0) + (Number(updated.balance_sub) || 0);
-        await db.insert('credit_ledger', {
-          workspace_id: w.workspace_id,
-          delta: -expiredAmt,
-          bucket: 'topup',
-          kind: 'expire',
-          action_key: null,
-          ref_type: null,
-          ref_id: null,
-          balance_after: currentTotal,
-          cost_actual_idr: 0,
-          note: 'Topup 365 hari kadaluarsa'
+          note: b.note
         });
       }
     }
   }
+
+  return {
+    success: true,
+    wallets_affected: walletsAffected,
+    total_expired: totalExpired
+  };
 }
 
 export async function grantTrialIfEligible(workspaceId, email, cmsDomain = null, { googleSub = null, clientIp = null } = {}) {

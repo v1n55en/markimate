@@ -277,6 +277,31 @@ async function runCreditsTests() {
   assert.strictEqual(expireLedger[0].delta, -75);
   assert.strictEqual(expireLedger[0].balance_after, 200);
 
+  // Uji penanganan error RPC: Error fatal selain PGRST202/42883 harus di-throw, PGRST202 beralih ke fallback
+  const originalRpc = db.rpc;
+  try {
+    // 1. Error fatal (misal ECONNRESET) harus di-throw
+    db.rpc = async () => {
+      const fatalErr = new Error('Database connection severed');
+      fatalErr.code = 'ECONNRESET';
+      throw fatalErr;
+    };
+    await assert.rejects(async () => {
+      await expireBuckets(expireWsId);
+    }, /Database connection severed/);
+
+    // 2. Error PGRST202 harus ditoleransi dan beralih ke fallback bersyarat
+    db.rpc = async () => {
+      const missingErr = new Error('Could not find the function markimate.expire_buckets_atomic');
+      missingErr.code = 'PGRST202';
+      throw missingErr;
+    };
+    const fbRes = await expireBuckets(expireWsId);
+    assert.strictEqual(fbRes.success, true, 'Fallback PGRST202 harus sukses');
+  } finally {
+    db.rpc = originalRpc;
+  }
+
   console.log('✅ ALL CREDITS TESTS PASSED!');
   if (standaloneTmp && fs.existsSync(standaloneTmp)) {
     try { fs.unlinkSync(standaloneTmp); } catch {}

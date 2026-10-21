@@ -599,7 +599,7 @@ class JsonStore {
               balance_after: totalAfter + expTopup,
               usage: null,
               cost_actual_idr: 0,
-              note: 'Langganan bulanan kadaluarsa'
+              note: 'Kredit bulanan modul kadaluarsa'
             });
           }
 
@@ -632,6 +632,26 @@ class JsonStore {
     }
 
     return true;
+  }
+  async expireBucket(workspaceId, bucket, nowIso) {
+    const expiresCol = `${bucket}_expires_at`;
+    const balanceCol = `balance_${bucket}`;
+    const nowTime = new Date(nowIso).getTime();
+    if (!this.data.credit_wallets) return [];
+    const updatedRows = [];
+    for (const w of this.data.credit_wallets) {
+      if (workspaceId && w.workspace_id !== workspaceId) continue;
+      const exp = w[expiresCol];
+      const bal = Number(w[balanceCol]) || 0;
+      if (bal > 0 && exp && new Date(exp).getTime() <= nowTime) {
+        const oldBal = bal;
+        w[balanceCol] = 0;
+        w.updated_at = nowIso;
+        updatedRows.push({ ...w, expiredAmount: oldBal });
+      }
+    }
+    if (updatedRows.length > 0) this.save();
+    return updatedRows;
   }
 }
 
@@ -682,6 +702,37 @@ class SupabaseStore {
     const { error, count } = await q;
     if (error) throw new Error(`${table}: ${error.message}`);
     return count ?? 0;
+  }
+  async expireBucket(workspaceId, bucket, nowIso) {
+    const expiresCol = `${bucket}_expires_at`;
+    const balanceCol = `balance_${bucket}`;
+    let qSelect = this.c.from('credit_wallets')
+      .select('workspace_id, balance_trial, balance_sub, balance_topup, ' + expiresCol)
+      .lte(expiresCol, nowIso)
+      .gt(balanceCol, 0);
+    if (workspaceId) {
+      qSelect = qSelect.eq('workspace_id', workspaceId);
+    }
+    const { data: targets, error: selErr } = await qSelect;
+    if (selErr) throw selErr;
+    if (!targets || targets.length === 0) return [];
+
+    const results = [];
+    for (const t of targets) {
+      const oldAmount = Number(t[balanceCol]) || 0;
+      let qUpdate = this.c.from('credit_wallets')
+        .update({ [balanceCol]: 0, updated_at: nowIso })
+        .eq('workspace_id', t.workspace_id)
+        .lte(expiresCol, nowIso)
+        .gt(balanceCol, 0)
+        .select();
+      const { data: updated, error: updErr } = await qUpdate;
+      if (updErr) throw updErr;
+      if (updated && updated.length > 0) {
+        results.push({ ...updated[0], expiredAmount: oldAmount });
+      }
+    }
+    return results;
   }
   async rpc(name, params = {}) {
     const { data, error } = await this.c.rpc(name, params);
