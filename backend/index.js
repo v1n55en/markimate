@@ -2953,7 +2953,8 @@ async function generateFor(user, k) {
     if (used >= plan.monthlyArticles) throw Object.assign(new Error(`Kuota ${plan.name} bulan ini habis (${plan.monthlyArticles} artikel). Upgrade ke Pro untuk melanjutkan.`), { status: 402 });
   }
 
-  await db.update('keywords', { id: k.id }, { status: 'AI Writing...', error: '' });
+  const runStartTime = new Date().toISOString();
+  await db.update('keywords', { id: k.id }, { status: 'AI Writing...', error: '', last_run_at: runStartTime, updated_at: runStartTime });
 
   const options = {
     duplicateCheck: artSet.duplicateCheck?.enabled !== false,

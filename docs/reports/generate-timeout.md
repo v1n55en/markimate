@@ -76,6 +76,9 @@ Dibuat test suite komprehensif di [`backend/tests/generate-timeout.test.js`](fil
    - Keyword `"rekomendasi agency automasi"` dengan usia > 11 menit otomatis beralih dari `AI Writing...` menjadi `Error` (`GENERATE_TIMEOUT`) saat `GET /api/keywords`, saldo kredit tetap 240.
 6. **Tombol Coba Lagi:**
    - Panggilan POST run pada keyword `GENERATE_TIMEOUT` berhasil memicu proses generate asinkron baru (HTTP 202) dan mengembalikan status ke `AI Writing...`.
+7. **Rerun Keyword dengan `last_run_at` Lama (2 Hari Lalu):**
+   - Saat keyword lama dijalankan ulang, `generateFor` memperbarui `last_run_at` dan `updated_at` ke waktu sekarang bersamaan dengan perubahan status ke `AI Writing...`.
+   - Lazy check `GET /api/keywords` yang dieksekusi tepat setelah run tidak menganggap keyword ini timeout (kebal dari false-positive `GENERATE_TIMEOUT`).
 
 Hasil eksekusi suite lengkap backend:
 ```

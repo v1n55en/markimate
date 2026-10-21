@@ -265,6 +265,56 @@ try {
   assert.strictEqual(jsonRetry.keyword.status, 'AI Writing...', 'Status harus kembali ke AI Writing...');
   console.log('   ✓ Tombol coba lagi berhasil berjalan dengan mulus.\n');
 
+  // --------------------------------------------------------------------------
+  // TEST 7: Keyword dengan last_run_at 2 hari lalu dijalankan ulang -> TIDAK boleh langsung jadi GENERATE_TIMEOUT
+  // --------------------------------------------------------------------------
+  console.log('7. Menguji keyword dengan last_run_at 2 hari lalu dijalankan ulang tidak langsung jadi GENERATE_TIMEOUT...');
+  const oldKwId = randomUUID();
+  const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+  await db.insert('keywords', {
+    id: oldKwId,
+    user_id: testUserId,
+    workspace_id: testWsId,
+    keyword: 'tips seo website ecommerce 2026',
+    status: 'Error',
+    error: 'GENERATE_TIMEOUT',
+    created_at: twoDaysAgo,
+    last_run_at: twoDaysAgo,
+    updated_at: twoDaysAgo
+  });
+
+  // Jalankan ulang keyword yang memiliki last_run_at 2 hari lalu
+  const resRerun = await originalFetch(`${baseUrl}/api/keywords/${oldKwId}/run`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+      'X-Workspace-Id': testWsId
+    }
+  });
+  assert.strictEqual(resRerun.status, 202, 'Rerun keyword harus membalas HTTP 202');
+  const jsonRerun = await resRerun.json();
+  assert.strictEqual(jsonRerun.keyword.status, 'AI Writing...', 'Status harus beralih ke AI Writing...');
+
+  // Segera panggil GET /api/keywords (yang memicu lazy check cleanupStuckKeywords)
+  const resListAfterRerun = await originalFetch(`${baseUrl}/api/keywords`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'X-Workspace-Id': testWsId
+    }
+  });
+  assert.strictEqual(resListAfterRerun.status, 200);
+  const jsonListAfterRerun = await resListAfterRerun.json();
+  const foundRerun = jsonListAfterRerun.keywords.find(k => k.id === oldKwId);
+  assert(foundRerun, 'Keyword harus ditemukan di list keywords');
+  assert.strictEqual(foundRerun.status, 'AI Writing...', 'Status harus TETAP AI Writing... dan tidak boleh langsung timeout');
+  assert.strictEqual(foundRerun.error, '', 'Error harus kosong');
+
+  const kwDbRerun = await db.findOne('keywords', { id: oldKwId });
+  assert(new Date(kwDbRerun.last_run_at).getTime() > Date.now() - 10000, 'last_run_at harus di-update ke timestamp saat ini');
+  assert(new Date(kwDbRerun.updated_at).getTime() > Date.now() - 10000, 'updated_at harus di-update ke timestamp saat ini');
+  console.log('   ✓ Keyword dengan last_run_at 2 hari lalu berhasil di-reset last_run_at & kebal dari false-positive timeout.\n');
+
   global.fetch = originalFetch;
   await new Promise(resolve => server.close(resolve));
 } finally {
