@@ -31,6 +31,7 @@ const {
   recordFailedUsage,
   grant,
   expireBuckets,
+  ensureMonthlyGrant,
   costOf,
   clearCreditCache
 } = await import('../lib/credits.js');
@@ -300,6 +301,51 @@ async function runCreditsTests() {
     assert.strictEqual(fbRes.success, true, 'Fallback PGRST202 harus sukses');
   } finally {
     db.rpc = originalRpc;
+  }
+
+  // Uji B11: Alert kegagalan ensureMonthlyGrant dikirim ke email admin (1x per hari)
+  const failGrantWsId = randomUUID();
+  await db.insert('workspaces', { id: failGrantWsId, name: 'Fail Grant WS', owner_user_id: randomUUID() });
+  await db.insert('module_entitlements', {
+    workspace_id: failGrantWsId,
+    module: 'seo',
+    source: 'lifetime',
+    starts_at: new Date().toISOString()
+  });
+
+  const originalGrantRpc = db.rpc;
+  try {
+    db.rpc = async (fn) => {
+      if (fn === 'apply_monthly_grant_atomic') {
+        throw new Error('RPC grant failure simulation');
+      }
+      return originalGrantRpc(fn);
+    };
+
+    // Panggilan pertama harus gagal dan membuat alert di credit_alerts
+    await assert.rejects(async () => {
+      await ensureMonthlyGrant(failGrantWsId);
+    }, /RPC grant failure simulation/);
+
+    const alerts = await db.findMany('credit_alerts', {
+      workspace_id: failGrantWsId,
+      alert_type: 'monthly_grant_failure'
+    });
+    assert.strictEqual(alerts.length, 1, 'Harus mencatat 1 alert di credit_alerts');
+    assert.strictEqual(alerts[0].sent_to, 'admin@markimate.com');
+
+    // Panggilan kedua pada hari yang sama tidak boleh menduplikasi alert
+    await assert.rejects(async () => {
+      await ensureMonthlyGrant(failGrantWsId);
+    }, /RPC grant failure simulation/);
+
+    const alerts2 = await db.findMany('credit_alerts', {
+      workspace_id: failGrantWsId,
+      alert_type: 'monthly_grant_failure'
+    });
+    assert.strictEqual(alerts2.length, 1, 'Alert tidak boleh dikirim ulang pada hari yang sama');
+  } finally {
+    db.rpc = originalGrantRpc;
   }
 
   console.log('✅ ALL CREDITS TESTS PASSED!');

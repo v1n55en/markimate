@@ -484,10 +484,18 @@ export async function ensureMonthlyGrant(workspaceId, now = new Date()) {
     try {
       const alertKey = `monthly_grant_failed:${ymd}`;
       if (!(await hasAlertBeenSent(workspaceId, 'monthly_grant_failure', alertKey))) {
-        await recordAlertSent(workspaceId, 'monthly_grant_failure', 'admin@markimate.com', alertKey, {
+        const adminEmail = process.env.ADMIN_EMAIL || 'admin@markimate.com';
+        await recordAlertSent(workspaceId, 'monthly_grant_failure', adminEmail, alertKey, {
           period,
           error: err.message
         });
+        await sendEmail({
+          to: adminEmail,
+          subject: `[CRITICAL ALERT] Monthly grant failed for workspace ${workspaceId}`,
+          text: `Monthly grant failed for workspace ${workspaceId} (period ${period}):\n\nError: ${err.message}\nTimestamp: ${new Date().toISOString()}`,
+          tag: 'monthly_grant_failure',
+          metadata: { workspaceId, period, error: err.message }
+        }).catch(mailErr => console.error('[ADMIN_ALERT_EMAIL_ERR]', mailErr.message));
       }
     } catch (_) {}
     throw err;

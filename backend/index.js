@@ -3201,7 +3201,14 @@ app.post('/api/keywords/:id/run', auth, requireWorkspace('admin'), requireModule
 // Webhook Callback Asinkron dari n8n untuk Hasil Generate Artikel
 app.post('/api/n8n/callback/generate', wrap(async (req, res) => {
   const key = req.headers['x-supermat-key'];
-  if (!MARKIMATE_API_KEY || key !== MARKIMATE_API_KEY) {
+  const isKeyValid = (() => {
+    if (!MARKIMATE_API_KEY || typeof key !== 'string') return false;
+    const bufKey = Buffer.from(key, 'utf8');
+    const bufExpected = Buffer.from(MARKIMATE_API_KEY, 'utf8');
+    if (bufKey.length !== bufExpected.length) return false;
+    return timingSafeEqual(bufKey, bufExpected);
+  })();
+  if (!isKeyValid) {
     return res.status(401).json({ error: 'Unauthorized callback: invalid X-Supermat-Key header.', code: 'UNAUTHORIZED' });
   }
 

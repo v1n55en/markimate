@@ -8,7 +8,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { getCredits, getCreditLedger, formatIDR, api } from '../../api';
-import { CREDIT_PRICE_IDR, MODULES } from '../../config/pricing';
+import { CREDIT_PRICE_IDR, MODULES, TRIAL_DAYS } from '../../config/pricing';
 import TopupCalculator from '../../components/common/TopupCalculator';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatDateTime, formatNumber } from '../../lib/format';
@@ -233,7 +233,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
         <div style={styles.bucketCard} className="card">
           <div style={styles.bucketCardTop}>
             <span style={styles.bucketLabel}>{t('billing.bucketTrial')}</span>
-            <span style={styles.bucketMiniTag}>{t('billing.daysUnit', { days: 7 })}</span>
+            <span style={styles.bucketMiniTag}>{t('billing.daysUnit', { days: TRIAL_DAYS })}</span>
           </div>
           <div style={styles.bucketValRow}>
             <span style={styles.bucketVal}>{formatNumber(trialBalance, lang)}</span>

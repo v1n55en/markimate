@@ -77,8 +77,6 @@ export const publicTranslations = {
     "rowMultichannel": "Multi-Channel Coverage",
     "rowScalability": "Scalability & Availability",
     "rowControl": "Brand Control & Approval",
-    "supermatCostVal": "Starts at {price} / month",
-    "markimateCostVal": "Starts at {price} / month",
     "supermatSpeedVal": "Real-time & instant 24/7",
     "markimateSpeedVal": "Real-time & instant 24/7",
     "supermatCoverageVal": "{totalRoles} specialized roles",
@@ -205,7 +203,7 @@ export const publicTranslations = {
     "q8": "Do unused monthly credits accumulate or roll over?",
     "a8": "No. Monthly grant credits reset on the 1st of every month (WIB timezone), and unused credits expire at month-end. This non-accumulation policy ensures high-performance server and AI infrastructure sustainability. In contrast, custom top-up credits remain valid for 365 days and never expire at month-end.",
     "q9": "Is there a money-back refund guarantee?",
-    "a9": "Yes! We provide a 100% unconditional {days}-day money-back refund guarantee on your first module purchase if Markimate does not meet your team's workflow expectations.",
+    "a9": "Yes! We provide a 100% money-back refund guarantee within {days} calendar days of your first purchase, provided the included monthly credits have not been utilized.",
     "q10": "What happens if our free monthly credits run out mid-month?",
     "a10": "You can easily top up your balance anytime using Custom Top-up starting from {min} credits ({rate}/credit). Enjoy automatic volume discounts up to 10%, with top-up credits staying valid for 365 days."
   },

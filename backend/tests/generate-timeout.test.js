@@ -315,6 +315,80 @@ try {
   assert(new Date(kwDbRerun.updated_at).getTime() > Date.now() - 10000, 'updated_at harus di-update ke timestamp saat ini');
   console.log('   ✓ Keyword dengan last_run_at 2 hari lalu berhasil di-reset last_run_at & kebal dari false-positive timeout.\n');
 
+  // --------------------------------------------------------------------------
+  // TEST 8: Callback yang datang setelah GENERATE_TIMEOUT -> artikel tersimpan dan credit 1x
+  // --------------------------------------------------------------------------
+  console.log('8. Menguji callback yang datang setelah status GENERATE_TIMEOUT (artikel tersimpan & credit 1x)...');
+  const lateKwId = randomUUID();
+  await db.insert('keywords', {
+    id: lateKwId,
+    user_id: testUserId,
+    workspace_id: testWsId,
+    keyword: 'panduan pemasaran b2b 2026',
+    status: 'Error',
+    error: 'GENERATE_TIMEOUT',
+    created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+    last_run_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+    updated_at: new Date(Date.now() - 5 * 60 * 1000).toISOString()
+  });
+
+  const balanceBeforeLate = (await getWallet(testWsId)).totalBalance;
+
+  // Callback n8n sukses datang terlambat
+  const latePayload = {
+    requestId: lateKwId,
+    status: 'ok',
+    article: {
+      title: 'Panduan Lengkap Pemasaran B2B 2026',
+      slug: 'panduan-lengkap-pemasaran-b2b-2026',
+      excerpt: 'Ringkasan strategi pemasaran B2B terkini.',
+      bodyMarkdown: '# Panduan B2B\n\nIsi artikel pemasaran B2B lengkap.',
+      keywords: ['b2b', 'marketing'],
+      wordCount: 850
+    },
+    usage: { promptTokens: 400, candidatesTokens: 900 }
+  };
+
+  const resLateCallback = await originalFetch(`${baseUrl}/api/n8n/callback/generate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Supermat-Key': 'mkm_test_supermat_secret_key_123'
+    },
+    body: JSON.stringify(latePayload)
+  });
+
+  assert.strictEqual(resLateCallback.status, 200, 'Callback yang datang setelah GENERATE_TIMEOUT harus diterima 200 OK');
+  const jsonLateCallback = await resLateCallback.json();
+  assert.strictEqual(jsonLateCallback.ok, true);
+
+  // Verifikasi artikel tersimpan di database dan status berubah menjadi Review Ready
+  const kwDbLate = await db.findOne('keywords', { id: lateKwId });
+  assert.strictEqual(kwDbLate.status, 'Review Ready', 'Status harus pulih menjadi Review Ready');
+  assert.strictEqual(kwDbLate.error, '', 'Error GENERATE_TIMEOUT harus di-clear');
+  assert.ok(kwDbLate.article, 'Artikel harus tersimpan');
+  assert.strictEqual(kwDbLate.article.title, 'Panduan Lengkap Pemasaran B2B 2026');
+
+  // Verifikasi kredit dipotong tepat 1x (60 credit untuk artikel standar)
+  const balanceAfterLate = (await getWallet(testWsId)).totalBalance;
+  assert.strictEqual(balanceBeforeLate - balanceAfterLate, 60, 'Kredit harus dipotong tepat 60 kredit untuk artikel');
+
+  // Verifikasi idempotensi: jika callback terulang dikirim, kredit tidak boleh dipotong lagi
+  const resDupCallback = await originalFetch(`${baseUrl}/api/n8n/callback/generate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Supermat-Key': 'mkm_test_supermat_secret_key_123'
+    },
+    body: JSON.stringify(latePayload)
+  });
+  assert.strictEqual(resDupCallback.status, 200);
+  const jsonDupCallback = await resDupCallback.json();
+  assert.strictEqual(jsonDupCallback.status, 'already_processed', 'Callback kedua harus terdeteksi already_processed');
+  const balanceAfterDup = (await getWallet(testWsId)).totalBalance;
+  assert.strictEqual(balanceAfterDup, balanceAfterLate, 'Kredit tidak boleh terpotong untuk kedua kalinya (tetap 1x)');
+  console.log('   ✓ Callback terlambat setelah GENERATE_TIMEOUT berhasil menyimpan artikel dan memotong kredit tepat 1x.\n');
+
   global.fetch = originalFetch;
   await new Promise(resolve => server.close(resolve));
 } finally {

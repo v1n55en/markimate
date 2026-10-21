@@ -77,8 +77,6 @@ export const publicTranslations = {
     "rowMultichannel": "Cakupan Multi-Saluran",
     "rowScalability": "Skalabilitas & Ketersediaan",
     "rowControl": "Kontrol & Persetujuan Brand",
-    "supermatCostVal": "Mulai {price} / bulan",
-    "markimateCostVal": "Mulai {price} / bulan",
     "supermatSpeedVal": "Instan & 24/7 tanpa lembur",
     "markimateSpeedVal": "Instan & 24/7 tanpa lembur",
     "supermatCoverageVal": "{totalRoles} peran spesialis lengkap",
@@ -205,7 +203,7 @@ export const publicTranslations = {
     "q8": "Apakah kuota kredit bulanan terakumulasi jika tidak terpakai?",
     "a8": "Tidak. Kuota kredit bulanan di-reset pada tanggal 1 awal bulan WIB dan sisa kuota yang tidak terpakai hangus di akhir bulan. Kebijakan non-akumulasi ini menjaga keberlanjutan infrastruktur server dan model AI kami. Sementara itu, kredit dari paket top-up tambahan berlaku selama 365 hari dan tidak pernah hangus di akhir bulan.",
     "q9": "Apakah ada garansi uang kembali (refund)?",
-    "a9": "Ya! Kami memberikan garansi pengembalian dana 100% tanpa syarat selama {days} hari setelah pembelian pertama jika modul Markimate belum memenuhi kebutuhan alur kerja bisnis Anda.",
+    "a9": "Ya! Kami memberikan garansi pengembalian dana 100% selama {days} hari kalender setelah pembelian pertama jika kuota kredit bulanan dari modul tersebut belum digunakan sama sekali.",
     "q10": "Bagaimana jika kuota kredit bulanan gratis habis di tengah bulan?",
     "a10": "Anda dapat mengisi ulang saldo secara fleksibel kapan saja melalui Top-up Custom mulai {min} kredit ({rate}/kredit). Tersedia diskon volume otomatis hingga 10%, dan saldo top-up berlaku selama 365 hari."
   },
