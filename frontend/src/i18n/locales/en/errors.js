@@ -53,6 +53,7 @@ export const errors = {
   "DAILY_CAP": "Daily credit limit reached. Please try again tomorrow.",
   "BILLING_DISABLED": "Direct payment is currently unavailable. Please contact support.",
   "UPGRADE_REQUIRED": "This feature requires a paid subscription. Please upgrade your plan.",
+  "PAYMENT_GATEWAY_REJECTED": "Payment gateway rejected the request. Please try again or contact support.",
   "UNSUPPORTED_CMS": "Unsupported CMS type.",
   "CMS_NOT_CONFIGURED": "CMS credentials have not been configured yet.",
   "KEYWORD_REQUIRED": "Keyword is required.",

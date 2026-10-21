@@ -238,6 +238,58 @@ async function runDokuPaymentsTests() {
   assert.strictEqual(paymentRecord.credits, 1050);
 
   // ----------------------------------------------------
+  // 3b. Pengujian DOKU 400 Bad Request -> 502 PAYMENT_GATEWAY_REJECTED dan raw berisi body DOKU
+  // ----------------------------------------------------
+  console.log('3b. Menguji error DOKU 400 -> client 502 PAYMENT_GATEWAY_REJECTED...');
+  const realDokuAdapter = new DokuPaymentProvider({
+    clientId: TEST_CLIENT_ID,
+    secretKey: TEST_SECRET_KEY,
+    env: 'sandbox'
+  });
+  setProvider(realDokuAdapter);
+
+  const mockDokuErrorBody = {
+    error: {
+      code: 'INVALID_PARAM',
+      message: 'Parameter customer.name contains invalid characters'
+    }
+  };
+
+  const origFetchFor400 = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    if (typeof url === 'string' && url.includes('doku.com')) {
+      return {
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        text: async () => JSON.stringify(mockDokuErrorBody)
+      };
+    }
+    return origFetchFor400(url, options);
+  };
+
+  const errRes = await req('/api/billing/topup', {
+    method: 'POST',
+    headers: authHeaders,
+    body: { packageId: 'starter' }
+  });
+
+  globalThis.fetch = origFetchFor400;
+
+  assert.strictEqual(errRes.status, 502, 'Response DOKU 4xx harus diterjemahkan ke HTTP status 502');
+  assert.strictEqual(errRes.data.code, 'PAYMENT_GATEWAY_REJECTED', 'Code response harus PAYMENT_GATEWAY_REJECTED');
+
+  const failedPayment = await db.findOne('payments', {
+    workspace_id: userRow.id,
+    status: 'failed'
+  });
+  assert.ok(failedPayment, 'Record payment failed harus ada di database');
+  assert.deepStrictEqual(failedPayment.raw, mockDokuErrorBody, 'payments.raw harus berisi persis body response dari DOKU');
+
+  // Pulihkan provider untuk tes webhook selanjutnya
+  setProvider(dokuAdapter);
+
+  // ----------------------------------------------------
   // 4. Webhook HTTP Nyata DOKU (Signature, Amount Matching, Idempotency)
   // ----------------------------------------------------
   console.log('4. Menguji Webhook DOKU lewat HTTP sungguhan (/api/webhooks/doku)...');

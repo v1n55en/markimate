@@ -167,7 +167,7 @@ export class DokuPaymentProvider extends PaymentProvider {
         payment_due_date: expiryMinutes
       },
       customer: {
-        name: customer.name || 'Markimate Customer',
+        name: String(customer.name || 'Markimate Customer').trim().slice(0, 64) || 'Markimate Customer',
         email: customer.email,
         ...(customer.phone && String(customer.phone).trim() ? { phone: String(customer.phone).trim() } : {})
       }

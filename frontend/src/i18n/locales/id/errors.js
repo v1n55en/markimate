@@ -53,6 +53,7 @@ export const errors = {
   "DAILY_CAP": "Batas penggunaan kredit harian tercapai. Silakan coba lagi besok.",
   "BILLING_DISABLED": "Pembayaran langsung belum tersedia. Hubungi bantuan untuk aktivasi paket.",
   "UPGRADE_REQUIRED": "Fitur ini memerlukan paket berbayar. Silakan tingkatkan paket Anda.",
+  "PAYMENT_GATEWAY_REJECTED": "Payment gateway menolak permintaan. Coba lagi atau hubungi kami.",
   "UNSUPPORTED_CMS": "Tipe CMS belum didukung.",
   "CMS_NOT_CONFIGURED": "Kredensial CMS belum dikonfigurasi.",
   "KEYWORD_REQUIRED": "Kata kunci wajib diisi.",

@@ -280,6 +280,11 @@ export const ERROR_CODES = {
     status: 402,
     message: 'This feature requires a paid subscription. Please upgrade your plan.'
   },
+  PAYMENT_GATEWAY_REJECTED: {
+    code: 'PAYMENT_GATEWAY_REJECTED',
+    status: 502,
+    message: 'Payment gateway rejected the request. Please try again or contact support.'
+  },
 
   // SEO & CMS
   UNSUPPORTED_CMS: {

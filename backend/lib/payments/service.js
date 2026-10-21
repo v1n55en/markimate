@@ -111,9 +111,9 @@ export async function createCheckout({ kind, itemId, workspaceId, userId, callba
       invoiceNumber,
       amount,
       customer: {
-        name: user?.name || workspace.name || 'Markimate Customer',
+        name: (user?.name || workspace?.name || 'Markimate Customer').trim().slice(0, 64) || 'Markimate Customer',
         email: user?.email || 'customer@markimate.com',
-        phone: ''
+        ...(user?.phone && String(user.phone).trim() ? { phone: String(user.phone).trim() } : {})
       },
       items: [{
         id: itemId,
@@ -127,12 +127,30 @@ export async function createCheckout({ kind, itemId, workspaceId, userId, callba
   } catch (err) {
     // PRD F14 Poin 10: Tandai failed dan isi expires_at agar reconcile tidak polling selamanya
     const nowIso = new Date().toISOString();
+    const dokuRaw = err.dokuResponse || { error: err.message };
     await db.update('payments', { id: payment.id }, {
       status: 'failed',
       expires_at: nowIso,
-      raw: { error: err.message, dokuResponse: err.dokuResponse || null },
+      raw: dokuRaw,
       updated_at: nowIso
     });
+
+    const dokuStatus = err.status || 500;
+    const dokuCode = err.dokuResponse?.error?.code || err.code || 'GATEWAY_ERROR';
+    const dokuMsg = err.dokuResponse?.error?.message
+      || (Array.isArray(err.dokuResponse?.message) ? err.dokuResponse.message.join(', ') : err.dokuResponse?.message)
+      || (Array.isArray(err.dokuResponse?.error) ? err.dokuResponse.error.join(', ') : err.dokuResponse?.error)
+      || err.message;
+    console.error(`[DOKU Error] invoice=${invoiceNumber} status=${dokuStatus} code=${dokuCode} message=${dokuMsg}`);
+
+    if (err.status && err.status >= 400 && err.status < 500) {
+      const clientErr = new Error('Payment gateway rejected the request. Please try again or contact support.');
+      clientErr.status = 502;
+      clientErr.code = 'PAYMENT_GATEWAY_REJECTED';
+      clientErr.dokuResponse = err.dokuResponse;
+      throw clientErr;
+    }
+
     throw err;
   }
 
