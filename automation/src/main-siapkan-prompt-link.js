@@ -20,12 +20,38 @@ const host = u => { try { return new URL(u).hostname.replace(/^www\./, '').toLow
 const external = (O.externalLinks ? (S.organic_results || []) : []).filter(r => r.link && host(r.link) && !excl.some(d => host(r.link).endsWith(d)) && (!own || !host(r.link).endsWith(own)))
   .slice(0, 8).map((r, i) => ({ id: 'E' + (i + 1), title: r.title, url: r.link, domain: host(r.link), snippet: String(r.snippet || '').slice(0, 160) }));
 
-const wantImages = O.imagePrompts ? O.imageCount : 0;
+// Ekstrak bagian H2 dan ringkasan untuk pemilihan gambar kontekstual (PRD F6b §3.3)
+const h2Sections = [];
+const lines = String(A.bodyMarkdown || '').split('\n');
+let curH2 = null;
+let curText = [];
+
+for (const line of lines) {
+  const h2Match = line.match(/^##\s+(.+)$/);
+  if (h2Match) {
+    if (curH2) {
+      const summary = curText.join(' ').replace(/[\r\n]+/g, ' ').trim().slice(0, 300);
+      h2Sections.push({ index: h2Sections.length + 1, title: curH2, summary });
+    }
+    curH2 = h2Match[1].trim();
+    curText = [];
+  } else if (curH2 && line.trim() && !line.startsWith('#')) {
+    if (curText.length < 3) curText.push(line.trim());
+  }
+}
+if (curH2) {
+  const summary = curText.join(' ').replace(/[\r\n]+/g, ' ').trim().slice(0, 300);
+  h2Sections.push({ index: h2Sections.length + 1, title: curH2, summary });
+}
+
+const wantImages = O.imageMode === 'none' ? 0 : (O.imageCount !== undefined ? Number(O.imageCount) : (O.imagePrompts ? 3 : 0));
+const heroActive = wantImages > 0 && O.imageHero !== false;
+const inlineCount = heroActive ? Math.max(0, wantImages - 1) : wantImages;
 const body = String(A.bodyMarkdown || '').slice(0, 14000);
 const lang = (D.ln || 'id') === 'id' ? 'Bahasa Indonesia' : D.ln;
 
 const prompt = `Kamu editor SEO. Diberikan ARTIKEL (markdown) dan daftar kandidat tautan. Kembalikan HANYA JSON valid dengan bentuk:
-{"internal":[{"anchor":"","url":"","title":""}],"external":[{"anchor":"","url":"","domain":""}],"imagePrompts":[{"idx":0,"placement":"hero","prompt":"","alt":""}]}
+{"internal":[{"anchor":"","url":"","title":""}],"external":[{"anchor":"","url":"","domain":""}],"imagePrompts":[{"idx":0,"placement":"hero","sectionTitle":"","prompt":"","alt":""}]}
 
 ATURAN TAUTAN
 - "anchor" HARUS potongan teks yang muncul PERSIS (huruf sama) di paragraf isi artikel — bukan di judul/heading, bukan di dalam teks yang sudah menjadi link [..](..), 2–6 kata, alami, relevan dengan halaman tujuan.
@@ -34,9 +60,15 @@ ATURAN TAUTAN
 - Jangan mengubah artikel; hanya kembalikan daftar.
 
 ATURAN GAMBAR (buat tepat ${wantImages} item; bila ${wantImages} = 0 kembalikan [])
-- idx 0 = "hero" (gambar utama 16:9, mewakili keseluruhan topik). idx 1 = "after_h2:1" (ilustrasi sub-bab pertama), idx 2 = "after_h2:3" (sub-bab ketiga; bila artikel punya kurang dari 3 H2 pakai "after_h2:2").
-- "prompt" dalam bahasa Inggris untuk model text-to-image, deskriptif & konkret (subjek, setting, komposisi, mood), gaya: ${O.imageStyle}. Tanpa teks, logo, watermark, atau wajah tokoh nyata. Sesuaikan konteks Indonesia bila relevan.
-- "alt" dalam ${lang}, 6–14 kata, deskriptif, mengandung kata kunci bila alami.
+${heroActive ? '- Item pertama (idx 0): placement "hero", sectionTitle "Hero" (gambar utama 16:9, mewakili keseluruhan topik artikel).' : ''}
+${inlineCount > 0 ? `- Pilih ${inlineCount} bagian H2 paling layak diilustrasikan dari DAFTAR BAGIAN H2 di bawah:
+  * placement HARUS berbentuk "h2:<index>" (contoh: "h2:1", "h2:3") sesuai nomor index H2 terpilih, serta tuliskan "sectionTitle"-nya.
+  * Maksimal 1 gambar per H2.
+  * Prioritaskan bagian yang berisi proses, langkah, perbandingan, atau objek konkret.
+  * HINDARI bagian FAQ dan kesimpulan.
+  * Sebar merata di sepanjang artikel dan jangan berurutan kecuali artikel pendek.` : ''}
+- "prompt" dalam bahasa Inggris untuk model text-to-image AI, deskriptif & konkret DITULIS DARI ISI BAGIAN ITU (bukan dari judul artikel), gaya: ${O.imageStyle}. Tanpa teks, logo, watermark, atau wajah tokoh nyata. Sesuaikan konteks Indonesia bila relevan.
+- "alt" dalam ${lang}, 6–14 kata, deskriptif sesuai ilustrasi bagian tersebut, mengandung kata kunci bila alami.
 
 ARTIKEL
 Judul: ${A.title}
@@ -44,6 +76,9 @@ Keyword utama: ${A.primaryKeyword || D.keyword}
 ---
 ${body}
 ---
+
+DAFTAR BAGIAN H2 (UNTUK PEMILIHAN GAMBAR KONTEKSTUAL)
+${h2Sections.length ? h2Sections.map(s => `[h2:${s.index}] ${s.title} — Ringkasan: ${s.summary}`).join('\n') : '(artikel tidak memiliki sub-bab H2)'}
 
 KANDIDAT INTERNAL (artikel lama di situs yang sama)
 ${internal.length ? internal.map(i => `${i.id} | ${i.title} | ${i.url}`).join('\n') : '(tidak ada)'}

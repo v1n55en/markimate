@@ -18,9 +18,9 @@ return [{ json: {
   clientName: String(body.Client_Name || body.clientName || body.brandName || 'Brand Anda').trim(),
   niche: String(body.niche || '').trim(),
   tone: String(body.tone || '').trim(),
-  wordCount: Math.min(Math.max(Number(body.wordCount) || 800, 400), 1500),
+  wordCount: Math.min(Math.max(Number(body.wordCount) || 800, 400), 2500),
   requestId: String(body.requestId || ('req_' + Date.now().toString(36))),
-  // --- Fase 6: CMS (opsional) untuk cek duplikat & internal link + opsi artikel ---
+  // --- Fase 6 & PRD F6b: CMS (opsional) untuk cek duplikat & internal link + opsi artikel ---
   cmsType: ['wordpress', 'wix', 'sanity', 'shopify'].includes(String(body.cmsType || '').toLowerCase()) ? String(body.cmsType).toLowerCase() : '',
   cms: body.cms && typeof body.cms === 'object' ? body.cms : {},
   options: normalizeOptions(body.options),
@@ -30,11 +30,19 @@ function normalizeOptions(o) {
   o = o && typeof o === 'object' ? o : {};
   const b = (v, d) => (v === undefined || v === null ? d : !!v);
   const n = (v, d, lo, hi) => { const x = Number(v); return Number.isFinite(x) ? Math.min(Math.max(x, lo), hi) : d; };
+  const imageMode = ['none', 'auto', 'manual'].includes(o.imageMode) ? o.imageMode : (o.imagePrompts === false ? 'none' : 'auto');
+  const imageCount = imageMode === 'none' ? 0 : n(o.imageCount, 3, 0, 6);
+  const imageHero = b(o.imageHero, true);
+
   return {
     duplicateCheck: b(o.duplicateCheck, true), duplicateThreshold: n(o.duplicateThreshold, 0.7, 0.4, 0.95),
     internalLinks: b(o.internalLinks, true), maxInternal: n(o.maxInternal, 4, 0, 8), siteBaseUrl: String(o.siteBaseUrl || '').trim(),
     externalLinks: b(o.externalLinks, true), maxExternal: n(o.maxExternal, 2, 0, 5),
     excludeDomains: Array.isArray(o.excludeDomains) && o.excludeDomains.length ? o.excludeDomains.map(String) : ['facebook.com', 'instagram.com', 'tiktok.com', 'youtube.com', 'shopee.co.id', 'tokopedia.com', 'x.com', 'twitter.com', 'pinterest.com', 'linkedin.com'],
-    imagePrompts: b(o.imagePrompts, true), imageCount: n(o.imageCount, 3, 1, 3), imageStyle: String(o.imageStyle || 'foto editorial realistis, pencahayaan natural, warna hangat, tanpa teks atau logo di dalam gambar').trim(),
+    imagePrompts: imageMode !== 'none',
+    imageCount,
+    imageMode,
+    imageHero,
+    imageStyle: String(o.imageStyle || 'foto editorial realistis, pencahayaan natural, warna hangat, tanpa teks atau logo di dalam gambar').trim(),
   };
 }

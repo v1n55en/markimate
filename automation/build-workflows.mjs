@@ -79,8 +79,8 @@ Backend untuk web app **Supermat** (supermat-three.vercel.app). Semua kunci rise
     codeNode('Tentukan Target', [1080, Y1], code('main-tentukan-target.js')),
     { id: 'n-ai-agent', name: 'AI Agent', type: '@n8n/n8n-nodes-langchain.agent', typeVersion: 3.1, position: [1300, Y1], parameters: { promptType: 'define', text: `=Tulis satu artikel blog SEO lengkap (struktur SILO) untuk keyword utama: {{ $json.targetKeyword }}.
 Keyword asal yang diminta klien: {{ $json.keyword }}. Brand/klien: {{ $json.clientName }}{{ $json.niche ? ' (bidang: ' + $json.niche + ')' : '' }}.
-Negara target: {{ $json.geo }} · Bahasa artikel: {{ $json.ln === 'id' ? 'Bahasa Indonesia' : $json.ln }}.{{ $json.tone ? ' Gaya tulisan yang diminta: ' + $json.tone + '.' : '' }}
-Panjang WAJIB: minimal {{ $json.wordCount }} kata (hitung dengan cermat, jangan kurang), maksimal {{ Math.round($json.wordCount * 1.3) }} kata.
+Negara target: {{ $json.geo }} · Bahasa artikel: {{ $json.ln === 'id' ? 'Bahasa Indonesia' : $json.ln }}.{{ $json.tone ? ' ' + $json.tone + '.' : '' }}
+Panjang WAJIB: minimal {{ $json.wordCount }} kata (hitung dengan cermat, jangan kurang), maksimal {{ Math.round($json.wordCount * 1.3) }} kata.{{ $json.wordCount >= 2000 ? ' Artikel ini merupakan PILLAR CONTENT mendalam: wajib menyertakan daftar isi (Table of Contents) di awal body dan minimal 6 sub-bab H2 yang terstruktur komprehensif.' : '' }}
 
 Konteks riset (jangan ditulis mentah): search volume {{ $json.searchVolume }}, keyword difficulty {{ $json.difficulty ?? 'n/a' }}, traffic potential {{ $json.trafficPotential }}. Query terkait yang sedang naik: {{ ($json.relatedQueries || []).slice(0,5).join(', ') || '-' }}.
 
@@ -321,7 +321,69 @@ Input dari Main: \`{ cms:{shopify:{shop:'namatoko.myshopify.com', accessToken? |
   return { name: 'Supermat Adapter: Shopify Blog', nodes, connections: conn([['Trigger dari Main', 'Siapkan Shopify'], ['Siapkan Shopify', 'Perlu Tukar Token?'], ['Perlu Tukar Token?', 'Shopify: Ambil Token', 0], ['Perlu Tukar Token?', 'Shopify: Auth', 1], ['Shopify: Ambil Token', 'Shopify: Auth'], ['Shopify: Auth', 'Shopify: Info Toko'], ['Shopify: Info Toko', 'Susun Artikel Shopify'], ['Susun Artikel Shopify', 'Shopify: Kirim Artikel'], ['Shopify: Kirim Artikel', 'Hasil Shopify']]), settings: { executionOrder: 'v1' } };
 }
 
-const out = { 'n8n-main-workflow.json': buildMain(), 'n8n-adapter-wordpress.json': buildWordPress(), 'n8n-adapter-wix.json': buildWix(), 'n8n-adapter-sanity.json': buildSanity(), 'n8n-adapter-shopify.json': buildShopify() };
+// =====================================================================
+// WEBHOOK REGENERASI / PENAMBAHAN GAMBAR KONTEKSTUAL (PRD F6b §3.4 & §4.10)
+// =====================================================================
+function buildImageWorkflow() {
+  const Y = 360;
+  const nodes = [
+    sticky('Sticky Image', [-520, 100], 1600, 500, 3, `## 🎨 Webhook Regenerasi Gambar Kontekstual (\`/webhook/supermat-image\`)
+Input: \`{ sectionTitle, sectionText, style, aspect, alt, requestId, keyword, Client_Name }\`.
+Membuat 1 gambar spesifik via Gemini Imagen (\`gemini-3.1-flash-lite-image:generateContent\`) menggunakan kredensial Gemini image yang sama. Output: \`{ ok: true, image: { base64, mime, alt, aspect, sectionTitle }, requestId }\`.`),
+    {
+      id: 'n-webhook-image',
+      name: 'Webhook Image',
+      type: 'n8n-nodes-base.webhook',
+      typeVersion: 2,
+      position: [-460, Y],
+      parameters: {
+        httpMethod: 'POST',
+        path: 'supermat-image',
+        authentication: 'headerAuth',
+        responseMode: 'responseNode',
+        options: {}
+      },
+      credentials: CRED.supermatKey
+    },
+    codeNode('Siapkan Prompt Image', [-240, Y], code('image-regenerate-siapkan.js')),
+    httpNode('Nano Banana Image', [20, Y], {
+      method: 'POST',
+      url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-image:generateContent',
+      authentication: 'genericCredentialType',
+      genericAuthType: 'httpHeaderAuth',
+      sendBody: true,
+      specifyBody: 'json',
+      jsonBody: '={{ JSON.stringify({ contents: [{ parts: [{ text: $json.prompt }] }], generationConfig: { responseModalities: ["IMAGE"], imageConfig: { aspectRatio: $json.aspect || "4:3", imageSize: "1K" } } }) }}',
+      options: {
+        response: { response: { responseFormat: 'json' } },
+        timeout: 120000
+      }
+    }, { credentials: CRED.geminiImage }),
+    codeNode('Hasil Image', [260, Y], code('image-regenerate-hasil.js')),
+    respond('Respond Image', [500, Y], '={{ JSON.stringify($json) }}')
+  ];
+
+  return {
+    name: 'Supermat Webhook: Regenerate Image',
+    nodes,
+    connections: conn([
+      ['Webhook Image', 'Siapkan Prompt Image'],
+      ['Siapkan Prompt Image', 'Nano Banana Image'],
+      ['Nano Banana Image', 'Hasil Image'],
+      ['Hasil Image', 'Respond Image']
+    ]),
+    settings: { executionOrder: 'v1' }
+  };
+}
+
+const out = {
+  'n8n-main-workflow.json': buildMain(),
+  'n8n-adapter-wordpress.json': buildWordPress(),
+  'n8n-adapter-wix.json': buildWix(),
+  'n8n-adapter-sanity.json': buildSanity(),
+  'n8n-adapter-shopify.json': buildShopify(),
+  'n8n-image-workflow.json': buildImageWorkflow()
+};
 for (const [f, w] of Object.entries(out)) {
   fs.writeFileSync(path.join(here, f), JSON.stringify(w, null, 2));
   console.log('wrote', f, w.nodes.length, 'nodes');

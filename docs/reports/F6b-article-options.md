@@ -73,8 +73,52 @@ Pemilik Keputusan: 3Our Asia
 
 ---
 
+### Langkah 4: Automation n8n (`automation/`) & Panduan Import Workflow (PRD F6b)
+- **Tujuan**:
+  1. `automation/src/main-auth-generate.js`:
+     - Memperluas clamp `wordCount` dari 400 s/d 2.500 kata (mendukung format artikel pillar).
+     - Memperluas clamp `imageCount` dari 0 s/d 6 gambar.
+     - Menerima dan menormalisasi parameter `imageMode` (`none`, `auto`, `manual`) dan `imageHero` (boolean).
+  2. `automation/src/main-siapkan-prompt-link.js`:
+     - Mengubah aturan penempatan gambar dari posisi statis/kaku menjadi pemilihan kontekstual (§3.3).
+     - Mengekstrak daftar H2 lengkap dengan ringkasan 2 kalimat pertama dari markdown artikel, lalu menyertakannya di prompt Gemini "editor SEO".
+     - Meminta AI memilih N bagian H2 yang paling layak diilustrasikan (proses, langkah, perbandingan, objek konkret; hindari FAQ dan kesimpulan) dengan placement `h2:<index>`, sectionTitle, serta prompt bahasa Inggris konkret berbasis isi bagian tersebut.
+  3. `automation/src/main-terapkan-link.js`:
+     - Menerapkan placement dinamis `h2:<index>` (atau `after_h2:<index>`).
+     - Menyediakan mekanisme validasi & auto-repair: jika nomor H2 duplikat atau di luar jangkauan, otomatis dipindahkan ke H2 kosong terdekat dan dicatat di `warnings`.
+     - Fallback intro: jika jumlah H2 lebih sedikit dari target gambar, sisa gambar ditempatkan setelah paragraf ke-2 intro dengan warning tanpa crash.
+     - Jika mode `none`, tidak menyisipkan placeholder gambar apa pun di markdown.
+     - Mengatur aspect ratio: hero 16:9, inline 4:3.
+  4. Prompt penulis di `automation/build-workflows.mjs`:
+     - Teks tone dibungkus sebagai data (`resolveTonePrompt` dari backend) dan disuntikkan ke prompt n8n tanpa risiko instruksi prompt injection.
+     - Menambahkan instruksi khusus untuk `pillar` (wordCount >= 2000): wajib menyertakan daftar isi (Table of Contents) di awal body dan minimal 6 sub-bab H2 komprehensif.
+  5. Webhook baru `supermat-image` (§3.4 & §4.10):
+     - Dibuat node baru `automation/src/image-regenerate-siapkan.js` dan `automation/src/image-regenerate-hasil.js`.
+     - Menghasilkan file workflow `automation/n8n-image-workflow.json` (6 nodes, webhook path: `supermat-image`, kredensial Gemini image yang sama).
+  6. Mengompilasi seluruh workflow n8n via `node automation/build-workflows.mjs`.
+  7. Membuat unit test `backend/tests/n8n-placement.test.js` untuk memverifikasi logika pemilihan kontekstual, fallback intro, pengalihan duplikat, dan mode `none`.
+- **Hasil Test**:
+  - `node automation/build-workflows.mjs`: sukses menghasilkan 6 file workflow n8n JSON.
+  - `node tests/n8n-placement.test.js`: lolos 100%.
+  - `cd backend && npm test`: 26/26 test suite lolos 100%, database bersih tanpa polusi.
+  - `cd frontend && npm run i18n:check`: 2371 keys parity in EN & ID, 73/73 error codes covered, 0 forbidden hardcoded numbers.
+  - `cd frontend && npm run build`: 42 static HTML & sitemap generated, build sukses.
+- **Instruksi untuk 3Our (Import Workflow ke `n8n.3ourasia.id`)**:
+  1. Buka dashboard n8n di `https://n8n.3ourasia.id`.
+  2. **Workflow Utama (Generate & Publish)**:
+     - Buka workflow `Supermat Main` (ID: `9cXOiWyr2L2qdWrv`).
+     - Import / replace dari file lokal: [`automation/n8n-main-workflow.json`](file:///Users/mm/Supermat/automation/n8n-main-workflow.json).
+     - Simpan dan pastikan status workflow **Active**.
+  3. **Workflow Baru: Regenerate Image**:
+     - Buat workflow baru (atau import workflow baru) dari file: [`automation/n8n-image-workflow.json`](file:///Users/mm/Supermat/automation/n8n-image-workflow.json).
+     - Nama: `Supermat Webhook: Regenerate Image`.
+     - Pastikan kredensial `Supermat API Key (Header)` dan `Gemini imagen` terpilih.
+     - Simpan dan aktifkan workflow (**Active**).
+  4. Jalankan pengujian 1 keyword (misal: "tips produktivitas kerja") dengan opsi `long` atau `pillar` untuk menguji alur artikel contextual images end-to-end.
+
+---
+
 ## Rencana Langkah Selanjutnya
-- **Langkah 4**: Automation n8n (penyesuaian `main-auth-generate.js`, pemilihan kontekstual di `main-siapkan-prompt-link.js`, penempatan dinamis di `main-terapkan-link.js`, webhook `supermat-image`, dan `build-workflows.mjs`).
-- **Langkah 5**: Frontend UI settings workspace + form tambah keyword + estimasi live.
-- **Langkah 6**: Frontend Web Approver (pindah, urutkan, hapus, dan regenerate gambar).
+- **Langkah 5**: Frontend UI settings workspace (tone, panjang, mode gambar 0-6, hero) + form modal tambah keyword per-keyword override + estimasi live credit.
+- **Langkah 6**: Frontend Web Approver (pindah urutan, hapus gambar, dan regenerasi/penambahan gambar di bagian tertentu).
 - **Langkah 7**: Laporan final F6b dan pengujian integrasi.

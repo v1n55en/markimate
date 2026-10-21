@@ -1,0 +1,168 @@
+{
+  "name": "Supermat Webhook: Regenerate Image",
+  "nodes": [
+    {
+      "id": "st-sticky-image",
+      "name": "Sticky Image",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        100
+      ],
+      "parameters": {
+        "width": 1600,
+        "height": 500,
+        "color": 3,
+        "content": "## 🎨 Webhook Regenerasi Gambar Kontekstual (`/webhook/supermat-image`)\nInput: `{ sectionTitle, sectionText, style, aspect, alt, requestId, keyword, Client_Name }`.\nMembuat 1 gambar spesifik via Gemini Imagen (`gemini-3.1-flash-lite-image:generateContent`) menggunakan kredensial Gemini image yang sama. Output: `{ ok: true, image: { base64, mime, alt, aspect, sectionTitle }, requestId }`."
+      }
+    },
+    {
+      "id": "n-webhook-image",
+      "name": "Webhook Image",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -460,
+        360
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "supermat-image",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "yRMoELEk1ya3tXjx",
+          "name": "Supermat API Key (Header)"
+        }
+      }
+    },
+    {
+      "id": "n-siapkan-prompt-image",
+      "name": "Siapkan Prompt Image",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        360
+      ],
+      "parameters": {
+        "jsCode": "// PRD F6b — Siapkan prompt gambar konkret berdasarkan section title & text untuk webhook supermat-image\nconst body = $json.body || {};\nconst sectionTitle = String(body.sectionTitle || '').trim();\nconst sectionText = String(body.sectionText || '').trim();\nconst style = String(body.style || 'foto editorial realistis, pencahayaan natural, warna hangat, tanpa teks atau logo di dalam gambar').trim();\nconst aspect = String(body.aspect || '4:3').trim();\nconst alt = String(body.alt || sectionTitle || 'Ilustrasi artikel').trim();\n\n// Tulis prompt dalam bahasa Inggris untuk text-to-image AI berdasarkan isi spesifik section\nconst promptText = `A concrete, high quality editorial illustration depicting ${sectionTitle ? `the concept of \"${sectionTitle}\"` : 'the article section'}${sectionText ? `, where ${sectionText.slice(0, 200)}` : ''}. Style: ${style}. Clean composition, natural lighting, highly detailed, no text, no watermark, no logos, no real faces.`;\n\nreturn [{ json: {\n  sectionTitle,\n  sectionText,\n  style,\n  aspect: ['16:9', '4:3', '1:1'].includes(aspect) ? aspect : '4:3',\n  alt,\n  requestId: body.requestId || ('img_' + Date.now().toString(36)),\n  prompt: promptText\n} }];\n"
+      }
+    },
+    {
+      "id": "n-nano-banana-image",
+      "name": "Nano Banana Image",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        20,
+        360
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-image:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contents: [{ parts: [{ text: $json.prompt }] }], generationConfig: { responseModalities: [\"IMAGE\"], imageConfig: { aspectRatio: $json.aspect || \"4:3\", imageSize: \"1K\" } } }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "JF8Od16ebyhu0BUU",
+          "name": "Gemini imagen"
+        }
+      }
+    },
+    {
+      "id": "n-hasil-image",
+      "name": "Hasil Image",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        360
+      ],
+      "parameters": {
+        "jsCode": "// PRD F6b — Proses respons Nano Banana (Gemini image) untuk webhook supermat-image\nconst meta = $('Siapkan Prompt Image').first().json || {};\nconst res = $input.first().json || {};\nconst parts = (((res.candidates || [])[0] || {}).content || {}).parts || [];\nconst img = parts.find(p => (p.inlineData && p.inlineData.data) || (p.inline_data && p.inline_data.data));\n\nif (!img) {\n  const errMsg = (res.error && res.error.message) ? res.error.message : 'Gagal membuat gambar dari model AI Imagen';\n  return [{ json: {\n    ok: false,\n    error: errMsg,\n    requestId: meta.requestId\n  } }];\n}\n\nconst d = img.inlineData || img.inline_data;\nconst mime = d.mimeType || d.mime_type || 'image/png';\nconst b64 = d.data;\n\nreturn [{ json: {\n  ok: true,\n  image: {\n    base64: b64,\n    mime,\n    alt: meta.alt,\n    aspect: meta.aspect,\n    sectionTitle: meta.sectionTitle\n  },\n  requestId: meta.requestId\n} }];\n"
+      }
+    },
+    {
+      "id": "n-respond-image",
+      "name": "Respond Image",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        500,
+        360
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Image": {
+      "main": [
+        [
+          {
+            "node": "Siapkan Prompt Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Siapkan Prompt Image": {
+      "main": [
+        [
+          {
+            "node": "Nano Banana Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Nano Banana Image": {
+      "main": [
+        [
+          {
+            "node": "Hasil Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hasil Image": {
+      "main": [
+        [
+          {
+            "node": "Respond Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
