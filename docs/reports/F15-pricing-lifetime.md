@@ -80,11 +80,29 @@ Pemilik Keputusan: 3Our Asia
 
 ---
 
+### Langkah 4: Integrasi Lazy `ensureMonthlyGrant` di `/api/me`, `/api/billing`, dan `charge()` (PRD F15)
+- **Tujuan**: Memastikan kuota bulanan modul lifetime di-grant secara lazy hanya saat user/workspace aktif (login atau pemanggilan `/api/me`, membuka menu `/api/billing`, atau sebelum eksekusi aksi di `charge()`), serta tidak membebani server/API untuk workspace yang tidak aktif. Kuota di-reset (overwrite, bukan akumulasi) tiap awal bulan WIB dan hangus di akhir bulan.
+- **File Berubah/Dibuat**:
+  - `backend/lib/credits.js`:
+    - Mengintegrasikan pemanggilan `ensureMonthlyGrant(workspaceId)` di `getWallet(workspaceId)` dan sebelum eksekusi pemotongan kredit di `charge()`.
+  - `backend/index.js`:
+    - Mengimpor `ensureMonthlyGrant` dari `./lib/credits.js`.
+    - Memanggil `ensureMonthlyGrant(activeWsId)` di endpoint `GET /api/me`.
+    - Memanggil `ensureMonthlyGrant(req.workspace.id)` di endpoint `GET /api/billing`.
+  - `backend/tests/monthly-grant-atomic.test.js`:
+    - Menambahkan pengujian case ke-6: memverifikasi bahwa pemanggilan `charge()` pada workspace baru yang memiliki modul lifetime tanpa grant awal secara otomatis memicu `ensureMonthlyGrant`, mengisi saldo sub 100 kredit, dan memotong 60 kredit dengan saldo akhir 40 kredit.
+- **Hasil Test**:
+  - `cd backend && npm test`: 19/19 test suite lolos 100%.
+  - `cd frontend && npm run i18n:check`: 70/70 error codes ter-cover di kamus EN & ID.
+  - `cd frontend && npm run build`: Lolos 100%.
+
+---
+
 ## Rencana Langkah Selanjutnya
-- **Langkah 4**: Integrasi pemanggilan `ensureMonthlyGrant` di `/api/me`, `/api/billing`, dan sebelum `charge()`.
-- **Langkah 5**: Top-up custom endpoint + validasi min/max/diskon, amount client diabaikan.
+- **Langkah 5**: Top-up custom endpoint `POST /api/billing/topup` ({ credits }, min 50, max 50.000, diskon 5%/10%, amount client diabaikan).
 - **Langkah 6**: Hapus langganan (410 `PLAN_DISCONTINUED`), free tier, ubah TRIAL_DAYS ke 30 dan pengaman trial.
 - **Langkah 7**: UI pricing + billing + kalkulator EN/ID + screenshot 390px dan 1280px asli.
 - **Langkah 8**: Admin laporan liabilitas dan revenue mix.
 - **Langkah 9**: Laporan final F15 dan mutation checks.
+
 

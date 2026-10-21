@@ -165,7 +165,30 @@ async function runAtomicWalletTests() {
   w3 = await getWallet(ws3);
   // Saldo sub harus di-reset menjadi 600, BUKAN 540 + 600 = 1140!
   assert.strictEqual(w3.activeBuckets.sub, 600, 'Saldo bulanan di bulan baru harus 600 (di-reset, bukan diakumulasi)');
-  console.log('   OK - Kuota bulanan terbukti tidak diakumulasi lintas bulan.');
+  // 6. Menguji lazy trigger otomatis pada charge() saat saldo belum ter-grant
+  console.log('6. Menguji lazy trigger otomatis pada charge() saat saldo belum di-grant...');
+  const ws4 = randomUUID();
+  await db.insert('module_entitlements', {
+    workspace_id: ws4,
+    module: 'seo',
+    source: 'lifetime',
+    ends_at: null
+  });
+  // Wallet kosong (0 credit)
+  await db.insert('credit_wallets', {
+    workspace_id: ws4,
+    balance_trial: 0,
+    balance_sub: 0,
+    balance_topup: 0,
+    daily_cap: 500
+  });
+
+  // Pemanggilan charge langsung: harus memicu ensureMonthlyGrant (dapat 100 credit), lalu memotong 60 credit -> sisa 40
+  const lazyChargeRes = await charge(ws4, 'seo.article', 1, { type: 'kw', id: 'lazy-charge-01' });
+  assert.strictEqual(lazyChargeRes.charged, 60, 'Charge harus berhasil memotong 60 credit setelah lazy grant');
+  const w4 = await getWallet(ws4);
+  assert.strictEqual(w4.activeBuckets.sub, 40, 'Sisa saldo sub setelah lazy grant (100) dan charge (60) harus 40');
+  console.log('   OK - charge() berhasil memicu ensureMonthlyGrant secara transparan dan otomatis.');
 
   console.log('✅ ALL ATOMIC WALLET & LAZY MONTHLY GRANTS TESTS PASSED!');
 }

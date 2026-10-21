@@ -112,6 +112,12 @@ export async function costOf(usage) {
 
 export async function getWallet(workspaceId) {
   if (!workspaceId) throw new Error('workspaceId is required.');
+
+  // PRD F15: Lazy grant kuota bulanan modul lifetime
+  try {
+    await ensureMonthlyGrant(workspaceId);
+  } catch (_) {}
+
   let wallet = await db.findOne('credit_wallets', { workspace_id: workspaceId });
   if (!wallet) {
     wallet = await db.insert('credit_wallets', {
@@ -231,6 +237,12 @@ export async function assertAffordable(workspaceId, actionKey, qty = 1, extra = 
 
 export async function charge(workspaceId, actionKey, qty = 1, ref = {}, usage = null) {
   if (!workspaceId) throw new Error('workspaceId is required.');
+
+  // PRD F15: Pastikan kredit bulanan modul lifetime sudah ter-grant sebelum pemotongan
+  try {
+    await ensureMonthlyGrant(workspaceId);
+  } catch (_) {}
+
   const refType = ref?.type || null;
   const refId = ref?.id ? String(ref.id) : null;
 

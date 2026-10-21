@@ -20,7 +20,8 @@ import {
   grant,
   expireBuckets,
   grantTrialIfEligible,
-  invalidateCreditCaches
+  invalidateCreditCaches,
+  ensureMonthlyGrant
 } from './lib/credits.js';
 import { PLANS, FREE_MONTHLY_LIMIT } from './lib/plans.js';
 import { processDailyCreditAlerts } from './lib/notifications.js';
@@ -1347,6 +1348,11 @@ app.get('/api/me', auth, wrap(async (req, res) => {
   const resolved = await resolveWorkspaceForUser(req.user.id, req.headers['x-workspace-id']);
   const activeWorkspace = resolved?.workspace || (workspaces[0] ? { id: workspaces[0].id } : { id: req.user.id });
   const activeWsId = activeWorkspace.id;
+
+  // PRD F15: Lazy grant kuota bulanan modul lifetime saat user aktif
+  if (activeWsId) {
+    try { await ensureMonthlyGrant(activeWsId); } catch (_) {}
+  }
 
   const conns = await db.findMany('cms_connections', { workspace_id: activeWsId });
 
@@ -3275,6 +3281,11 @@ app.get('/api/billing/catalog', wrap(async (_req, res) => {
 }));
 
 app.get('/api/billing', auth, requireWorkspace('viewer'), wrap(async (req, res) => {
+  // PRD F15: Lazy grant kuota bulanan modul lifetime saat membuka halaman billing
+  if (req.workspace?.id) {
+    try { await ensureMonthlyGrant(req.workspace.id); } catch (_) {}
+  }
+
   const subs = await db.findMany('subscriptions', { workspace_id: req.workspace.id }, { orderBy: 'created_at desc' });
   const payments = await db.findMany('payments', { workspace_id: req.workspace.id }, { orderBy: 'created_at desc' });
   res.json({
