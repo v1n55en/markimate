@@ -3195,15 +3195,21 @@ app.post('/api/keywords/:id/images/:idx/regenerate', auth, requireWorkspace('adm
   let usage = null;
   try {
     const out = await callN8n(N8N_URL_IMAGE, payload);
-    generatedImage = out.image || {
-      url: out.url || out.draftUrl || '',
-      base64: out.base64 || '',
-      alt: out.alt || alt,
-      placement: out.placement || (idx === 0 ? 'hero' : `h2:${idx}`),
-      aspect
+    if (!out || !out.ok || !out.image?.base64) {
+      const errMsg = out?.message || out?.error || 'Gagal menghasilkan gambar dari model AI Imagen.';
+      throw Object.assign(new Error(errMsg), { status: 502, code: 'IMAGE_GENERATION_FAILED' });
+    }
+    generatedImage = {
+      url: out.image.url || '',
+      base64: out.image.base64,
+      alt: out.image.alt || alt,
+      placement: out.image.placement || (idx === 0 ? 'hero' : `h2:${idx}`),
+      aspect: out.image.aspect || aspect
     };
     usage = out.usage || null;
   } catch (err) {
+    if (!err.code) err.code = 'IMAGE_GENERATION_FAILED';
+    if (!err.status) err.status = 502;
     const errUsage = err.usage || (err.n8n && err.n8n.usage) || null;
     if (creditsEnabled && errUsage) {
       await recordFailedUsage(wsId, 'seo.image', errUsage, {

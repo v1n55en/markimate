@@ -197,7 +197,7 @@
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ status: 'duplicate', message: $json.error, duplicateOf: $json.duplicateOf, existingPostsChecked: $json.existingPostsChecked, requestId: $json.requestId }) }}",
         "options": {
-          "responseCode": "409"
+          "responseCode": 409
         }
       }
     },
@@ -1058,7 +1058,7 @@
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify({ status: 'error', message: 'cmsType tidak didukung: ' + $json.cmsType }) }}",
         "options": {
-          "responseCode": "400"
+          "responseCode": 400
         }
       }
     },

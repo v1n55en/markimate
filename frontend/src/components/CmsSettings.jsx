@@ -2,6 +2,14 @@ import { useState, useEffect } from 'react';
 import { Globe, Plug, CheckCircle2, AlertTriangle, Loader2, Key, Copy, RefreshCw, Lock, ExternalLink, Trash2 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { api, API_BASE_URL } from '../api';
+import {
+  TONE_PRESETS,
+  ARTICLE_LENGTHS,
+  IMAGE_MODES,
+  estimateArticleCredits,
+  sanitizeCustomTone,
+  DEFAULT_ARTICLE_OPTIONS
+} from '../config/article-options';
 
 const CMS_META = {
   wordpress: {
@@ -50,9 +58,16 @@ const CMS_META = {
 };
 
 const DEFAULT_ARTICLE_SETTINGS = {
+  tone: {
+    preset: 'professional',
+    custom: '',
+  },
+  length: 'standard',
   images: {
     enabled: true,
+    mode: 'auto',
     count: 3,
+    hero: true,
     style: 'foto editorial, warna hangat, tanpa teks di gambar',
     aspectHero: '16:9',
     aspectInline: '4:3',
@@ -117,6 +132,7 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
       nextSettings[c.cmsType] = {
         ...DEFAULT_ARTICLE_SETTINGS,
         ...c.articleSettings,
+        tone: { ...DEFAULT_ARTICLE_SETTINGS.tone, ...(c.articleSettings?.tone || {}) },
         images: { ...DEFAULT_ARTICLE_SETTINGS.images, ...(c.articleSettings?.images || {}) },
         links: { ...DEFAULT_ARTICLE_SETTINGS.links, ...(c.articleSettings?.links || {}) },
         duplicateCheck: { ...DEFAULT_ARTICLE_SETTINGS.duplicateCheck, ...(c.articleSettings?.duplicateCheck || {}) },
@@ -157,10 +173,14 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
       ...prev,
       [type]: {
         ...prev[type],
-        [section]: {
-          ...(prev[type]?.[section] || {}),
-          [key]: v,
-        },
+        ...(key === null
+          ? { [section]: v }
+          : {
+            [section]: {
+              ...(typeof prev[type]?.[section] === 'object' ? prev[type]?.[section] : {}),
+              [key]: v,
+            }
+          }),
       },
     }));
   };
@@ -193,9 +213,13 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
   const saveSettings = async (type) => {
     setSettingsState(s => ({ ...s, [type]: { busy: true, msg: '' } }));
     try {
+      const artSet = articleSettings[type] || {};
+      if (artSet.tone?.preset === 'custom') {
+        sanitizeCustomTone(artSet.tone?.custom);
+      }
       await api(`/api/cms/${type}`, {
         method: 'PUT',
-        body: { config: forms[type], articleSettings: articleSettings[type], test: false },
+        body: { config: forms[type], articleSettings: artSet, test: false },
       });
       setSettingsState(s => ({ ...s, [type]: { busy: false, success: true, msg: t('seo.cms.articleSettingsSaved') } }));
       setTimeout(() => setSettingsState(s => ({ ...s, [type]: { ...s[type], msg: '' } })), 3000);
@@ -313,62 +337,126 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
                   </div>
                 </>
               ) : (
-                /* Tab Pengaturan Artikel */
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {/* 1. Gambar AI */}
+                /* Tab Pengaturan Artikel (PRD F6b) */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  {/* 1. Gaya Bahasa (Tone) */}
+                  <div style={styles.settingBlock}>
+                    <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '0.25rem' }}>{t('seo.articleOptions.toneLabel')}</div>
+                    <div style={styles.sub}>{t('seo.articleOptions.toneDesc')}</div>
+                    <div style={{ marginTop: '0.75rem' }}>
+                      <select
+                        className="form-select"
+                        value={setg.tone?.preset || 'professional'}
+                        onChange={e => setSettingPath(type, 'tone', 'preset', e.target.value)}
+                      >
+                        <option value="professional">{t('seo.articleOptions.toneProfessional')}</option>
+                        <option value="casual">{t('seo.articleOptions.toneCasual')}</option>
+                        <option value="educational">{t('seo.articleOptions.toneEducational')}</option>
+                        <option value="persuasive">{t('seo.articleOptions.tonePersuasive')}</option>
+                        <option value="storytelling">{t('seo.articleOptions.toneStorytelling')}</option>
+                        <option value="custom">{t('seo.articleOptions.toneCustom')}</option>
+                      </select>
+                      {setg.tone?.preset === 'custom' && (
+                        <div style={{ marginTop: '0.6rem' }}>
+                          <label className="form-label" style={{ fontSize: '0.8rem' }}>{t('seo.articleOptions.customToneLabel')}</label>
+                          <input
+                            className="form-input"
+                            maxLength={120}
+                            value={setg.tone?.custom || ''}
+                            onChange={e => setSettingPath(type, 'tone', 'custom', e.target.value)}
+                            placeholder={t('seo.articleOptions.customTonePlaceholder')}
+                          />
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                            {t('seo.articleOptions.customToneHint')} ({(setg.tone?.custom || '').length}/120)
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 2. Target Panjang Artikel */}
+                  <div style={styles.settingBlock}>
+                    <div style={{ fontWeight: 600, fontSize: '0.88rem', marginBottom: '0.25rem' }}>{t('seo.articleOptions.lengthLabel')}</div>
+                    <div style={styles.sub}>{t('seo.articleOptions.lengthDesc')}</div>
+                    <div className="article-options-pill-group" style={{ marginTop: '0.75rem' }}>
+                      {Object.values(ARTICLE_LENGTHS).map(len => (
+                        <button
+                          key={len.id}
+                          type="button"
+                          className={`article-options-pill ${(setg.length || 'standard') === len.id ? 'active' : ''}`}
+                          onClick={() => setSettingPath(type, 'length', null, len.id)}
+                        >
+                          {t(`seo.articleOptions.${len.labelKey}`)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 3. Mode Gambar AI & Ilustrasi */}
                   <div style={styles.settingBlock}>
                     <div style={styles.settingHeader}>
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{t('seo.cms.aiImagesTitle')}</div>
+                        <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{t('seo.articleOptions.imageModeLabel')}</div>
                         <div style={styles.sub}>
-                          {t('seo.cms.supportedPlatforms')}{' '}
+                          {t('seo.articleOptions.imageModeDesc')}{' '}
                           <span style={{ color: 'var(--text-muted)' }}>
                             {type === 'wix' || type === 'shopify' ? t('seo.cms.wixShopifyNoImageNotice') : ''}
                           </span>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                        {!canUseImages && (
-                          <span style={styles.proLockBadge} onClick={() => goTo && goTo('billing')} title={t('seo.cms.proAvailableNotice')}>
-                            <Lock size={12} /> Pro
-                          </span>
-                        )}
-                        <label className="switch" style={{ opacity: canUseImages ? 1 : 0.6 }}>
-                          <input
-                            type="checkbox"
-                            checked={canUseImages && setg.images?.enabled !== false}
-                            disabled={!canUseImages}
-                            onChange={e => {
-                              if (!canUseImages) {
-                                goTo && goTo('billing');
-                                return;
-                              }
-                              setSettingPath(type, 'images', 'enabled', e.target.checked);
-                            }}
-                          />
-                          <span className="slider round"></span>
-                        </label>
-                      </div>
                     </div>
-                    {canUseImages && setg.images?.enabled !== false && (
-                      <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div className="article-options-pill-group" style={{ marginTop: '0.75rem' }}>
+                      {Object.values(IMAGE_MODES).map(m => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          className={`article-options-pill ${(setg.images?.mode || (setg.images?.enabled === false ? 'none' : 'auto')) === m.id ? 'active' : ''}`}
+                          onClick={() => {
+                            setSettingPath(type, 'images', 'mode', m.id);
+                            setSettingPath(type, 'images', 'enabled', m.id !== 'none');
+                          }}
+                        >
+                          {t(`seo.articleOptions.${m.labelKey}`)}
+                        </button>
+                      ))}
+                    </div>
+
+                    {(setg.images?.mode || (setg.images?.enabled === false ? 'none' : 'auto')) !== 'none' && (
+                      <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
                         <div>
-                          <label className="form-label">{t('seo.cms.imgCountLabel')}</label>
-                          <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            {[1, 2, 3].map(cnt => (
+                          <label className="form-label" style={{ fontSize: '0.8rem' }}>{t('seo.articleOptions.imageCountLabel')}</label>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>{t('seo.articleOptions.imageCountDesc')}</div>
+                          <div className="article-options-pill-group">
+                            {[1, 2, 3, 4, 5, 6].map(cnt => (
                               <button
                                 key={cnt}
                                 type="button"
-                                style={setg.images?.count === cnt ? styles.pillActive : styles.pill}
+                                className={`article-options-pill ${(setg.images?.count === undefined ? 3 : setg.images?.count) === cnt ? 'active' : ''}`}
                                 onClick={() => setSettingPath(type, 'images', 'count', cnt)}
                               >
-                                {cnt} {cnt === 1 ? t('seo.cms.imgHeroOnly') : cnt === 2 ? t('seo.cms.imgPlural') : t('seo.cms.imgHeroAndInline')}
+                                {t('seo.articleOptions.imagesCount', { count: cnt })}
                               </button>
                             ))}
                           </div>
                         </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.25rem' }}>
+                          <div>
+                            <div style={{ fontSize: '0.84rem', fontWeight: 500 }}>{t('seo.articleOptions.heroImageLabel')}</div>
+                            <div style={styles.sub}>{t('seo.articleOptions.heroImageDesc')}</div>
+                          </div>
+                          <label className="switch">
+                            <input
+                              type="checkbox"
+                              checked={setg.images?.hero !== false}
+                              onChange={e => setSettingPath(type, 'images', 'hero', e.target.checked)}
+                            />
+                            <span className="slider round"></span>
+                          </label>
+                        </div>
+
                         <div>
-                          <label className="form-label">{t('seo.cms.imgStyleLabel')}</label>
+                          <label className="form-label" style={{ fontSize: '0.8rem' }}>{t('seo.cms.imgStyleLabel')}</label>
                           <input
                             className="form-input"
                             value={setg.images?.style || ''}

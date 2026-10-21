@@ -84,6 +84,7 @@ export const errors = {
   "PLAN_DISCONTINUED": "Paket langganan bulanan telah dihentikan. Silakan beli modul lifetime.",
   "INVALID_TONE": "Gaya tulisan (tone) custom mengandung karakter terlarang atau melebihi 120 karakter.",
   "SEO_IMAGE_REGEN_DISABLED": "Fitur regenerasi gambar belum diaktifkan.",
-  "INVALID_IMAGE_INDEX": "Indeks gambar tidak valid (harus antara 0 dan 5)."
+  "INVALID_IMAGE_INDEX": "Indeks gambar tidak valid (harus antara 0 dan 5).",
+  "IMAGE_GENERATION_FAILED": "Gagal menghasilkan gambar dari model AI Imagen."
 };
 

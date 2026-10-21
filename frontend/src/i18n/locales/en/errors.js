@@ -84,6 +84,7 @@ export const errors = {
   "PLAN_DISCONTINUED": "Monthly subscription plans have been discontinued. Please choose a lifetime module.",
   "INVALID_TONE": "Custom writing tone contains invalid characters or exceeds 120 characters limit.",
   "SEO_IMAGE_REGEN_DISABLED": "Image regeneration feature is currently disabled.",
-  "INVALID_IMAGE_INDEX": "Invalid image index provided (must be between 0 and 5)."
+  "INVALID_IMAGE_INDEX": "Invalid image index provided (must be between 0 and 5).",
+  "IMAGE_GENERATION_FAILED": "Failed to generate image from AI model."
 };
 

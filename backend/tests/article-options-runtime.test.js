@@ -37,7 +37,8 @@ const {
   sanitizeCustomTone,
   estimateArticleCredits
 } = await import('../lib/article-options.js');
-const { normalizeArticleSettings } = await import('../index.js');
+const { normalizeArticleSettings, default: app } = await import('../index.js');
+const { signAccessToken } = await import('../lib/session.js');
 
 async function runRuntimeTests() {
   console.log('=== RUNNING ARTICLE OPTIONS RUNTIME & LIFECYCLE TESTS (PRD F6b Langkah 3) ===\n');
@@ -181,6 +182,114 @@ async function runRuntimeTests() {
   assert.strictEqual(w4.totalBalance, 500 - 45 - 80 - 110 - 10);
 
   console.log('   ✓ Pemotongan kredit dinamis per panjang & proteksi gambar gagal berhasil diverifikasi.\n');
+
+  // 5. Pengujian regenerasi gambar gagal: n8n membalas ok:false / status:error -> kredit tidak berkurang & gambar lama tetap
+  console.log('5. Menguji endpoint regenerate: jika n8n gagal (ok:false) -> kredit tidak berkurang & gambar lama tetap...');
+  await db.insert('module_entitlements', {
+    workspace_id: testWsId,
+    module: 'seo',
+    source: 'admin',
+    starts_at: new Date().toISOString()
+  });
+
+  const testKwId = randomUUID();
+  const oldImageUrl = 'https://cdn.markimate.test/old-hero.png';
+  await db.insert('keywords', {
+    id: testKwId,
+    user_id: testUserId,
+    workspace_id: testWsId,
+    keyword: 'laptop gaming terbaik 2026',
+    images: [{ url: oldImageUrl, alt: 'Gambar Lama', placement: 'hero', aspect: '16:9' }],
+    article: {
+      title: 'Rekomendasi Laptop Gaming',
+      bodyMarkdown: '## Performa\nLaptop dengan GPU kencang...',
+      images: [{ url: oldImageUrl, alt: 'Gambar Lama', placement: 'hero', aspect: '16:9' }]
+    }
+  });
+
+  const balanceBefore = (await getWallet(testWsId)).totalBalance;
+  const token = signAccessToken({ id: testUserId, email: 'author@markimate.id' });
+
+  // Jalankan server sementara pada port acak
+  const server = app.listen(0);
+  const serverPort = server.address().port;
+  const originalFetch = global.fetch;
+
+  try {
+    // Skenario A: n8n merespons ok: false (HTTP 200 tetapi ok: false)
+    global.fetch = async (url, opts) => {
+      if (typeof url === 'string' && url.includes('supermat-image')) {
+        return new Response(JSON.stringify({
+          ok: false,
+          status: 'error',
+          message: 'Model Imagen sedang mengalami kuota penuh.'
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      return originalFetch(url, opts);
+    };
+
+    const resFail1 = await originalFetch(`http://localhost:${serverPort}/api/keywords/${testKwId}/images/0/regenerate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        'X-Workspace-Id': testWsId
+      },
+      body: JSON.stringify({ sectionTitle: 'Performa' })
+    });
+
+    assert.strictEqual(resFail1.status, 502, 'Harus merespons HTTP 502 saat n8n gagal');
+    const jsonFail1 = await resFail1.json();
+    assert.strictEqual(jsonFail1.code, 'IMAGE_GENERATION_FAILED');
+
+    // Pastikan kredit TIDAK berkurang
+    const balanceAfter1 = (await getWallet(testWsId)).totalBalance;
+    assert.strictEqual(balanceAfter1, balanceBefore, 'Saldo kredit harus tetap sama saat n8n ok: false');
+
+    // Pastikan gambar lama pada keyword tetap utuh
+    const kwDb1 = await db.findOne('keywords', { id: testKwId });
+    assert.strictEqual(kwDb1.images[0].url, oldImageUrl, 'Gambar lama harus tetap utuh di DB');
+
+    // Skenario B: n8n merespons HTTP 502 dengan status: 'error'
+    global.fetch = async (url, opts) => {
+      if (typeof url === 'string' && url.includes('supermat-image')) {
+        return new Response(JSON.stringify({
+          ok: false,
+          status: 'error',
+          message: 'Error dari n8n image workflow'
+        }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      return originalFetch(url, opts);
+    };
+
+    const resFail2 = await originalFetch(`http://localhost:${serverPort}/api/keywords/${testKwId}/images/0/regenerate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        'X-Workspace-Id': testWsId
+      },
+      body: JSON.stringify({ sectionTitle: 'Performa' })
+    });
+
+    assert.strictEqual(resFail2.status, 502, 'Harus merespons HTTP 502');
+    const balanceAfter2 = (await getWallet(testWsId)).totalBalance;
+    assert.strictEqual(balanceAfter2, balanceBefore, 'Saldo kredit harus tetap sama saat n8n HTTP 502');
+
+    const kwDb2 = await db.findOne('keywords', { id: testKwId });
+    assert.strictEqual(kwDb2.images[0].url, oldImageUrl, 'Gambar lama harus tetap utuh saat n8n HTTP 502');
+
+    console.log('   ✓ n8n membalas ok:false → kredit tidak berkurang & gambar lama tetap terbukti aman.\n');
+  } finally {
+    global.fetch = originalFetch;
+    await new Promise((resolve) => server.close(resolve));
+  }
 
   if (standaloneTmp && fs.existsSync(standaloneTmp)) {
     try { fs.unlinkSync(standaloneTmp); } catch (_) {}

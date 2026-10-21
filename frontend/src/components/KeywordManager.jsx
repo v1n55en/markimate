@@ -2,11 +2,20 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Play, Plus, Trash2, Eye, ExternalLink, Loader2, RefreshCw, Rocket,
   FileText, Lock, AlertTriangle, CheckCircle2, X, Link as LinkIcon, Globe,
-  Image as ImageIcon, Sparkles, TrendingUp, Check, Edit2, Layers, ArrowUpRight, Coins
+  Image as ImageIcon, Sparkles, TrendingUp, Check, Edit2, Layers, ArrowUpRight, Coins,
+  ChevronDown, ChevronUp, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { formatNumber, formatDate, formatDateTime } from '../lib/format';
 import { api, GEO_OPTIONS, LN_OPTIONS, CMS_LABEL } from '../api';
+import {
+  TONE_PRESETS,
+  ARTICLE_LENGTHS,
+  IMAGE_MODES,
+  estimateArticleCredits,
+  sanitizeCustomTone,
+  DEFAULT_ARTICLE_OPTIONS
+} from '../config/article-options';
 
 const STATUS_BADGE = {
   'Pending': 'badge-secondary',
@@ -162,6 +171,16 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'Review Ready' | 'draft_pub' | 'Suggested' | 'Duplicate' | 'Error'
 
   const [form, setForm] = useState({ keyword: '', geo: 'ID', ln: 'id', cms: anyCms[0] || 'wordpress', schedule: 'immediate' });
+  const [showArticleOptions, setShowArticleOptions] = useState(false);
+  const [keywordOptions, setKeywordOptions] = useState({
+    tone: { preset: 'professional', custom: '' },
+    length: 'standard',
+    images: { mode: 'auto', count: 3, hero: true }
+  });
+  const [regenBusyIdx, setRegenBusyIdx] = useState(null);
+  const isRegenEnabled = import.meta.env.VITE_SEO_IMAGE_REGEN_ENABLED !== 'false';
+  const liveEstimate = useMemo(() => estimateArticleCredits(keywordOptions), [keywordOptions]);
+
   const [drawer, setDrawer] = useState(null); // keyword object being reviewed
   const [drawerTab, setDrawerTab] = useState('preview'); // 'preview' | 'edit' | 'images'
   const [draft, setDraft] = useState(null);   // editable article copy
@@ -210,9 +229,19 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
     if (!anyCms.length) { setError(t('seo.keywords.errConnectCmsFirst')); return; }
     setError('');
     try {
+      if (showArticleOptions && keywordOptions.tone?.preset === 'custom') {
+        sanitizeCustomTone(keywordOptions.tone?.custom);
+      }
       const d = await api('/api/keywords', {
         method: 'POST',
-        body: { keyword: form.keyword.trim(), geo: form.geo, ln: form.ln, cmsType: form.cms, schedule: form.schedule }
+        body: {
+          keyword: form.keyword.trim(),
+          geo: form.geo,
+          ln: form.ln,
+          cmsType: form.cms,
+          schedule: form.schedule,
+          articleOptions: showArticleOptions ? keywordOptions : null
+        }
       });
       upsertRow(d.keyword); setForm(f => ({ ...f, keyword: '' }));
       if (form.schedule === 'immediate') runKeyword(d.keyword.id);
@@ -246,9 +275,13 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
     setDrawer(kw);
     setImagesEnabled(true);
     const art = kw.article || {};
-    const prompts = Array.isArray(kw.imagePrompts || art.imagePrompts)
+    const rawPrompts = Array.isArray(kw.imagePrompts || art.imagePrompts)
       ? JSON.parse(JSON.stringify(kw.imagePrompts || art.imagePrompts))
       : [];
+    const prompts = rawPrompts.map((p, i) => ({
+      ...p,
+      placement: p.placement || (p.idx === 0 ? 'hero' : `h2:${p.idx || i}`)
+    }));
     setDraft({
       title: art.title || '',
       slug: art.slug || '',
@@ -260,7 +293,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
     setDrawerError('');
   };
 
-  const closeDrawer = () => { setDrawer(null); setDraft(null); setDrawerBusy(''); };
+  const closeDrawer = () => { setDrawer(null); setDraft(null); setDrawerBusy(''); setRegenBusyIdx(null); };
 
   const saveDraftLocally = async () => {
     if (!drawer || !draft) return;
@@ -299,7 +332,22 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
     const id = drawer.id; closeDrawer(); await runKeyword(id);
   };
 
-  // Image editing helpers
+  // Image editing & contextual placement helpers (PRD F6b §3.3 & §3.4)
+  const h2Sections = useMemo(() => {
+    if (!draft?.bodyMarkdown) return [];
+    const lines = draft.bodyMarkdown.split('\n');
+    const sections = [];
+    let h2Idx = 1;
+    for (const line of lines) {
+      const m = line.match(/^##\s+(.+)$/);
+      if (m) {
+        sections.push({ index: h2Idx, title: m[1].trim() });
+        h2Idx++;
+      }
+    }
+    return sections;
+  }, [draft?.bodyMarkdown]);
+
   const updateImagePrompt = (idx, field, val) => {
     if (!draft) return;
     const next = [...(draft.imagePrompts || [])];
@@ -310,13 +358,123 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
     }
   };
 
+  const repositionImage = (imgIdx, targetPlacement) => {
+    if (!draft) return;
+    const nextPrompts = (draft.imagePrompts || []).map(p => {
+      if (p.idx !== imgIdx) return p;
+      let sectionTitle = p.sectionTitle;
+      let aspect = p.aspect;
+      if (targetPlacement === 'hero') {
+        sectionTitle = 'Hero';
+        aspect = '16:9';
+      } else if (targetPlacement.startsWith('h2:')) {
+        const secIdx = parseInt(targetPlacement.slice(3), 10);
+        const sec = h2Sections.find(s => s.index === secIdx);
+        sectionTitle = sec ? sec.title : p.sectionTitle;
+        aspect = '4:3';
+      }
+      return { ...p, placement: targetPlacement, sectionTitle, aspect };
+    });
+
+    let body = draft.bodyMarkdown || '';
+    const tagRegex = new RegExp(`\\n*!\\[[^\\]]*\\]\\(markimate:image:${imgIdx}\\)\\n*`, 'g');
+    body = body.replace(tagRegex, '\n\n');
+
+    const promptObj = nextPrompts.find(p => p.idx === imgIdx);
+    const alt = promptObj?.alt || promptObj?.sectionTitle || 'Ilustrasi';
+    const newTag = `![${alt}](markimate:image:${imgIdx})`;
+
+    if (targetPlacement === 'hero') {
+      body = `${newTag}\n\n${body.trim()}`;
+    } else if (targetPlacement.startsWith('h2:')) {
+      const secIdx = parseInt(targetPlacement.slice(3), 10);
+      const lines = body.split('\n');
+      const newLines = [];
+      let currentH2 = 0;
+      let inserted = false;
+
+      for (let i = 0; i < lines.length; i++) {
+        newLines.push(lines[i]);
+        if (/^##\s+/.test(lines[i])) {
+          currentH2++;
+          if (currentH2 === secIdx && !inserted) {
+            newLines.push('', newTag, '');
+            inserted = true;
+          }
+        }
+      }
+      if (!inserted) {
+        newLines.push('', newTag, '');
+      }
+      body = newLines.join('\n');
+    }
+
+    setDraft({ ...draft, imagePrompts: nextPrompts, bodyMarkdown: body });
+  };
+
+  const moveImageStep = (imgIdx, delta) => {
+    const prompt = (draft.imagePrompts || []).find(p => p.idx === imgIdx);
+    if (!prompt) return;
+    const curPlacement = prompt.placement || (prompt.idx === 0 ? 'hero' : `h2:${prompt.idx}`);
+    if (curPlacement === 'hero') {
+      if (delta > 0 && h2Sections.length > 0) {
+        repositionImage(imgIdx, 'h2:1');
+      }
+    } else if (curPlacement.startsWith('h2:')) {
+      const curIdx = parseInt(curPlacement.slice(3), 10);
+      const nextIdx = curIdx + delta;
+      if (nextIdx <= 0) {
+        repositionImage(imgIdx, 'hero');
+      } else if (nextIdx <= h2Sections.length) {
+        repositionImage(imgIdx, `h2:${nextIdx}`);
+      }
+    }
+  };
+
   const removeInlineImage = (idx) => {
     if (!draft) return;
+    if (idx === 0 && !window.confirm(t('seo.articleOptions.deleteImageConfirm'))) return;
     const nextPrompts = (draft.imagePrompts || []).filter(p => p.idx !== idx);
-    // Remove markimate:image:N from bodyMarkdown
     const re = new RegExp(`!\\[[^\\]]*\\]\\(markimate:image:${idx}\\)\\n*`, 'g');
     const nextBody = draft.bodyMarkdown.replace(re, '');
     setDraft({ ...draft, imagePrompts: nextPrompts, bodyMarkdown: nextBody });
+  };
+
+  const regenerateImage = async (img) => {
+    if (!drawer) return;
+    setRegenBusyIdx(img.idx);
+    setDrawerError('');
+    try {
+      let snippet = '';
+      if (draft?.bodyMarkdown && img.placement && img.placement.startsWith('h2:')) {
+        const h2Index = parseInt(img.placement.slice(3), 10);
+        const parts = draft.bodyMarkdown.split(/^##\s+/m);
+        if (parts[h2Index]) {
+          snippet = parts[h2Index].replace(/^[^\n]+\n/, '').slice(0, 300);
+        }
+      }
+
+      const res = await api(`/api/keywords/${drawer.id}/images/${img.idx}/regenerate`, {
+        method: 'POST',
+        body: {
+          sectionTitle: img.sectionTitle || '',
+          sectionText: snippet,
+          style: img.style || drawer.article_options?.images?.style || 'foto editorial, warna hangat, tanpa teks di gambar',
+          aspect: img.aspect || (img.idx === 0 ? '16:9' : '4:3'),
+          alt: img.alt || img.sectionTitle || drawer.keyword
+        }
+      });
+
+      upsertRow(res.keyword);
+      setDrawer(res.keyword);
+      window.dispatchEvent(new Event('markimate:credits_updated'));
+      window.dispatchEvent(new Event('supermat:credits_updated'));
+      flash(t('seo.articleOptions.regenerateImageSuccess'));
+    } catch (err) {
+      setDrawerError(err.message);
+    } finally {
+      setRegenBusyIdx(null);
+    }
   };
 
   // Filtered keywords
@@ -410,8 +568,137 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
           </div>
           <button type="submit" className="btn btn-primary" style={styles.addBtn} disabled={!form.keyword.trim() || !anyCms.length}>
             <Plus size={16} /> {t('seo.addAndRunBtn')}
-            <span style={styles.creditPill}><Coins size={12} /> {t('seo.approxCredits', { amount: 60 })}</span>
+            <span style={styles.creditPill}><Coins size={12} /> {t('seo.approxCredits', { amount: liveEstimate.totalCredits })}</span>
           </button>
+        </div>
+
+        {/* Accordion Opsi Artikel & Live Estimate (PRD F6b) */}
+        <div className="article-options-card">
+          <button
+            type="button"
+            className={`article-options-toggle ${showArticleOptions ? 'open' : ''}`}
+            onClick={() => setShowArticleOptions(!showArticleOptions)}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <Layers size={16} color="var(--accent-cyan)" />
+              <span>{t('seo.articleOptions.accordionToggle')}</span>
+              <span className="badge badge-secondary" style={{ fontSize: '0.72rem', fontWeight: 500 }}>
+                {t(`seo.articleOptions.${ARTICLE_LENGTHS[keywordOptions.length]?.labelKey || 'lengthStandard'}`)} • {keywordOptions.images.mode === 'none' ? t('seo.articleOptions.imageModeNone') : t('seo.articleOptions.imagesCount', { count: keywordOptions.images.count })}
+              </span>
+            </div>
+            {showArticleOptions ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+
+          {showArticleOptions && (
+            <div className="article-options-body">
+              <div className="article-options-grid">
+                {/* Tone */}
+                <div>
+                  <label className="form-label" style={{ fontSize: '0.8rem' }}>{t('seo.articleOptions.toneLabel')}</label>
+                  <select
+                    className="form-select"
+                    value={keywordOptions.tone.preset}
+                    onChange={e => setKeywordOptions(k => ({ ...k, tone: { ...k.tone, preset: e.target.value } }))}
+                  >
+                    <option value="professional">{t('seo.articleOptions.toneProfessional')}</option>
+                    <option value="casual">{t('seo.articleOptions.toneCasual')}</option>
+                    <option value="educational">{t('seo.articleOptions.toneEducational')}</option>
+                    <option value="persuasive">{t('seo.articleOptions.tonePersuasive')}</option>
+                    <option value="storytelling">{t('seo.articleOptions.toneStorytelling')}</option>
+                    <option value="custom">{t('seo.articleOptions.toneCustom')}</option>
+                  </select>
+                  {keywordOptions.tone.preset === 'custom' && (
+                    <div style={{ marginTop: '0.5rem' }}>
+                      <input
+                        className="form-input"
+                        maxLength={120}
+                        value={keywordOptions.tone.custom}
+                        onChange={e => setKeywordOptions(k => ({ ...k, tone: { ...k.tone, custom: e.target.value } }))}
+                        placeholder={t('seo.articleOptions.customTonePlaceholder')}
+                      />
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                        {t('seo.articleOptions.customToneHint')} ({keywordOptions.tone.custom.length}/120)
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Panjang Artikel */}
+                <div>
+                  <label className="form-label" style={{ fontSize: '0.8rem' }}>{t('seo.articleOptions.lengthLabel')}</label>
+                  <div className="article-options-pill-group">
+                    {Object.values(ARTICLE_LENGTHS).map(l => (
+                      <button
+                        key={l.id}
+                        type="button"
+                        className={`article-options-pill ${keywordOptions.length === l.id ? 'active' : ''}`}
+                        onClick={() => setKeywordOptions(k => ({ ...k, length: l.id }))}
+                      >
+                        {t(`seo.articleOptions.${l.labelKey}`)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Mode Gambar & Jumlah */}
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label className="form-label" style={{ fontSize: '0.8rem' }}>{t('seo.articleOptions.imageModeLabel')}</label>
+                  <div className="article-options-pill-group">
+                    {Object.values(IMAGE_MODES).map(m => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        className={`article-options-pill ${keywordOptions.images.mode === m.id ? 'active' : ''}`}
+                        onClick={() => setKeywordOptions(k => ({ ...k, images: { ...k.images, mode: m.id } }))}
+                      >
+                        {t(`seo.articleOptions.${m.labelKey}`)}
+                      </button>
+                    ))}
+                  </div>
+
+                  {keywordOptions.images.mode !== 'none' && (
+                    <div style={{ marginTop: '0.75rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t('seo.articleOptions.imageCountLabel')}:</span>
+                        <div className="article-options-pill-group">
+                          {[1, 2, 3, 4, 5, 6].map(c => (
+                            <button
+                              key={c}
+                              type="button"
+                              className={`article-options-pill ${keywordOptions.images.count === c ? 'active' : ''}`}
+                              onClick={() => setKeywordOptions(k => ({ ...k, images: { ...k.images, count: c } }))}
+                            >
+                              {c}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={keywordOptions.images.hero}
+                          onChange={e => setKeywordOptions(k => ({ ...k, images: { ...k.images, hero: e.target.checked } }))}
+                          style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
+                        />
+                        {t('seo.articleOptions.heroImageLabel')}
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Live Credit Estimate Bar */}
+              <div className="article-options-live-bar">
+                <Coins size={16} />
+                <span style={{ fontWeight: 600 }}>{t('seo.articleOptions.liveEstimateTitle')}</span>
+                <span>
+                  {liveEstimate.imageMode === 'none'
+                    ? t('seo.articleOptions.liveEstimateFormulaNoImage', { words: liveEstimate.words.toLocaleString(), total: liveEstimate.totalCredits })
+                    : t('seo.articleOptions.liveEstimateFormula', { words: liveEstimate.words.toLocaleString(), images: liveEstimate.imageCount, total: liveEstimate.totalCredits })}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       </form>
 
@@ -829,17 +1116,22 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                     {t('seo.keywords.imagePromptsNotice')}
                   </div>
 
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    {t('seo.articleOptions.freeReorderNotice')}
+                  </div>
+
                   {(!draft.imagePrompts || !draft.imagePrompts.length) ? (
                     <div style={styles.emptyCell}>{t('seo.promptEmpty')}</div>
                   ) : (
                     draft.imagePrompts.map((img) => {
-                      const isHero = img.idx === 0;
+                      const isHero = img.idx === 0 || img.placement === 'hero';
                       const uploadedImg = currentImages.find(i => i.idx === img.idx);
+                      const imgSrc = uploadedImg?.url || (uploadedImg?.base64 ? `data:${uploadedImg.mime || 'image/png'};base64,${uploadedImg.base64}` : null);
 
                       return (
-                        <div key={img.idx} className="card" style={{ padding: '1.25rem', backgroundColor: 'var(--bg-base)' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <div key={img.idx} className="approver-image-card">
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                               <ImageIcon size={16} color="var(--accent-cyan)" />
                               <span style={{ fontWeight: 600 }}>
                                 {isHero
@@ -847,27 +1139,69 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                                   : t('seo.keywords.imgInline', { idx: img.idx })}
                               </span>
                               <span style={styles.badgeMuted}>{img.aspect || (isHero ? '16:9' : '4:3')}</span>
-                              {uploadedImg?.url && <span style={styles.badgeSuccessSmall}>{t('seo.keywords.uploadedBadge')}</span>}
+                              {imgSrc && <span style={styles.badgeSuccessSmall}>{t('seo.keywords.uploadedBadge')}</span>}
+                              {img.placement && (
+                                <span className="badge badge-info" style={{ fontSize: '0.7rem' }}>
+                                  {img.placement === 'hero' ? t('seo.articleOptions.repositionHero') : (img.sectionTitle ? `H2: ${img.sectionTitle}` : img.placement)}
+                                </span>
+                              )}
                             </div>
-                            {!isHero && (
-                              <button
-                                className="btn btn-secondary"
-                                style={{ ...styles.smallBtn, color: 'var(--accent-red)' }}
-                                onClick={() => removeInlineImage(img.idx)}
-                                title={t('seo.deleteBtn')}
-                              >
-                                <Trash2 size={13} /> {t('seo.deleteBtn')}
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              className="btn btn-secondary approver-action-btn"
+                              style={{ color: 'var(--accent-red)', minHeight: '44px', padding: '0.4rem 0.75rem' }}
+                              onClick={() => removeInlineImage(img.idx)}
+                              title={t('seo.articleOptions.deleteImage')}
+                            >
+                              <Trash2 size={13} /> {t('seo.articleOptions.deleteImage')}
+                            </button>
                           </div>
 
-                          {uploadedImg?.url && (
-                            <div style={{ marginBottom: '0.75rem', borderRadius: '6px', overflow: 'hidden' }}>
-                              <img src={uploadedImg.url} alt={img.alt} style={{ maxHeight: '180px', width: '100%', objectFit: 'cover' }} />
+                          {imgSrc && (
+                            <div style={{ borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-muted)', maxHeight: '200px' }}>
+                              <img src={imgSrc} alt={img.alt || 'Gambar'} style={{ maxHeight: '200px', width: '100%', objectFit: 'cover' }} />
                             </div>
                           )}
 
-                          <div className="form-group" style={{ marginBottom: '0.6rem' }}>
+                          {/* Kontrol Penempatan & Urutan (PRD F6b §3.3) */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', backgroundColor: 'var(--bg-surface)', padding: '0.6rem 0.8rem', borderRadius: '6px' }}>
+                            <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                              {t('seo.articleOptions.repositionImage')}:
+                            </label>
+                            <select
+                              className="form-select"
+                              style={{ fontSize: '0.78rem', minHeight: '44px', width: 'auto', flex: 1, minWidth: '180px' }}
+                              value={img.placement || (img.idx === 0 ? 'hero' : `h2:${img.idx}`)}
+                              onChange={e => repositionImage(img.idx, e.target.value)}
+                            >
+                              <option value="hero">{t('seo.articleOptions.repositionHero')}</option>
+                              {h2Sections.map(sec => (
+                                <option key={sec.index} value={`h2:${sec.index}`}>
+                                  {t('seo.articleOptions.repositionAfterH2', { title: sec.title })}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              style={{ minHeight: '44px', minWidth: '44px', padding: '0.4rem 0.6rem' }}
+                              title={t('seo.articleOptions.moveUp')}
+                              onClick={() => moveImageStep(img.idx, -1)}
+                            >
+                              <ArrowUp size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-secondary"
+                              style={{ minHeight: '44px', minWidth: '44px', padding: '0.4rem 0.6rem' }}
+                              title={t('seo.articleOptions.moveDown')}
+                              onClick={() => moveImageStep(img.idx, 1)}
+                            >
+                              <ArrowDown size={16} />
+                            </button>
+                          </div>
+
+                          <div className="form-group" style={{ marginBottom: 0 }}>
                             <label className="form-label" style={{ fontSize: '0.75rem' }}>{t('seo.altText')}</label>
                             <input
                               className="form-input"
@@ -887,6 +1221,25 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                               placeholder={t('seo.keywords.placeholderPrompt')}
                             />
                           </div>
+
+                          {/* Tombol Buat Ulang Gambar Kontekstual (PRD F6b §3.4) */}
+                          {isRegenEnabled && (
+                            <div style={{ display: 'flex', justifyContent: 'flex-start', paddingTop: '0.25rem' }}>
+                              <button
+                                type="button"
+                                className="btn btn-secondary approver-action-btn"
+                                style={{ color: 'var(--accent-cyan)', borderColor: 'rgba(6, 182, 212, 0.3)' }}
+                                disabled={regenBusyIdx === img.idx || !!drawerBusy}
+                                onClick={() => regenerateImage(img)}
+                              >
+                                {regenBusyIdx === img.idx ? (
+                                  <><Loader2 size={14} className="spin-icon" /> {t('seo.articleOptions.regenerating')}</>
+                                ) : (
+                                  <><Sparkles size={14} /> {t('seo.articleOptions.regenerateImageCost')}</>
+                                )}
+                              </button>
+                            </div>
+                          )}
                         </div>
                       );
                     })

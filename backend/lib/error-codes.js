@@ -378,6 +378,11 @@ export const ERROR_CODES = {
     code: 'INVALID_IMAGE_INDEX',
     status: 400,
     message: 'Invalid image index provided.'
+  },
+  IMAGE_GENERATION_FAILED: {
+    code: 'IMAGE_GENERATION_FAILED',
+    status: 502,
+    message: 'Failed to generate image from AI model.'
   }
 };
 

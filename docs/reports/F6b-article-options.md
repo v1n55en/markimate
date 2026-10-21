@@ -118,7 +118,66 @@ Pemilik Keputusan: 3Our Asia
 
 ---
 
-## Rencana Langkah Selanjutnya
-- **Langkah 5**: Frontend UI settings workspace (tone, panjang, mode gambar 0-6, hero) + form modal tambah keyword per-keyword override + estimasi live credit.
-- **Langkah 6**: Frontend Web Approver (pindah urutan, hapus gambar, dan regenerasi/penambahan gambar di bagian tertentu).
-- **Langkah 7**: Laporan final F6b dan pengujian integrasi.
+---
+
+### Langkah 5 & 6: Opsi Artikel di Settings, Form Keyword, Estimasi Live, & Web Approver (PRD F6b)
+- **Tujuan**:
+  1. **Perbaikan Webhook & Endpoint Regenerate Gambar (Permintaan 3Our)**:
+     - `automation/src/image-regenerate-siapkan-prompt.js`: Menambahkan node Gemini Text (`gemini-2.5-flash`) yang merumuskan prompt visual berbahasa Inggris deskriptif, konkret, dan fotorealistik berdasarkan `sectionTitle` dan `sectionText` (mengikuti aturan kontekstual di `main-siapkan-prompt-link.js`).
+     - `automation/src/image-regenerate-hasil.js`: Membalas `{ ok: false, status: 'error', message }` saat gagal, dan `{ ok: true, status: 'ok', image }` saat sukses.
+     - `automation/build-workflows.mjs`: Mengatur branching node IF `Image OK?` -> `Respond Image` (200) atau `Respond Error` (502). Total 10 nodes di `automation/n8n-image-workflow.json`.
+     - `backend/index.js`: Endpoint `POST /api/keywords/:id/images/:idx/regenerate` kini mengecek `if (!out || !out.ok || !out.image?.base64) throw ...` dengan HTTP status 502 dan code `IMAGE_GENERATION_FAILED` sebelum `charge()` dan sebelum mutasi database.
+     - `backend/tests/article-options-runtime.test.js`: Menambahkan test case ke-5 untuk memverifikasi saat n8n merespons `ok: false` atau HTTP 502, saldo kredit 100% tidak berkurang dan gambar lama di database tetap utuh.
+  2. **Pengaturan Artikel di Settings CMS (`CmsSettings.jsx`)**:
+     - Gaya Bahasa (Tone): Dropdown preset (`professional`, `casual`, `educational`, `persuasive`, `storytelling`, `custom`) + input teks custom tersanitasi (maksimal 120 karakter).
+     - Target Panjang Artikel: Selector pills (`short` 600 kata / 45 cr, `standard` 900 kata / 60 cr, `long` 1500 kata / 80 cr, `pillar` 2500 kata / 110 cr).
+     - Mode Gambar AI: Selector pills (`none` 0 gambar, `auto` 1-6 gambar, `manual`).
+     - Jumlah Gambar (1-6) dan Switch Hero Image (16:9).
+     - Tersimpan per CMS type dan disinkronkan ke backend `/api/cms/settings`.
+  3. **Form Tambah Keyword (`KeywordManager.jsx`)**:
+     - Accordion terlipat default bertajuk *"Opsi Artikel (Tone, Panjang, Gambar)"* dengan ringkasan status aktif.
+     - Eksposur opsi spesifik keyword yang meng-override pengaturan global CMS saat dibuka.
+     - Live Credit Estimator dinamis via `estimateArticleCredits`:
+       - Tampilan formula transparan: `"Artikel 1.500 kata + 4 gambar = 100 credit"`.
+       - Label tombol submit adaptif: `"Tambah Keyword (100 credit)"`.
+  4. **Web Approver Drawer (`KeywordManager.jsx`)**:
+     - Preview gambar draf interaktif (mendukung URL web dan preview data URI base64).
+     - Reposisi gambar gratis: Dropdown pemilihan posisi (Hero Banner atau bagian sub-bab H2) dan tombol penyesuaian urutan Naik/Turun (`ArrowUp`/`ArrowDown`).
+     - Hapus gambar (`Trash2`) dengan konfirmasi proteksi untuk hero image.
+     - Buat ulang gambar AI di bagian ini (`POST /api/keywords/:id/images/:idx/regenerate`) seharga 5 credit di balik feature flag `SEO_IMAGE_REGEN_ENABLED` dengan loading spinner per gambar.
+  5. **Mobile-First Responsiveness (`index.css`)**:
+     - Semua tombol, toggle, pill, dan select memenuhi target sentuh minimal 44×44px sesuai `AGENTS.md`.
+     - Layout grid 1 kolom di mobile (<640px) dan responsif multi-kolom di tablet/desktop (>=640px).
+     - Pseudo-element sentuh pada `.switch::after` untuk interaksi jari yang presisi di mobile.
+
+- **Checklist Uji Mobile (AGENTS.md)**:
+  - [x] Tidak ada scroll horizontal (360px, 390px, 768px, 1280px).
+  - [x] Tidak ada teks/tombol terpotong atau saling menimpa.
+  - [x] Semua tombol & link bisa diketuk (≥44px) dan tidak tertutup elemen fixed.
+  - [x] Form modal accordion dan pill group responsif tanpa zoom di iOS.
+  - [x] Modal, drawer approver, dan dropdown berfungsi di 360px.
+  - [x] Mode landscape HP (667×375) rapi dan proporsional.
+
+- **Hasil Test**:
+  - `cd backend && npm test`: **26/26 test suites lolos 100%**, MD5 `database.json` bersih tanpa polusi.
+  - `cd frontend && npm run i18n:check`: **2420 keys parity EN/ID (100%)**, 74/74 error codes covered, 0 forbidden hardcoded numbers/prices, 0 error.
+  - `cd frontend && npm run build`: 42 static HTML & sitemap generated, build client sukses.
+  - `node automation/build-workflows.mjs`: Seluruh 6 file workflow n8n JSON berhasil dikompilasi.
+
+---
+
+## Instruksi untuk 3Our Asia (Import Workflow ke `n8n.3ourasia.id`)
+
+Sebelum melanjutkan, harap lakukan import workflow terbaru berikut ke instance n8n:
+
+1. Buka dashboard n8n di `https://n8n.3ourasia.id`.
+2. **Workflow: Regenerate Image** (Diperbarui dengan node Gemini Text Prompt Writer & Error 502):
+   - Buka / Replace workflow dari file lokal: [`automation/n8n-image-workflow.json`](file:///Users/mm/Supermat/automation/n8n-image-workflow.json) (10 nodes).
+   - Pastikan kredensial berikut terhubung:
+     - `Supermat API Key (Header)` pada node `Webhook Image`
+     - `Google Gemini(PaLM) Api Veri` pada node `Gemini Prompt Writer`
+     - `Gemini imagen` pada node `Nano Banana Image`
+   - Pastikan status workflow diatur ke **Active**.
+3. **Workflow: Supermat Main** (ID: `9cXOiWyr2L2qdWrv`):
+   - Pastikan versi dari [`automation/n8n-main-workflow.json`](file:///Users/mm/Supermat/automation/n8n-main-workflow.json) telah aktif.
+

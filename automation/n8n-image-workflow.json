@@ -11,10 +11,10 @@
         100
       ],
       "parameters": {
-        "width": 1600,
-        "height": 500,
+        "width": 1900,
+        "height": 520,
         "color": 3,
-        "content": "## 🎨 Webhook Regenerasi Gambar Kontekstual (`/webhook/supermat-image`)\nInput: `{ sectionTitle, sectionText, style, aspect, alt, requestId, keyword, Client_Name }`.\nMembuat 1 gambar spesifik via Gemini Imagen (`gemini-3.1-flash-lite-image:generateContent`) menggunakan kredensial Gemini image yang sama. Output: `{ ok: true, image: { base64, mime, alt, aspect, sectionTitle }, requestId }`."
+        "content": "## 🎨 Webhook Regenerasi Gambar Kontekstual (`/webhook/supermat-image`)\nInput: `{ sectionTitle, sectionText, style, aspect, alt, requestId, keyword, Client_Name }`.\n1. **Siapkan Prompt Gemini** susun prompt perumusan deskripsi visual berbasis H2/section.\n2. **Gemini Prompt Writer** rumuskan prompt bahasa Inggris deskriptif, konkret & fotorealistik.\n3. **Siapkan Prompt Image** ekstrak prompt final untuk Imagen.\n4. **Nano Banana Image** generate 1 gambar spesifik via Gemini Imagen (`gemini-3.1-flash-lite-image:generateContent`).\n5. **Hasil Image** ambil base64; bila gagal kembalikan `{ ok: false, status: 'error', message }`.\n6. **Image OK?** bila sukses balas HTTP 200, bila gagal balas HTTP 502."
       }
     },
     {
@@ -41,8 +41,8 @@
       }
     },
     {
-      "id": "n-siapkan-prompt-image",
-      "name": "Siapkan Prompt Image",
+      "id": "n-siapkan-prompt-gemini",
+      "name": "Siapkan Prompt Gemini",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -50,7 +50,49 @@
         360
       ],
       "parameters": {
-        "jsCode": "// PRD F6b — Siapkan prompt gambar konkret berdasarkan section title & text untuk webhook supermat-image\nconst body = $json.body || {};\nconst sectionTitle = String(body.sectionTitle || '').trim();\nconst sectionText = String(body.sectionText || '').trim();\nconst style = String(body.style || 'foto editorial realistis, pencahayaan natural, warna hangat, tanpa teks atau logo di dalam gambar').trim();\nconst aspect = String(body.aspect || '4:3').trim();\nconst alt = String(body.alt || sectionTitle || 'Ilustrasi artikel').trim();\n\n// Tulis prompt dalam bahasa Inggris untuk text-to-image AI berdasarkan isi spesifik section\nconst promptText = `A concrete, high quality editorial illustration depicting ${sectionTitle ? `the concept of \"${sectionTitle}\"` : 'the article section'}${sectionText ? `, where ${sectionText.slice(0, 200)}` : ''}. Style: ${style}. Clean composition, natural lighting, highly detailed, no text, no watermark, no logos, no real faces.`;\n\nreturn [{ json: {\n  sectionTitle,\n  sectionText,\n  style,\n  aspect: ['16:9', '4:3', '1:1'].includes(aspect) ? aspect : '4:3',\n  alt,\n  requestId: body.requestId || ('img_' + Date.now().toString(36)),\n  prompt: promptText\n} }];\n"
+        "jsCode": "// PRD F6b — Susun prompt Gemini Text untuk merumuskan prompt gambar bahasa Inggris dari sectionTitle + sectionText\nconst body = $json.body || {};\nconst sectionTitle = String(body.sectionTitle || '').trim();\nconst sectionText = String(body.sectionText || '').trim();\nconst style = String(body.style || 'foto editorial realistis, pencahayaan natural, warna hangat, tanpa teks atau logo di dalam gambar').trim();\nconst aspect = ['16:9', '4:3', '1:1'].includes(String(body.aspect).trim()) ? String(body.aspect).trim() : '4:3';\nconst alt = String(body.alt || sectionTitle || 'Ilustrasi artikel').trim();\nconst requestId = String(body.requestId || ('img_' + Date.now().toString(36)));\n\nconst sysPrompt = `Kamu editor visual dan prompt engineer text-to-image AI profesional.\nTugasmu: Tulis satu deskripsi prompt gambar dalam bahasa Inggris yang konkret, detail, dan fotorealistik berdasarkan JUDUL BAGIAN dan ISI BAGIAN artikel.\n\nAturan prompt:\n- Bahasa Inggris, 30–60 kata.\n- Deskripsikan subjek konkret, latar/setting tempat, pencahayaan alami, komposisi kamera, dan suasana (mood) yang mencerminkan inti materi bagian tersebut.\n- Gaya visual: ${style}.\n- Dilarang menambahkan teks, tulisan, huruf, angka, kata-kata, watermark, logo, atau wajah tokoh nyata di dalam gambar.\n- Hindari konsep abstrak atau metafora yang ambigu. Buat pemandangan nyata yang logis.\n- Sesuaikan konteks Indonesia bila relevan.\n- Kembalikan HANYA teks prompt bahasa Inggris tersebut tanpa pengantar, tanpa tanda kutip, tanpa markdown.`;\n\nconst userContent = `Judul Bagian: ${sectionTitle || '(tanpa judul)'}\\nIsi / Ringkasan Bagian: ${sectionText || '(tanpa teks penjelasan)'}`;\n\nreturn [{ json: {\n  sectionTitle,\n  sectionText,\n  style,\n  aspect,\n  alt,\n  requestId,\n  geminiBody: {\n    contents: [{\n      parts: [\n        { text: sysPrompt + '\\n\\n' + userContent }\n      ]\n    }],\n    generationConfig: {\n      temperature: 0.4,\n      maxOutputTokens: 256\n    }\n  }\n} }];\n"
+      }
+    },
+    {
+      "id": "n-gemini-prompt-writer",
+      "name": "Gemini Prompt Writer",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -20,
+        360
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.geminiBody) }}",
+        "options": {
+          "timeout": 45000
+        }
+      },
+      "credentials": {
+        "googlePalmApi": {
+          "id": "X4qY80NDFbDxQZZU",
+          "name": "Google Gemini(PaLM) Api Veri"
+        }
+      }
+    },
+    {
+      "id": "n-siapkan-prompt-image",
+      "name": "Siapkan Prompt Image",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        200,
+        360
+      ],
+      "parameters": {
+        "jsCode": "// PRD F6b — Ambil deskripsi prompt gambar hasil rumusan Gemini Text untuk diproses oleh Nano Banana (Imagen)\nconst meta = $('Siapkan Prompt Gemini').first().json || {};\nconst res = $input.first().json || {};\nconst parts = (((res.candidates || [])[0] || {}).content || {}).parts || [];\nconst rawPrompt = parts.map(p => p.text || '').join('').trim();\nconst fallbackPrompt = `A concrete, high quality editorial illustration depicting the concept of \"${meta.sectionTitle || 'the article topic'}\". Style: ${meta.style}. Natural lighting, detailed composition, no text, no watermark, no logos.`;\nconst finalPrompt = rawPrompt || fallbackPrompt;\n\nreturn [{ json: {\n  sectionTitle: meta.sectionTitle,\n  sectionText: meta.sectionText,\n  style: meta.style,\n  aspect: meta.aspect,\n  alt: meta.alt,\n  requestId: meta.requestId,\n  prompt: finalPrompt\n} }];\n"
       }
     },
     {
@@ -59,7 +101,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        20,
+        420,
         360
       ],
       "onError": "continueRegularOutput",
@@ -93,11 +135,45 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        260,
+        640,
         360
       ],
       "parameters": {
-        "jsCode": "// PRD F6b — Proses respons Nano Banana (Gemini image) untuk webhook supermat-image\nconst meta = $('Siapkan Prompt Image').first().json || {};\nconst res = $input.first().json || {};\nconst parts = (((res.candidates || [])[0] || {}).content || {}).parts || [];\nconst img = parts.find(p => (p.inlineData && p.inlineData.data) || (p.inline_data && p.inline_data.data));\n\nif (!img) {\n  const errMsg = (res.error && res.error.message) ? res.error.message : 'Gagal membuat gambar dari model AI Imagen';\n  return [{ json: {\n    ok: false,\n    error: errMsg,\n    requestId: meta.requestId\n  } }];\n}\n\nconst d = img.inlineData || img.inline_data;\nconst mime = d.mimeType || d.mime_type || 'image/png';\nconst b64 = d.data;\n\nreturn [{ json: {\n  ok: true,\n  image: {\n    base64: b64,\n    mime,\n    alt: meta.alt,\n    aspect: meta.aspect,\n    sectionTitle: meta.sectionTitle\n  },\n  requestId: meta.requestId\n} }];\n"
+        "jsCode": "// PRD F6b — Proses respons Nano Banana (Gemini image) untuk webhook supermat-image\nconst meta = $('Siapkan Prompt Image').first().json || {};\nconst res = $input.first().json || {};\nconst parts = (((res.candidates || [])[0] || {}).content || {}).parts || [];\nconst img = parts.find(p => (p.inlineData && p.inlineData.data) || (p.inline_data && p.inline_data.data));\n\nif (!img) {\n  const errMsg = (res.error && res.error.message) ? res.error.message : 'Gagal membuat gambar dari model AI Imagen';\n  return [{ json: {\n    ok: false,\n    status: 'error',\n    error: errMsg,\n    message: errMsg,\n    requestId: meta.requestId\n  } }];\n}\n\nconst d = img.inlineData || img.inline_data;\nconst mime = d.mimeType || d.mime_type || 'image/png';\nconst b64 = d.data;\n\nreturn [{ json: {\n  ok: true,\n  status: 'ok',\n  image: {\n    base64: b64,\n    mime,\n    alt: meta.alt,\n    aspect: meta.aspect,\n    sectionTitle: meta.sectionTitle\n  },\n  requestId: meta.requestId\n} }];\n"
+      }
+    },
+    {
+      "id": "n-image-ok-",
+      "name": "Image OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        860,
+        360
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       }
     },
     {
@@ -106,18 +182,57 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        500,
-        360
+        1080,
+        260
       ],
       "parameters": {
         "respondWith": "json",
         "responseBody": "={{ JSON.stringify($json) }}",
         "options": {}
       }
+    },
+    {
+      "id": "n-respond-error",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1080,
+        460
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 502
+        }
+      }
     }
   ],
   "connections": {
     "Webhook Image": {
+      "main": [
+        [
+          {
+            "node": "Siapkan Prompt Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Siapkan Prompt Gemini": {
+      "main": [
+        [
+          {
+            "node": "Gemini Prompt Writer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Prompt Writer": {
       "main": [
         [
           {
@@ -154,7 +269,25 @@
       "main": [
         [
           {
+            "node": "Image OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image OK?": {
+      "main": [
+        [
+          {
             "node": "Respond Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error",
             "type": "main",
             "index": 0
           }

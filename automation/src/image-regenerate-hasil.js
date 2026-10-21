@@ -8,7 +8,9 @@ if (!img) {
   const errMsg = (res.error && res.error.message) ? res.error.message : 'Gagal membuat gambar dari model AI Imagen';
   return [{ json: {
     ok: false,
+    status: 'error',
     error: errMsg,
+    message: errMsg,
     requestId: meta.requestId
   } }];
 }
@@ -19,6 +21,7 @@ const b64 = d.data;
 
 return [{ json: {
   ok: true,
+  status: 'ok',
   image: {
     base64: b64,
     mime,

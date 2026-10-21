@@ -30,7 +30,7 @@ const CRED = {
 const sticky = (name, pos, w, h, color, content) => ({ id: 'st-' + name.replace(/\W+/g, '-').toLowerCase(), name, type: 'n8n-nodes-base.stickyNote', typeVersion: 1, position: pos, parameters: { width: w, height: h, color, content } });
 const codeNode = (name, pos, js, extra = {}) => ({ id: 'n-' + name.replace(/\W+/g, '-').toLowerCase(), name, type: 'n8n-nodes-base.code', typeVersion: 2, position: pos, parameters: { jsCode: js }, ...extra });
 const ifBool = (name, pos, expr) => ({ id: 'n-' + name.replace(/\W+/g, '-').toLowerCase(), name, type: 'n8n-nodes-base.if', typeVersion: 2.2, position: pos, parameters: { conditions: { options: { caseSensitive: true, leftValue: '', typeValidation: 'loose', version: 2 }, conditions: [{ id: 'c1', leftValue: expr, rightValue: true, operator: { type: 'boolean', operation: 'true', singleValue: true } }], combinator: 'and' }, options: {} } });
-const respond = (name, pos, body, codeExpr) => ({ id: 'n-' + name.replace(/\W+/g, '-').toLowerCase(), name, type: 'n8n-nodes-base.respondToWebhook', typeVersion: 1.1, position: pos, parameters: { respondWith: 'json', responseBody: body, options: codeExpr ? { responseCode: codeExpr } : {} } });
+const respond = (name, pos, body, codeExpr) => ({ id: 'n-' + name.replace(/\W+/g, '-').toLowerCase(), name, type: 'n8n-nodes-base.respondToWebhook', typeVersion: 1.1, position: pos, parameters: { respondWith: 'json', responseBody: body, options: codeExpr !== undefined ? { responseCode: isNaN(Number(codeExpr)) ? codeExpr : Number(codeExpr) } : {} } });
 const respondFirst = (name, pos, codeExpr) => ({ id: 'n-' + name.replace(/\W+/g, '-').toLowerCase(), name, type: 'n8n-nodes-base.respondToWebhook', typeVersion: 1.1, position: pos, parameters: { respondWith: 'firstIncomingItem', options: codeExpr ? { responseCode: codeExpr } : {} } });
 const httpNode = (name, pos, params, extra = {}) => ({ id: 'n-' + name.replace(/\W+/g, '-').toLowerCase(), name, type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: pos, onError: 'continueRegularOutput', parameters: params, ...extra });
 const conn = (pairs) => { const c = {}; for (const [from, to, out = 0] of pairs) { c[from] = c[from] || { main: [] }; while (c[from].main.length <= out) c[from].main.push([]); c[from].main[out].push({ node: to, type: 'main', index: 0 }); } return c; };
@@ -324,12 +324,20 @@ Input dari Main: \`{ cms:{shopify:{shop:'namatoko.myshopify.com', accessToken? |
 // =====================================================================
 // WEBHOOK REGENERASI / PENAMBAHAN GAMBAR KONTEKSTUAL (PRD F6b §3.4 & §4.10)
 // =====================================================================
+// =====================================================================
+// WEBHOOK REGENERASI / PENAMBAHAN GAMBAR KONTEKSTUAL (PRD F6b §3.4 & §4.10)
+// =====================================================================
 function buildImageWorkflow() {
   const Y = 360;
   const nodes = [
-    sticky('Sticky Image', [-520, 100], 1600, 500, 3, `## 🎨 Webhook Regenerasi Gambar Kontekstual (\`/webhook/supermat-image\`)
+    sticky('Sticky Image', [-520, 100], 1900, 520, 3, `## 🎨 Webhook Regenerasi Gambar Kontekstual (\`/webhook/supermat-image\`)
 Input: \`{ sectionTitle, sectionText, style, aspect, alt, requestId, keyword, Client_Name }\`.
-Membuat 1 gambar spesifik via Gemini Imagen (\`gemini-3.1-flash-lite-image:generateContent\`) menggunakan kredensial Gemini image yang sama. Output: \`{ ok: true, image: { base64, mime, alt, aspect, sectionTitle }, requestId }\`.`),
+1. **Siapkan Prompt Gemini** susun prompt perumusan deskripsi visual berbasis H2/section.
+2. **Gemini Prompt Writer** rumuskan prompt bahasa Inggris deskriptif, konkret & fotorealistik.
+3. **Siapkan Prompt Image** ekstrak prompt final untuk Imagen.
+4. **Nano Banana Image** generate 1 gambar spesifik via Gemini Imagen (\`gemini-3.1-flash-lite-image:generateContent\`).
+5. **Hasil Image** ambil base64; bila gagal kembalikan \`{ ok: false, status: 'error', message }\`.
+6. **Image OK?** bila sukses balas HTTP 200, bila gagal balas HTTP 502.`),
     {
       id: 'n-webhook-image',
       name: 'Webhook Image',
@@ -345,8 +353,19 @@ Membuat 1 gambar spesifik via Gemini Imagen (\`gemini-3.1-flash-lite-image:gener
       },
       credentials: CRED.supermatKey
     },
-    codeNode('Siapkan Prompt Image', [-240, Y], code('image-regenerate-siapkan.js')),
-    httpNode('Nano Banana Image', [20, Y], {
+    codeNode('Siapkan Prompt Gemini', [-240, Y], code('image-regenerate-siapkan-prompt.js')),
+    httpNode('Gemini Prompt Writer', [-20, Y], {
+      method: 'POST',
+      url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+      authentication: 'predefinedCredentialType',
+      nodeCredentialType: 'googlePalmApi',
+      sendBody: true,
+      specifyBody: 'json',
+      jsonBody: '={{ JSON.stringify($json.geminiBody) }}',
+      options: { timeout: 45000 }
+    }, { credentials: CRED.gemini }),
+    codeNode('Siapkan Prompt Image', [200, Y], code('image-regenerate-siapkan.js')),
+    httpNode('Nano Banana Image', [420, Y], {
       method: 'POST',
       url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-image:generateContent',
       authentication: 'genericCredentialType',
@@ -359,18 +378,24 @@ Membuat 1 gambar spesifik via Gemini Imagen (\`gemini-3.1-flash-lite-image:gener
         timeout: 120000
       }
     }, { credentials: CRED.geminiImage }),
-    codeNode('Hasil Image', [260, Y], code('image-regenerate-hasil.js')),
-    respond('Respond Image', [500, Y], '={{ JSON.stringify($json) }}')
+    codeNode('Hasil Image', [640, Y], code('image-regenerate-hasil.js')),
+    ifBool('Image OK?', [860, Y], '={{ $json.ok }}'),
+    respond('Respond Image', [1080, Y - 100], '={{ JSON.stringify($json) }}'),
+    respond('Respond Error', [1080, Y + 100], '={{ JSON.stringify($json) }}', '502')
   ];
 
   return {
     name: 'Supermat Webhook: Regenerate Image',
     nodes,
     connections: conn([
-      ['Webhook Image', 'Siapkan Prompt Image'],
+      ['Webhook Image', 'Siapkan Prompt Gemini'],
+      ['Siapkan Prompt Gemini', 'Gemini Prompt Writer'],
+      ['Gemini Prompt Writer', 'Siapkan Prompt Image'],
       ['Siapkan Prompt Image', 'Nano Banana Image'],
       ['Nano Banana Image', 'Hasil Image'],
-      ['Hasil Image', 'Respond Image']
+      ['Hasil Image', 'Image OK?'],
+      ['Image OK?', 'Respond Image', 0],
+      ['Image OK?', 'Respond Error', 1]
     ]),
     settings: { executionOrder: 'v1' }
   };
