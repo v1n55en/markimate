@@ -66,18 +66,22 @@ Backend untuk web app **Supermat** (supermat-three.vercel.app). Semua kunci rise
     codeNode('Auth & Normalize', [-240, Y1], code('main-auth-generate.js')),
     ifBool('Auth OK?', [-20, Y1], '={{ $json.ok }}'),
     respond('Respond Error', [200, Y1 + 200], ERR_BODY, ERR_CODE),
+    ifBool('Ada CallbackUrl?', [80, Y1 - 80], '={{ !!($json.callbackUrl || $("Auth & Normalize").first().json.callbackUrl) }}'),
+    respond('Respond Accepted', [280, Y1 - 80], "={{ JSON.stringify({ status: 'accepted', accepted: true, requestId: $json.requestId }) }}", 202),
     codeNode('Cek Duplikat', [200, Y1 - 160], code('main-cek-duplikat.js')),
     ifBool('Duplikat?', [420, Y1 - 160], '={{ $json.duplicate }}'),
-    respond('Respond Duplicate', [640, Y1 - 320], "={{ JSON.stringify({ status: 'duplicate', message: $json.error, duplicateOf: $json.duplicateOf, existingPostsChecked: $json.existingPostsChecked, requestId: $json.requestId }) }}", '409'),
+    respond('Respond Duplicate', [640, Y1 - 320], "={{ JSON.stringify({ status: 'duplicate', message: $json.error, duplicateOf: $json.duplicateOf, existingPostsChecked: $json.existingPostsChecked, requestId: $json.requestId }) }}", 409),
+    httpNode('Kirim Callback Duplicate', [860, Y1 - 320], { method: 'POST', url: "={{ $json.callbackUrl || $('Auth & Normalize').first().json.callbackUrl }}", authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth', sendBody: true, specifyBody: 'json', jsonBody: "={{ JSON.stringify({ status: 'duplicate', duplicate: true, requestId: $json.requestId || $('Auth & Normalize').first().json.requestId, duplicateOf: $json.duplicateOf, message: $json.error }) }}", options: { timeout: 30000 } }, { credentials: CRED.supermatKey }),
     { id: 'n-riset-trends', name: 'Riset Google Trends', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [200, Y1], credentials: CRED.serpapi, onError: 'continueRegularOutput', parameters: { url: 'https://serpapi.com/search.json', authentication: 'genericCredentialType', genericAuthType: 'httpQueryAuth', sendQuery: true, queryParameters: { parameters: [
       { name: 'engine', value: 'google_trends' }, { name: 'q', value: '={{ $json.keyword }}' }, { name: 'geo', value: '={{ $json.geo }}' }, { name: 'hl', value: '={{ $json.ln }}' },
       { name: 'date', value: 'today 3-m' }, { name: 'data_type', value: 'RELATED_QUERIES' } ] }, options: { timeout: 30000 } } },
-    { id: 'n-riset-autocomplete', name: 'Riset Autocomplete', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [420, Y1], credentials: CRED.serpapi, onError: 'continueRegularOutput', parameters: { url: 'https://serpapi.com/search.json', authentication: 'genericCredentialType', genericAuthType: 'httpQueryAuth', sendQuery: true, queryParameters: { parameters: [
+    ifBool('Trends Kosong?', [380, Y1], '={{ !($json.related_queries?.rising?.length || $json.related_queries?.top?.length) }}'),
+    { id: 'n-riset-autocomplete', name: 'Riset Autocomplete', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [540, Y1 - 80], credentials: CRED.serpapi, onError: 'continueRegularOutput', parameters: { url: 'https://serpapi.com/search.json', authentication: 'genericCredentialType', genericAuthType: 'httpQueryAuth', sendQuery: true, queryParameters: { parameters: [
       { name: 'engine', value: 'google_autocomplete' }, { name: 'q', value: "={{ $('Auth & Normalize').first().json.keyword }}" }, { name: 'gl', value: "={{ $('Auth & Normalize').first().json.geo.toLowerCase() }}" }, { name: 'hl', value: "={{ $('Auth & Normalize').first().json.ln }}" } ] }, options: { timeout: 30000 } } },
-    codeNode('Pilih Kandidat', [640, Y1], code('main-pilih-kandidat.js')),
-    { id: 'n-riset-svolume', name: 'Riset SVolume', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [860, Y1], credentials: CRED.rapidapi, onError: 'continueRegularOutput', parameters: { url: 'https://ahrefs-keyword-research.p.rapidapi.com/keyword-metrics', authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth', sendQuery: true, queryParameters: { parameters: [{ name: 'keyword', value: '={{ $json.query }}' }, { name: 'country', value: "={{ $('Auth & Normalize').first().json.geo.toLowerCase() }}" }] }, sendHeaders: true, headerParameters: { parameters: [{ name: 'x-rapidapi-host', value: 'ahrefs-keyword-research.p.rapidapi.com' }] }, options: { batching: { batch: { batchSize: 1, batchInterval: 800 } }, timeout: 30000 } } },
-    codeNode('Tentukan Target', [1080, Y1], code('main-tentukan-target.js')),
-    { id: 'n-ai-agent', name: 'AI Agent', type: '@n8n/n8n-nodes-langchain.agent', typeVersion: 3.1, position: [1300, Y1], parameters: { promptType: 'define', text: `=Tulis satu artikel blog SEO lengkap (struktur SILO) untuk keyword utama: {{ $json.targetKeyword }}.
+    codeNode('Pilih Kandidat', [720, Y1], code('main-pilih-kandidat.js')),
+    { id: 'n-riset-svolume', name: 'Riset SVolume', type: 'n8n-nodes-base.httpRequest', typeVersion: 4.2, position: [920, Y1], credentials: CRED.rapidapi, onError: 'continueRegularOutput', parameters: { url: 'https://ahrefs-keyword-research.p.rapidapi.com/keyword-metrics', authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth', sendQuery: true, queryParameters: { parameters: [{ name: 'keyword', value: '={{ $json.query }}' }, { name: 'country', value: "={{ $('Auth & Normalize').first().json.geo.toLowerCase() }}" }] }, sendHeaders: true, headerParameters: { parameters: [{ name: 'x-rapidapi-host', value: 'ahrefs-keyword-research.p.rapidapi.com' }] }, options: { batching: { batch: { batchSize: 3, batchInterval: 0 } }, timeout: 8000 } } },
+    codeNode('Tentukan Target', [1120, Y1], code('main-tentukan-target.js')),
+    { id: 'n-ai-agent', name: 'AI Agent', type: '@n8n/n8n-nodes-langchain.agent', typeVersion: 3.1, position: [1340, Y1], parameters: { promptType: 'define', text: `=Tulis satu artikel blog SEO lengkap (struktur SILO) untuk keyword utama: {{ $json.targetKeyword }}.
 Keyword asal yang diminta klien: {{ $json.keyword }}. Brand/klien: {{ $json.clientName }}{{ $json.niche ? ' (bidang: ' + $json.niche + ')' : '' }}.
 Negara target: {{ $json.geo }} · Bahasa artikel: {{ $json.ln === 'id' ? 'Bahasa Indonesia' : $json.ln }}.{{ $json.tone ? ' ' + $json.tone + '.' : '' }}
 Panjang WAJIB: minimal {{ $json.wordCount }} kata (hitung dengan cermat, jangan kurang), maksimal {{ Math.round($json.wordCount * 1.3) }} kata.{{ $json.wordCount >= 2000 ? ' Artikel ini merupakan PILLAR CONTENT mendalam: wajib menyertakan daftar isi (Table of Contents) di awal body dan minimal 6 sub-bab H2 yang terstruktur komprehensif.' : '' }}
@@ -119,21 +123,24 @@ FORMAT OUTPUT (WAJIB)
 Kembalikan HANYA satu objek JSON valid: {"title": string, "slug": string, "excerpt": string, "body": string}
 - Tanpa code fence, tanpa teks lain. Harus bisa di-parse JSON.parse().
 - Semua field non-kosong. slug: huruf kecil, dipisah tanda hubung. body: markdown lengkap dengan heading ## dan ###, di-escape dengan benar.` } } },
-    { id: 'n-gemini', name: 'Gemini Writer', type: '@n8n/n8n-nodes-langchain.lmChatGoogleGemini', typeVersion: 1, position: [1220, Y1 + 220], credentials: CRED.gemini, parameters: { modelName: 'models/gemini-3.1-flash-lite', options: { temperature: 0.7 } } },
-    { id: 'n-search-tool', name: 'Google Search Riset', type: 'n8n-nodes-base.httpRequestTool', typeVersion: 4.3, position: [1420, Y1 + 220], credentials: CRED.serpapi, parameters: { toolDescription: 'Cari informasi faktual terkini dari Google tentang sebuah topik/keyword. Gunakan untuk mengumpulkan fakta, data, statistik, dan referensi nyata sebelum menulis artikel.', url: 'https://serpapi.com/search.json', authentication: 'genericCredentialType', genericAuthType: 'httpQueryAuth', sendQuery: true, queryParameters: { parameters: [
+    { id: 'n-gemini', name: 'Gemini Writer', type: '@n8n/n8n-nodes-langchain.lmChatGoogleGemini', typeVersion: 1, position: [1260, Y1 + 220], credentials: CRED.gemini, parameters: { modelName: 'models/gemini-3.1-flash-lite', options: { temperature: 0.7 } } },
+    { id: 'n-search-tool', name: 'Google Search Riset', type: 'n8n-nodes-base.httpRequestTool', typeVersion: 4.3, position: [1460, Y1 + 220], credentials: CRED.serpapi, parameters: { toolDescription: 'Cari informasi faktual terkini dari Google tentang sebuah topik/keyword. Gunakan untuk mengumpulkan fakta, data, statistik, dan referensi nyata sebelum menulis artikel.', url: 'https://serpapi.com/search.json', authentication: 'genericCredentialType', genericAuthType: 'httpQueryAuth', sendQuery: true, queryParameters: { parameters: [
       { name: 'engine', value: 'google' },
       { name: 'q', value: "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('q', `Kata kunci atau pertanyaan pencarian Google untuk mengumpulkan fakta/data tentang topik artikel.`, 'string') }}" },
       { name: 'gl', value: "={{ $('Tentukan Target').first().json.geoLower }}" }, { name: 'hl', value: "={{ $('Tentukan Target').first().json.ln }}" }, { name: 'num', value: '8' } ] }, options: {}, optimizeResponse: true, dataField: 'organic_results' } },
-    codeNode('Susun Artikel', [1640, Y1], code('main-susun-artikel.js')),
-    ifBool('Artikel OK?', [1860, Y1], '={{ $json.ok }}'),
-    ifBool('Perlu Link/Gambar?', [2080, Y1], "={{ $('Cek Duplikat').first().json.needEnrich }}"),
-    httpNode('Cari Sumber Eksternal', [2300, Y1 - 160], { url: 'https://serpapi.com/search.json', authentication: 'genericCredentialType', genericAuthType: 'httpQueryAuth', sendQuery: true, queryParameters: { parameters: [
-      { name: 'engine', value: 'google' }, { name: 'q', value: "={{ $('Susun Artikel').first().json.article.primaryKeyword || $('Cek Duplikat').first().json.keyword }}" }, { name: 'gl', value: "={{ $('Cek Duplikat').first().json.geo.toLowerCase() }}" }, { name: 'hl', value: "={{ $('Cek Duplikat').first().json.ln }}" }, { name: 'num', value: '10' } ] }, options: { timeout: 30000 } }, { credentials: CRED.serpapi }),
-    codeNode('Siapkan Prompt Link', [2520, Y1 - 160], code('main-siapkan-prompt-link.js')),
-    httpNode('Gemini Link & Gambar', [2740, Y1 - 160], { method: 'POST', url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', authentication: 'predefinedCredentialType', nodeCredentialType: 'googlePalmApi', sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json.geminiBody) }}', options: { timeout: 120000 } }, { credentials: CRED.gemini }),
-    codeNode('Terapkan Link & Gambar', [2960, Y1 - 160], code('main-terapkan-link.js')),
-    respondFirst('Respond Generate', [3200, Y1]),
-    respond('Respond AI Error', [2300, Y1 + 200], ERR_BODY, ERR_CODE),
+    codeNode('Susun Artikel', [1680, Y1], code('main-susun-artikel.js')),
+    ifBool('Artikel OK?', [1900, Y1], '={{ $json.ok }}'),
+    ifBool('Perlu Link/Gambar?', [2120, Y1], "={{ $('Cek Duplikat').first().json.needEnrich }}"),
+    httpNode('Cari Sumber Eksternal', [2340, Y1 - 160], { url: 'https://serpapi.com/search.json', authentication: 'genericCredentialType', genericAuthType: 'httpQueryAuth', sendQuery: true, queryParameters: { parameters: [
+      { name: 'engine', value: 'google' }, { name: 'q', value: "={{ $('Susun Artikel').first().json.article.primaryKeyword || $('Cek Duplikat').first().json.keyword }}" }, { name: 'gl', value: "={{ $('Cek Duplikat').first().json.geo.toLowerCase() }}" }, { name: 'hl', value: "={{ $('Cek Duplikat').first().json.ln }}" }, { name: 'num', value: '10' } ] }, options: { timeout: 10000 } }, { credentials: CRED.serpapi }),
+    codeNode('Siapkan Prompt Link', [2560, Y1 - 160], code('main-siapkan-prompt-link.js')),
+    httpNode('Gemini Link & Gambar', [2780, Y1 - 160], { method: 'POST', url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', authentication: 'predefinedCredentialType', nodeCredentialType: 'googlePalmApi', sendBody: true, specifyBody: 'json', jsonBody: '={{ JSON.stringify($json.geminiBody) }}', options: { timeout: 120000 } }, { credentials: CRED.gemini }),
+    codeNode('Terapkan Link & Gambar', [3000, Y1 - 160], code('main-terapkan-link.js')),
+    ifBool('Ada Callback Selesai?', [3220, Y1], '={{ !!($json.callbackUrl || $("Auth & Normalize").first().json.callbackUrl) }}'),
+    httpNode('Kirim Callback', [3440, Y1], { method: 'POST', url: "={{ $json.callbackUrl || $('Auth & Normalize').first().json.callbackUrl }}", authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth', sendBody: true, specifyBody: 'json', jsonBody: "={{ JSON.stringify({ status: 'ok', requestId: $json.requestId || $('Auth & Normalize').first().json.requestId, article: $json.article, usage: $json.usage || null, research: $json.research || null }) }}", options: { timeout: 30000 } }, { credentials: CRED.supermatKey }),
+    respondFirst('Respond Generate', [3440, Y1 + 160]),
+    respond('Respond AI Error', [2120, Y1 + 200], ERR_BODY, ERR_CODE),
+    httpNode('Kirim Callback Error', [2340, Y1 + 200], { method: 'POST', url: "={{ $json.callbackUrl || $('Auth & Normalize').first().json.callbackUrl }}", authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth', sendBody: true, specifyBody: 'json', jsonBody: "={{ JSON.stringify({ status: 'error', error: $json.error || $json.message || 'AI generation failed', requestId: $json.requestId || $('Auth & Normalize').first().json.requestId }) }}", options: { timeout: 30000 } }, { credentials: CRED.supermatKey }),
 
     // ---- publish path ----
     { id: 'n-webhook-publish', name: 'Webhook Publish', type: 'n8n-nodes-base.webhook', typeVersion: 2, position: [-460, Y2], webhookId: '12f6c704-5949-4562-b019-0697ff10a265', parameters: { httpMethod: 'POST', path: 'supermat-publish', authentication: 'headerAuth', responseMode: 'responseNode', options: {} }, credentials: CRED.supermatKey },
@@ -195,12 +202,37 @@ return [{ json: {
   ];
   const connections = {
     ...conn([
-      ['Webhook Generate', 'Auth & Normalize'], ['Auth & Normalize', 'Auth OK?'], ['Auth OK?', 'Cek Duplikat', 0], ['Auth OK?', 'Respond Error', 1],
-      ['Cek Duplikat', 'Duplikat?'], ['Duplikat?', 'Respond Duplicate', 0], ['Duplikat?', 'Riset Google Trends', 1],
-      ['Riset Google Trends', 'Riset Autocomplete'], ['Riset Autocomplete', 'Pilih Kandidat'], ['Pilih Kandidat', 'Riset SVolume'], ['Riset SVolume', 'Tentukan Target'], ['Tentukan Target', 'AI Agent'], ['AI Agent', 'Susun Artikel'],
-      ['Susun Artikel', 'Artikel OK?'], ['Artikel OK?', 'Perlu Link/Gambar?', 0], ['Artikel OK?', 'Respond AI Error', 1],
-      ['Perlu Link/Gambar?', 'Cari Sumber Eksternal', 0], ['Perlu Link/Gambar?', 'Respond Generate', 1],
-      ['Cari Sumber Eksternal', 'Siapkan Prompt Link'], ['Siapkan Prompt Link', 'Gemini Link & Gambar'], ['Gemini Link & Gambar', 'Terapkan Link & Gambar'], ['Terapkan Link & Gambar', 'Respond Generate'],
+      ['Webhook Generate', 'Auth & Normalize'],
+      ['Auth & Normalize', 'Auth OK?'],
+      ['Auth OK?', 'Ada CallbackUrl?', 0],
+      ['Auth OK?', 'Respond Error', 1],
+      ['Ada CallbackUrl?', 'Respond Accepted', 0],
+      ['Respond Accepted', 'Cek Duplikat'],
+      ['Ada CallbackUrl?', 'Cek Duplikat', 1],
+      ['Cek Duplikat', 'Duplikat?'],
+      ['Duplikat?', 'Respond Duplicate', 0],
+      ['Respond Duplicate', 'Kirim Callback Duplicate'],
+      ['Duplikat?', 'Riset Google Trends', 1],
+      ['Riset Google Trends', 'Trends Kosong?'],
+      ['Trends Kosong?', 'Riset Autocomplete', 0],
+      ['Trends Kosong?', 'Pilih Kandidat', 1],
+      ['Riset Autocomplete', 'Pilih Kandidat'],
+      ['Pilih Kandidat', 'Riset SVolume'],
+      ['Riset SVolume', 'Tentukan Target'],
+      ['Tentukan Target', 'AI Agent'],
+      ['AI Agent', 'Susun Artikel'],
+      ['Susun Artikel', 'Artikel OK?'],
+      ['Artikel OK?', 'Perlu Link/Gambar?', 0],
+      ['Artikel OK?', 'Respond AI Error', 1],
+      ['Respond AI Error', 'Kirim Callback Error'],
+      ['Perlu Link/Gambar?', 'Cari Sumber Eksternal', 0],
+      ['Perlu Link/Gambar?', 'Ada Callback Selesai?', 1],
+      ['Cari Sumber Eksternal', 'Siapkan Prompt Link'],
+      ['Siapkan Prompt Link', 'Gemini Link & Gambar'],
+      ['Gemini Link & Gambar', 'Terapkan Link & Gambar'],
+      ['Terapkan Link & Gambar', 'Ada Callback Selesai?'],
+      ['Ada Callback Selesai?', 'Kirim Callback', 0],
+      ['Ada Callback Selesai?', 'Respond Generate', 1],
       ['Webhook Publish', 'Auth & Normalize (Publish)'], ['Auth & Normalize (Publish)', 'Auth OK (Publish)?'], ['Auth OK (Publish)?', 'Buat Gambar?', 0], ['Auth OK (Publish)?', 'Respond Error (Publish)', 1],
       ['Buat Gambar?', 'Siapkan Prompt Gambar', 0], ['Buat Gambar?', 'CMS Router', 1], ['Siapkan Prompt Gambar', 'Nano Banana'], ['Nano Banana', 'Kumpulkan Gambar'], ['Kumpulkan Gambar', 'CMS Router'],
       ['CMS Router', 'Adapter: WordPress', 0], ['CMS Router', 'Adapter: Wix', 1], ['CMS Router', 'Adapter: Sanity', 2], ['CMS Router', 'Adapter: Shopify', 3], ['CMS Router', 'Respond CMS Tidak Didukung', 4],

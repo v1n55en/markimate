@@ -383,6 +383,11 @@ export const ERROR_CODES = {
     code: 'IMAGE_GENERATION_FAILED',
     status: 502,
     message: 'Failed to generate image from AI model.'
+  },
+  GENERATE_TIMEOUT: {
+    code: 'GENERATE_TIMEOUT',
+    status: 504,
+    message: 'Article generation timed out (exceeded 10 minutes).'
   }
 };
 

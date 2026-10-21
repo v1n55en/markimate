@@ -20,6 +20,7 @@ return [{ json: {
   tone: String(body.tone || '').trim(),
   wordCount: Math.min(Math.max(Number(body.wordCount) || 800, 400), 2500),
   requestId: String(body.requestId || ('req_' + Date.now().toString(36))),
+  callbackUrl: String(body.callbackUrl || '').trim(),
   // --- Fase 6 & PRD F6b: CMS (opsional) untuk cek duplikat & internal link + opsi artikel ---
   cmsType: ['wordpress', 'wix', 'sanity', 'shopify'].includes(String(body.cmsType || '').toLowerCase()) ? String(body.cmsType).toLowerCase() : '',
   cms: body.cms && typeof body.cms === 'object' ? body.cms : {},

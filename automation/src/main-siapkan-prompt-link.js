@@ -13,11 +13,21 @@ const existing = (D.existingPosts || []).filter(p => p.url && p.title && String(
 const scored = existing.map(p => ({ p, s: topicSimilarity(p.title, A.title + ' ' + (A.keywords || []).join(' ')) })).sort((a, b) => b.s - a.s);
 const internal = (O.internalLinks ? scored.slice(0, 30) : []).map(({ p }, i) => ({ id: 'I' + (i + 1), title: p.title, url: p.url }));
 
-// --- kandidat eksternal: organic results SerpAPI minus domain yang dikecualikan & domain brand sendiri ---
+// --- kandidat eksternal: organic results SerpAPI (pakai ulang hasil Google Search Riset AI Agent bila Cari Sumber Eksternal kosong/timeout) ---
+let organicList = S.organic_results || [];
+if (!organicList.length) {
+  try {
+    const aiSearch = $('Google Search Riset').all();
+    for (const it of aiSearch) {
+      if (Array.isArray(it.json?.organic_results)) organicList.push(...it.json.organic_results);
+      else if (it.json?.link) organicList.push(it.json);
+    }
+  } catch (_) {}
+}
 const excl = (O.excludeDomains || []).map(d => String(d).toLowerCase());
 const own = (() => { try { return new URL(O.siteBaseUrl).hostname.replace(/^www\./, ''); } catch (e) { return ''; } })();
 const host = u => { try { return new URL(u).hostname.replace(/^www\./, '').toLowerCase(); } catch (e) { return ''; } };
-const external = (O.externalLinks ? (S.organic_results || []) : []).filter(r => r.link && host(r.link) && !excl.some(d => host(r.link).endsWith(d)) && (!own || !host(r.link).endsWith(own)))
+const external = (O.externalLinks ? organicList : []).filter(r => r.link && host(r.link) && !excl.some(d => host(r.link).endsWith(d)) && (!own || !host(r.link).endsWith(own)))
   .slice(0, 8).map((r, i) => ({ id: 'E' + (i + 1), title: r.title, url: r.link, domain: host(r.link), snippet: String(r.snippet || '').slice(0, 160) }));
 
 // Ekstrak bagian H2 dan ringkasan untuk pemilihan gambar kontekstual (PRD F6b §3.3)

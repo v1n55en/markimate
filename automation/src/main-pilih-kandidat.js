@@ -2,7 +2,7 @@
 // Seed keyword SELALU jadi kandidat pertama, jadi alur tidak pernah mati walau Trends kosong/error.
 const N = $('Auth & Normalize').first().json;
 let t = {}; try { t = $('Riset Google Trends').first().json || {}; } catch (e) {}
-const ac = $input.first().json || {}; // SerpAPI google_autocomplete
+let ac = {}; try { ac = $('Riset Autocomplete').first().json || {}; } catch (e) {} // SerpAPI google_autocomplete (opsional)
 const rq = t.related_queries || {};
 const pool = [
   ...(rq.rising || []), ...(rq.top || []),
@@ -15,5 +15,5 @@ const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const matches = q => terms.some(tm => tm.includes(' ') ? q.includes(tm) : new RegExp('\\b' + esc(tm) + '\\b', 'i').test(q));
 
 const matched = pool.filter(q => q.toLowerCase() !== seed && matches(q.toLowerCase()));
-const uniq = [...new Set([N.keyword, ...matched])].slice(0, 4);
+const uniq = [...new Set([N.keyword, ...matched])].slice(0, 3);
 return uniq.map((q, i) => ({ json: { query: q, isSeed: i === 0, source: i === 0 ? 'seed' : 'trends/autocomplete', trendsError: t.error ? String(t.error.message || t.error) : '' } }));

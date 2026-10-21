@@ -201,6 +201,27 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
   }, []);
   useEffect(() => { load(); }, [load]);
 
+  // Polling otomatis ketika ada keyword berstatus AI Writing...
+  useEffect(() => {
+    const hasWriting = keywords.some(k => k.status === 'AI Writing...');
+    if (!hasWriting) return;
+    const interval = setInterval(async () => {
+      try {
+        const d = await api('/api/keywords');
+        if (d && Array.isArray(d.keywords)) {
+          setKeywords(d.keywords);
+          const stillWriting = d.keywords.some(k => k.status === 'AI Writing...');
+          if (!stillWriting) {
+            refreshMe();
+            window.dispatchEvent(new Event('markimate:credits_updated'));
+            window.dispatchEvent(new Event('supermat:credits_updated'));
+          }
+        }
+      } catch (_) {}
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [keywords, refreshMe]);
+
   const upsertRow = (row) => setKeywords(list => list.some(k => k.id === row.id) ? list.map(k => k.id === row.id ? row : k) : [row, ...list]);
   const setBusyFor = (id, v) => setBusy(b => { const n = { ...b }; if (v) n[id] = v; else delete n[id]; return n; });
   const flash = (msg) => { setNotice(msg); setTimeout(() => setNotice(''), 4500); };

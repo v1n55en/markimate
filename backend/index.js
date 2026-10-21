@@ -2848,7 +2848,34 @@ const kwPublic = (k) => ({
 });
 const nextRun = (schedule) => { if (schedule === 'daily') return new Date(Date.now() + 86400e3).toISOString(); if (schedule === 'weekly') return new Date(Date.now() + 7 * 86400e3).toISOString(); return null; };
 
+// Penjaga status macet: tandai keyword 'AI Writing...' > 10 menit sebagai Error GENERATE_TIMEOUT
+const GENERATE_TIMEOUT_MS = 10 * 60 * 1000; // 10 menit
+async function cleanupStuckKeywords(wsId = null) {
+  try {
+    const filter = wsId ? { workspace_id: wsId, status: 'AI Writing...' } : { status: 'AI Writing...' };
+    const stuck = await db.findMany('keywords', filter);
+    const cutoff = new Date(Date.now() - GENERATE_TIMEOUT_MS).toISOString();
+    let count = 0;
+    for (const k of stuck) {
+      const runTime = k.last_run_at || k.updated_at || k.created_at;
+      if (!runTime || runTime <= cutoff) {
+        await db.update('keywords', { id: k.id }, {
+          status: 'Error',
+          error: 'GENERATE_TIMEOUT',
+          last_run_at: new Date().toISOString()
+        });
+        count++;
+      }
+    }
+    return count;
+  } catch (err) {
+    log(`[CLEANUP-STUCK] Error checking stuck keywords: ${err.message}`);
+    return 0;
+  }
+}
+
 app.get('/api/keywords', auth, requireWorkspace('viewer'), requireModule('seo'), wrap(async (req, res) => {
+  await cleanupStuckKeywords(req.workspace.id);
   const list = await db.findMany('keywords', { workspace_id: req.workspace.id }, { orderBy: 'created_at' });
   res.json({ keywords: list.map(kwPublic) });
 }));
@@ -2944,6 +2971,9 @@ async function generateFor(user, k) {
     imageHero: effectiveOptions.images.hero !== false
   };
 
+  const callbackBase = (process.env.N8N_CALLBACK_BASE_URL || process.env.APP_URL || 'https://app.markimate.com').replace(/\/+$/, '');
+  const callbackUrl = `${callbackBase}/api/n8n/callback/generate`;
+
   const payload = {
     keyword: k.keyword,
     Geo: k.geo,
@@ -2953,6 +2983,7 @@ async function generateFor(user, k) {
     tone: resolveTonePrompt(effectiveOptions.tone, k.ln || 'id'),
     wordCount: ARTICLE_LENGTHS[effectiveOptions.length]?.words || 900,
     requestId: k.id,
+    callbackUrl,
     ...(k.cms_type && connConfig ? {
       cmsType: k.cms_type,
       cms: { [k.cms_type]: connConfig }
@@ -2962,6 +2993,13 @@ async function generateFor(user, k) {
 
   try {
     const out = await callN8n(N8N_URL_RUN, payload);
+
+    // Jika mode asinkron (n8n membalas accepted 202/200), baris tetap di 'AI Writing...' menunggu webhook callback
+    if (out && (out.accepted || out.status === 'accepted')) {
+      return await db.findOne('keywords', { id: k.id });
+    }
+
+    // Fallback mode sinkron (jika mock/n8n lama langsung mengembalikan artikel):
     const article = out.article || {};
     const links = article.links || null;
     const imagePrompts = article.imagePrompts || null;
@@ -3135,11 +3173,112 @@ app.post('/api/keywords/:id/run', auth, requireWorkspace('admin'), requireModule
   const k = await db.findOne('keywords', { id: req.params.id, workspace_id: req.workspace.id });
   if (!k) throw Object.assign(new Error('Keyword not found.'), { status: 404, code: 'NOT_FOUND' });
   let row = await generateFor(req.user, k);
-  if (row.status !== 'Duplicate' && !webApproverOn(req.user)) {
-    // Free (atau Web Approver mati): langsung simpan sebagai DRAF di CMS, tanpa review
+  if (row.status !== 'Duplicate' && row.status !== 'AI Writing...' && !webApproverOn(req.user)) {
+    // Free (atau Web Approver mati): langsung simpan sebagai DRAF di CMS, tanpa review (hanya jika sinkron)
     try { row = await publishFor(req.user, row, 'draft'); } catch (e) { row = await db.findOne('keywords', { id: k.id }); row.error = e.message; }
   }
-  res.json({ keyword: kwPublic(row) });
+  const statusCode = row.status === 'AI Writing...' ? 202 : 200;
+  res.status(statusCode).json({ keyword: kwPublic(row) });
+}));
+
+// Webhook Callback Asinkron dari n8n untuk Hasil Generate Artikel
+app.post('/api/n8n/callback/generate', wrap(async (req, res) => {
+  const key = req.headers['x-supermat-key'];
+  if (!MARKIMATE_API_KEY || key !== MARKIMATE_API_KEY) {
+    return res.status(401).json({ error: 'Unauthorized callback: invalid X-Supermat-Key header.', code: 'UNAUTHORIZED' });
+  }
+
+  const b = req.body || {};
+  const requestId = b.requestId;
+  if (!requestId) {
+    return res.status(400).json({ error: 'Missing requestId parameter.', code: 'BAD_REQUEST' });
+  }
+
+  const k = await db.findOne('keywords', { id: requestId });
+  if (!k) {
+    return res.status(404).json({ error: 'Keyword not found for requestId.', code: 'NOT_FOUND' });
+  }
+
+  // Idempotensi per requestId: jika sudah pernah diproses sukses (Review Ready / Draft Created / Published dengan article), jangan potong kredit lagi
+  if (['Review Ready', 'Draft Created', 'Published'].includes(k.status) && k.article) {
+    return res.json({ ok: true, status: 'already_processed', message: 'Keyword has already been processed.' });
+  }
+
+  const wsId = k.workspace_id || k.user_id;
+  const user = await db.findOne('accounts', { id: k.user_id });
+  const creditsEnabled = process.env.CREDITS_ENABLED !== 'false';
+  const usage = b.usage || null;
+
+  // Kasus duplikat dari n8n
+  if (b.status === 'duplicate' || b.duplicate) {
+    const dup = b.duplicateOf || null;
+    await db.update('keywords', { id: k.id }, {
+      status: 'Duplicate',
+      duplicate_of: dup,
+      error: b.message || 'Duplicate topic with existing CMS article.',
+      last_run_at: new Date().toISOString(),
+      next_run_at: nextRun(k.schedule)
+    });
+    return res.json({ ok: true, status: 'duplicate_recorded', id: k.id });
+  }
+
+  // Kasus error dari n8n
+  if (b.status === 'error' || (b.error && !b.article)) {
+    const errMsg = b.error || b.message || 'Generate failed in n8n';
+    await db.update('keywords', { id: k.id }, {
+      status: 'Error',
+      error: errMsg,
+      last_run_at: new Date().toISOString(),
+      next_run_at: nextRun(k.schedule)
+    });
+    if (creditsEnabled && usage) {
+      await recordFailedUsage(wsId, 'seo.article', usage, { type: 'keyword', id: k.id, note: errMsg });
+    }
+    return res.json({ ok: false, status: 'error_recorded', id: k.id });
+  }
+
+  // Kasus sukses
+  const article = b.article || {};
+  const links = article.links || null;
+  const imagePrompts = article.imagePrompts || null;
+
+  let row = await db.update('keywords', { id: k.id }, {
+    article,
+    links,
+    image_prompts: imagePrompts,
+    volume: article.searchVolume || 0,
+    difficulty: article.difficulty,
+    status: 'Review Ready',
+    error: '',
+    last_run_at: new Date().toISOString(),
+    next_run_at: nextRun(k.schedule)
+  });
+
+  // Jika Web Approver mati: langsung publish draf ke CMS
+  if (user && !webApproverOn(user)) {
+    try {
+      row = await publishFor(user, row, 'draft');
+    } catch (pubErr) {
+      log(`[CALLBACK] Auto draft error for keyword ${k.id}: ${pubErr.message}`);
+    }
+  }
+
+  // Potong kredit HANYA kalau sukses (PRD §4.2 & PRD F6b §3.2)
+  if (creditsEnabled) {
+    const conn = k.cms_type ? await db.findOne('cms_connections', { workspace_id: wsId, cms_type: k.cms_type }) : null;
+    const artSet = conn ? normalizeArticleSettings(conn.article_settings) : normalizeArticleSettings({});
+    const effectiveOptions = resolveEffectiveArticleOptions(k.article_options, artSet);
+    const lengthKey = effectiveOptions.length || 'standard';
+    const articleActionKey = ARTICLE_LENGTHS[lengthKey]?.actionKey || 'seo.article';
+
+    await charge(wsId, articleActionKey, 1, {
+      type: 'keyword',
+      id: k.id,
+      note: `Generate artikel ${lengthKey} (${ARTICLE_LENGTHS[lengthKey]?.words || 900} kata): ${k.keyword}`
+    }, usage);
+  }
+
+  return res.json({ ok: true, status: 'processed', id: k.id });
 }));
 app.post('/api/keywords/:id/publish', auth, requireWorkspace('admin'), requireModule('seo'), requireUuidParam('id'), wrap(async (req, res) => {
   const k = await db.findOne('keywords', { id: req.params.id, workspace_id: req.workspace.id });
@@ -3660,6 +3799,14 @@ app.get('/api/cron/run-scheduled', wrap(async (req, res) => {
     if (purgedAccountsCount > 0) log(`[CRON] purgeDeletedAccounts: ${purgedAccountsCount} akun dihapus permanen`);
   } catch (err) {
     log(`[CRON] purgeDeletedAccounts error: ${err.message}`);
+  }
+
+  // 0. Penjaga status macet: tandai keyword 'AI Writing...' > 10 menit sebagai Error GENERATE_TIMEOUT
+  try {
+    const stuckCount = await cleanupStuckKeywords();
+    if (stuckCount > 0) log(`[CRON] cleanupStuckKeywords: ${stuckCount} keyword macet ditandai Error GENERATE_TIMEOUT`);
+  } catch (err) {
+    log(`[CRON] cleanupStuckKeywords error: ${err.message}`);
   }
 
   // 1. Scheduled Keywords (daily/weekly)
