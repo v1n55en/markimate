@@ -291,14 +291,46 @@ async function runCreditsTests() {
       await expireBuckets(expireWsId);
     }, /Database connection severed/);
 
-    // 2. Error PGRST202 harus ditoleransi dan beralih ke fallback bersyarat
+    // 2. Error skema/kolom Postgres (42703: undefined_column "column id does not exist") HARUS di-throw dan TIDAK boleh tertelan
+    db.rpc = async () => {
+      const schemaErr = new Error('column "id" does not exist');
+      schemaErr.code = '42703';
+      throw schemaErr;
+    };
+    await assert.rejects(async () => {
+      await expireBuckets(expireWsId);
+    }, (err) => err.code === '42703' && err.message.includes('column "id" does not exist'));
+
+    // 3. Error PGRST202 / 42883 harus ditoleransi dan beralih ke fallback bersyarat per-bucket
+    const fallbackWsId = randomUUID();
+    await db.insert('credit_wallets', {
+      workspace_id: fallbackWsId,
+      balance_trial: 0,
+      trial_expires_at: null,
+      balance_sub: 80,
+      sub_expires_at: pastDate, // expired
+      balance_topup: 250,
+      topup_expires_at: futureDate, // belum expired (aktif)
+      daily_cap: 500
+    });
+
     db.rpc = async () => {
       const missingErr = new Error('Could not find the function markimate.expire_buckets_atomic');
       missingErr.code = 'PGRST202';
       throw missingErr;
     };
-    const fbRes = await expireBuckets(expireWsId);
+    const fbRes = await expireBuckets(fallbackWsId);
     assert.strictEqual(fbRes.success, true, 'Fallback PGRST202 harus sukses');
+
+    // Verifikasi ketat mutasi: hanya bucket kadaluarsa yang dinolkan, bucket aktif harus tetap utuh
+    const fbWallet = await db.findOne('credit_wallets', { workspace_id: fallbackWsId });
+    assert.strictEqual(fbWallet.balance_sub, 0, 'Saldo sub yang kadaluarsa harus dinolkan oleh fallback');
+    assert.strictEqual(fbWallet.balance_topup, 250, 'Saldo topup yang belum kadaluarsa (.lte) HARUS tetap 250 dan tidak boleh terpotong');
+
+    const fbLedger = await db.findMany('credit_ledger', { workspace_id: fallbackWsId, bucket: 'sub', kind: 'expire' });
+    assert.strictEqual(fbLedger.length, 1);
+    assert.strictEqual(fbLedger[0].delta, -80);
+    assert.strictEqual(fbLedger[0].balance_after, 250);
   } finally {
     db.rpc = originalRpc;
   }

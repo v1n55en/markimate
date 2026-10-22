@@ -736,7 +736,13 @@ class SupabaseStore {
   }
   async rpc(name, params = {}) {
     const { data, error } = await this.c.rpc(name, params);
-    if (error) throw new Error(`rpc ${name}: ${error.message}`);
+    if (error) {
+      const err = new Error(`rpc ${name}: ${error.message}`);
+      err.code = error.code;
+      err.details = error.details;
+      err.hint = error.hint;
+      throw err;
+    }
     return data;
   }
 }

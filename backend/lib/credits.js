@@ -515,12 +515,10 @@ export async function expireBuckets(workspaceId = null) {
       errCode === 'PGRST202' ||
       errCode === '42883' ||
       errMsg.includes('PGRST202') ||
-      errMsg.includes('42883') ||
-      errMsg.toLowerCase().includes('could not find the function') ||
-      errMsg.toLowerCase().includes('does not exist');
+      errMsg.includes('42883');
 
     if (!isRpcMissing) {
-      console.error(`[CRITICAL] Error fatal saat eksekusi RPC expire_buckets_atomic: ${errMsg}`);
+      console.error(`[CRITICAL] Error fatal saat eksekusi RPC expire_buckets_atomic (${errCode}): ${errMsg}`);
       throw rpcErr;
     }
     console.warn('[EXPIRE_BUCKETS] RPC expire_buckets_atomic tidak ditemukan (PGRST202/42883), beralih ke fallback bersyarat per bucket:', errMsg);
