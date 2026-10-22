@@ -675,7 +675,7 @@ export default function AdminDashboardPage({ user }) {
                     </select>
                   </div>
                   <div style={styles.formGroup}>
-                    <label style={styles.label}>{t('adminDashboard.subMonths', 'Durasi (Bulan)')}</label>
+                    <label style={styles.label}>{t('adminDashboard.subMonths', 'Duration (Months)')}</label>
                     <input
                       type="number"
                       value={subMonths}

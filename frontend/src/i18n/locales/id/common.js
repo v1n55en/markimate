@@ -59,5 +59,9 @@ export const common = {
   },
   "toggleNav": "Buka/Tutup Menu Navigasi",
   "closeModal": "Tutup modal",
-  "noData": "Belum ada data untuk ditampilkan."
+  "noData": "Belum ada data untuk ditampilkan.",
+  "moduleDescSeo": "±1 artikel bergambar + riset topik",
+  "moduleDescAdsReport": "1 laporan bulanan akun iklan",
+  "moduleDescAdsSpy": "1 scan kompetitor + insight AI",
+  "moduleQuotaMonthly": "{credits} kredit / bulan ({desc})"
 };

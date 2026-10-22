@@ -1,4 +1,5 @@
 import { ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
+import { useLanguage } from '../../context/LanguageContext';
 import {
   formatIDR,
   formatCompactIDR,
@@ -14,10 +15,12 @@ export default function KpiCard({
   format = 'number',
   delta,
   isGoodWhenLower = false,
-  subtitle = 'vs bulan lalu',
+  subtitle = null,
   icon: Icon,
   compact = false,
 }) {
+  const { t } = useLanguage();
+  const displaySubtitle = subtitle || t('ads.summary.vsLastMonth', 'vs last month');
   // Format nilai utama
   let formattedValue = value;
   if (format === 'currency') formattedValue = formatIDR(value);
@@ -95,7 +98,7 @@ export default function KpiCard({
             </span>
           </span>
         )}
-        <span style={styles.subtitle}>{subtitle}</span>
+        <span style={styles.subtitle}>{displaySubtitle}</span>
       </div>
     </div>
   );

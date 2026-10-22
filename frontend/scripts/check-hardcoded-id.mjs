@@ -39,7 +39,13 @@ const INDONESIAN_KEYWORDS = [
   'link\\s+luar',
   'terkirim',
   'menunggu\\s+persetujuan',
-  'perlu\\s+dihubungkan'
+  'perlu\\s+dihubungkan',
+  'bulan',
+  'artikel',
+  'minggu',
+  'tahun',
+  'kredit\\s*/\\s*bulan',
+  'credit\\s*/\\s*bulan'
 ];
 
 const ID_REGEX = new RegExp(`\\b(${INDONESIAN_KEYWORDS.join('|')})\\b`, 'i');
@@ -83,10 +89,16 @@ function stripComments(source) {
 // 3. src/content/legal-content.js: Dokumen hukum resmi statis dwibahasa (Kebijakan Privasi & Syarat Ketentuan)
 //    yang memiliki klausul hukum mengikat: "In the event of discrepancy, the Indonesian version shall prevail"
 //    dan dikonsumsi oleh PrivacyPage & TermsPage via helper bahasa terpusat.
+// 4. src/spy/mockData.js: Dataset mock iklan kompetitor lokal untuk demo Ads Creative Spy (misal Fore, Janji Jiwa).
+// 5. src/ads/mockData.js: Dataset mock performa akun iklan & toko marketplace untuk demo Ads Report.
+// 6. src/config/pricing.js: Single Source of Truth (SSOT) data konfigurasi harga & paket kuota modul.
 const EXCLUDED_DATA_FILES = [
   path.join('src', 'i18n', 'locales'),
   path.join('src', 'content', 'legal-content.js'),
-  path.join('src', 'config', 'roles.js')
+  path.join('src', 'config', 'roles.js'),
+  path.join('src', 'config', 'pricing.js'),
+  path.join('src', 'spy', 'mockData.js'),
+  path.join('src', 'ads', 'mockData.js')
 ];
 
 function getFilesToScan(dir) {

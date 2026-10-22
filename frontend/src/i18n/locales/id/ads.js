@@ -20,6 +20,7 @@ export const ads = {
     "heading": "Ringkasan Ads Report",
     "subheading": "Konsolidasi performa iklan multi-platform periode",
     "defaultPeriod": "Bulan Terakhir",
+    "vsLastMonth": "vs bulan lalu",
     "manageConnections": "Kelola Koneksi",
     "allReports": "Semua Laporan",
     "loading": "Memuat ringkasan Ads Report…",

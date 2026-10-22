@@ -87,7 +87,18 @@ export default function RoleDetailPage() {
   const isAvailable = role.status === 'available';
   const modInfo = MODULES[role.key];
   const price = modInfo?.price || 0;
-  const quota = modInfo ? `${modInfo.monthlyCredits} credit / bulan (${modInfo.desc})` : null;
+  const getModuleDesc = (moduleKey) => {
+    if (moduleKey === 'seo') return t('common.moduleDescSeo');
+    if (moduleKey === 'ads_report') return t('common.moduleDescAdsReport');
+    if (moduleKey === 'ads_spy') return t('common.moduleDescAdsSpy');
+    return modInfo?.desc || '';
+  };
+  const quota = modInfo
+    ? t('common.moduleQuotaMonthly', {
+        credits: modInfo.monthlyCredits,
+        desc: getModuleDesc(role.key)
+      })
+    : null;
 
   return (
     <div style={styles.page}>

@@ -20,6 +20,7 @@ export const ads = {
     "heading": "Ads Report Summary",
     "subheading": "Multi-platform advertising performance consolidation for period",
     "defaultPeriod": "Last Month",
+    "vsLastMonth": "vs last month",
     "manageConnections": "Manage Connections",
     "allReports": "All Reports",
     "loading": "Loading Ads Report summary…",

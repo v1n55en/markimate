@@ -59,5 +59,9 @@ export const common = {
   },
   "toggleNav": "Toggle Navigation Menu",
   "closeModal": "Close modal",
-  "noData": "No data available to display."
+  "noData": "No data available to display.",
+  "moduleDescSeo": "±1 illustrated article + topic research",
+  "moduleDescAdsReport": "1 monthly ad account report",
+  "moduleDescAdsSpy": "1 competitor scan + AI insight",
+  "moduleQuotaMonthly": "{credits} credits / month ({desc})"
 };
