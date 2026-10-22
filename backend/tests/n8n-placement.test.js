@@ -16,7 +16,7 @@ async function runTerapkanLink(article, options, parsedGemini, extra = {}) {
       if (nodeName === 'Siapkan Prompt Link') return {
         first: () => ({
           json: {
-            wantImages: options.imageCount,
+            wantImages: extra.wantImages !== undefined ? extra.wantImages : options.imageCount,
             internalCandidates: extra.internalCandidates || [],
             externalCandidates: extra.externalCandidates || [],
             geminiBody: extra.geminiBody || {
