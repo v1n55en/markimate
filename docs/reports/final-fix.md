@@ -71,6 +71,7 @@ Serangkaian perbaikan akhir pasca-commit `98a0e48` telah diselesaikan secara men
   5. Pastikan kredensial `Google Gemini(PaLM) Api Veri` telah terpasang pada node `"Gemini Link & Gambar (Retry)"`.
   6. Klik tombol **Save** dan pastikan toggle status workflow berada pada posisi **Active**.
 - **Komit Terkait**: `ea89544` — `feat(automation): pisahkan retry MAX_TOKENS ke node HTTP terpisah (final-fix poin 3)`
+- **Status Deployment**: Telah di-import ulang oleh 3Our Asia pada instance produksi n8n (`https://n8n.3ourasia.id`) pada 22 Oktober 2026. Alur retry HTTP terpisah untuk penanganan respons `MAX_TOKENS` kini telah aktif secara live.
 
 ---
 
