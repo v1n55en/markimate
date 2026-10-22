@@ -59,7 +59,7 @@ export default function PublicFooter() {
             {`© ${new Date().getFullYear()} Markimate · powered by 3our. ${t('footer.rights', 'All rights reserved.')}`}
           </span>
           <span style={styles.metaNote}>
-            {t('footer.slogan', 'Full Digital Marketing Team in One Platform')}
+            {t('footer.slogan', 'Your Marketing Automation Mate')}
           </span>
         </div>
       </div>

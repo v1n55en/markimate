@@ -118,7 +118,7 @@ export default function LandingPage({ scrollToPricing = false }) {
           </div>
 
           <h1 style={styles.heroTitle}>
-            {t('hero.title', 'Full Digital Marketing Team in One Platform')}
+            {t('hero.title', 'Your Marketing Automation Mate')}
           </h1>
 
           <p style={styles.heroSubtitle}>

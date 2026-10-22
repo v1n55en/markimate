@@ -1,7 +1,7 @@
 # Markimate Frontend (React 19 + Vite)
 
 Frontend web application untuk platform SaaS **Markimate · powered by 3our**.
-Slogan: **Full Digital Marketing Team in One Platform (en) / Semua Tim Digital Marketing dalam satu platform (id)**.
+Slogan: **Your Marketing Automation Mate**.
 Mendukung ekosistem AI Digital Marketing Team (16 Roles).
 
 ---

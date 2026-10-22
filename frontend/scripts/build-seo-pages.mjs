@@ -39,11 +39,11 @@ async function run() {
     {
       cleanPath: '/',
       en: {
-        title: 'Markimate — Full Digital Marketing Team in One Platform | Powered by 3our',
+        title: 'Markimate — Your Marketing Automation Mate | Powered by 3our',
         description: 'All-in-one AI digital marketing platform: Autonomous SEO trend mining, rank-ready content generation, 1-click CMS dispatch, and multi-channel ad reporting.'
       },
       id: {
-        title: 'Markimate — Tim Digital Marketing AI Terpadu | Powered by 3our',
+        title: 'Markimate — Your Marketing Automation Mate | Powered by 3our',
         description: 'Platform otomasi tim digital marketing AI terpadu: Riset tren SEO, penulisan artikel rank-ready, auto-publish CMS, dan analitik multi-channel.'
       }
     },

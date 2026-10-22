@@ -3,7 +3,7 @@ export const auth = {
   "signUpTitle": "Buat Akun Markimate Anda",
   "signInSubtitle": "Masukkan email dan kata sandi untuk mengakses workspace Anda",
   "signUpSubtitle": "Mulai dengan {credits} kredit uji coba, berlaku {days} hari",
-  "tagline": "Semua Tim Digital Marketing dalam satu platform",
+  "tagline": "Your Marketing Automation Mate",
   "labelEmail": "Alamat Email Kerja",
   "labelPassword": "Kata Sandi",
   "labelBrandName": "Nama Brand Bisnis",

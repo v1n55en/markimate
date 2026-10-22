@@ -3,7 +3,7 @@ export const auth = {
   "signUpTitle": "Create Your Markimate Account",
   "signInSubtitle": "Enter your credentials to access your workspace",
   "signUpSubtitle": "Start with {credits} trial credits, valid for {days} days",
-  "tagline": "Full Digital Marketing Team in One Platform",
+  "tagline": "Your Marketing Automation Mate",
   "labelEmail": "Work Email Address",
   "labelPassword": "Password",
   "labelBrandName": "Brand / Business Name",

@@ -11,7 +11,7 @@ export const publicTranslations = {
     "dashboard": "Dashboard"
   },
   "meta": {
-    "defaultTitle": "Markimate — Tim Digital Marketing AI Terpadu | Powered by 3our",
+    "defaultTitle": "Markimate — Your Marketing Automation Mate | Powered by 3our",
     "defaultDescription": "Platform otomasi tim digital marketing AI terpadu: Riset tren SEO, penulisan artikel rank-ready, auto-publish CMS, dan analitik multi-channel."
   },
   "header": {
@@ -19,7 +19,7 @@ export const publicTranslations = {
   },
   "hero": {
     "badge": "Markimate · powered by 3our",
-    "title": "Semua Tim Digital Marketing dalam satu platform",
+    "title": "Your Marketing Automation Mate",
     "subtitle": "Pilih role spesialis yang Anda butuhkan atau rekrut seluruh tim digital marketing AI — mulai dari sebagian kecil biaya tim in-house, dengan hasil kerja yang tetap Anda review dan setujui sebelum tayang.",
     "ctaPrimary": "Coba Gratis {days} Hari — {credits} kredit",
     "ctaSecondary": "Lihat Paket & Harga",
@@ -258,7 +258,7 @@ export const publicTranslations = {
   },
   "footer": {
     "rights": "Seluruh hak cipta dilindungi undang-undang.",
-    "slogan": "Semua Tim Digital Marketing dalam satu platform",
+    "slogan": "Your Marketing Automation Mate",
     "platformLegal": "Platform & Hukum",
     "terms": "Syarat & Ketentuan Layanan",
     "privacy": "Kebijakan Privasi",

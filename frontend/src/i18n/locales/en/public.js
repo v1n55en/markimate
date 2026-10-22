@@ -11,7 +11,7 @@ export const publicTranslations = {
     "dashboard": "Dashboard"
   },
   "meta": {
-    "defaultTitle": "Markimate — Full Digital Marketing Team in One Platform | Powered by 3our",
+    "defaultTitle": "Markimate — Your Marketing Automation Mate | Powered by 3our",
     "defaultDescription": "All-in-one AI digital marketing platform: Autonomous SEO trend mining, rank-ready content generation, 1-click CMS dispatch, and multi-channel ad reporting."
   },
   "header": {
@@ -19,7 +19,7 @@ export const publicTranslations = {
   },
   "hero": {
     "badge": "Markimate · powered by 3our",
-    "title": "Full Digital Marketing Team in One Platform",
+    "title": "Your Marketing Automation Mate",
     "subtitle": "Hire specialized AI marketing roles or deploy an entire full-stack digital marketing team — at a fraction of in-house team costs, with 100% human-in-the-loop review and approval before anything goes live.",
     "ctaPrimary": "Start Free — {credits} credits, {days} days",
     "ctaSecondary": "View Plans & Pricing",
@@ -258,7 +258,7 @@ export const publicTranslations = {
   },
   "footer": {
     "rights": "All rights reserved.",
-    "slogan": "Full Digital Marketing Team in One Platform",
+    "slogan": "Your Marketing Automation Mate",
     "platformLegal": "Platform & Legal",
     "terms": "Terms of Service",
     "privacy": "Privacy Policy",

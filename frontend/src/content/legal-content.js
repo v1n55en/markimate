@@ -48,7 +48,7 @@ export const PRIVACY_CONTENT = {
       {
         number: '1',
         title: 'Pendahuluan & Identitas Pengelola',
-        content: `Selamat datang di Markimate, platform Semua Tim Digital Marketing dalam Satu Platform yang dikembangkan dan dioperasikan oleh Markimate · powered by 3our. Kami berkomitmen penuh untuk melindungi privasi, integritas, dan keamanan data seluruh pengguna kami, termasuk data yang diakses melalui integrasi Application Programming Interface (API) platform pihak ketiga.`,
+        content: `Selamat datang di Markimate, platform Your Marketing Automation Mate yang dikembangkan dan dioperasikan oleh Markimate · powered by 3our. Kami berkomitmen penuh untuk melindungi privasi, integritas, dan keamanan data seluruh pengguna kami, termasuk data yang diakses melalui integrasi Application Programming Interface (API) platform pihak ketiga.`,
         hasCompanyBox: true,
       },
       {
@@ -119,7 +119,7 @@ export const PRIVACY_CONTENT = {
       {
         number: '1',
         title: 'Introduction & Operating Entity',
-        content: `Welcome to Markimate, the full digital marketing team platform developed and operated by Markimate · powered by 3our. We are fully committed to protecting the privacy, confidentiality, and security of all user data, including data accessed through third-party Application Programming Interface (API) integrations.`,
+        content: `Welcome to Markimate, the Your Marketing Automation Mate platform developed and operated by Markimate · powered by 3our. We are fully committed to protecting the privacy, confidentiality, and security of all user data, including data accessed through third-party Application Programming Interface (API) integrations.`,
         hasCompanyBox: true,
       },
       {
@@ -194,7 +194,7 @@ export const TERMS_CONTENT = {
       {
         number: '2',
         title: 'Deskripsi Layanan & Human-in-the-Loop',
-        content: `Markimate menyediakan platform Semua Tim Digital Marketing dalam Satu Platform dengan 16 role AI spesialis, termasuk SEO Article Automation, Ads Performance Report, dan Ads Creative Spy. Seluruh deliverable AI wajib ditinjau dan disetujui oleh pengguna (Human-in-the-Loop) sebelum diterbitkan atau digunakan.`,
+        content: `Markimate menyediakan platform Your Marketing Automation Mate dengan 16 role AI spesialis, termasuk SEO Article Automation, Ads Performance Report, dan Ads Creative Spy. Seluruh deliverable AI wajib ditinjau dan disetujui oleh pengguna (Human-in-the-Loop) sebelum diterbitkan atau digunakan.`,
       },
       {
         number: '3',
