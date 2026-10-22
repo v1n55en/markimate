@@ -757,16 +757,79 @@
       }
     },
     {
-      "id": "n-terapkan-link-gambar",
-      "name": "Terapkan Link & Gambar",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "id": "n-finishreason-max_tokens-",
+      "name": "finishReason === 'MAX_TOKENS'",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
       "position": [
         3000,
         140
       ],
       "parameters": {
-        "jsCode": "// Fase 6 — Terapkan hasil Gemini: sisipkan internal/external link ke markdown + placeholder gambar, lalu kembalikan respons generate.\nconst R = JSON.parse(JSON.stringify($('Susun Artikel').first().json));\nconst P = $('Siapkan Prompt Link').first().json;\nconst D = $('Cek Duplikat').first().json;\nconst O = D.options || {};\nlet G = $input.first().json || {};\nconst H = (typeof this !== 'undefined' && this && this.helpers) || null;\nconst warnings = [];\n\n// Deteksi respons terpotong karena batas token (finishReason = MAX_TOKENS)\nconst cand0 = (G.candidates || [])[0] || {};\nconst finishReason = cand0.finishReason || G.finishReason;\n\nif (finishReason === 'MAX_TOKENS') {\n  const oldLimit = P.geminiBody?.generationConfig?.maxOutputTokens || 8192;\n  const newLimit = Math.max(oldLimit * 2, 16384);\n  warnings.push(`Peringatan: Respons AI terpotong karena mencapai batas token (finishReason = MAX_TOKENS). Mengulang sekali dengan batas token lebih besar (${newLimit}).`);\n\n  const hasAuthReq = H && typeof H.httpRequestWithAuthentication === 'function';\n  const hasBasicReq = H && typeof H.httpRequest === 'function';\n  if (hasAuthReq || hasBasicReq) {\n    try {\n      const retryBody = JSON.parse(JSON.stringify(P.geminiBody || {}));\n      if (!retryBody.generationConfig) retryBody.generationConfig = {};\n      retryBody.generationConfig.maxOutputTokens = newLimit;\n      if (retryBody.generationConfig.thinkingConfig) {\n        retryBody.generationConfig.thinkingConfig.thinkingBudget = 0;\n      }\n      const httpOptions = {\n        method: 'POST',\n        url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',\n        body: retryBody,\n        json: true,\n        timeout: 120000\n      };\n      const retryRes = hasAuthReq\n        ? await H.httpRequestWithAuthentication.call(this, 'googlePalmApi', httpOptions)\n        : await H.httpRequest(httpOptions);\n      if (retryRes) {\n        G = retryRes;\n        const retryCand = (G.candidates || [])[0] || {};\n        if (retryCand.finishReason === 'MAX_TOKENS') {\n          warnings.push(`Peringatan: Respons AI tetap mencapai batas token (finishReason = MAX_TOKENS) setelah pengulangan dengan batas ${newLimit} token.`);\n        }\n      }\n    } catch (retryErr) {\n      warnings.push(`Peringatan: Gagal melakukan retry AI dengan batas token lebih besar: ${retryErr.message || retryErr}`);\n    }\n  }\n}\n\n// --- parse JSON Gemini (toleran) ---\nlet parsed = null;\ntry {\n  const txt = (((G.candidates || [])[0] || {}).content || {}).parts?.map(p => p.text || '').join('') || '';\n  const clean = String(txt).replace(/```json/gi, '').replace(/```/g, '').trim();\n  const a = clean.indexOf('{'), b = clean.lastIndexOf('}');\n  parsed = JSON.parse(a >= 0 && b > a ? clean.slice(a, b + 1) : clean);\n} catch (e) { parsed = null; }\nif (!parsed) warnings.push('Link & prompt gambar dilewati: ' + (G.error ? String(G.error.message || G.error).slice(0, 140) : 'respons AI tidak valid'));\nparsed = parsed || { internal: [], external: [], imagePrompts: [] };\n\nconst A = R.article;\nlet md = String(A.bodyMarkdown || '');\nconst lines = md.split('\\n');\nconst isHeading = l => /^\\s*#{1,6}\\s/.test(l);\nconst esc = s => s.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\nconst usedUrls = new Set();\nconst applied = { internal: [], external: [] };\n\nfunction applyLink(item, type, allowed, max) {\n  if (applied[type].length >= max) return;\n  const anchor = String(item.anchor || '').trim(); const url = String(item.url || '').trim();\n  if (!anchor || !url || usedUrls.has(url)) return;\n  const cand = allowed.find(c => c.url === url); if (!cand) return; // url harus dari kandidat (anti halusinasi)\n  const re = new RegExp('(^|[^\\\\[\\\\w])(' + esc(anchor) + ')(?![^\\\\[]*\\\\]\\\\()(?!\\\\w)');\n  for (let i = 0; i < lines.length; i++) {\n    if (isHeading(lines[i]) || /^\\s*!\\[/.test(lines[i]) || !re.test(lines[i])) continue;\n    lines[i] = lines[i].replace(re, (m, pre, a) => pre + '[' + a + '](' + url + ')');\n    usedUrls.add(url);\n    applied[type].push(type === 'internal' ? { anchor, url, title: cand.title || item.title || '' } : { anchor, url, domain: cand.domain || '' });\n    return;\n  }\n}\nfor (const it of (Array.isArray(parsed.internal) ? parsed.internal : [])) applyLink(it, 'internal', P.internalCandidates || [], O.maxInternal || 0);\nfor (const it of (Array.isArray(parsed.external) ? parsed.external : [])) applyLink(it, 'external', P.externalCandidates || [], O.maxExternal || 0);\n\n// --- prompt gambar + placeholder di markdown (PRD F6b §3.3) ---\nconst want = (O.imageMode === 'none') ? 0 : (P.wantImages || 0);\nconst heroActive = want > 0 && O.imageHero !== false;\nconst rawPrompts = (O.imageMode === 'none') ? [] : (Array.isArray(parsed.imagePrompts) ? parsed.imagePrompts : []).filter(p => p && p.prompt);\n\nconst h2Idx = lines.map((l, i) => (/^\\s*##\\s/.test(l) ? i : -1)).filter(i => i >= 0);\nconst totalH2 = h2Idx.length;\nconst usedH2 = new Set();\nlet usedIntro = false;\nconst validPrompts = [];\nconst inserts = []; // [lineIndex, text]\n\nfor (let i = 0; i < Math.min(rawPrompts.length, want); i++) {\n  const p = rawPrompts[i];\n  const isHero = (i === 0 && heroActive) || (p.placement === 'hero' && heroActive);\n  if (isHero) {\n    validPrompts.push({\n      idx: validPrompts.length,\n      placement: 'hero',\n      sectionTitle: p.sectionTitle || 'Hero',\n      prompt: String(p.prompt).trim(),\n      alt: String(p.alt || A.title).trim(),\n      aspect: '16:9'\n    });\n    continue;\n  }\n\n  // Parse nomor H2 target (\"h2:<n>\" atau \"after_h2:<n>\")\n  const m = String(p.placement || '').match(/^(?:after_)?h2:(\\d+)$/i);\n  let k = m ? Number(m[1]) : 0;\n\n  // Validasi: di luar jangkauan atau H2 duplikat -> cari H2 kosong terdekat (§3.3 butir 6)\n  if (k < 1 || k > totalH2 || usedH2.has(k)) {\n    let nearestEmpty = null;\n    let minDiff = Infinity;\n    for (let candidate = 1; candidate <= totalH2; candidate++) {\n      if (!usedH2.has(candidate)) {\n        const diff = Math.abs(candidate - (k || 1));\n        if (diff < minDiff) {\n          minDiff = diff;\n          nearestEmpty = candidate;\n        }\n      }\n    }\n\n    if (nearestEmpty !== null) {\n      if (k > 0) warnings.push(`Penempatan gambar dialihkan dari ${p.placement} ke h2:${nearestEmpty} (H2 kosong terdekat).`);\n      k = nearestEmpty;\n    } else if (!usedIntro) {\n      // Fallback: sisa gambar ditempatkan setelah paragraf ke-2 intro (§3.3 butir 4)\n      k = 0;\n      usedIntro = true;\n      warnings.push(`Jumlah H2 (${totalH2}) lebih sedikit dari gambar yang diminta; sisa gambar ditempatkan setelah intro.`);\n    } else {\n      // Tidak ada ruang lagi -> gambar tidak dibuat, kredit tidak dipotong (§3.3 butir 4)\n      warnings.push(`Bagian artikel tidak mencukupi untuk gambar tambahan; gambar idx ${i} dilewati.`);\n      continue;\n    }\n  }\n\n  if (k > 0) usedH2.add(k);\n\n  const curIdx = validPrompts.length;\n  const placement = k > 0 ? `h2:${k}` : 'intro';\n  const promptObj = {\n    idx: curIdx,\n    placement,\n    sectionTitle: p.sectionTitle || (k > 0 ? `Section ${k}` : 'Intro'),\n    prompt: String(p.prompt).trim(),\n    alt: String(p.alt || A.title).trim(),\n    aspect: '4:3'\n  };\n  validPrompts.push(promptObj);\n\n  // Cari posisi baris di markdown\n  let at = lines.length;\n  if (k >= 1) {\n    at = h2Idx[k - 1] + 1;\n    while (at < lines.length && !lines[at].trim()) at++;\n    while (at < lines.length && lines[at].trim() && !isHeading(lines[at])) at++;\n  } else {\n    let paras = 0;\n    for (let l = 0; l < lines.length; l++) {\n      if (isHeading(lines[l])) break;\n      if (lines[l].trim() && (l + 1 >= lines.length || !lines[l + 1].trim())) {\n        if (++paras === 2) { at = l + 1; break; }\n      }\n    }\n  }\n\n  inserts.push([at, '\\n![' + promptObj.alt.replace(/[\\[\\]]/g, '') + '](markimate:image:' + curIdx + ')\\n']);\n}\n\nif (want > 0 && !validPrompts.length) {\n  warnings.push('AI tidak mengembalikan prompt gambar yang valid; artikel dibuat tanpa gambar.');\n}\n\ninserts.sort((a, b) => b[0] - a[0]);\nfor (const [at, text] of inserts) lines.splice(at, 0, text);\nmd = lines.join('\\n').replace(/\\n{3,}/g, '\\n\\n');\nconst prompts = validPrompts;\n\nA.bodyMarkdown = md;\nA.links = applied;\nA.imagePrompts = prompts;\nA.wordCount = md.replace(/!\\[[^\\]]*\\]\\([^)]*\\)/g, '').split(/\\s+/).filter(Boolean).length;\nR.research = Object.assign({}, R.research, { existingPostsChecked: D.existingPostsChecked || 0, internalCandidates: (P.internalCandidates || []).length, externalCandidates: (P.externalCandidates || []).length });\nR.warnings = warnings;\nreturn [{ json: R }];\n"
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ ($json.candidates?.[0]?.finishReason || $json.finishReason) === 'MAX_TOKENS' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n-gemini-link-gambar-retry-",
+      "name": "Gemini Link & Gambar (Retry)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3220,
+        20
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify(Object.assign({}, $('Siapkan Prompt Link').first().json.geminiBody, { generationConfig: Object.assign({}, $('Siapkan Prompt Link').first().json.geminiBody?.generationConfig, { maxOutputTokens: 16384, thinkingConfig: { thinkingBudget: 0 } }) })) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "googlePalmApi": {
+          "id": "X4qY80NDFbDxQZZU",
+          "name": "Google Gemini(PaLM) Api Veri"
+        }
+      }
+    },
+    {
+      "id": "n-terapkan-link-gambar",
+      "name": "Terapkan Link & Gambar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3440,
+        140
+      ],
+      "parameters": {
+        "jsCode": "// Fase 6 — Terapkan hasil Gemini: sisipkan internal/external link ke markdown + placeholder gambar, lalu kembalikan respons generate.\nconst R = JSON.parse(JSON.stringify($('Susun Artikel').first().json));\nconst P = $('Siapkan Prompt Link').first().json;\nconst D = $('Cek Duplikat').first().json;\nconst O = D.options || {};\nlet G = $input.first().json || {};\nconst H = (typeof this !== 'undefined' && this && this.helpers) || null;\nconst warnings = [];\n\n// Deteksi respons terpotong karena batas token (finishReason = MAX_TOKENS)\nconst cand0 = (G.candidates || [])[0] || {};\nconst finishReason = cand0.finishReason || G.finishReason;\n\nlet firstCand = null;\ntry {\n  firstCand = ($('Gemini Link & Gambar').first().json.candidates || [])[0] || {};\n} catch (_) {}\nconst firstFinishReason = firstCand?.finishReason;\n\nif (firstFinishReason === 'MAX_TOKENS') {\n  warnings.push('Peringatan: Respons AI terpotong karena mencapai batas token (finishReason = MAX_TOKENS). Mengulang sekali dengan batas token lebih besar (16384).');\n}\nif (finishReason === 'MAX_TOKENS') {\n  warnings.push('Peringatan: Respons AI tetap mencapai batas token (finishReason = MAX_TOKENS) setelah pengulangan dengan batas 16384 token.');\n}\n\n// --- parse JSON Gemini (toleran) ---\nlet parsed = null;\ntry {\n  const txt = (((G.candidates || [])[0] || {}).content || {}).parts?.map(p => p.text || '').join('') || '';\n  const clean = String(txt).replace(/```json/gi, '').replace(/```/g, '').trim();\n  const a = clean.indexOf('{'), b = clean.lastIndexOf('}');\n  parsed = JSON.parse(a >= 0 && b > a ? clean.slice(a, b + 1) : clean);\n} catch (e) { parsed = null; }\nif (!parsed) warnings.push('Link & prompt gambar dilewati: ' + (G.error ? String(G.error.message || G.error).slice(0, 140) : 'respons AI tidak valid'));\nparsed = parsed || { internal: [], external: [], imagePrompts: [] };\n\nconst A = R.article;\nlet md = String(A.bodyMarkdown || '');\nconst lines = md.split('\\n');\nconst isHeading = l => /^\\s*#{1,6}\\s/.test(l);\nconst esc = s => s.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\nconst usedUrls = new Set();\nconst applied = { internal: [], external: [] };\n\nfunction applyLink(item, type, allowed, max) {\n  if (applied[type].length >= max) return;\n  const anchor = String(item.anchor || '').trim(); const url = String(item.url || '').trim();\n  if (!anchor || !url || usedUrls.has(url)) return;\n  const cand = allowed.find(c => c.url === url); if (!cand) return; // url harus dari kandidat (anti halusinasi)\n  const re = new RegExp('(^|[^\\\\[\\\\w])(' + esc(anchor) + ')(?![^\\\\[]*\\\\]\\\\()(?!\\\\w)');\n  for (let i = 0; i < lines.length; i++) {\n    if (isHeading(lines[i]) || /^\\s*!\\[/.test(lines[i]) || !re.test(lines[i])) continue;\n    lines[i] = lines[i].replace(re, (m, pre, a) => pre + '[' + a + '](' + url + ')');\n    usedUrls.add(url);\n    applied[type].push(type === 'internal' ? { anchor, url, title: cand.title || item.title || '' } : { anchor, url, domain: cand.domain || '' });\n    return;\n  }\n}\nfor (const it of (Array.isArray(parsed.internal) ? parsed.internal : [])) applyLink(it, 'internal', P.internalCandidates || [], O.maxInternal || 0);\nfor (const it of (Array.isArray(parsed.external) ? parsed.external : [])) applyLink(it, 'external', P.externalCandidates || [], O.maxExternal || 0);\n\n// --- prompt gambar + placeholder di markdown (PRD F6b §3.3) ---\nconst want = (O.imageMode === 'none') ? 0 : (P.wantImages || 0);\nconst heroActive = want > 0 && O.imageHero !== false;\nconst rawPrompts = (O.imageMode === 'none') ? [] : (Array.isArray(parsed.imagePrompts) ? parsed.imagePrompts : []).filter(p => p && p.prompt);\n\nconst h2Idx = lines.map((l, i) => (/^\\s*##\\s/.test(l) ? i : -1)).filter(i => i >= 0);\nconst totalH2 = h2Idx.length;\nconst usedH2 = new Set();\nlet usedIntro = false;\nconst validPrompts = [];\nconst inserts = []; // [lineIndex, text]\n\nfor (let i = 0; i < Math.min(rawPrompts.length, want); i++) {\n  const p = rawPrompts[i];\n  const isHero = (i === 0 && heroActive) || (p.placement === 'hero' && heroActive);\n  if (isHero) {\n    validPrompts.push({\n      idx: validPrompts.length,\n      placement: 'hero',\n      sectionTitle: p.sectionTitle || 'Hero',\n      prompt: String(p.prompt).trim(),\n      alt: String(p.alt || A.title).trim(),\n      aspect: '16:9'\n    });\n    continue;\n  }\n\n  // Parse nomor H2 target (\"h2:<n>\" atau \"after_h2:<n>\")\n  const m = String(p.placement || '').match(/^(?:after_)?h2:(\\d+)$/i);\n  let k = m ? Number(m[1]) : 0;\n\n  // Validasi: di luar jangkauan atau H2 duplikat -> cari H2 kosong terdekat (§3.3 butir 6)\n  if (k < 1 || k > totalH2 || usedH2.has(k)) {\n    let nearestEmpty = null;\n    let minDiff = Infinity;\n    for (let candidate = 1; candidate <= totalH2; candidate++) {\n      if (!usedH2.has(candidate)) {\n        const diff = Math.abs(candidate - (k || 1));\n        if (diff < minDiff) {\n          minDiff = diff;\n          nearestEmpty = candidate;\n        }\n      }\n    }\n\n    if (nearestEmpty !== null) {\n      if (k > 0) warnings.push(`Penempatan gambar dialihkan dari ${p.placement} ke h2:${nearestEmpty} (H2 kosong terdekat).`);\n      k = nearestEmpty;\n    } else if (!usedIntro) {\n      // Fallback: sisa gambar ditempatkan setelah paragraf ke-2 intro (§3.3 butir 4)\n      k = 0;\n      usedIntro = true;\n      warnings.push(`Jumlah H2 (${totalH2}) lebih sedikit dari gambar yang diminta; sisa gambar ditempatkan setelah intro.`);\n    } else {\n      // Tidak ada ruang lagi -> gambar tidak dibuat, kredit tidak dipotong (§3.3 butir 4)\n      warnings.push(`Bagian artikel tidak mencukupi untuk gambar tambahan; gambar idx ${i} dilewati.`);\n      continue;\n    }\n  }\n\n  if (k > 0) usedH2.add(k);\n\n  const curIdx = validPrompts.length;\n  const placement = k > 0 ? `h2:${k}` : 'intro';\n  const promptObj = {\n    idx: curIdx,\n    placement,\n    sectionTitle: p.sectionTitle || (k > 0 ? `Section ${k}` : 'Intro'),\n    prompt: String(p.prompt).trim(),\n    alt: String(p.alt || A.title).trim(),\n    aspect: '4:3'\n  };\n  validPrompts.push(promptObj);\n\n  // Cari posisi baris di markdown\n  let at = lines.length;\n  if (k >= 1) {\n    at = h2Idx[k - 1] + 1;\n    while (at < lines.length && !lines[at].trim()) at++;\n    while (at < lines.length && lines[at].trim() && !isHeading(lines[at])) at++;\n  } else {\n    let paras = 0;\n    for (let l = 0; l < lines.length; l++) {\n      if (isHeading(lines[l])) break;\n      if (lines[l].trim() && (l + 1 >= lines.length || !lines[l + 1].trim())) {\n        if (++paras === 2) { at = l + 1; break; }\n      }\n    }\n  }\n\n  inserts.push([at, '\\n![' + promptObj.alt.replace(/[\\[\\]]/g, '') + '](markimate:image:' + curIdx + ')\\n']);\n}\n\nif (want > 0 && !validPrompts.length) {\n  warnings.push('AI tidak mengembalikan prompt gambar yang valid; artikel dibuat tanpa gambar.');\n}\n\ninserts.sort((a, b) => b[0] - a[0]);\nfor (const [at, text] of inserts) lines.splice(at, 0, text);\nmd = lines.join('\\n').replace(/\\n{3,}/g, '\\n\\n');\nconst prompts = validPrompts;\n\nA.bodyMarkdown = md;\nA.links = applied;\nA.imagePrompts = prompts;\nA.wordCount = md.replace(/!\\[[^\\]]*\\]\\([^)]*\\)/g, '').split(/\\s+/).filter(Boolean).length;\nR.research = Object.assign({}, R.research, { existingPostsChecked: D.existingPostsChecked || 0, internalCandidates: (P.internalCandidates || []).length, externalCandidates: (P.externalCandidates || []).length });\nR.warnings = warnings;\nreturn [{ json: R }];\n"
       }
     },
     {
@@ -775,7 +838,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        3220,
+        3660,
         300
       ],
       "parameters": {
@@ -809,7 +872,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3440,
+        3880,
         300
       ],
       "onError": "continueRegularOutput",
@@ -838,7 +901,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        3440,
+        3880,
         460
       ],
       "parameters": {
@@ -1843,6 +1906,35 @@
       ]
     },
     "Gemini Link & Gambar": {
+      "main": [
+        [
+          {
+            "node": "finishReason === 'MAX_TOKENS'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "finishReason === 'MAX_TOKENS'": {
+      "main": [
+        [
+          {
+            "node": "Gemini Link & Gambar (Retry)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Terapkan Link & Gambar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Link & Gambar (Retry)": {
       "main": [
         [
           {

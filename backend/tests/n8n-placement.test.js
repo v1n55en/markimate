@@ -26,6 +26,7 @@ async function runTerapkanLink(article, options, parsedGemini, extra = {}) {
         })
       };
       if (nodeName === 'Cek Duplikat') return { first: () => ({ json: { options } }) };
+      if (nodeName === 'Gemini Link & Gambar') return { first: () => ({ json: extra.firstGeminiResponse || {} }) };
       throw new Error('Unknown node: ' + nodeName);
     },
     $input: {
@@ -125,44 +126,48 @@ async function runPlacementTests() {
   assert.ok(res3.warnings.some(w => w.includes('dialihkan')), 'Harus mencatat warning pengalihan');
   console.log('   ✓ Placement duplikat berhasil dipindahkan ke H2 kosong terdekat.\n');
 
-  // Kasus 4: finishReason = MAX_TOKENS -> verifikasi retry dipanggil dengan batas token lebih besar & warning jelas dicatat
-  console.log('4. Menguji penanganan finishReason = MAX_TOKENS (retry batas lebih besar & warning jelas)...');
+  // Kasus 4: finishReason = MAX_TOKENS -> verifikasi retry dipisahkan ke node HTTP terpisah dengan kredensial googlePalmApi & warning jelas dicatat
+  console.log('4. Menguji penanganan finishReason = MAX_TOKENS (node HTTP retry terpisah & warning jelas)...');
+
+  // 4a. Verifikasi struktur workflow n8n-main-workflow.json
+  const workflowPath = path.resolve(__dirname, '../../automation/n8n-main-workflow.json');
+  const workflowJson = JSON.parse(fs.readFileSync(workflowPath, 'utf8'));
+  const nodes = workflowJson.nodes || [];
+
+  const ifNode = nodes.find(n => n.name === "finishReason === 'MAX_TOKENS'");
+  assert.ok(ifNode, "Node IF finishReason === 'MAX_TOKENS' harus ada di workflow");
+  assert.strictEqual(ifNode.type, 'n8n-nodes-base.if');
+
+  const retryNode = nodes.find(n => n.name === 'Gemini Link & Gambar (Retry)');
+  assert.ok(retryNode, "Node HTTP 'Gemini Link & Gambar (Retry)' harus ada di workflow");
+  assert.strictEqual(retryNode.type, 'n8n-nodes-base.httpRequest');
+  assert.strictEqual(retryNode.credentials?.googlePalmApi?.name, 'Google Gemini(PaLM) Api Veri');
+  assert.ok(retryNode.parameters?.jsonBody?.includes('16384'), 'Retry node harus mengonfigurasi maxOutputTokens 16384');
+  assert.ok(retryNode.parameters?.jsonBody?.includes('thinkingBudget: 0'), 'Retry node harus mempertahankan thinkingBudget: 0');
+
+  const promptNode = nodes.find(n => n.name === 'Siapkan Prompt Link');
+  assert.ok(promptNode, "Node 'Siapkan Prompt Link' harus ada");
+  assert.ok(promptNode.parameters?.jsCode?.includes('maxOutputTokens: 8192'), 'Siapkan Prompt Link harus tetap 8192 tokens');
+  assert.ok(promptNode.parameters?.jsCode?.includes('thinkingBudget: 0'), 'Siapkan Prompt Link harus tetap thinkingBudget: 0');
+
+  // Verifikasi koneksi workflow
+  const connections = workflowJson.connections || {};
+  const geminiConns = connections['Gemini Link & Gambar']?.main?.[0] || [];
+  assert.ok(geminiConns.some(c => c.node === "finishReason === 'MAX_TOKENS'"), 'Gemini Link & Gambar harus mengalir ke IF MAX_TOKENS');
+
+  const ifConns = connections["finishReason === 'MAX_TOKENS'"]?.main || [];
+  assert.ok(ifConns[0]?.some(c => c.node === 'Gemini Link & Gambar (Retry)'), 'IF branch 0 (true) harus mengalir ke Gemini Link & Gambar (Retry)');
+  assert.ok(ifConns[1]?.some(c => c.node === 'Terapkan Link & Gambar'), 'IF branch 1 (false) harus mengalir ke Terapkan Link & Gambar');
+
+  const retryConns = connections['Gemini Link & Gambar (Retry)']?.main?.[0] || [];
+  assert.ok(retryConns.some(c => c.node === 'Terapkan Link & Gambar'), 'Gemini Link & Gambar (Retry) harus mengalir ke Terapkan Link & Gambar');
+
+  // 4b. Uji eksekusi runtime Terapkan Link & Gambar saat menerima respons retry
   const article4 = {
     title: 'Strategi Optimasi SEO Konten Panjang',
     bodyMarkdown: '# Judul Utama\n\nParagraf pendahuluan strategi SEO.\n\n## Analisis Kata Kunci\n\nPenjelasan kata kunci mendalam.\n\n## Struktur Konten\n\nPenjelasan struktur konten.'
   };
   const options4 = { imageMode: 'auto', imageCount: 2, imageHero: true, internalLinks: true, maxInternal: 1 };
-
-  let retryConfigReceived = null;
-  let retryCredentialReceived = null;
-  const mockHelpers = {
-    httpRequestWithAuthentication: async function(credType, config) {
-      retryCredentialReceived = credType;
-      retryConfigReceived = config;
-      // Simulasi respons sukses setelah retry dengan token limit yang dinaikkan
-      return {
-        candidates: [{
-          content: {
-            parts: [{
-              text: JSON.stringify({
-                internal: [{ anchor: 'strategi SEO', url: 'https://mysite.com/seo-dasar', title: 'SEO Dasar' }],
-                external: [],
-                imagePrompts: [
-                  { idx: 0, placement: 'hero', prompt: 'Hero illustration for SEO', alt: 'Hero SEO' },
-                  { idx: 1, placement: 'h2:1', prompt: 'Keyword analysis workflow', alt: 'Keyword workflow' }
-                ]
-              })
-            }]
-          },
-          finishReason: 'STOP'
-        }]
-      };
-    },
-    httpRequest: async (config) => {
-      retryConfigReceived = config;
-      return null;
-    }
-  };
 
   const rawFirstResponse = {
     candidates: [{
@@ -171,45 +176,41 @@ async function runPlacementTests() {
     }]
   };
 
+  const rawRetryResponse = {
+    candidates: [{
+      content: {
+        parts: [{
+          text: JSON.stringify({
+            internal: [{ anchor: 'strategi SEO', url: 'https://mysite.com/seo-dasar', title: 'SEO Dasar' }],
+            external: [],
+            imagePrompts: [
+              { idx: 0, placement: 'hero', prompt: 'Hero illustration for SEO', alt: 'Hero SEO' },
+              { idx: 1, placement: 'h2:1', prompt: 'Keyword analysis workflow', alt: 'Keyword workflow' }
+            ]
+          })
+        }]
+      },
+      finishReason: 'STOP'
+    }]
+  };
+
   const res4 = await runTerapkanLink(article4, options4, null, {
-    rawGeminiResponse: rawFirstResponse,
+    rawGeminiResponse: rawRetryResponse,
+    firstGeminiResponse: rawFirstResponse,
     internalCandidates: [{ id: 'I1', title: 'SEO Dasar', url: 'https://mysite.com/seo-dasar' }],
-    helpers: mockHelpers,
     geminiBody: {
       generationConfig: { maxOutputTokens: 8192, thinkingConfig: { thinkingBudget: 0 } }
     }
   });
 
-  // Verifikasi 1: helper httpRequestWithAuthentication dipanggil untuk retry dengan kredensial googlePalmApi
-  assert.strictEqual(retryCredentialReceived, 'googlePalmApi', 'Kredensial n8n harus googlePalmApi');
-  assert.ok(retryConfigReceived, 'Retry HTTP request harus dipanggil saat finishReason = MAX_TOKENS');
-  assert.strictEqual(retryConfigReceived.method, 'POST');
-  assert.ok(
-    retryConfigReceived.body.generationConfig.maxOutputTokens > 8192,
-    `Batas token pada retry harus lebih besar dari 8192 (dapat: ${retryConfigReceived.body.generationConfig.maxOutputTokens})`
-  );
-  assert.strictEqual(
-    retryConfigReceived.body.generationConfig.maxOutputTokens,
-    16384,
-    'Batas token retry harus 16384 (2x dari 8192)'
-  );
-  assert.strictEqual(
-    retryConfigReceived.body.generationConfig.thinkingConfig.thinkingBudget,
-    0,
-    'thinkingBudget harus tetap 0'
-  );
-
-  // Verifikasi 2: hasil dari respons retry berhasil diterapkan ke artikel
   assert.strictEqual(res4.article.imagePrompts.length, 2, 'Harus menghasilkan 2 image prompt dari respons retry');
   assert.strictEqual(res4.article.links.internal.length, 1, 'Harus menghasilkan 1 internal link dari respons retry');
   assert.ok(res4.article.bodyMarkdown.includes('[strategi SEO](https://mysite.com/seo-dasar)'), 'Link internal harus disisipkan ke markdown');
-
-  // Verifikasi 3: warning jelas tercatat mengenai MAX_TOKENS
   assert.ok(
     res4.warnings.some(w => w.includes('MAX_TOKENS') && w.includes('batas token')),
     'Warning jelas harus mencatat bahwa respons terpotong karena batas token (MAX_TOKENS)'
   );
-  console.log('   ✓ Penanganan finishReason = MAX_TOKENS berhasil diverifikasi (retry 16384 tokens & warning jelas dicatat).\n');
+  console.log('   ✓ Penanganan finishReason = MAX_TOKENS berhasil diverifikasi (node HTTP retry 16384 tokens & warning jelas dicatat).\n');
 
   // Kasus 5: 1.500 kata + 4 gambar auto -> setiap gambar di H2 berbeda
   console.log('5. Menguji 1.500 kata + 4 gambar auto -> setiap gambar di H2 berbeda...');

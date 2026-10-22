@@ -11,42 +11,17 @@ const warnings = [];
 const cand0 = (G.candidates || [])[0] || {};
 const finishReason = cand0.finishReason || G.finishReason;
 
-if (finishReason === 'MAX_TOKENS') {
-  const oldLimit = P.geminiBody?.generationConfig?.maxOutputTokens || 8192;
-  const newLimit = Math.max(oldLimit * 2, 16384);
-  warnings.push(`Peringatan: Respons AI terpotong karena mencapai batas token (finishReason = MAX_TOKENS). Mengulang sekali dengan batas token lebih besar (${newLimit}).`);
+let firstCand = null;
+try {
+  firstCand = ($('Gemini Link & Gambar').first().json.candidates || [])[0] || {};
+} catch (_) {}
+const firstFinishReason = firstCand?.finishReason;
 
-  const hasAuthReq = H && typeof H.httpRequestWithAuthentication === 'function';
-  const hasBasicReq = H && typeof H.httpRequest === 'function';
-  if (hasAuthReq || hasBasicReq) {
-    try {
-      const retryBody = JSON.parse(JSON.stringify(P.geminiBody || {}));
-      if (!retryBody.generationConfig) retryBody.generationConfig = {};
-      retryBody.generationConfig.maxOutputTokens = newLimit;
-      if (retryBody.generationConfig.thinkingConfig) {
-        retryBody.generationConfig.thinkingConfig.thinkingBudget = 0;
-      }
-      const httpOptions = {
-        method: 'POST',
-        url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
-        body: retryBody,
-        json: true,
-        timeout: 120000
-      };
-      const retryRes = hasAuthReq
-        ? await H.httpRequestWithAuthentication.call(this, 'googlePalmApi', httpOptions)
-        : await H.httpRequest(httpOptions);
-      if (retryRes) {
-        G = retryRes;
-        const retryCand = (G.candidates || [])[0] || {};
-        if (retryCand.finishReason === 'MAX_TOKENS') {
-          warnings.push(`Peringatan: Respons AI tetap mencapai batas token (finishReason = MAX_TOKENS) setelah pengulangan dengan batas ${newLimit} token.`);
-        }
-      }
-    } catch (retryErr) {
-      warnings.push(`Peringatan: Gagal melakukan retry AI dengan batas token lebih besar: ${retryErr.message || retryErr}`);
-    }
-  }
+if (firstFinishReason === 'MAX_TOKENS') {
+  warnings.push('Peringatan: Respons AI terpotong karena mencapai batas token (finishReason = MAX_TOKENS). Mengulang sekali dengan batas token lebih besar (16384).');
+}
+if (finishReason === 'MAX_TOKENS') {
+  warnings.push('Peringatan: Respons AI tetap mencapai batas token (finishReason = MAX_TOKENS) setelah pengulangan dengan batas 16384 token.');
 }
 
 // --- parse JSON Gemini (toleran) ---
