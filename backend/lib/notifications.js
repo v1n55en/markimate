@@ -7,10 +7,19 @@ import { sendMail } from './mailer.js';
 
 const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
 
+let customSendEmailHandler = null;
+
+export function setSendEmailHandler(fn) {
+  customSendEmailHandler = fn;
+}
+
 /**
  * Mengirim email notifikasi (menggunakan modul mailer bersama)
  */
 export async function sendEmail({ to, subject, text, html, tag = 'general', metadata = {} }) {
+  if (customSendEmailHandler) {
+    return await customSendEmailHandler({ to, subject, text, html, tag, metadata });
+  }
   return await sendMail({ to, subject, text, html, tag });
 }
 

@@ -35,6 +35,7 @@ const {
   costOf,
   clearCreditCache
 } = await import('../lib/credits.js');
+const { setSendEmailHandler } = await import('../lib/notifications.js');
 const { encrypt, decrypt } = await import('../lib/crypto.js');
 
 let baseUrl;
@@ -336,6 +337,7 @@ async function runCreditsTests() {
   }
 
   // Uji B11: Alert kegagalan ensureMonthlyGrant dikirim ke email admin (1x per hari)
+  // dan hanya dicatat di credit_alerts SETELAH email berhasil terkirim.
   const failGrantWsId = randomUUID();
   await db.insert('workspaces', { id: failGrantWsId, name: 'Fail Grant WS', owner_user_id: randomUUID() });
   await db.insert('module_entitlements', {
@@ -346,6 +348,17 @@ async function runCreditsTests() {
   });
 
   const originalGrantRpc = db.rpc;
+  let sendEmailCalls = 0;
+  let emailShouldFail = false;
+
+  setSendEmailHandler(async ({ to, subject, tag }) => {
+    sendEmailCalls++;
+    if (emailShouldFail) {
+      throw new Error('Simulated SMTP connection failure');
+    }
+    return { success: true, id: 'mock-mail-id-123', to, subject, tag };
+  });
+
   try {
     db.rpc = async (fn) => {
       if (fn === 'apply_monthly_grant_atomic') {
@@ -354,30 +367,49 @@ async function runCreditsTests() {
       return originalGrantRpc(fn);
     };
 
-    // Panggilan pertama harus gagal dan membuat alert di credit_alerts
+    // Kasus 1: Pengiriman email gagal -> credit_alerts TIDAK boleh dicatat
+    emailShouldFail = true;
+    sendEmailCalls = 0;
     await assert.rejects(async () => {
       await ensureMonthlyGrant(failGrantWsId);
     }, /RPC grant failure simulation/);
 
-    const alerts = await db.findMany('credit_alerts', {
+    assert.strictEqual(sendEmailCalls, 1, 'sendEmail harus sempat dicoba');
+    const alertsFailedAttempt = await db.findMany('credit_alerts', {
       workspace_id: failGrantWsId,
       alert_type: 'monthly_grant_failure'
     });
-    assert.strictEqual(alerts.length, 1, 'Harus mencatat 1 alert di credit_alerts');
-    assert.strictEqual(alerts[0].sent_to, 'admin@markimate.com');
+    assert.strictEqual(alertsFailedAttempt.length, 0, 'Alert TIDAK boleh dicatat jika pengiriman email gagal');
 
-    // Panggilan kedua pada hari yang sama tidak boleh menduplikasi alert
+    // Kasus 2: Pengiriman email berhasil -> credit_alerts dicatat
+    emailShouldFail = false;
+    sendEmailCalls = 0;
     await assert.rejects(async () => {
       await ensureMonthlyGrant(failGrantWsId);
     }, /RPC grant failure simulation/);
 
-    const alerts2 = await db.findMany('credit_alerts', {
+    assert.strictEqual(sendEmailCalls, 1, 'sendEmail harus dipanggil 1 kali saat sukses');
+    const alertsSuccessAttempt = await db.findMany('credit_alerts', {
       workspace_id: failGrantWsId,
       alert_type: 'monthly_grant_failure'
     });
-    assert.strictEqual(alerts2.length, 1, 'Alert tidak boleh dikirim ulang pada hari yang sama');
+    assert.strictEqual(alertsSuccessAttempt.length, 1, 'Harus mencatat 1 alert di credit_alerts setelah email berhasil terkirim');
+    assert.strictEqual(alertsSuccessAttempt[0].sent_to, 'admin@markimate.com');
+
+    // Kasus 3: Panggilan kedua pada hari yang sama -> sendEmail TIDAK boleh dipanggil lagi (1x per hari)
+    await assert.rejects(async () => {
+      await ensureMonthlyGrant(failGrantWsId);
+    }, /RPC grant failure simulation/);
+
+    assert.strictEqual(sendEmailCalls, 1, 'sendEmail TIDAK boleh dipanggil lagi pada hari yang sama (tepat 1x per hari)');
+    const alertsRepeatAttempt = await db.findMany('credit_alerts', {
+      workspace_id: failGrantWsId,
+      alert_type: 'monthly_grant_failure'
+    });
+    assert.strictEqual(alertsRepeatAttempt.length, 1, 'Baris alert tidak boleh menduplikasi');
   } finally {
     db.rpc = originalGrantRpc;
+    setSendEmailHandler(null);
   }
 
   console.log('✅ ALL CREDITS TESTS PASSED!');
