@@ -207,9 +207,9 @@ async function runModuleBillingTests() {
   assert.strictEqual(entSeo.ends_at, null, 'Modul lifetime ends_at harus null');
   assert.strictEqual(entSeo.payment_id, paymentSeo.id);
 
-  // Verifikasi wallet & monthly_grants
+  // PRD F16 §3.5: Verifikasi wallet tidak mendapat kuota bulanan karena grant bulanan telah dihapus
   const walletAfterSeo = await db.findOne('credit_wallets', { workspace_id: workspaceId });
-  assert.strictEqual(walletAfterSeo.balance_sub, 100, 'Wallet harus mendapat 100 credit bulanan SEO');
+  assert.strictEqual(walletAfterSeo?.balance_sub || 0, 0, 'Wallet tidak mendapat kredit bulanan karena kuota bulanan dihapus (PRD F16)');
 
   // 5. Menguji Idempotensi Fulfillment & Webhook Duplikat
   console.log('4. Menguji Idempotensi Webhook duplikat (pencegahan double grant)...');
@@ -226,7 +226,7 @@ async function runModuleBillingTests() {
   assert.strictEqual(reFulfill.fulfilled, false, 'Re-fulfillment harus ditolak secara idempoten');
 
   const walletAfterDup = await db.findOne('credit_wallets', { workspace_id: workspaceId });
-  assert.strictEqual(walletAfterDup.balance_sub, 100, 'Saldo wallet tidak boleh bertambah saat webhook/fulfillment diulang');
+  assert.strictEqual(walletAfterDup?.balance_sub || 0, 0, 'Saldo wallet sub tetap 0 saat webhook/fulfillment diulang');
 
   // 6. Menguji Pencegahan Beli Ulang Modul yang Sudah Dimiliki
   console.log('5. Menguji penolakan pembelian ulang modul yang sudah dimiliki...');
@@ -307,9 +307,9 @@ async function runModuleBillingTests() {
   assert.strictEqual(entSpy.ends_at, null);
   assert.strictEqual(entSpy.payment_id, bundlePayment.id);
 
-  // Verifikasi total saldo bulanan upgrade ke 600 (100 + 400 + 100)
+  // PRD F16 §3.5: Verifikasi saldo bulanan tetap 0 karena grant bulanan dihapus
   const walletAfterBundle = await db.findOne('credit_wallets', { workspace_id: workspaceId });
-  assert.strictEqual(walletAfterBundle.balance_sub, 600, 'Saldo bulanan harus di-upgrade menjadi 600 credit (100+400+100)');
+  assert.strictEqual(walletAfterBundle?.balance_sub || 0, 0, 'Saldo bulanan tetap 0 karena kuota bulanan dihapus (PRD F16)');
 
   // 9. Menguji Penolakan Pembelian Bundle saat semua modul sudah dimiliki
   console.log('8. Menguji penolakan pembelian bundle saat semua modul sudah dimiliki...');

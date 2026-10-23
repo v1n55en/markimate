@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { db } from '../../db.js';
 import { PLANS, MODULES, BUNDLES, TOPUP, quoteTopup } from '../catalog.js';
-import { grant, ensureMonthlyGrant } from '../credits.js';
+import { grant } from '../credits.js';
 import {
   sendTopupSuccessEmail,
   sendSubscriptionSuccessEmail,
@@ -285,8 +285,6 @@ export async function grantModulePayment(payment) {
     }
   }
 
-  // 2. Langsung jalankan ensureMonthlyGrant
-  await ensureMonthlyGrant(payment.workspace_id);
 
   // 3. Catat granted_at di baris payment
   await db.update('payments', { id: payment.id }, {

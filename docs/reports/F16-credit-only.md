@@ -85,6 +85,44 @@ cd frontend && npm run i18n:check && npm run build
 - `npm run build` frontend: exit 0.
 
 ### 5. Hal yang Sengaja Tidak Dikerjakan pada Langkah Ini
-- Penghapusan cron/alert grant bulanan (dijadwalkan Langkah 3).
 - Migrasi SQL 019 dan checkout pack (dijadwalkan Langkah 4 & 5).
+
+---
+
+## Langkah 3: Hapus Grant Bulanan (PRD F16 §3.5)
+
+### 1. File yang Berubah
+- `backend/lib/credits.js`:
+  - Menghapus pemanggilan `ensureMonthlyGrant` di dalam `getWallet` dan `charge`.
+  - Menghapus fungsi `ensureMonthlyGrant` beserta logic alert `monthly_grant_failure`.
+- `backend/lib/payments/service.js`:
+  - Menghapus import `ensureMonthlyGrant` dan pemanggilannya saat fulfillment payment modul lama.
+- `backend/index.js`:
+  - Menghapus import `ensureMonthlyGrant` dan pemanggilan pada endpoint `GET /api/me` serta `GET /api/billing`.
+- `backend/tests/credits.test.js`:
+  - Menghapus import `ensureMonthlyGrant` dan blok Uji B11 (alert failure simulation).
+- `backend/tests/monthly-grant-atomic.test.js` &rarr; `backend/tests/atomic-wallet.test.js`:
+  - Mengisolasi pengujian atomik wallet (`charge_wallet_atomic` dan `grant_wallet_atomic`) murni tanpa ketergantungan grant bulanan (`ensureMonthlyGrant` / `apply_monthly_grant_atomic`).
+- `backend/tests/module-billing.test.js`:
+  - Menyesuaikan ekspektasi saldo sub menjadi 0 setelah fulfillment modul/bundle karena grant bulanan telah dihapus.
+- `docs/reports/F16-credit-only.md`: Dokumentasi laporan langkah 3.
+
+### 2. Verifikasi Grep Test Guardrail (§7)
+- `git grep -i "ensureMonthlyGrant" backend/tests/`: 0 matches (lolos).
+- `git grep -i "apply_monthly_grant_atomic" backend/tests/`: 0 matches (lolos).
+
+### 3. Cara Tes
+```bash
+cd backend && npm test
+cd frontend && npm run i18n:check && npm run build
+```
+
+### 4. Hasil Tes
+- `npm test` backend: 26/26 file test lolos tanpa error.
+- `npm run i18n:check` frontend: 0 error, dictionary parity 2449 keys.
+- `npm run build` frontend: exit 0.
+
+### 5. Hal yang Sengaja Tidak Dikerjakan pada Langkah Ini
+- Migrasi SQL 019 dan penghapusan expiry top-up (dijadwalkan Langkah 4).
+- Checkout pack dan 410 untuk module checkout (dijadwalkan Langkah 5).
 

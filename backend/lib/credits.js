@@ -114,12 +114,7 @@ export async function costOf(usage) {
 export async function getWallet(workspaceId) {
   if (!workspaceId) throw new Error('workspaceId is required.');
 
-  // PRD F15: Lazy grant kuota bulanan modul lifetime
-  try {
-    await ensureMonthlyGrant(workspaceId);
-  } catch (err) {
-    console.error(`[MONTHLY_GRANT_ERR] getWallet background grant check failed for workspace ${workspaceId}:`, err.message);
-  }
+
 
   let wallet = await db.findOne('credit_wallets', { workspace_id: workspaceId });
   if (!wallet) {
@@ -254,12 +249,7 @@ export async function assertAffordable(workspaceId, actionKey, qty = 1, extra = 
 export async function charge(workspaceId, actionKey, qty = 1, ref = {}, usage = null) {
   if (!workspaceId) throw new Error('workspaceId is required.');
 
-  // PRD F15: Pastikan kredit bulanan modul lifetime sudah ter-grant sebelum pemotongan
-  try {
-    await ensureMonthlyGrant(workspaceId);
-  } catch (err) {
-    console.error(`[MONTHLY_GRANT_ERR] charge background grant check failed for workspace ${workspaceId}:`, err.message);
-  }
+
 
   const refType = ref?.type || null;
   const refId = ref?.id ? String(ref.id) : null;
@@ -425,91 +415,7 @@ export async function grant(workspaceId, bucket, amount, expiresAt, kind = 'topu
   };
 }
 
-export async function ensureMonthlyGrant(workspaceId, now = new Date()) {
-  if (!workspaceId) return { granted: false, credits: 0 };
 
-  // 1. Cek apakah admin platform (unlimited, tidak perlu grant bulanan)
-  if (await isWorkspacePlatformAdmin(workspaceId)) {
-    return { granted: false, admin: true, credits: 0 };
-  }
-
-  // 2. Tentukan periode YYYY-MM WIB dan akhir bulan WIB
-  const formatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' });
-  const ymd = formatter.format(now); // 'YYYY-MM-DD'
-  const period = ymd.slice(0, 7); // 'YYYY-MM'
-
-  const [yearStr, monthStr] = period.split('-');
-  const year = parseInt(yearStr, 10);
-  const month = parseInt(monthStr, 10);
-  const lastDay = new Date(year, month, 0).getDate();
-  const expiresAt = new Date(`${period}-${String(lastDay).padStart(2, '0')}T23:59:59.999+07:00`).toISOString();
-
-  // 3. Hitung total kuota bulanan dari modul lifetime yang dimiliki
-  const entitlements = await db.findMany('module_entitlements', { workspace_id: workspaceId });
-  const activeModules = (entitlements || []).filter(e => e.source === 'lifetime');
-
-  const { MODULES } = await import('./catalog.js');
-  let totalCredits = 0;
-  for (const ent of activeModules) {
-    const modConfig = MODULES[ent.module];
-    const legacyMonthly = modConfig?.monthlyCredits ?? (ent.module === 'ads_report' ? 400 : 100);
-    if (legacyMonthly) {
-      totalCredits += Number(legacyMonthly);
-    }
-  }
-
-  if (totalCredits <= 0) {
-    return { granted: false, credits: 0, period };
-  }
-
-  // 4. Panggil RPC apply_monthly_grant_atomic
-  try {
-    const res = await db.rpc('apply_monthly_grant_atomic', {
-      p_workspace_id: workspaceId,
-      p_period: period,
-      p_credits: totalCredits,
-      p_expires_at: expiresAt
-    });
-
-    return {
-      granted: !!res.granted,
-      alreadyGranted: !!res.already_granted,
-      upgraded: !!res.upgraded,
-      diff: res.diff,
-      credits: res.credits || totalCredits,
-      period,
-      expiresAt
-    };
-  } catch (err) {
-    console.error(`[MONTHLY_GRANT_ERR] Failed to apply monthly grant for workspace ${workspaceId} period ${period}:`, err.message);
-    try {
-      const alertKey = `monthly_grant_failed:${ymd}`;
-      if (!(await hasAlertBeenSent(workspaceId, 'monthly_grant_failure', alertKey))) {
-        const adminEmail = process.env.ADMIN_EMAIL || 'admin@markimate.com';
-        try {
-          const sendRes = await sendEmail({
-            to: adminEmail,
-            subject: `[CRITICAL ALERT] Monthly grant failed for workspace ${workspaceId}`,
-            text: `Monthly grant failed for workspace ${workspaceId} (period ${period}):\n\nError: ${err.message}\nTimestamp: ${new Date().toISOString()}`,
-            tag: 'monthly_grant_failure',
-            metadata: { workspaceId, period, error: err.message }
-          });
-          if (sendRes && sendRes.success === false) {
-            console.error('[ADMIN_ALERT_EMAIL_ERR] Failed to send monthly grant failure email:', sendRes.error);
-          } else {
-            await recordAlertSent(workspaceId, 'monthly_grant_failure', adminEmail, alertKey, {
-              period,
-              error: err.message
-            });
-          }
-        } catch (mailErr) {
-          console.error('[ADMIN_ALERT_EMAIL_ERR]', mailErr.message);
-        }
-      }
-    } catch (_) {}
-    throw err;
-  }
-}
 
 export async function expireBuckets(workspaceId = null) {
   try {

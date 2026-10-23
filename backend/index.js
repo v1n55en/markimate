@@ -20,8 +20,7 @@ import {
   grant,
   expireBuckets,
   grantTrialIfEligible,
-  invalidateCreditCaches,
-  ensureMonthlyGrant
+  invalidateCreditCaches
 } from './lib/credits.js';
 import { PLANS, FREE_MONTHLY_LIMIT } from './lib/plans.js';
 import { processDailyCreditAlerts } from './lib/notifications.js';
@@ -1360,14 +1359,6 @@ app.get('/api/me', auth, wrap(async (req, res) => {
   const resolved = await resolveWorkspaceForUser(req.user.id, req.headers['x-workspace-id']);
   const activeWorkspace = resolved?.workspace || (workspaces[0] ? { id: workspaces[0].id } : { id: req.user.id });
   const activeWsId = activeWorkspace.id;
-
-  if (activeWsId) {
-    try {
-      await ensureMonthlyGrant(activeWsId);
-    } catch (err) {
-      console.error(`[MONTHLY_GRANT_ERR] /api/auth/me grant check failed for workspace ${activeWsId}:`, err.message);
-    }
-  }
 
   const conns = await db.findMany('cms_connections', { workspace_id: activeWsId });
 
@@ -3598,14 +3589,6 @@ app.get('/api/billing/catalog', wrap(async (_req, res) => {
 }));
 
 app.get('/api/billing', auth, requireWorkspace('viewer'), wrap(async (req, res) => {
-  // PRD F15: Lazy grant kuota bulanan modul lifetime saat membuka halaman billing
-  if (req.workspace?.id) {
-    try {
-      await ensureMonthlyGrant(req.workspace.id);
-    } catch (err) {
-      console.error(`[MONTHLY_GRANT_ERR] /api/billing grant check failed for workspace ${req.workspace.id}:`, err.message);
-    }
-  }
 
   const subs = await db.findMany('subscriptions', { workspace_id: req.workspace.id }, { orderBy: 'created_at desc' });
   const payments = await db.findMany('payments', { workspace_id: req.workspace.id }, { orderBy: 'created_at desc' });
