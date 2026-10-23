@@ -216,3 +216,64 @@ cd frontend && npm run i18n:check && npm run build
 - Perombakan UI pricing, landing page, role detail, wallet custom calculator, dan FAQ (dijadwalkan Langkah 6).
 - Terms & Ketentuan EN/ID (§4) serta template email mailer (§3.9) (dijadwalkan Langkah 7).
 
+---
+
+## Langkah 6: UI Pricing, Landing Page, Role Detail, Wallet & Admin Revenue Mix (PRD F16 §3.8, §6.6)
+
+### 1. File yang Berubah
+- `frontend/src/config/pricing.js`:
+  - Menghapus objek `LIFETIME_BUNDLES`, `BUNDLES`, dan `MODULE_CREDITS`.
+  - Memastikan hanya ada `MODULES`, `TOPUP`, `CREDIT_PACKS`, `TRIAL` (400 kredit/30 hari), dan fungsi utilitas harga.
+- `frontend/src/pages/app/WorkspaceDashboardPage.jsx`:
+  - Menghapus harga modul, badge lifetime, dan kuota bulanan gratis pada locked branch fallback.
+  - Menambahkan tag "Semua Modul Gratis" dan perkiraan pemakaian bulanan (`typicalMonthlyCredits`).
+- `frontend/src/pages/public/RoleDetailPage.jsx`:
+  - Menghapus harga modul, badge lifetime, dan link beli modul lifetime.
+  - Menampilkan header "Semua Modul Aktif Gratis", tag "Bayar Sesuai Pemakaian", perkiraan pemakaian bulanan, tombol CTA Coba Gratis 30 Hari (400 kredit), serta tautan ke paket credit.
+- `frontend/src/pages/billing/CreditWalletPage.jsx`:
+  - Menghapus `LIFETIME_MODULE_KEYS` dan seluruh seksi "Modul Lifetime Saya".
+  - Menambahkan kartu 4 paket kredit `CREDIT_PACKS` dengan handler `handleBuyPack` yang memanggil `POST /api/billing/pack`.
+  - Mengisolasi bucket `sub` (subscription) agar hanya tampil jika workspace memiliki sisa saldo lampau > 0, tanpa kata "lifetime".
+- `frontend/src/components/BillingPage.jsx`:
+  - Menghapus penawaran Bundle Fokus 3 dan modul lifetime.
+  - Menambahkan banner informatif bahwa seluruh modul aktif gratis, grid 4 paket kredit `CREDIT_PACKS`, tombol checkout instan `handleBuyPack`, dan tautan ke dompet credit.
+- `frontend/src/pages/public/LandingPage.jsx`:
+  - Merombak seksi `#pricing` menjadi modul gratis, banner trial 400 credit, kartu contoh biaya per aksi (75 cr ≈ Rp75.000, 400 cr ≈ Rp400.000, 65 cr ≈ Rp65.000), grid 4 paket kredit `CREDIT_PACKS`, kalkulator top-up kustom tanpa tanggal kedaluwarsa, dan link ke terms.
+- `backend/lib/admin-reports.js` & `backend/tests/admin-reports.test.js`:
+  - Menambahkan agregasi jenis transaksi `'pack'` ke dalam `getRevenueMix` (bulan ini, all-time, dan riwayat bulanan).
+  - Test suite backend admin reports lolos 100%.
+- `frontend/src/pages/admin/AdminDashboardPage.jsx`:
+  - Menambahkan kolom dan bar segmen untuk `pack` pada revenue mix bulanan, kumulatif sepanjang masa, serta tabel riwayat breakdown bulanan.
+  - Mengubah fallback teks `optTopup` menjadi `'topup (never expires)'`.
+- `frontend/src/i18n/locales/id/billing.js` & `frontend/src/i18n/locales/en/billing.js`:
+  - Menambahkan keys `creditPacksTitle`, `creditPacksSubtitle`, `allModulesActiveTitle`, `allModulesActiveDesc`, `openWalletBtn`, `packsTitle`, `packsSubtitle`, `savePctBadge`, `packRateInfo`, `allModulesFree`, `btnBuyPack`, `bucketSubscription`.
+  - Membersihkan penyebutan string "365" dan "lifetime".
+- `frontend/src/i18n/locales/id/public.js` & `frontend/src/i18n/locales/en/public.js`:
+  - Menambahkan keys `bundles` baru (`pricingTitle`, `pricingSubtitle`, `actionCostTitle`, `actionSeoArticle`, `actionAdsReport`, `actionAdsSpy`, `refundGuarantee`).
+  - Menambahkan keys `roleDetail` baru (`freeModuleHeader`, `zeroPrice`, `payPerUseTag`, `typicalUsageNote`, `ctaViewPricing`) dan memperbarui bottom CTA.
+  - Memperbarui FAQ q4, a4, q6, a6, q7, a7, q8, a8, q9, a9, q10, a10 agar konsisten dengan model credit-only tanpa kedaluwarsa.
+  - Memperbarui teks `topupSectionSubtitle`, `termsLink`, dan `amortizationNote`.
+- `frontend/src/i18n/locales/id/app.js` & `frontend/src/i18n/locales/en/app.js`:
+  - Menambahkan `freeModuleTag`, `typicalMonthlyCredits` di `app.dashboard`.
+  - Menambahkan `revPack`, `revModuleLegacy`, `thPackRev` di `adminDashboard`.
+  - Memperbarui `tipText`, `moduleActivate.bundleHint`, `bundleCta`, dan `optTopup`.
+- `docs/reports/F16-credit-only.md`: Dokumentasi laporan langkah 6.
+
+### 2. Cara Tes
+```bash
+cd backend && npm test
+cd frontend && npm run i18n:check && npm run build
+grep -o -E ".{0,30}(1990000|1490000|4490000).{0,30}" frontend/dist/assets/*.js
+```
+
+### 3. Hasil Tes
+- `npm test` backend: 27/27 file test lolos tanpa error.
+- `npm run i18n:check` frontend: 0 error, dictionary parity 2499 keys.
+- `npm run build` frontend: exit 0.
+- Guardrail grep: Nol kemunculan harga modul lama `1990000`, `1490000`, maupun `4490000` di bundle frontend.
+
+### 4. Hal yang Sengaja Tidak Dikerjakan pada Langkah Ini
+- Pembaruan Syarat & Ketentuan hukum (§4) serta template email mailer (§3.9) (dijadwalkan Langkah 7).
+- Screenshot visual 390px/1280px dan verifikasi akhir (dijadwalkan Langkah 8).
+
+

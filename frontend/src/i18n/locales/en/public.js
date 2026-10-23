@@ -102,9 +102,16 @@ export const publicTranslations = {
     "bundleMarkimateLabel": "Markimate Bundle",
     "perMonthShort": "/mo",
     "perMonth": "/ mo",
-    "amortizationNote": "Estimated monthly cost is based on a 24-month amortization of the Focus 3 Lifetime Bundle plus estimated monthly credit top-ups."
+    "amortizationNote": "Estimated monthly cost is based on typical credit usage for 3 roles ({credits} credits) multiplied by discounted pack rate."
   },
   "bundles": {
+    "pricingTitle": "All Modules Free — Pay As You Use",
+    "pricingSubtitle": "All marketing AI modules can be activated for free with zero license fees. Only pay for the credits used by the actions you run.",
+    "actionCostTitle": "Action Cost Examples (Credits Only Deducted on Success)",
+    "actionSeoArticle": "SEO Article (900 words + 3 AI images)",
+    "actionAdsReport": "Monthly Multi-Channel Ad Audit Report",
+    "actionAdsSpy": "Ad Library Competitor Scan & Hook Analysis",
+    "refundGuarantee": "7-day money-back refund guarantee",
     "title": "Flexible Plans for Every Stage of Growth",
     "subtitle": "Pick standalone roles for specific bottlenecks, or deploy bundled packages for compound growth.",
     "monthly": "Billed Monthly",
@@ -175,9 +182,9 @@ export const publicTranslations = {
     "adsSpyFeat4": "{credits} free credits every month forever",
     "ctaBuyModule": "Get Lifetime Access",
     "topupSectionTitle": "Custom Top-Up Calculator",
-    "topupSectionSubtitle": "Need additional credits beyond your monthly quota? Flexible top-up from {min} credits with 365-day validity.",
+    "topupSectionSubtitle": "Flexible top-up starting from {min} credits with no expiration date.",
     "bundleSavingsBadge": "Save {amount} vs Standalone",
-    "termsLink": "View Terms & Conditions for Lifetime License, 30-Day Trial, and 7-Day Refund Guarantee"
+    "termsLink": "View Terms & Conditions for Credit System, 30-Day Trial, and 7-Day Refund Policy"
   },
   "integrations": {
     "title": "Integrated with the Tools You Use Every Day",
@@ -193,19 +200,19 @@ export const publicTranslations = {
     "q3": "Can I manage multiple brands or client websites from one account?",
     "a3": "Yes! Markimate features Workspace Isolation. You can switch between brands in seconds, and each workspace keeps its own keywords, competitor spy tracking, advertising connections, and invoices separated.",
     "q4": "What are credits and how do they work?",
-    "a4": "Credits are the unit of measurement for AI actions in Markimate (1 credit = {rate}). Actions deduct credits from your workspace wallet (e.g. generating an article 60 cr, AI image 5 cr, automated topic run 10 cr). Subscriptions allocate monthly credits, and top-up packages provide additional credits valid for 365 days.",
+    "a4": "Credits are the unit of measurement for AI actions in Markimate (base rate 1 credit = {rate}, with higher savings in credit packs). All modules are active for free with zero monthly subscription fees. You only pay for credits consumed by successful actions.",
     "q5": "How does the {days}-day Free Trial ({credits} credits) work?",
     "a5": "Every newly registered account automatically receives {credits} free credits valid for {days} days with zero credit card required. All {totalRoles} AI modules are unlocked during trial. After {days} days, unused trial credits expire, while your CMS configurations and generated drafts remain securely preserved for 30 days.",
-    "q6": "How long do top-up credits stay valid?",
-    "a6": "Top-up credit packages (Starter 500 cr, Growth 1,050 cr, Scale 2,750 cr) stay valid for 365 days (1 full year) and are automatically consumed after trial and monthly subscription balances.",
-    "q7": "What is a lifetime license and how does it differ from a subscription?",
-    "a7": "A lifetime license provides permanent access with a single upfront payment. You will never be charged recurring monthly subscription fees. Every month, your workspace receives a free credit allowance to execute module tasks.",
-    "q8": "Do unused monthly credits accumulate or roll over?",
-    "a8": "No. Monthly grant credits reset on the 1st of every month (WIB timezone), and unused credits expire at month-end. This non-accumulation policy ensures high-performance server and AI infrastructure sustainability. In contrast, custom top-up credits remain valid for 365 days and never expire at month-end.",
+    "q6": "How long do credit pack and top-up credits stay valid?",
+    "a6": "Credits from credit packs and custom top-ups never expire. Your credit balance remains securely in your workspace wallet and can be used at any time.",
+    "q7": "Are there monthly subscription fees or module license costs?",
+    "a7": "None. All Markimate AI modules are active for free for every workspace. There are zero module licensing fees and no recurring subscriptions.",
+    "q8": "Do unused credits expire or disappear?",
+    "a8": "No. Credit pack and top-up credits never expire. Only the free {days}-day trial credits ({credits} credits) expire after {days} days from registration.",
     "q9": "Is there a money-back refund guarantee?",
-    "a9": "Yes! We provide a 100% money-back refund guarantee within {days} calendar days of your first purchase, provided the included monthly credits have not been utilized.",
-    "q10": "What happens if our free monthly credits run out mid-month?",
-    "a10": "You can easily top up your balance anytime using Custom Top-up starting from {min} credits ({rate}/credit). Enjoy automatic volume discounts up to 10%, with top-up credits staying valid for 365 days."
+    "a9": "Full refund within {days} calendar days of purchase if none of the credits from that purchase have been used.",
+    "q10": "What happens if my credit balance runs out?",
+    "a10": "You can easily replenish your balance anytime via our 4 Discounted Credit Packs (up to 25% savings) or Custom Top-up starting from {min} credits. Credits are credited instantly and never expire."
   },
   "finalCta": {
     "title": "Ready to Scale Your Marketing with AI?",
@@ -248,13 +255,18 @@ export const publicTranslations = {
     "notFoundTitle": "Role Not Found",
     "notFoundDesc": "Marketing AI role with key \"{key}\" was not found.",
     "pricingTag": "Individual Role Investment",
+    "freeModuleHeader": "All Modules Active for Free",
+    "zeroPrice": "Free",
+    "payPerUseTag": "Pay As You Use",
+    "typicalUsageNote": "Typical usage: ~{credits} credits/month ({desc})",
+    "ctaViewPricing": "View Credit Packs & Pricing",
     "quotaIncludes": "Includes: {quota}",
     "guarantee": "Human-in-the-Loop Guarantee: Review before live",
     "waitlistPromptTitle": "Want to Deploy This AI Role?",
     "waitlistPromptDesc": "Register your work email for priority beta onboarding and early-bird discounts when this role launches.",
     "sampleNote": "Every deliverable can be reviewed, edited, and approved inside the Markimate console before being published.",
-    "bottomCtaTitle": "Need Multiple Roles? Save 20% with the Focus 3 Bundle",
-    "bottomCtaDesc": "Deploy SEO Specialist, Ads Report, and Ads Creative Spy simultaneously with an automatic 20% discount."
+    "bottomCtaTitle": "All Modules Active for Free — Zero Subscription Fees",
+    "bottomCtaDesc": "Deploy SEO Specialist, Ads Report, and Ads Creative Spy directly in your workspace. Only pay for credits used by your actions."
   },
   "footer": {
     "rights": "All rights reserved.",

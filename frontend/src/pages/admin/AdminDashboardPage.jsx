@@ -397,28 +397,36 @@ export default function AdminDashboardPage({ user }) {
 
                   <div className="admin-mix-bar">
                     <div
-                      className="admin-mix-segment-module"
-                      style={{ width: `${revenueMix.this_month?.module?.pct || 0}%` }}
+                      className="admin-mix-segment-pack"
+                      style={{ width: `${revenueMix.this_month?.pack?.pct || 0}%`, backgroundColor: 'var(--accent-cyan)' }}
                     />
                     <div
                       className="admin-mix-segment-topup"
-                      style={{ width: `${revenueMix.this_month?.topup?.pct || 0}%` }}
+                      style={{ width: `${revenueMix.this_month?.topup?.pct || 0}%`, backgroundColor: 'var(--accent-green)' }}
                     />
-                    <div
-                      className="admin-mix-segment-sub"
-                      style={{ width: `${revenueMix.this_month?.subscription?.pct || 0}%` }}
-                    />
+                    {Boolean(revenueMix.this_month?.module?.revenue_idr) && (
+                      <div
+                        className="admin-mix-segment-module"
+                        style={{ width: `${revenueMix.this_month?.module?.pct || 0}%`, backgroundColor: 'var(--text-muted)' }}
+                      />
+                    )}
+                    {Boolean(revenueMix.this_month?.subscription?.revenue_idr) && (
+                      <div
+                        className="admin-mix-segment-sub"
+                        style={{ width: `${revenueMix.this_month?.subscription?.pct || 0}%`, backgroundColor: 'rgba(255, 255, 255, 0.2)' }}
+                      />
+                    )}
                   </div>
 
                   <div className="admin-mix-legend">
                     <div className="admin-mix-legend-item">
                       <div>
                         <span className="admin-mix-dot" style={{ backgroundColor: 'var(--accent-cyan)' }} />
-                        <span>{t('adminDashboard.revLifetimeModule')}</span>
+                        <span>{t('adminDashboard.revPack', 'Paket Credit')}</span>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <strong>{formatIDR(revenueMix.this_month?.module?.revenue_idr || 0)}</strong>
-                        <span style={styles.mixPctLabel}>{t('adminDashboard.pctInParen', { pct: revenueMix.this_month?.module?.pct || 0 })}</span>
+                        <strong>{formatIDR(revenueMix.this_month?.pack?.revenue_idr || 0)}</strong>
+                        <span style={styles.mixPctLabel}>{t('adminDashboard.pctInParen', { pct: revenueMix.this_month?.pack?.pct || 0 })}</span>
                       </div>
                     </div>
 
@@ -433,10 +441,23 @@ export default function AdminDashboardPage({ user }) {
                       </div>
                     </div>
 
-                    {Boolean(revenueMix.this_month?.subscription?.revenue_idr) && (
+                    {Boolean(revenueMix.this_month?.module?.revenue_idr) && (
                       <div className="admin-mix-legend-item">
                         <div>
                           <span className="admin-mix-dot" style={{ backgroundColor: 'var(--text-muted)' }} />
+                          <span>{t('adminDashboard.revModuleLegacy', 'Modul (Legacy)')}</span>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <strong>{formatIDR(revenueMix.this_month?.module?.revenue_idr || 0)}</strong>
+                          <span style={styles.mixPctLabel}>{t('adminDashboard.pctInParen', { pct: revenueMix.this_month?.module?.pct || 0 })}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {Boolean(revenueMix.this_month?.subscription?.revenue_idr) && (
+                      <div className="admin-mix-legend-item">
+                        <div>
+                          <span className="admin-mix-dot" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
                           <span>{t('adminDashboard.revSubscription')}</span>
                         </div>
                         <div style={{ textAlign: 'right' }}>
@@ -457,28 +478,36 @@ export default function AdminDashboardPage({ user }) {
 
                   <div className="admin-mix-bar">
                     <div
-                      className="admin-mix-segment-module"
-                      style={{ width: `${revenueMix.all_time?.module?.pct || 0}%` }}
+                      className="admin-mix-segment-pack"
+                      style={{ width: `${revenueMix.all_time?.pack?.pct || 0}%`, backgroundColor: 'var(--accent-cyan)' }}
                     />
                     <div
                       className="admin-mix-segment-topup"
-                      style={{ width: `${revenueMix.all_time?.topup?.pct || 0}%` }}
+                      style={{ width: `${revenueMix.all_time?.topup?.pct || 0}%`, backgroundColor: 'var(--accent-green)' }}
                     />
-                    <div
-                      className="admin-mix-segment-sub"
-                      style={{ width: `${revenueMix.all_time?.subscription?.pct || 0}%` }}
-                    />
+                    {Boolean(revenueMix.all_time?.module?.revenue_idr) && (
+                      <div
+                        className="admin-mix-segment-module"
+                        style={{ width: `${revenueMix.all_time?.module?.pct || 0}%`, backgroundColor: 'var(--text-muted)' }}
+                      />
+                    )}
+                    {Boolean(revenueMix.all_time?.subscription?.revenue_idr) && (
+                      <div
+                        className="admin-mix-segment-sub"
+                        style={{ width: `${revenueMix.all_time?.subscription?.pct || 0}%`, backgroundColor: 'rgba(255, 255, 255, 0.2)' }}
+                      />
+                    )}
                   </div>
 
                   <div className="admin-mix-legend">
                     <div className="admin-mix-legend-item">
                       <div>
                         <span className="admin-mix-dot" style={{ backgroundColor: 'var(--accent-cyan)' }} />
-                        <span>{t('adminDashboard.revLifetimeModule')}</span>
+                        <span>{t('adminDashboard.revPack', 'Paket Credit')}</span>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <strong>{formatIDR(revenueMix.all_time?.module?.revenue_idr || 0)}</strong>
-                        <span style={styles.mixPctLabel}>{t('adminDashboard.pctInParen', { pct: revenueMix.all_time?.module?.pct || 0 })}</span>
+                        <strong>{formatIDR(revenueMix.all_time?.pack?.revenue_idr || 0)}</strong>
+                        <span style={styles.mixPctLabel}>{t('adminDashboard.pctInParen', { pct: revenueMix.all_time?.pack?.pct || 0 })}</span>
                       </div>
                     </div>
 
@@ -493,10 +522,23 @@ export default function AdminDashboardPage({ user }) {
                       </div>
                     </div>
 
-                    {Boolean(revenueMix.all_time?.subscription?.revenue_idr) && (
+                    {Boolean(revenueMix.all_time?.module?.revenue_idr) && (
                       <div className="admin-mix-legend-item">
                         <div>
                           <span className="admin-mix-dot" style={{ backgroundColor: 'var(--text-muted)' }} />
+                          <span>{t('adminDashboard.revModuleLegacy', 'Modul (Legacy)')}</span>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <strong>{formatIDR(revenueMix.all_time?.module?.revenue_idr || 0)}</strong>
+                          <span style={styles.mixPctLabel}>{t('adminDashboard.pctInParen', { pct: revenueMix.all_time?.module?.pct || 0 })}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {Boolean(revenueMix.all_time?.subscription?.revenue_idr) && (
+                      <div className="admin-mix-legend-item">
+                        <div>
+                          <span className="admin-mix-dot" style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }} />
                           <span>{t('adminDashboard.revSubscription')}</span>
                         </div>
                         <div style={{ textAlign: 'right' }}>
@@ -516,7 +558,7 @@ export default function AdminDashboardPage({ user }) {
                     <thead>
                       <tr style={styles.tableHeaderRow}>
                         <th style={styles.th}>{t('adminDashboard.thPeriod')}</th>
-                        <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thLifetimeRev')}</th>
+                        <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thPackRev', 'Paket Credit')}</th>
                         <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thTopupRev')}</th>
                         <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thLegacyRev')}</th>
                         <th style={{ ...styles.th, textAlign: 'right' }}>{t('adminDashboard.thTotalRev')}</th>
@@ -528,22 +570,21 @@ export default function AdminDashboardPage({ user }) {
                         <tr key={row.period} style={styles.tr}>
                           <td style={styles.tdBold}>{row.period}</td>
                           <td style={{ ...styles.td, textAlign: 'right', color: 'var(--accent-cyan)' }}>
-                            {formatIDR(row.module?.revenue_idr || 0)}
-                            <span style={styles.mixPctLabel}> {t('adminDashboard.pctInParen', { pct: row.module?.pct || 0 })}</span>
+                            {formatIDR(row.pack?.revenue_idr || 0)}
+                            <span style={styles.mixPctLabel}> {t('adminDashboard.pctInParen', { pct: row.pack?.pct || 0 })}</span>
                           </td>
                           <td style={{ ...styles.td, textAlign: 'right', color: 'var(--accent-green)' }}>
                             {formatIDR(row.topup?.revenue_idr || 0)}
                             <span style={styles.mixPctLabel}> {t('adminDashboard.pctInParen', { pct: row.topup?.pct || 0 })}</span>
                           </td>
                           <td style={{ ...styles.td, textAlign: 'right', color: 'var(--text-muted)' }}>
-                            {formatIDR(row.subscription?.revenue_idr || 0)}
-                            <span style={styles.mixPctLabel}> {t('adminDashboard.pctInParen', { pct: row.subscription?.pct || 0 })}</span>
+                            {formatIDR((row.module?.revenue_idr || 0) + (row.subscription?.revenue_idr || 0))}
                           </td>
                           <td style={{ ...styles.td, textAlign: 'right', fontWeight: '700' }}>
                             {formatIDR(row.total_revenue_idr || 0)}
                           </td>
                           <td style={{ ...styles.td, textAlign: 'right', fontWeight: '600' }}>
-                            {t('adminDashboard.ratioDisplay', { a: row.module?.pct || 0, b: row.topup?.pct || 0 })}
+                            {t('adminDashboard.ratioDisplay', { a: row.pack?.pct || 0, b: row.topup?.pct || 0 })}
                           </td>
                         </tr>
                       ))}
@@ -593,7 +634,7 @@ export default function AdminDashboardPage({ user }) {
                       onChange={(e) => setGrantBucket(e.target.value)}
                       style={styles.select}
                     >
-                      <option value="topup">{t('adminDashboard.optTopup', 'topup (365 days)')}</option>
+                      <option value="topup">{t('adminDashboard.optTopup', 'topup (never expires)')}</option>
                       <option value="sub">{t('adminDashboard.optSub', 'sub (monthly)')}</option>
                       <option value="trial">{t('adminDashboard.optTrial', { days: TRIAL_DAYS })}</option>
                     </select>

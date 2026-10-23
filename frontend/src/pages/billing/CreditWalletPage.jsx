@@ -6,14 +6,14 @@ import {
   Sparkles,
   HelpCircle,
   ShieldAlert,
+  Check,
+  ArrowRight,
 } from 'lucide-react';
 import { getCredits, getCreditLedger, formatIDR, api } from '../../api';
-import { CREDIT_PRICE_IDR, MODULES, TRIAL_DAYS } from '../../config/pricing';
+import { CREDIT_PRICE_IDR, MODULES, TRIAL_DAYS, CREDIT_PACKS, formatCurrency } from '../../config/pricing';
 import TopupCalculator from '../../components/common/TopupCalculator';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatDateTime, formatNumber } from '../../lib/format';
-
-const LIFETIME_MODULE_KEYS = ['seo', 'ads_report', 'ads_spy'];
 
 const PAYMENT_STATUS_CONFIG = {
   paid: { color: '#10b981', bg: 'rgba(16, 185, 129, 0.12)', labelKey: 'billing.statusPaid' },
@@ -72,6 +72,29 @@ export default function CreditWalletPage({ me, onTopupClick }) {
       const res = await api('/api/billing/topup', {
         method: 'POST',
         body: { credits: creditsAmount }
+      });
+
+      if (res?.checkoutUrl) {
+        window.location.assign(res.checkoutUrl);
+      } else {
+        await fetchWalletData();
+        window.dispatchEvent(new Event('markimate:credits_updated'));
+        window.dispatchEvent(new Event('supermat:credits_updated'));
+      }
+    } catch (err) {
+      setTopupNotice({ ok: false, text: err.message });
+    } finally {
+      setTopupBusy(null);
+    }
+  };
+
+  const handleBuyPack = async (packId) => {
+    try {
+      setTopupBusy(packId);
+      setTopupNotice(null);
+      const res = await api('/api/billing/pack', {
+        method: 'POST',
+        body: { packId }
       });
 
       if (res?.checkoutUrl) {
@@ -249,25 +272,27 @@ export default function CreditWalletPage({ me, onTopupClick }) {
           </div>
         </div>
 
-        {/* Bucket Langganan / Kuota Bulanan Modul */}
-        <div style={styles.bucketCard} className="card">
-          <div style={styles.bucketCardTop}>
-            <span style={styles.bucketLabel}>{t('billing.bucketSubLifetime')}</span>
-            <span style={styles.bucketMiniTag}>{t('billing.daysUnit', { days: 30 })}</span>
+        {/* Bucket Jatah Bulanan (hanya jika ada sisa saldo lampau) */}
+        {subBalance > 0 && (
+          <div style={styles.bucketCard} className="card">
+            <div style={styles.bucketCardTop}>
+              <span style={styles.bucketLabel}>{t('billing.bucketSubscription', 'KUOTA BULANAN')}</span>
+              <span style={styles.bucketMiniTag}>{t('billing.daysUnit', { days: 30 })}</span>
+            </div>
+            <div style={styles.bucketValRow}>
+              <span style={styles.bucketVal}>{formatNumber(subBalance, lang)}</span>
+              <span style={styles.bucketUnit}>cr</span>
+            </div>
+            <div style={styles.bucketExpRow}>
+              <Clock size={12} color="var(--text-muted)" />
+              <span>
+                {subEnds
+                  ? t('billing.resetsEndOfMonth', { date: formatDate(subEnds, lang) })
+                  : t('billing.noActivePlan')}
+              </span>
+            </div>
           </div>
-          <div style={styles.bucketValRow}>
-            <span style={styles.bucketVal}>{formatNumber(subBalance, lang)}</span>
-            <span style={styles.bucketUnit}>cr</span>
-          </div>
-          <div style={styles.bucketExpRow}>
-            <Clock size={12} color="var(--text-muted)" />
-            <span>
-              {subEnds
-                ? t('billing.resetsEndOfMonth', { date: formatDate(subEnds, lang) })
-                : t('billing.noActivePlan')}
-            </span>
-          </div>
-        </div>
+        )}
 
         {/* Bucket Top-up */}
         <div style={styles.bucketCard} className="card">
@@ -372,52 +397,73 @@ export default function CreditWalletPage({ me, onTopupClick }) {
         />
       </div>
 
-      {/* Modul Lifetime Saya */}
-      <div style={{ ...styles.sectionHeaderRow, marginTop: '2rem' }}>
+      {/* 3. Paket Credit Hemat (CREDIT_PACKS) */}
+      <div style={{ ...styles.sectionHeaderRow, marginTop: '2.5rem' }}>
         <div>
           <h2 style={styles.sectionTitle}>
-            {t('billing.myModulesTitle')}
+            {t('billing.packsTitle', 'Paket Credit Hemat')}
           </h2>
           <p style={styles.sectionDesc}>
-            {t('billing.myModulesSubtitle')}
+            {t('billing.packsSubtitle', 'Dapatkan potongan harga volume hingga 25%. Seluruh credit yang dibeli tidak pernah hangus.')}
           </p>
         </div>
       </div>
 
-      <div style={styles.myModulesGrid}>
-        {LIFETIME_MODULE_KEYS.map((modKey) => {
-          const modMeta = MODULES[modKey];
-          const isOwned = (me?.workspace?.modules || credits?.modules || []).includes(modKey);
+      <div style={styles.packsGrid}>
+        {Object.values(CREDIT_PACKS).map((pack) => {
+          const discountPct = Math.round(pack.discount * 100);
+          const isPopular = pack.id === 'pack_1000';
+          const isBuyingThis = topupBusy === pack.id;
           return (
             <div
-              key={modKey}
+              key={pack.id}
               className="card"
               style={{
-                ...styles.myModuleCard,
-                borderColor: isOwned ? 'var(--accent-cyan)' : 'var(--border-muted)',
-                opacity: isOwned ? 1 : 0.65
+                ...styles.packCard,
+                ...(isPopular ? styles.packCardPopular : {})
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', gap: '0.5rem' }}>
-                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {modMeta?.name || modKey}
-                </h3>
-                {isOwned ? (
-                  <span style={styles.ownedBadge}>
-                    <Sparkles size={11} />
-                    {t('billing.ownedLifetimeBadge')}
+              {isPopular && (
+                <span style={styles.popularBadge}>
+                  <Sparkles size={11} />
+                  {t('bundles.popularBadge', 'Paling Populer')}
+                </span>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={styles.packName}>{pack.name}</h3>
+                {!isPopular && discountPct > 0 && (
+                  <span style={styles.packBonusBadge}>
+                    {t('billing.savePctBadge', { pct: discountPct }, `Hemat ${discountPct}%`)}
                   </span>
-                ) : (
-                  <span style={styles.unownedBadge}>{t('billing.inactive')}</span>
                 )}
               </div>
-              <p style={{ margin: '0 0 0.75rem 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                {modMeta?.desc}
-              </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent-cyan)' }}>
-                <Coins size={14} />
-                <span>{t('billing.monthlyGrantInfo', { credits: modMeta?.monthlyCredits || 100 })}</span>
+
+              <div style={styles.packCreditBox}>
+                <Coins size={16} color="var(--accent-cyan)" />
+                <span style={styles.packCreditCount}>{formatNumber(pack.credits, lang)}</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>credit</span>
               </div>
+
+              <div style={styles.packPriceRow}>
+                <span style={styles.packPrice}>{formatCurrency(pack.price, lang)}</span>
+              </div>
+
+              <p style={styles.packDesc}>
+                {t('billing.packRateInfo', { rate: formatIDR(Math.round(pack.price / pack.credits)) }, `Tarif ~${formatIDR(Math.round(pack.price / pack.credits))}/credit · Tidak pernah hangus`)}
+              </p>
+
+              <button
+                type="button"
+                onClick={() => handleBuyPack(pack.id)}
+                disabled={Boolean(topupBusy)}
+                style={{
+                  ...styles.packBuyBtn,
+                  ...(isPopular ? styles.packBuyBtnPopular : {})
+                }}
+              >
+                <span>{isBuyingThis ? t('billing.processing', 'Memproses...') : t('billing.btnBuyPack', { name: pack.name }, `Beli ${pack.name}`)}</span>
+                <ArrowRight size={14} />
+              </button>
             </div>
           );
         })}
@@ -1188,37 +1234,5 @@ const styles = {
     fontSize: '12px',
     color: '#059669',
     fontWeight: '600',
-  },
-  myModulesGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))',
-    gap: '1rem',
-    width: '100%',
-  },
-  myModuleCard: {
-    padding: '1.25rem',
-    borderRadius: '10px',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-  },
-  ownedBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.3rem',
-    fontSize: '0.72rem',
-    fontWeight: '700',
-    color: '#000000',
-    backgroundColor: 'var(--accent-cyan)',
-    borderRadius: '4px',
-    padding: '0.2rem 0.5rem',
-  },
-  unownedBadge: {
-    fontSize: '0.72rem',
-    fontWeight: '600',
-    color: 'var(--text-muted)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: '4px',
-    padding: '0.2rem 0.5rem',
   },
 };

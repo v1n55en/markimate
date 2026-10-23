@@ -154,29 +154,34 @@ export async function getRevenueMix(monthStr = null) {
   const paidPayments = (allPayments || []).filter((p) => p.status === 'paid');
 
   function aggregate(paymentsList) {
-    let moduleRevenue = 0;
-    let moduleCount = 0;
+    let packRevenue = 0;
+    let packCount = 0;
     let topupRevenue = 0;
     let topupCount = 0;
+    let moduleRevenue = 0;
+    let moduleCount = 0;
     let subRevenue = 0;
     let subCount = 0;
 
     for (const p of paymentsList) {
       const amt = Number(p.amount || 0);
-      if (p.kind === 'module') {
-        moduleRevenue += amt;
-        moduleCount += 1;
+      if (p.kind === 'pack') {
+        packRevenue += amt;
+        packCount += 1;
       } else if (p.kind === 'topup') {
         topupRevenue += amt;
         topupCount += 1;
+      } else if (p.kind === 'module') {
+        moduleRevenue += amt;
+        moduleCount += 1;
       } else if (p.kind === 'subscription') {
         subRevenue += amt;
         subCount += 1;
       }
     }
 
-    const totalRevenue = moduleRevenue + topupRevenue + subRevenue;
-    const totalCount = moduleCount + topupCount + subCount;
+    const totalRevenue = packRevenue + topupRevenue + moduleRevenue + subRevenue;
+    const totalCount = packCount + topupCount + moduleCount + subCount;
 
     const roundPct = (num) =>
       totalRevenue > 0 ? Math.round((num / totalRevenue) * 1000) / 10 : 0;
@@ -184,15 +189,20 @@ export async function getRevenueMix(monthStr = null) {
     return {
       total_revenue_idr: totalRevenue,
       total_count: totalCount,
-      module: {
-        revenue_idr: moduleRevenue,
-        count: moduleCount,
-        pct: roundPct(moduleRevenue)
+      pack: {
+        revenue_idr: packRevenue,
+        count: packCount,
+        pct: roundPct(packRevenue)
       },
       topup: {
         revenue_idr: topupRevenue,
         count: topupCount,
         pct: roundPct(topupRevenue)
+      },
+      module: {
+        revenue_idr: moduleRevenue,
+        count: moduleCount,
+        pct: roundPct(moduleRevenue)
       },
       subscription: {
         revenue_idr: subRevenue,

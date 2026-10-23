@@ -102,9 +102,16 @@ export const publicTranslations = {
     "bundleMarkimateLabel": "Bundle Markimate",
     "perMonthShort": "/bln",
     "perMonth": "/ bln",
-    "amortizationNote": "Estimasi biaya per bulan dihitung dari amortisasi lisensi seumur hidup Bundle Fokus 3 selama 24 bulan ditambah estimasi top-up kredit bulanan."
+    "amortizationNote": "Estimasi biaya per bulan dihitung dari asumsi pemakaian kredit khas untuk 3 role ({credits} kredit) dikalikan tarif paket hemat."
   },
   "bundles": {
+    "pricingTitle": "Semua Modul Gratis — Bayar Sesuai Pemakaian",
+    "pricingSubtitle": "Seluruh modul marketing AI dapat diaktifkan gratis tanpa biaya lisensi. Cukup bayar kredit sesuai aksi yang Anda jalankan.",
+    "actionCostTitle": "Contoh Biaya Per Aksi (Kredit Hanya Dipotong Saat Berhasil)",
+    "actionSeoArticle": "Artikel SEO (900 kata + 3 gambar)",
+    "actionAdsReport": "Laporan Bulanan Ads Multi-Channel",
+    "actionAdsSpy": "Scan Ad Library & Bedah Winning Ads",
+    "refundGuarantee": "Garansi refund 7 hari",
     "title": "Pilihan Paket Hemat & Bundling Fleksibel",
     "subtitle": "Pilih modul satuan sesuai kebutuhan bisnis Anda saat ini, atau hemat lebih banyak dengan paket bundle.",
     "monthly": "Tagihan Bulanan",
@@ -175,9 +182,9 @@ export const publicTranslations = {
     "adsSpyFeat4": "{credits} kredit gratis setiap bulan selamanya",
     "ctaBuyModule": "Dapatkan Akses Lifetime",
     "topupSectionTitle": "Kalkulator Top-Up Custom",
-    "topupSectionSubtitle": "Butuh tambahan kredit di luar kuota bulanan? Top-up fleksibel mulai {min} kredit dengan masa aktif 365 hari.",
+    "topupSectionSubtitle": "Top-up fleksibel mulai {min} kredit tanpa tanggal kedaluwarsa.",
     "bundleSavingsBadge": "Hemat {amount} vs Beli Satuan",
-    "termsLink": "Lihat Syarat & Ketentuan Lisensi Lifetime, Trial 30 Hari, dan Garansi Refund 7 Hari"
+    "termsLink": "Lihat Syarat & Ketentuan Sistem Kredit, Trial 30 Hari, dan Garansi Refund 7 Hari"
   },
   "integrations": {
     "title": "Terhubung dengan Platform yang Anda Gunakan",
@@ -193,19 +200,19 @@ export const publicTranslations = {
     "q3": "Bisakah saya mengelola beberapa brand atau toko dalam satu akun?",
     "a3": "Bisa! Markimate dilengkapi fitur Workspace Isolation. Anda dapat berpindah antar brand dalam hitungan detik; setiap brand memiliki keyword, data kompetitor, koneksi akun iklan, dan invoice masing-masing yang terpisah rapi.",
     "q4": "Apa itu kredit dan bagaimana cara kerjanya?",
-    "a4": "Kredit adalah satuan pemakaian aksi AI di Markimate (1 kredit = {rate}). Setiap aksi (generate artikel 60 kr, gambar AI 5 kr, riset topik 10 kr, dll.) memotong kredit dari dompet workspace Anda. Saldo langganan diperbarui setiap bulan, dan Anda dapat membeli paket top-up tambahan kapan saja.",
+    "a4": "Kredit adalah satuan pemakaian aksi AI di Markimate (tarif dasar 1 kredit = {rate}, lebih hemat dengan paket kredit). Seluruh modul aktif gratis tanpa biaya langganan bulanan. Anda hanya membayar kredit sesuai aksi yang berhasil dijalankan.",
     "q5": "Bagaimana cara kerja Free Trial {days} Hari ({credits} kredit)?",
     "a5": "Setiap akun baru otomatis mendapatkan {credits} kredit gratis selama {days} hari tanpa perlu memasukkan kartu kredit. Seluruh {totalRoles} modul dapat dicoba bebas. Setelah {days} hari, sisa kredit trial akan dinolkan, namun semua data dan konfigurasi CMS Anda tetap tersimpan aman selama 30 hari.",
-    "q6": "Berapa lama masa berlaku kredit paket top-up?",
-    "a6": "Kredit top-up (Starter 500 kr, Growth 1.050 kr, Scale 2.750 kr) berlaku selama 365 hari (1 tahun penuh) dan otomatis digunakan setelah kredit trial atau kredit langganan bulanan Anda habis.",
-    "q7": "Apa itu lisensi lifetime dan apa bedanya dengan langganan bulanan?",
-    "a7": "Lisensi lifetime adalah akses permanen seumur hidup dengan satu kali bayar di awal. Anda tidak akan pernah ditagih biaya langganan bulanan berulang. Setiap bulan, workspace Anda menerima jatah kredit bulanan gratis untuk menjalankan fitur-fitur modul yang Anda miliki.",
-    "q8": "Apakah kuota kredit bulanan terakumulasi jika tidak terpakai?",
-    "a8": "Tidak. Kuota kredit bulanan di-reset pada tanggal 1 awal bulan WIB dan sisa kuota yang tidak terpakai hangus di akhir bulan. Kebijakan non-akumulasi ini menjaga keberlanjutan infrastruktur server dan model AI kami. Sementara itu, kredit dari paket top-up tambahan berlaku selama 365 hari dan tidak pernah hangus di akhir bulan.",
+    "q6": "Berapa lama masa berlaku kredit paket dan top-up?",
+    "a6": "Kredit dari paket kredit maupun custom top-up tidak memiliki masa kedaluwarsa (tidak hangus). Saldo kredit tersimpan aman di workspace Anda dan dapat digunakan kapan saja.",
+    "q7": "Apakah ada biaya bulanan atau biaya lisensi modul?",
+    "a7": "Tidak ada. Seluruh modul AI Markimate aktif gratis untuk semua workspace. Tidak ada biaya lisensi modul maupun biaya langganan berulang.",
+    "q8": "Apakah saldo kredit hangus jika tidak terpakai?",
+    "a8": "Tidak. Kredit paket dan top-up tidak pernah hangus. Hanya kredit trial gratis {days} hari ({credits} kredit) yang memiliki batas waktu {days} hari sejak pendaftaran akun.",
     "q9": "Apakah ada garansi uang kembali (refund)?",
-    "a9": "Ya! Kami memberikan garansi pengembalian dana 100% selama {days} hari kalender setelah pembelian pertama jika kuota kredit bulanan dari modul tersebut belum digunakan sama sekali.",
-    "q10": "Bagaimana jika kuota kredit bulanan gratis habis di tengah bulan?",
-    "a10": "Anda dapat mengisi ulang saldo secara fleksibel kapan saja melalui Top-up Custom mulai {min} kredit ({rate}/kredit). Tersedia diskon volume otomatis hingga 10%, dan saldo top-up berlaku selama 365 hari."
+    "a9": "Refund penuh dalam {days} hari kalender jika kredit dari pembelian tersebut belum digunakan sama sekali.",
+    "q10": "Bagaimana jika saldo kredit habis di tengah pemakaian?",
+    "a10": "Anda dapat mengisi ulang saldo secara fleksibel kapan saja melalui 4 Pilihan Paket Credit Hemat (diskon hingga 25%) atau Custom Top-up mulai {min} kredit. Kredit langsung masuk dan tidak pernah hangus."
   },
   "finalCta": {
     "title": "Siap Tingkatkan Pemasaran dengan Tim AI?",
@@ -248,13 +255,18 @@ export const publicTranslations = {
     "notFoundTitle": "Role Tidak Ditemukan",
     "notFoundDesc": "Role marketing dengan kode \"{key}\" tidak terdaftar.",
     "pricingTag": "Investasi Modul Mandiri",
+    "freeModuleHeader": "Semua Modul Aktif Gratis",
+    "zeroPrice": "Gratis",
+    "payPerUseTag": "Bayar Sesuai Pemakaian",
+    "typicalUsageNote": "Pemakaian khas: ~{credits} credit/bulan ({desc})",
+    "ctaViewPricing": "Lihat Paket Credit & Tarif",
     "quotaIncludes": "Termasuk: {quota}",
     "guarantee": "Garansi Human-in-the-Loop: Review sebelum terbit",
     "waitlistPromptTitle": "Ingin Menggunakan Role Ini?",
     "waitlistPromptDesc": "Daftarkan email Anda untuk mendapatkan prioritas akses beta dan diskon early-bird saat modul ini dirilis.",
     "sampleNote": "Setiap deliverable dapat ditinjau, disunting, dan disetujui di dalam dasbor Markimate sebelum diterbitkan atau digunakan.",
-    "bottomCtaTitle": "Butuh Lebih dari Satu Role? Hemat dengan Bundle \"Fokus 3\"",
-    "bottomCtaDesc": "Dapatkan SEO Specialist, Ads Specialist (Report), dan Ads Creative Spy sekaligus dengan diskon 20%."
+    "bottomCtaTitle": "Semua Modul Aktif Gratis — Mulai Tanpa Biaya Berlangganan",
+    "bottomCtaDesc": "Aktifkan SEO Specialist, Ads Report, dan Ads Creative Spy langsung di workspace Anda. Cukup bayar kredit sesuai aksi yang Anda jalankan."
   },
   "footer": {
     "rights": "Seluruh hak cipta dilindungi undang-undang.",

@@ -129,16 +129,3 @@ export const formatCurrency = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-I
 
 // Alias formatIDR
 export const formatIDR = (n) => formatCurrency(n);
-
-// Deprecation stubs untuk kompatibilitas impor sementara selama transisi ke Step 6
-export const LIFETIME_BUNDLES = {
-  focus3: { id: 'focus3', key: 'focus3', name: 'Bundle Fokus 3', price: 4490000, savings: 980000, monthlyCredits: 600 }
-};
-export const BUNDLES = [LIFETIME_BUNDLES.focus3];
-BUNDLES.focus3 = LIFETIME_BUNDLES.focus3;
-export const MODULE_CREDITS = {
-  seo: 600,
-  ads_report: 400,
-  ads_spy: 260,
-  focus3: 1260
-};

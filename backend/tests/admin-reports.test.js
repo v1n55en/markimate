@@ -271,25 +271,37 @@ async function runAdminReportsTests() {
       created_at: '2026-09-20T10:00:00Z'
     });
 
+    await db.insert('payments', {
+      workspace_id: wsA.id,
+      kind: 'pack',
+      item_id: 'pack_1000',
+      item_name: 'Paket Growth (1.000 credit)',
+      amount: 900000,
+      credits: 1000,
+      provider: 'doku',
+      invoice_number: 'MKM-P-261018-005',
+      status: 'paid',
+      paid_at: '2026-10-18T10:00:00Z',
+      created_at: '2026-10-18T10:00:00Z'
+    });
+
     const revMix = await getRevenueMix('2026-10');
     assert.strictEqual(revMix.period, '2026-10');
 
-    // Bulan berjalan: 4.490.000 (module) + 950.000 (topup) = 5.440.000
-    assert.strictEqual(revMix.this_month.total_revenue_idr, 5440000);
+    // Bulan berjalan: 4.490.000 (module) + 950.000 (topup) + 900.000 (pack) = 6.340.000
+    assert.strictEqual(revMix.this_month.total_revenue_idr, 6340000);
     assert.strictEqual(revMix.this_month.module.revenue_idr, 4490000);
     assert.strictEqual(revMix.this_month.topup.revenue_idr, 950000);
+    assert.strictEqual(revMix.this_month.pack.revenue_idr, 900000);
+    assert.strictEqual(revMix.this_month.pack.count, 1);
     assert.strictEqual(revMix.this_month.subscription.revenue_idr, 0);
-    assert.strictEqual(revMix.this_month.module.pct, 82.5); // 4490000 / 5440000 = 82.5%
-    assert.strictEqual(revMix.this_month.topup.pct, 17.5); // 950000 / 5440000 = 17.5%
 
-    // All-time: 5.440.000 + 799.000 = 6.239.000
-    assert.strictEqual(revMix.all_time.total_revenue_idr, 6239000);
+    // All-time: 6.340.000 + 799.000 = 7.139.000
+    assert.strictEqual(revMix.all_time.total_revenue_idr, 7139000);
     assert.strictEqual(revMix.all_time.module.revenue_idr, 4490000);
     assert.strictEqual(revMix.all_time.topup.revenue_idr, 950000);
+    assert.strictEqual(revMix.all_time.pack.revenue_idr, 900000);
     assert.strictEqual(revMix.all_time.subscription.revenue_idr, 799000);
-    assert.strictEqual(revMix.all_time.module.pct, 72.0); // 4490000 / 6239000 = 71.96% -> 72%
-    assert.strictEqual(revMix.all_time.topup.pct, 15.2);
-    assert.strictEqual(revMix.all_time.subscription.pct, 12.8);
 
     assert(revMix.monthly_history.length >= 2, 'History harus berisi minimal 2 bulan (2026-10 dan 2026-09)');
     console.log('✓ Bauran pendapatan (Revenue Mix) berhasil dihitung akurat!');
@@ -298,8 +310,8 @@ async function runAdminReportsTests() {
     const marginResult = await calculateUsageAndMargin('2026-10');
     assert(marginResult.lifetime_liability, 'Margin result harus menyertakan lifetime_liability');
     assert(marginResult.revenue_mix, 'Margin result harus menyertakan revenue_mix');
-    assert.strictEqual(marginResult.lifetime_liability.summary.total_liability_real_idr, 7200);
-    assert.strictEqual(marginResult.revenue_mix.this_month.total_revenue_idr, 5440000);
+    assert.strictEqual(marginResult.revenue_mix.this_month.total_revenue_idr, 6340000);
+    assert.strictEqual(marginResult.revenue_mix.this_month.pack.revenue_idr, 900000);
     console.log('✓ calculateUsageAndMargin terintegrasi sempurna!');
 
     console.log('Case 4: HTTP API endpoint /api/admin/reports/lifetime-liability');

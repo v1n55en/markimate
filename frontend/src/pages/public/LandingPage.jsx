@@ -36,7 +36,6 @@ import {
   getLocalizedCategories,
 } from '../../config/roles';
 import {
-  BUNDLES,
   TEAM_COST_BENCHMARK,
   getLocalizedInHouseComparison,
   formatIDR,
@@ -44,7 +43,7 @@ import {
   TRIAL,
   CREDIT_PRICE_IDR,
   MODULES,
-  LIFETIME_BUNDLES,
+  CREDIT_PACKS,
   TOPUP,
 } from '../../config/pricing';
 import TopupCalculator from '../../components/common/TopupCalculator';
@@ -387,7 +386,7 @@ export default function LandingPage({ scrollToPricing = false }) {
               </div>
               <div style={styles.benchmarkNote}>
                 <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  * {t('benchmark.amortizationNote')}
+                  * {t('benchmark.amortizationNote', { credits: 2800 })}
                 </p>
               </div>
             </div>
@@ -468,15 +467,16 @@ export default function LandingPage({ scrollToPricing = false }) {
         {/* 5. Paket & Harga (#pricing) */}
         <section id="pricing" style={styles.section}>
           <div style={styles.sectionHeader}>
-            <h2 style={styles.sectionHeading}>{t('bundles.title', 'Flexible Plans for Every Stage of Growth')}</h2>
+            <h2 style={styles.sectionHeading}>{t('bundles.pricingTitle', 'Semua Modul Gratis — Bayar Sesuai Pemakaian')}</h2>
             <p style={styles.sectionSub}>
               {t(
-                'bundles.subtitle',
-                'Pick standalone roles for specific bottlenecks, or deploy bundled packages for compound growth.'
+                'bundles.pricingSubtitle',
+                'Seluruh modul marketing AI dapat diaktifkan gratis tanpa biaya lisensi. Cukup bayar kredit sesuai aksi yang Anda jalankan.'
               )}
             </p>
           </div>
 
+          {/* Banner Free Trial 400 Credit */}
           <div style={styles.pricingTrialBanner} className="card">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
               <div style={styles.trialBadgeIcon}>
@@ -491,124 +491,114 @@ export default function LandingPage({ scrollToPricing = false }) {
                 </div>
               </div>
               <AppLink to="/register" style={styles.trialCtaBtn}>
-                {t('bundles.pricingTrialBtn', 'Start Free Trial')}
+                {t('bundles.pricingTrialBtn', 'Coba Gratis 30 Hari — 400 Credit')}
               </AppLink>
             </div>
           </div>
 
-          {/* Bundle Fokus 3 Hero Card (Best Value) */}
-          <div className="focus3-hero-card" style={{ marginBottom: '1.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
-              <div>
-                <span className="focus3-hero-badge">
-                  <Sparkles size={13} />
-                  {t('bundles.popularBadge')}
-                </span>
-                <h3 className="focus3-hero-title">{t('bundles.fokus3Title')}</h3>
-                <p className="focus3-hero-desc">{t('bundles.fokus3Desc')}</p>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div className="focus3-price-val">{formatCurrency(LIFETIME_BUNDLES.focus3.price, lang)}</div>
-                <div className="focus3-one-time-label">{t('bundles.oneTime')}</div>
-                <div className="focus3-savings-badge">
-                  {t('bundles.bundleSavingsBadge', { amount: formatCurrency(LIFETIME_BUNDLES.focus3.savings, lang) })}
-                </div>
-              </div>
+          {/* Action Cost Highlights */}
+          <div style={styles.actionCostCard} className="card">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+              <Sparkles size={16} color="var(--accent-cyan)" />
+              <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                {t('bundles.actionCostTitle', 'Contoh Biaya Per Aksi (Kredit Hanya Dipotong Saat Berhasil)')}
+              </h3>
             </div>
-
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem', marginTop: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', color: 'var(--accent-cyan)', fontWeight: 700, fontSize: '0.95rem' }}>
-                <Coins size={18} />
-                <span>{t('bundles.monthlyCreditsForever', { credits: LIFETIME_BUNDLES.focus3.monthlyCredits })}</span>
+            <div style={styles.actionCostGrid}>
+              <div style={styles.actionCostItem}>
+                <span style={styles.actionCostName}>{t('bundles.actionSeoArticle', 'Artikel SEO (900 kata + 3 gambar)')}</span>
+                <strong style={styles.actionCostVal}>75 credit <span style={styles.actionCostApprox}>≈ Rp75.000</span></strong>
               </div>
-              <ul className="focus3-features-list">
-                <li>{t('bundles.fokus3Feat1')}</li>
-                <li>{t('bundles.fokus3Feat2')}</li>
-                <li>{t('bundles.fokus3Feat3')}</li>
-                <li>{t('bundles.fokus3Feat4', { credits: LIFETIME_BUNDLES.focus3.monthlyCredits })}</li>
-                <li>{t('bundles.fokus3Feat5')}</li>
-              </ul>
-              <div style={{ marginTop: '1.25rem' }}>
-                <AppLink to="/register" className="focus3-cta-btn">
-                  <span>{t('bundles.ctaBuyModule')}</span>
-                  <ArrowRight size={16} />
-                </AppLink>
+              <div style={styles.actionCostItem}>
+                <span style={styles.actionCostName}>{t('bundles.actionAdsReport', 'Laporan Bulanan Ads Multi-Channel')}</span>
+                <strong style={styles.actionCostVal}>400 credit <span style={styles.actionCostApprox}>≈ Rp400.000</span></strong>
+              </div>
+              <div style={styles.actionCostItem}>
+                <span style={styles.actionCostName}>{t('bundles.actionAdsSpy', 'Scan Ad Library & Bedah Winning Ads')}</span>
+                <strong style={styles.actionCostVal}>65 credit <span style={styles.actionCostApprox}>≈ Rp65.000</span></strong>
               </div>
             </div>
           </div>
 
-          {/* 3 Modul Lifetime Grid */}
-          <div className="pricing-lifetime-grid">
-            {/* 1. SEO */}
-            <div className="plan-card card" style={styles.planCard}>
-              <span className="plan-badge" style={styles.planBadge}>{t('bundles.lifetimeBadge')}</span>
-              <h3 className="plan-name" style={styles.planName}>{t('bundles.seoTitle')}</h3>
-              <p className="plan-desc" style={styles.planDesc}>{t('bundles.seoDesc')}</p>
-              <div className="plan-price-row" style={styles.planPriceRow}>
-                <span className="plan-price-val" style={styles.planPriceVal}>{formatCurrency(MODULES.seo.price, lang)}</span>
-                <span className="plan-period" style={styles.planPeriod}>{t('bundles.oneTime')}</span>
-              </div>
-              <div className="plan-credit-grant">
-                <Coins size={15} color="var(--accent-cyan)" />
-                <span>{t('bundles.monthlyCreditsForever', { credits: MODULES.seo.monthlyCredits })}</span>
-              </div>
-              <ul className="plan-features" style={styles.planFeatures}>
-                <li>{t('bundles.seoFeat1')}</li>
-                <li>{t('bundles.seoFeat2')}</li>
-                <li>{t('bundles.seoFeat3')}</li>
-                <li>{t('bundles.seoFeat4', { credits: MODULES.seo.monthlyCredits })}</li>
-              </ul>
-              <AppLink to="/register" style={styles.planBtnSecondary}>
-                {t('bundles.ctaSelect')}
-              </AppLink>
+          {/* Grid 4 Paket Credit Hemat (CREDIT_PACKS) */}
+          <div style={{ marginTop: '2.5rem' }}>
+            <div style={styles.sectionHeader}>
+              <h3 style={{ ...styles.sectionHeading, fontSize: '1.4rem' }}>{t('billing.packsTitle', 'Paket Credit Hemat')}</h3>
+              <p style={styles.sectionSub}>
+                {t('billing.packsSubtitle', 'Dapatkan potongan harga volume hingga 25%. Seluruh credit yang dibeli tidak pernah hangus.')}
+              </p>
             </div>
 
-            {/* 2. Ads Report */}
-            <div className="plan-card card" style={styles.planCard}>
-              <span className="plan-badge" style={styles.planBadge}>{t('bundles.lifetimeBadge')}</span>
-              <h3 className="plan-name" style={styles.planName}>{t('bundles.adsReportTitle')}</h3>
-              <p className="plan-desc" style={styles.planDesc}>{t('bundles.adsReportDesc')}</p>
-              <div className="plan-price-row" style={styles.planPriceRow}>
-                <span className="plan-price-val" style={styles.planPriceVal}>{formatCurrency(MODULES.ads_report.price, lang)}</span>
-                <span className="plan-period" style={styles.planPeriod}>{t('bundles.oneTime')}</span>
-              </div>
-              <div className="plan-credit-grant">
-                <Coins size={15} color="var(--accent-cyan)" />
-                <span>{t('bundles.monthlyCreditsForever', { credits: MODULES.ads_report.monthlyCredits })}</span>
-              </div>
-              <ul className="plan-features" style={styles.planFeatures}>
-                <li>{t('bundles.adsReportFeat1')}</li>
-                <li>{t('bundles.adsReportFeat2')}</li>
-                <li>{t('bundles.adsReportFeat3')}</li>
-                <li>{t('bundles.adsReportFeat4', { credits: MODULES.ads_report.monthlyCredits })}</li>
-              </ul>
-              <AppLink to="/register" style={styles.planBtnSecondary}>
-                {t('bundles.ctaSelect')}
-              </AppLink>
-            </div>
+            <div style={styles.packsGrid}>
+              {Object.values(CREDIT_PACKS).map((pack) => {
+                const discountPct = Math.round(pack.discount * 100);
+                const isPopular = pack.id === 'pack_1000';
+                return (
+                  <div
+                    key={pack.id}
+                    className="card"
+                    style={{
+                      ...styles.packCard,
+                      ...(isPopular ? styles.packCardPopular : {})
+                    }}
+                  >
+                    {isPopular && (
+                      <span style={styles.popularBadge}>
+                        <Sparkles size={11} />
+                        {t('bundles.popularBadge', 'Paling Populer')}
+                      </span>
+                    )}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h3 style={styles.packName}>{pack.name}</h3>
+                      {!isPopular && discountPct > 0 && (
+                        <span style={styles.discountBadge}>
+                          {t('billing.savePctBadge', { pct: discountPct }, `Hemat ${discountPct}%`)}
+                        </span>
+                      )}
+                    </div>
 
-            {/* 3. Ads Spy */}
-            <div className="plan-card card" style={styles.planCard}>
-              <span className="plan-badge" style={styles.planBadge}>{t('bundles.lifetimeBadge')}</span>
-              <h3 className="plan-name" style={styles.planName}>{t('bundles.adsSpyTitle')}</h3>
-              <p className="plan-desc" style={styles.planDesc}>{t('bundles.adsSpyDesc')}</p>
-              <div className="plan-price-row" style={styles.planPriceRow}>
-                <span className="plan-price-val" style={styles.planPriceVal}>{formatCurrency(MODULES.ads_spy.price, lang)}</span>
-                <span className="plan-period" style={styles.planPeriod}>{t('bundles.oneTime')}</span>
-              </div>
-              <div className="plan-credit-grant">
-                <Coins size={15} color="var(--accent-cyan)" />
-                <span>{t('bundles.monthlyCreditsForever', { credits: MODULES.ads_spy.monthlyCredits })}</span>
-              </div>
-              <ul className="plan-features" style={styles.planFeatures}>
-                <li>{t('bundles.adsSpyFeat1')}</li>
-                <li>{t('bundles.adsSpyFeat2')}</li>
-                <li>{t('bundles.adsSpyFeat3')}</li>
-                <li>{t('bundles.adsSpyFeat4', { credits: MODULES.ads_spy.monthlyCredits })}</li>
-              </ul>
-              <AppLink to="/register" style={styles.planBtnSecondary}>
-                {t('bundles.ctaSelect')}
-              </AppLink>
+                    <div style={styles.packCreditBox}>
+                      <Coins size={16} color="var(--accent-cyan)" />
+                      <span style={styles.packCreditCount}>{formatNumber(pack.credits, lang)}</span>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>credit</span>
+                    </div>
+
+                    <div style={styles.packPriceRow}>
+                      <span style={styles.packPriceVal}>{formatCurrency(pack.price, lang)}</span>
+                    </div>
+
+                    <div style={styles.packFeatureList}>
+                      <div style={styles.packFeatureItem}>
+                        <Check size={13} color="var(--accent-green)" />
+                        <span>{t('billing.topupNeverExpires', 'Credit tidak pernah hangus')}</span>
+                      </div>
+                      <div style={styles.packFeatureItem}>
+                        <Check size={13} color="var(--accent-green)" />
+                        <span>{t('billing.packRateInfo', { rate: formatIDR(Math.round(pack.price / pack.credits)) }, `~${formatIDR(Math.round(pack.price / pack.credits))}/credit`)}</span>
+                      </div>
+                      <div style={styles.packFeatureItem}>
+                        <Check size={13} color="var(--accent-green)" />
+                        <span>{t('billing.allModulesFree', 'Semua modul aktif gratis')}</span>
+                      </div>
+                      <div style={styles.packFeatureItem}>
+                        <Check size={13} color="var(--accent-green)" />
+                        <span>{t('bundles.refundGuarantee', 'Garansi refund 7 hari')}</span>
+                      </div>
+                    </div>
+
+                    <AppLink
+                      to="/register"
+                      style={{
+                        ...styles.buyPackBtn,
+                        ...(isPopular ? styles.buyPackBtnPopular : {})
+                      }}
+                    >
+                      <span>{t('billing.btnBuyPack', { name: pack.name }, `Beli ${pack.name}`)}</span>
+                      <ArrowRight size={14} />
+                    </AppLink>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -624,7 +614,7 @@ export default function LandingPage({ scrollToPricing = false }) {
               <TopupCalculator isPublic={true} initialCredits={500} />
             </div>
             <div style={{ textAlign: 'center', marginTop: '1.75rem', fontSize: '0.825rem' }}>
-              <LocalizedLink to="/terms" style={{ color: 'var(--accent-cyan)', textDecoration: 'underline' }}>
+              <LocalizedLink to="/terms#credit-system" style={{ color: 'var(--accent-cyan)', textDecoration: 'underline' }}>
                 {t('bundles.termsLink')}
               </LocalizedLink>
             </div>
@@ -740,7 +730,7 @@ export default function LandingPage({ scrollToPricing = false }) {
                 {t('faq.q8')}
               </h4>
               <p style={styles.faqAnswer}>
-                {t('faq.a8')}
+                {t('faq.a8', { days: TRIAL.days, credits: TRIAL.credits })}
               </p>
             </div>
 
@@ -1300,6 +1290,150 @@ const styles = {
     fontSize: '0.78rem',
     color: 'var(--accent-green)',
     fontWeight: '600',
+  },
+  actionCostCard: {
+    padding: '1.25rem',
+    borderRadius: '12px',
+    backgroundColor: 'rgba(6, 182, 212, 0.04)',
+    border: '1px solid rgba(6, 182, 212, 0.2)',
+    marginBottom: '1.5rem',
+  },
+  actionCostGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))',
+    gap: '0.85rem',
+  },
+  actionCostItem: {
+    padding: '0.75rem',
+    borderRadius: '8px',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    border: '1px solid rgba(255, 255, 255, 0.06)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.25rem',
+  },
+  actionCostName: {
+    fontSize: '0.78rem',
+    color: 'var(--text-secondary)',
+  },
+  actionCostVal: {
+    fontSize: '0.98rem',
+    fontWeight: '800',
+    color: 'var(--text-primary)',
+  },
+  actionCostApprox: {
+    fontSize: '0.75rem',
+    fontWeight: '500',
+    color: 'var(--text-muted)',
+  },
+  packsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))',
+    gap: '1.25rem',
+  },
+  packCard: {
+    padding: '1.5rem',
+    borderRadius: '16px',
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border-muted)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.85rem',
+    position: 'relative',
+    transition: 'all var(--transition-fast)',
+  },
+  packCardPopular: {
+    border: '1px solid var(--accent-yellow)',
+    boxShadow: '0 0 25px rgba(245, 158, 11, 0.12)',
+  },
+  popularBadge: {
+    position: 'absolute',
+    top: '-10px',
+    right: '20px',
+    backgroundColor: 'var(--accent-yellow)',
+    color: '#000',
+    fontSize: '0.68rem',
+    fontWeight: '800',
+    borderRadius: '20px',
+    padding: '0.2rem 0.65rem',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.3rem',
+    textTransform: 'uppercase',
+  },
+  discountBadge: {
+    fontSize: '0.68rem',
+    fontWeight: '700',
+    color: 'var(--accent-green)',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    padding: '0.15rem 0.45rem',
+    borderRadius: '4px',
+  },
+  packName: {
+    fontSize: '1.15rem',
+    fontWeight: '700',
+    color: 'var(--text-primary)',
+    margin: 0,
+  },
+  packCreditBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.45rem',
+    padding: '0.5rem 0.75rem',
+    backgroundColor: 'rgba(6, 182, 212, 0.08)',
+    border: '1px solid rgba(6, 182, 212, 0.2)',
+    borderRadius: '8px',
+  },
+  packCreditCount: {
+    fontSize: '1.05rem',
+    fontWeight: '800',
+    color: 'var(--accent-cyan)',
+  },
+  packPriceRow: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: '0.4rem',
+  },
+  packPriceVal: {
+    fontSize: '1.45rem',
+    fontWeight: '800',
+    color: 'var(--text-primary)',
+  },
+  packFeatureList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.45rem',
+    margin: '0.25rem 0 auto 0',
+  },
+  packFeatureItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.45rem',
+    fontSize: '0.8rem',
+    color: 'var(--text-secondary)',
+  },
+  buyPackBtn: {
+    width: '100%',
+    minHeight: '44px',
+    borderRadius: '8px',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    color: 'var(--text-primary)',
+    fontWeight: '700',
+    fontSize: '0.85rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.4rem',
+    padding: '0.65rem 1rem',
+    textDecoration: 'none',
+    boxSizing: 'border-box',
+    transition: 'all var(--transition-fast)',
+  },
+  buyPackBtnPopular: {
+    backgroundColor: 'var(--accent-yellow)',
+    color: '#000',
+    border: 'none',
   },
   pricingCardsGrid: {
     display: 'grid',

@@ -86,19 +86,8 @@ export default function RoleDetailPage() {
   const IconComponent = ICON_MAP[role.iconName] || Sparkles;
   const isAvailable = role.status === 'available';
   const modInfo = MODULES[role.key];
-  const price = modInfo?.price || 0;
-  const getModuleDesc = (moduleKey) => {
-    if (moduleKey === 'seo') return t('common.moduleDescSeo');
-    if (moduleKey === 'ads_report') return t('common.moduleDescAdsReport');
-    if (moduleKey === 'ads_spy') return t('common.moduleDescAdsSpy');
-    return modInfo?.desc || '';
-  };
-  const quota = modInfo
-    ? t('common.moduleQuotaMonthly', {
-        credits: modInfo.monthlyCredits,
-        desc: getModuleDesc(role.key)
-      })
-    : null;
+  const typicalCredits = modInfo?.typicalMonthlyCredits || 0;
+  const typicalDesc = modInfo?.desc || '';
 
   return (
     <div style={styles.page}>
@@ -163,27 +152,27 @@ export default function RoleDetailPage() {
             {isAvailable ? (
               <div style={styles.pricingBox}>
                 <span style={styles.pricingTag}>
-                  {t('roleDetail.pricingTag', 'Individual Role Investment')}
+                  {t('roleDetail.freeModuleHeader', 'Semua Modul Aktif Gratis')}
                 </span>
                 <div style={styles.priceRow}>
-                  <span style={styles.priceAmount}>{formatCurrency(price, lang)}</span>
-                  <span style={styles.pricePeriod}>{t('bundles.lifetimeBadge', 'Lifetime Access')}</span>
+                  <span style={styles.priceAmount}>{t('roleDetail.zeroPrice', 'Gratis')}</span>
+                  <span style={styles.pricePeriod}>{t('roleDetail.payPerUseTag', 'Bayar Sesuai Pemakaian')}</span>
                 </div>
-                {quota && (
+                {typicalCredits > 0 && (
                   <div style={styles.quotaRow}>
                     <span style={styles.quotaText}>
-                      {t('roleDetail.quotaIncludes', { quota }, `Includes: ${quota}`)}
+                      {t('roleDetail.typicalUsageNote', { credits: typicalCredits, desc: typicalDesc }, `Pemakaian khas: ~${typicalCredits} credit/bulan (${typicalDesc})`)}
                     </span>
                   </div>
                 )}
                 <div style={styles.pricingCtas}>
                   <AppLink to="/register" style={styles.primaryActionBtn}>
-                    <span>{t('bundles.ctaBuyModule', 'Get Lifetime Access')}</span>
+                    <span>{t('finalCta.btnTrial', { days: TRIAL.days, credits: TRIAL.credits }, `Coba Gratis ${TRIAL.days} Hari (${TRIAL.credits} Credit)`)}</span>
                     <ArrowRight size={15} />
                   </AppLink>
-                  <AppLink to="/register" style={styles.secondaryActionBtn}>
-                    {t('finalCta.btnTrial', { days: TRIAL.days })}
-                  </AppLink>
+                  <LocalizedLink to="/#pricing" style={styles.secondaryActionBtn}>
+                    {t('roleDetail.ctaViewPricing', 'Lihat Paket Credit & Tarif')}
+                  </LocalizedLink>
                 </div>
                 <div style={styles.guaranteeText}>
                   <ShieldCheck size={14} color="var(--accent-green)" />

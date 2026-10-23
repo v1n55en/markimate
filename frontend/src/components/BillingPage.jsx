@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   CreditCard,
   CheckCircle2,
@@ -8,11 +9,12 @@ import {
   FileText,
   Coins,
   ArrowRight,
+  Wallet,
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useWorkspace } from '../context/WorkspaceContext';
-import { MODULES, LIFETIME_BUNDLES, formatCurrency } from '../config/pricing';
-import { formatDateTime } from '../lib/format';
+import { CREDIT_PACKS, formatCurrency, formatIDR } from '../config/pricing';
+import { formatDateTime, formatNumber } from '../lib/format';
 import { api } from '../api';
 
 const PAYMENT_STATUS_CONFIG = {
@@ -57,38 +59,13 @@ export default function BillingPage({ refreshMe }) {
     fetchBillingData();
   }, [activeWorkspace?.id]);
 
-  const ownedModules = billingInfo?.modules || activeWorkspace?.modules || [];
-  const isAllFocus3Owned = ['seo', 'ads_report', 'ads_spy'].every((m) => ownedModules.includes(m));
-
-  const handleBuyModule = async (moduleKey) => {
+  const handleBuyPack = async (packId) => {
     setBusy(true);
     setNotice(null);
     try {
-      const res = await api('/api/billing/modules', {
+      const res = await api('/api/billing/pack', {
         method: 'POST',
-        body: { module: moduleKey }
-      });
-      if (res?.checkoutUrl) {
-        window.location.assign(res.checkoutUrl);
-        return;
-      }
-      await fetchBillingData();
-      if (refreshMe) refreshMe();
-      setNotice({ ok: true, text: t('billing.checkoutSuccess') });
-    } catch (err) {
-      setNotice({ ok: false, text: err.message });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleBuyBundle = async (bundleKey = 'focus3') => {
-    setBusy(true);
-    setNotice(null);
-    try {
-      const res = await api('/api/billing/modules', {
-        method: 'POST',
-        body: { bundle: bundleKey }
+        body: { packId }
       });
       if (res?.checkoutUrl) {
         window.location.assign(res.checkoutUrl);
@@ -114,11 +91,11 @@ export default function BillingPage({ refreshMe }) {
           </div>
           <div>
             <div style={styles.titleRow}>
-              <h1 style={styles.title}>{t('billing.lifetimeModulesTitle')}</h1>
+              <h1 style={styles.title}>{t('billing.creditPacksTitle', 'Paket Credit & Tagihan')}</h1>
               <span style={styles.brandTag}>{t('billing.activeBrandLabel')} {activeWorkspace?.name}</span>
             </div>
             <p style={styles.subtitle}>
-              {t('billing.lifetimeModulesSubtitle')}
+              {t('billing.creditPacksSubtitle', 'Semua modul aktif gratis. Beli paket credit untuk kuota aksi AI lebih hemat dan tanpa batas kedaluwarsa.')}
             </p>
           </div>
         </div>
@@ -143,207 +120,106 @@ export default function BillingPage({ refreshMe }) {
         </div>
       )}
 
-      {/* 2. Bundle Fokus 3 Hero Card */}
-      <div className="focus3-hero-card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div>
-            <span className="focus3-hero-badge">
-              <Sparkles size={13} />
-              {t('bundles.popularBadge')}
-            </span>
-            <h3 className="focus3-hero-title">{t('bundles.fokus3Title')}</h3>
-            <p className="focus3-hero-desc">{t('bundles.fokus3Desc')}</p>
+      {/* 2. Banner Semua Modul Aktif Gratis */}
+      <div style={styles.freeModulesBanner} className="card">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={styles.bannerIconBox}>
+            <Sparkles size={20} color="var(--accent-cyan)" />
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div className="focus3-price-val">{formatCurrency(LIFETIME_BUNDLES.focus3.price, lang)}</div>
-            <div className="focus3-one-time-label">{t('bundles.oneTime')}</div>
-            <div className="focus3-savings-badge">
-              {t('bundles.bundleSavingsBadge', { amount: formatCurrency(LIFETIME_BUNDLES.focus3.savings, lang) })}
-            </div>
+          <div style={{ flex: 1, minWidth: '240px' }}>
+            <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              {t('billing.allModulesActiveTitle', 'Semua Modul Marketing AI Aktif Gratis')}
+            </h3>
+            <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+              {t('billing.allModulesActiveDesc', 'SEO Specialist, Ads Report, dan Ads Creative Spy aktif tanpa biaya lisensi. Kredit hanya dipotong jika aksi AI berhasil dijalankan.')}
+            </p>
           </div>
-        </div>
-
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem', marginTop: '0.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', color: 'var(--accent-cyan)', fontWeight: 700, fontSize: '0.95rem' }}>
-            <Coins size={18} />
-            <span>{t('bundles.monthlyCreditsForever', { credits: LIFETIME_BUNDLES.focus3.monthlyCredits })}</span>
-          </div>
-          <ul className="focus3-features-list">
-            <li>{t('bundles.fokus3Feat1')}</li>
-            <li>{t('bundles.fokus3Feat2')}</li>
-            <li>{t('bundles.fokus3Feat3')}</li>
-            <li>{t('bundles.fokus3Feat4', { credits: LIFETIME_BUNDLES.focus3.monthlyCredits })}</li>
-            <li>{t('bundles.fokus3Feat5')}</li>
-          </ul>
-          <div style={{ marginTop: '1.25rem' }}>
-            {isAllFocus3Owned ? (
-              <span style={styles.ownedHeroBadge}>
-                <Check size={16} />
-                {t('billing.ownedLifetimeBadge')}
-              </span>
-            ) : (
-              <button
-                type="button"
-                className="focus3-cta-btn"
-                onClick={() => handleBuyBundle('focus3')}
-                disabled={busy}
-              >
-                <span>
-                  {busy ? t('billing.processing') : t('billing.btnBuyBundle', { price: formatCurrency(LIFETIME_BUNDLES.focus3.price, lang) })}
-                </span>
-                <ArrowRight size={16} />
-              </button>
-            )}
-          </div>
+          <Link to="/app/billing/wallet" style={styles.walletLinkBtn}>
+            <Wallet size={14} />
+            <span>{t('billing.openWalletBtn', 'Buka Dompet Kredit')}</span>
+            <ArrowRight size={14} />
+          </Link>
         </div>
       </div>
 
-      {/* 3. Grid Modul Lifetime Mandiri */}
+      {/* 3. Grid Paket Credit Hemat (CREDIT_PACKS) */}
       <div style={styles.sectionHeadingRow}>
-        <h3 style={styles.sectionHeading}>{t('billing.chooseModulesTitle')}</h3>
+        <div>
+          <h2 style={styles.sectionHeading}>{t('billing.packsTitle', 'Paket Credit Hemat')}</h2>
+          <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.825rem', color: 'var(--text-muted)' }}>
+            {t('billing.packsSubtitle', 'Dapatkan potongan harga volume hingga 25%. Seluruh credit yang dibeli tidak pernah hangus.')}
+          </p>
+        </div>
       </div>
 
-      <div className="pricing-lifetime-grid">
-        {/* Modul SEO */}
-        <div className="plan-card card" style={styles.planCard}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <span style={styles.planBadge}>{t('billing.oneTimeBadge')}</span>
-            {ownedModules.includes('seo') && (
-              <span style={styles.ownedBadge}>
-                <Check size={11} />
-                {t('billing.ownedLifetimeBadge')}
-              </span>
-            )}
-          </div>
-          <h3 style={styles.planName}>{t('bundles.seoTitle')}</h3>
-          <p style={styles.planDesc}>{t('bundles.seoDesc')}</p>
-          <div style={styles.planPriceRow}>
-            <span style={styles.planPriceVal}>{formatCurrency(MODULES.seo.price, lang)}</span>
-            <span style={styles.planPeriod}>{t('bundles.oneTime')}</span>
-          </div>
-          <div className="plan-credit-grant">
-            <Coins size={15} color="var(--accent-cyan)" />
-            <span>{t('bundles.monthlyCreditsForever', { credits: MODULES.seo.monthlyCredits })}</span>
-          </div>
-          <ul style={styles.planFeatures}>
-            <li>{t('bundles.seoFeat1')}</li>
-            <li>{t('bundles.seoFeat2')}</li>
-            <li>{t('bundles.seoFeat3')}</li>
-            <li>{t('bundles.seoFeat4', { credits: MODULES.seo.monthlyCredits })}</li>
-          </ul>
-          <div style={{ marginTop: 'auto', paddingTop: '1rem' }}>
-            {ownedModules.includes('seo') ? (
-              <span style={styles.ownedDisabledBtn}>
-                <Check size={15} />
-                {t('billing.ownedLifetimeBadge')}
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => handleBuyModule('seo')}
-                disabled={busy}
-                style={styles.buyModuleBtn}
-              >
-                <span>{busy ? t('billing.processing') : t('billing.btnBuyModule', { price: formatCurrency(MODULES.seo.price, lang) })}</span>
-                <ArrowRight size={15} />
-              </button>
-            )}
-          </div>
-        </div>
+      <div style={styles.packsGrid}>
+        {Object.values(CREDIT_PACKS).map((pack) => {
+          const discountPct = Math.round(pack.discount * 100);
+          const isPopular = pack.id === 'pack_1000';
+          return (
+            <div
+              key={pack.id}
+              className="card"
+              style={{
+                ...styles.packCard,
+                ...(isPopular ? styles.packCardPopular : {})
+              }}
+            >
+              {isPopular && (
+                <span style={styles.popularBadge}>
+                  <Sparkles size={11} />
+                  {t('bundles.popularBadge', 'Paling Populer')}
+                </span>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={styles.packName}>{pack.name}</h3>
+                {!isPopular && discountPct > 0 && (
+                  <span style={styles.discountBadge}>
+                    {t('billing.savePctBadge', { pct: discountPct }, `Hemat ${discountPct}%`)}
+                  </span>
+                )}
+              </div>
 
-        {/* Modul Ads Report */}
-        <div className="plan-card card" style={styles.planCard}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <span style={styles.planBadge}>{t('billing.oneTimeBadge')}</span>
-            {ownedModules.includes('ads_report') && (
-              <span style={styles.ownedBadge}>
-                <Check size={11} />
-                {t('billing.ownedLifetimeBadge')}
-              </span>
-            )}
-          </div>
-          <h3 style={styles.planName}>{t('bundles.adsReportTitle')}</h3>
-          <p style={styles.planDesc}>{t('bundles.adsReportDesc')}</p>
-          <div style={styles.planPriceRow}>
-            <span style={styles.planPriceVal}>{formatCurrency(MODULES.ads_report.price, lang)}</span>
-            <span style={styles.planPeriod}>{t('bundles.oneTime')}</span>
-          </div>
-          <div className="plan-credit-grant">
-            <Coins size={15} color="var(--accent-cyan)" />
-            <span>{t('bundles.monthlyCreditsForever', { credits: MODULES.ads_report.monthlyCredits })}</span>
-          </div>
-          <ul style={styles.planFeatures}>
-            <li>{t('bundles.adsReportFeat1')}</li>
-            <li>{t('bundles.adsReportFeat2')}</li>
-            <li>{t('bundles.adsReportFeat3')}</li>
-            <li>{t('bundles.adsReportFeat4', { credits: MODULES.ads_report.monthlyCredits })}</li>
-          </ul>
-          <div style={{ marginTop: 'auto', paddingTop: '1rem' }}>
-            {ownedModules.includes('ads_report') ? (
-              <span style={styles.ownedDisabledBtn}>
-                <Check size={15} />
-                {t('billing.ownedLifetimeBadge')}
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => handleBuyModule('ads_report')}
-                disabled={busy}
-                style={styles.buyModuleBtn}
-              >
-                <span>{busy ? t('billing.processing') : t('billing.btnBuyModule', { price: formatCurrency(MODULES.ads_report.price, lang) })}</span>
-                <ArrowRight size={15} />
-              </button>
-            )}
-          </div>
-        </div>
+              <div style={styles.packCreditBox}>
+                <Coins size={16} color="var(--accent-cyan)" />
+                <span style={styles.packCreditCount}>{formatNumber(pack.credits, lang)}</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>credit</span>
+              </div>
 
-        {/* Modul Ads Creative Spy */}
-        <div className="plan-card card" style={styles.planCard}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-            <span style={styles.planBadge}>{t('billing.oneTimeBadge')}</span>
-            {ownedModules.includes('ads_spy') && (
-              <span style={styles.ownedBadge}>
-                <Check size={11} />
-                {t('billing.ownedLifetimeBadge')}
-              </span>
-            )}
-          </div>
-          <h3 style={styles.planName}>{t('bundles.adsSpyTitle')}</h3>
-          <p style={styles.planDesc}>{t('bundles.adsSpyDesc')}</p>
-          <div style={styles.planPriceRow}>
-            <span style={styles.planPriceVal}>{formatCurrency(MODULES.ads_spy.price, lang)}</span>
-            <span style={styles.planPeriod}>{t('bundles.oneTime')}</span>
-          </div>
-          <div className="plan-credit-grant">
-            <Coins size={15} color="var(--accent-cyan)" />
-            <span>{t('bundles.monthlyCreditsForever', { credits: MODULES.ads_spy.monthlyCredits })}</span>
-          </div>
-          <ul style={styles.planFeatures}>
-            <li>{t('bundles.adsSpyFeat1')}</li>
-            <li>{t('bundles.adsSpyFeat2')}</li>
-            <li>{t('bundles.adsSpyFeat3')}</li>
-            <li>{t('bundles.adsSpyFeat4', { credits: MODULES.ads_spy.monthlyCredits })}</li>
-          </ul>
-          <div style={{ marginTop: 'auto', paddingTop: '1rem' }}>
-            {ownedModules.includes('ads_spy') ? (
-              <span style={styles.ownedDisabledBtn}>
-                <Check size={15} />
-                {t('billing.ownedLifetimeBadge')}
-              </span>
-            ) : (
+              <div style={styles.packPriceRow}>
+                <span style={styles.packPriceVal}>{formatCurrency(pack.price, lang)}</span>
+              </div>
+
+              <div style={styles.packFeatureList}>
+                <div style={styles.packFeatureItem}>
+                  <Check size={13} color="var(--accent-green)" />
+                  <span>{t('billing.topupNeverExpires', 'Credit tidak pernah hangus')}</span>
+                </div>
+                <div style={styles.packFeatureItem}>
+                  <Check size={13} color="var(--accent-green)" />
+                  <span>{t('billing.packRateInfo', { rate: formatIDR(Math.round(pack.price / pack.credits)) }, `~${formatIDR(Math.round(pack.price / pack.credits))}/credit`)}</span>
+                </div>
+                <div style={styles.packFeatureItem}>
+                  <Check size={13} color="var(--accent-green)" />
+                  <span>{t('billing.allModulesFree', 'Semua modul aktif gratis')}</span>
+                </div>
+              </div>
+
               <button
                 type="button"
-                onClick={() => handleBuyModule('ads_spy')}
+                onClick={() => handleBuyPack(pack.id)}
                 disabled={busy}
-                style={styles.buyModuleBtn}
+                style={{
+                  ...styles.buyPackBtn,
+                  ...(isPopular ? styles.buyPackBtnPopular : {})
+                }}
               >
-                <span>{busy ? t('billing.processing') : t('billing.btnBuyModule', { price: formatCurrency(MODULES.ads_spy.price, lang) })}</span>
-                <ArrowRight size={15} />
+                <span>{busy ? t('billing.processing', 'Memproses...') : t('billing.btnBuyPack', { name: pack.name }, `Beli ${pack.name}`)}</span>
+                <ArrowRight size={14} />
               </button>
-            )}
-          </div>
-        </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* 4. Riwayat Tagihan & Pembayaran (Invoices) */}
@@ -569,114 +445,143 @@ const styles = {
     color: 'var(--text-primary)',
     margin: 0,
   },
-  ownedHeroBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.4rem',
-    padding: '0.65rem 1.25rem',
-    borderRadius: '6px',
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    border: '1px solid rgba(16, 185, 129, 0.3)',
-    color: 'var(--accent-green)',
-    fontSize: '0.9rem',
-    fontWeight: '700',
-  },
-  planCard: {
-    padding: 'clamp(1.25rem, 3vw, 1.5rem)',
-    display: 'flex',
-    flexDirection: 'column',
-    position: 'relative',
+  freeModulesBanner: {
+    padding: '1.25rem',
     borderRadius: '12px',
-    boxSizing: 'border-box',
-    width: '100%',
+    backgroundColor: 'rgba(6, 182, 212, 0.05)',
+    border: '1px solid rgba(6, 182, 212, 0.25)',
   },
-  planBadge: {
-    fontSize: '0.7rem',
-    fontWeight: '700',
-    color: 'var(--text-muted)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-  },
-  ownedBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.25rem',
-    fontSize: '0.7rem',
-    fontWeight: '700',
-    color: '#000000',
-    backgroundColor: 'var(--accent-cyan)',
-    borderRadius: '4px',
-    padding: '0.15rem 0.45rem',
-  },
-  planName: {
-    fontSize: '1.2rem',
-    fontWeight: '800',
-    color: 'var(--text-primary)',
-    margin: '0.35rem 0',
-  },
-  planDesc: {
-    fontSize: '0.82rem',
-    color: 'var(--text-secondary)',
-    lineHeight: 1.4,
-    margin: '0 0 0.75rem 0',
-  },
-  planPriceRow: {
-    display: 'flex',
-    alignItems: 'baseline',
-    gap: '0.4rem',
-    marginBottom: '0.5rem',
-  },
-  planPriceVal: {
-    fontSize: '1.35rem',
-    fontWeight: '800',
-    color: 'var(--text-primary)',
-  },
-  planPeriod: {
-    fontSize: '0.78rem',
-    color: 'var(--text-muted)',
-  },
-  planFeatures: {
-    listStyle: 'none',
-    padding: 0,
-    margin: '0 0 1rem 0',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.45rem',
-    fontSize: '0.82rem',
-    color: 'var(--text-secondary)',
-  },
-  buyModuleBtn: {
-    width: '100%',
-    minHeight: '44px',
-    borderRadius: '6px',
-    backgroundColor: 'var(--accent-cyan)',
-    color: '#000000',
-    fontWeight: '700',
-    fontSize: '0.88rem',
+  bannerIconBox: {
+    width: '38px',
+    height: '38px',
+    borderRadius: '8px',
+    backgroundColor: 'rgba(6, 182, 212, 0.12)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '0.4rem',
-    border: 'none',
-    cursor: 'pointer',
-    padding: '0.6rem 1rem',
-    boxSizing: 'border-box',
-    transition: 'opacity var(--transition-fast)',
+    flexShrink: 0,
   },
-  ownedDisabledBtn: {
+  walletLinkBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.4rem',
+    padding: '0.55rem 0.95rem',
+    borderRadius: '8px',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    border: '1px solid var(--border-muted)',
+    color: 'var(--text-primary)',
+    fontSize: '0.82rem',
+    fontWeight: '700',
+    textDecoration: 'none',
+    transition: 'all var(--transition-fast)',
+  },
+  packsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(260px, 100%), 1fr))',
+    gap: '1.25rem',
+  },
+  packCard: {
+    padding: '1.5rem',
+    borderRadius: '16px',
+    backgroundColor: 'var(--bg-surface)',
+    border: '1px solid var(--border-muted)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.85rem',
+    position: 'relative',
+    transition: 'all var(--transition-fast)',
+  },
+  packCardPopular: {
+    border: '1px solid var(--accent-yellow)',
+    boxShadow: '0 0 25px rgba(245, 158, 11, 0.12)',
+  },
+  popularBadge: {
+    position: 'absolute',
+    top: '-10px',
+    right: '20px',
+    backgroundColor: 'var(--accent-yellow)',
+    color: '#000',
+    fontSize: '0.68rem',
+    fontWeight: '800',
+    borderRadius: '20px',
+    padding: '0.2rem 0.65rem',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.3rem',
+    textTransform: 'uppercase',
+  },
+  discountBadge: {
+    fontSize: '0.68rem',
+    fontWeight: '700',
+    color: 'var(--accent-green)',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    padding: '0.15rem 0.45rem',
+    borderRadius: '4px',
+  },
+  packName: {
+    fontSize: '1.15rem',
+    fontWeight: '700',
+    color: 'var(--text-primary)',
+    margin: 0,
+  },
+  packCreditBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.45rem',
+    padding: '0.5rem 0.75rem',
+    backgroundColor: 'rgba(6, 182, 212, 0.08)',
+    border: '1px solid rgba(6, 182, 212, 0.2)',
+    borderRadius: '8px',
+  },
+  packCreditCount: {
+    fontSize: '1.05rem',
+    fontWeight: '800',
+    color: 'var(--accent-cyan)',
+  },
+  packPriceRow: {
+    display: 'flex',
+    alignItems: 'baseline',
+    gap: '0.4rem',
+  },
+  packPriceVal: {
+    fontSize: '1.45rem',
+    fontWeight: '800',
+    color: 'var(--text-primary)',
+  },
+  packFeatureList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.45rem',
+    margin: '0.25rem 0 auto 0',
+  },
+  packFeatureItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.45rem',
+    fontSize: '0.8rem',
+    color: 'var(--text-secondary)',
+  },
+  buyPackBtn: {
     width: '100%',
     minHeight: '44px',
-    borderRadius: '6px',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    color: 'var(--text-muted)',
+    borderRadius: '8px',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    color: 'var(--text-primary)',
     fontWeight: '700',
     fontSize: '0.85rem',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     gap: '0.4rem',
-    padding: '0.6rem 1rem',
-    boxSizing: 'border-box',
+    cursor: 'pointer',
+    padding: '0.65rem 1rem',
+    transition: 'all var(--transition-fast)',
+  },
+  buyPackBtnPopular: {
+    backgroundColor: 'var(--accent-yellow)',
+    color: '#000',
+    border: 'none',
   },
   historyCard: {
     padding: '1.25rem',
