@@ -276,4 +276,42 @@ grep -o -E ".{0,30}(1990000|1490000|4490000).{0,30}" frontend/dist/assets/*.js
 - Pembaruan Syarat & Ketentuan hukum (§4) serta template email mailer (§3.9) (dijadwalkan Langkah 7).
 - Screenshot visual 390px/1280px dan verifikasi akhir (dijadwalkan Langkah 8).
 
+---
+
+## Langkah 7: Terms & Ketentuan dan Email Templates (PRD F16 §4, §3.9, §6.7)
+
+### 1. File yang Berubah
+- `frontend/src/content/legal-content.js`:
+  - Bagian 4 Terms of Service diperbarui **persis** sesuai teks spesifikasi PRD F16 §4:
+    - **ID**, judul: `Sistem Kredit, Trial 30 Hari & Ketentuan Refund`
+    - **EN**, title: `Credit System, 30-Day Trial & Refund Policy`
+    - Menghapus penyebutan lisensi modul lifetime dan masa berlaku 365 hari; menggantinya dengan model kredit prabayar tanpa kedaluwarsa, aktivasi modul gratis, trial 400 kredit/30 hari, dan garansi refund 7 hari kalender jika kredit belum terpakai.
+- `backend/lib/mailer.js`:
+  - `sendTopupSuccessEmail`: Mendukung parameter `balance` (saldo sekarang) dan menyertakan baris saldo terkini, serta memperbarui masa berlaku menjadi "Tidak hangus (tanpa masa kedaluwarsa)" / "Never expires (tidak hangus)".
+  - `sendModuleSuccessEmail`: Dirombak menggantikan template pembelian modul lifetime menjadi notifikasi kredit/paket berhasil ("X credit masuk, saldo sekarang Y, tidak hangus") sesuai PRD F16 §3.9.
+- `backend/lib/payments/service.js`:
+  - Mengambil saldo total dompet workspace via `getWallet(payment.workspace_id)` setelah pembayaran berhasil diverifikasi dan meneruskan `balance` ke `sendTopupSuccessEmail` dan `sendModuleSuccessEmail`.
+- `backend/tests/locale-mailer.test.js`:
+  - Menambahkan pengujian bilingual EN & ID untuk `sendTopupSuccessEmail` dan `sendModuleSuccessEmail` dalam suite email transaksional.
+- `docs/reports/F16-credit-only.md`: Dokumentasi laporan langkah 7.
+
+### 2. Cara Tes
+```bash
+cd backend && node tests/locale-mailer.test.js
+cd backend && npm test
+cd frontend && npm run i18n:check && npm run build
+grep -o -E ".{0,30}(1990000|1490000|4490000).{0,30}" frontend/dist/assets/*.js
+```
+
+### 3. Hasil Tes
+- `tests/locale-mailer.test.js`: Lolos 100% (10 suite email transaksional bilingual terverifikasi).
+- `npm test` backend: 27/27 file test lolos tanpa error.
+- `npm run i18n:check` frontend: 0 error, dictionary parity 2499 keys.
+- `npm run build` frontend: exit 0.
+- Guardrail grep: Nol kemunculan harga modul lama `1990000`, `1490000`, maupun `4490000` di bundle frontend, dan isi terms bebas dari teks lifetime/365.
+
+### 4. Hal yang Sengaja Tidak Dikerjakan pada Langkah Ini
+- Screenshot visual 390px/1280px dan verifikasi akhir seluruh PRD F16 (dijadwalkan Langkah 8).
+
+
 

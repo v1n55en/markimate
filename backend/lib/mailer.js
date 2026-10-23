@@ -430,35 +430,44 @@ export async function sendAccountPurgedEmail({ to, locale = 'id' }) {
 }
 
 /**
- * 9. Kirim email notifikasi top-up credit berhasil (PRD F14 §4 Langkah 4)
+ * 9. Kirim email notifikasi top-up / paket credit berhasil (PRD F16 §3.9)
  */
-export async function sendTopupSuccessEmail({ to, invoiceNumber, packageName, credits, amount, locale = 'id' }) {
+export async function sendTopupSuccessEmail({ to, invoiceNumber, packageName, credits, amount, balance, locale = 'id' }) {
   const lang = normalizeLocale(locale);
   const isEn = lang === 'en';
   const formattedAmount = 'Rp' + Number(amount || 0).toLocaleString('id-ID');
+  const creditsFormatted = Number(credits || 0).toLocaleString();
+  const balanceRowEn = balance !== undefined && balance !== null
+    ? `<p style="margin: 0 0 8px;"><strong>Current Balance:</strong> ${Number(balance).toLocaleString()} credits</p>`
+    : '';
+  const balanceRowId = balance !== undefined && balance !== null
+    ? `<p style="margin: 0 0 8px;"><strong>Saldo Sekarang:</strong> ${Number(balance).toLocaleString()} kredit</p>`
+    : '';
 
   const subject = isEn
-    ? `Credit Top-Up Successful (${invoiceNumber}) — Markimate`
-    : `Top-up Kredit Berhasil (${invoiceNumber}) — Markimate`;
+    ? `Credit Top-Up / Pack Successful (${invoiceNumber}) — Markimate`
+    : `Top-up / Paket Kredit Berhasil (${invoiceNumber}) — Markimate`;
 
   const html = isEn ? `
-    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 0;">Top-Up Payment Successful!</h2>
+    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 0;">Payment Successful — Credits Added!</h2>
     <p>Hello,</p>
     <p>Your payment for <strong>${packageName}</strong> (${formattedAmount}) has been confirmed successfully.</p>
     <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0;">
       <p style="margin: 0 0 8px;"><strong>Invoice:</strong> ${invoiceNumber}</p>
-      <p style="margin: 0 0 8px;"><strong>Credits Added:</strong> +${Number(credits || 0).toLocaleString()} credits</p>
-      <p style="margin: 0;"><strong>Validity:</strong> 365 days</p>
+      <p style="margin: 0 0 8px;"><strong>Credits Added:</strong> +${creditsFormatted} credits</p>
+      ${balanceRowEn}
+      <p style="margin: 0;"><strong>Validity:</strong> Never expires (tidak hangus)</p>
     </div>
     <p>The credits are now ready to use across all your AI marketing modules in Markimate.</p>
   ` : `
-    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 0;">Pembayaran Top-Up Berhasil!</h2>
+    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 0;">Pembayaran Berhasil — Kredit Masuk!</h2>
     <p>Halo,</p>
     <p>Pembayaran Anda untuk <strong>${packageName}</strong> (${formattedAmount}) telah berhasil dikonfirmasi.</p>
     <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0;">
       <p style="margin: 0 0 8px;"><strong>Invoice:</strong> ${invoiceNumber}</p>
-      <p style="margin: 0 0 8px;"><strong>Kredit Ditambahkan:</strong> +${Number(credits || 0).toLocaleString()} kredit</p>
-      <p style="margin: 0;"><strong>Masa Berlaku:</strong> 365 hari</p>
+      <p style="margin: 0 0 8px;"><strong>Kredit Masuk:</strong> +${creditsFormatted} kredit</p>
+      ${balanceRowId}
+      <p style="margin: 0;"><strong>Masa Berlaku:</strong> Tidak hangus (tanpa masa kedaluwarsa)</p>
     </div>
     <p>Kredit telah langsung masuk ke dompet workspace Anda dan siap digunakan di seluruh modul AI Markimate.</p>
   `;
@@ -554,37 +563,47 @@ export async function sendSubscriptionRenewalReminderEmail({ to, planName, endsA
 }
 
 /**
- * 12. Kirim email konfirmasi pembelian modul lifetime aktif (PRD F15 Langkah 3)
+ * 12. Kirim email konfirmasi pembelian top-up / paket credit berhasil (PRD F16 §3.9)
+ * (Menggantikan template pembelian modul lifetime lama)
  */
-export async function sendModuleSuccessEmail({ to, invoiceNumber, moduleName, amount, locale = 'id' }) {
+export async function sendModuleSuccessEmail({ to, invoiceNumber, moduleName, amount, credits, balance, locale = 'id' }) {
   const lang = normalizeLocale(locale);
   const isEn = lang === 'en';
   const formattedAmount = 'Rp' + Number(amount || 0).toLocaleString('id-ID');
+  const creditsFormatted = Number(credits || 0).toLocaleString();
+  const balanceRowEn = balance !== undefined && balance !== null
+    ? `<p style="margin: 0 0 8px;"><strong>Current Balance:</strong> ${Number(balance).toLocaleString()} credits</p>`
+    : '';
+  const balanceRowId = balance !== undefined && balance !== null
+    ? `<p style="margin: 0 0 8px;"><strong>Saldo Sekarang:</strong> ${Number(balance).toLocaleString()} kredit</p>`
+    : '';
 
   const subject = isEn
-    ? `Lifetime Module Activated: ${moduleName} (${invoiceNumber}) — Markimate`
-    : `Modul Lifetime Aktif: ${moduleName} (${invoiceNumber}) — Markimate`;
+    ? `Top-Up / Credit Pack Successful (${invoiceNumber}) — Markimate`
+    : `Top-up / Paket Kredit Berhasil (${invoiceNumber}) — Markimate`;
 
   const html = isEn ? `
-    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 0;">Lifetime Module Activated!</h2>
+    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 0;">Payment Successful — Credits Added!</h2>
     <p>Hello,</p>
     <p>Your payment for <strong>${moduleName}</strong> (${formattedAmount}) has been verified successfully.</p>
     <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0;">
       <p style="margin: 0 0 8px;"><strong>Invoice:</strong> ${invoiceNumber}</p>
-      <p style="margin: 0 0 8px;"><strong>Module:</strong> ${moduleName}</p>
-      <p style="margin: 0;"><strong>Access:</strong> Lifetime (No recurring subscription fee)</p>
+      <p style="margin: 0 0 8px;"><strong>Credits Added:</strong> +${creditsFormatted} credits</p>
+      ${balanceRowEn}
+      <p style="margin: 0;"><strong>Validity:</strong> Never expires (tidak hangus)</p>
     </div>
-    <p>Your monthly module credits have been added to your workspace wallet and will refresh at the beginning of each calendar month.</p>
+    <p>All AI modules in Markimate are unlocked for free. Your credits are ready to use.</p>
   ` : `
-    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 0;">Modul Lifetime Aktif!</h2>
+    <h2 style="font-size: 18px; font-weight: 700; color: #0f172a; margin-top: 0;">Pembayaran Berhasil — Kredit Masuk!</h2>
     <p>Halo,</p>
     <p>Pembayaran Anda untuk <strong>${moduleName}</strong> (${formattedAmount}) telah berhasil diverifikasi.</p>
     <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0;">
       <p style="margin: 0 0 8px;"><strong>Invoice:</strong> ${invoiceNumber}</p>
-      <p style="margin: 0 0 8px;"><strong>Modul:</strong> ${moduleName}</p>
-      <p style="margin: 0;"><strong>Akses:</strong> Seumur Hidup (Lifetime, tanpa biaya perpanjangan)</p>
+      <p style="margin: 0 0 8px;"><strong>Kredit Masuk:</strong> +${creditsFormatted} kredit</p>
+      ${balanceRowId}
+      <p style="margin: 0;"><strong>Masa Berlaku:</strong> Tidak hangus (tanpa masa kedaluwarsa)</p>
     </div>
-    <p>Kredit bulanan modul telah ditambahkan ke dompet workspace Anda dan diperbarui otomatis setiap awal bulan.</p>
+    <p>Semua modul AI Markimate aktif gratis. Kredit Anda siap digunakan.</p>
   `;
 
   return sendMail({
@@ -592,7 +611,7 @@ export async function sendModuleSuccessEmail({ to, invoiceNumber, moduleName, am
     subject,
     html,
     locale: lang,
-    tag: 'module_success'
+    tag: 'pack_success'
   });
 }
 

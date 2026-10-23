@@ -34,7 +34,9 @@ const {
   sendEmailChangeNoticeToOldEmail,
   sendWorkspaceInviteEmail,
   sendAccountDeletionScheduledEmail,
-  sendAccountPurgedEmail
+  sendAccountPurgedEmail,
+  sendTopupSuccessEmail,
+  sendModuleSuccessEmail
 } = await import('../lib/mailer.js');
 
 let baseUrl;
@@ -135,6 +137,20 @@ async function runLocaleMailerTests() {
       fn: () => [
         sendAccountPurgedEmail({ to: 'user@test.io', locale: 'en' }),
         sendAccountPurgedEmail({ to: 'user@test.io', locale: 'id' })
+      ]
+    },
+    {
+      name: 'sendTopupSuccessEmail',
+      fn: () => [
+        sendTopupSuccessEmail({ to: 'user@test.io', invoiceNumber: 'MKM-T-261023-ABCDEF', packageName: 'Top-up 500 Credit', credits: 500, amount: 500000, balance: 900, locale: 'en' }),
+        sendTopupSuccessEmail({ to: 'user@test.io', invoiceNumber: 'MKM-T-261023-ABCDEF', packageName: 'Top-up 500 Kredit', credits: 500, amount: 500000, balance: 900, locale: 'id' })
+      ]
+    },
+    {
+      name: 'sendModuleSuccessEmail',
+      fn: () => [
+        sendModuleSuccessEmail({ to: 'user@test.io', invoiceNumber: 'MKM-P-261023-XYZ123', moduleName: 'Paket Growth', amount: 900000, credits: 1000, balance: 1400, locale: 'en' }),
+        sendModuleSuccessEmail({ to: 'user@test.io', invoiceNumber: 'MKM-P-261023-XYZ123', moduleName: 'Paket Growth', amount: 900000, credits: 1000, balance: 1400, locale: 'id' })
       ]
     }
   ];

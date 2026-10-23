@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { db } from '../../db.js';
 import { PLANS, MODULES, BUNDLES, TOPUP, CREDIT_PACKS, quoteTopup } from '../catalog.js';
-import { grant } from '../credits.js';
+import { grant, getWallet } from '../credits.js';
 import {
   sendTopupSuccessEmail,
   sendSubscriptionSuccessEmail,
@@ -264,12 +264,15 @@ export async function grantModulePayment(payment) {
   // 4. Kirim email notifikasi pembelian modul lifetime berhasil
   const user = payment.user_id ? await db.findOne('accounts', { id: payment.user_id }) : null;
   const userLocale = user?.locale || 'id';
+  const wallet = await getWallet(payment.workspace_id);
   if (user?.email) {
     sendModuleSuccessEmail({
       to: user.email,
       invoiceNumber: payment.invoice_number,
       moduleName: payment.item_name,
       amount: payment.amount,
+      credits: payment.credits || 0,
+      balance: wallet?.total || 0,
       locale: userLocale
     }).catch(err => console.error('[MAIL] Failed to send module success email:', err.message));
   }
@@ -334,6 +337,7 @@ export async function fulfillPayment(payment, parsed = {}) {
       );
 
       // 2. Kirim email notifikasi top-up berhasil
+      const wallet = await getWallet(payment.workspace_id);
       if (user?.email) {
         sendTopupSuccessEmail({
           to: user.email,
@@ -341,6 +345,7 @@ export async function fulfillPayment(payment, parsed = {}) {
           packageName: payment.item_name,
           credits: payment.credits,
           amount: payment.amount,
+          balance: wallet?.total || payment.credits,
           locale: userLocale
         }).catch(err => console.error('[MAIL] Failed to send topup success email:', err.message));
       }
