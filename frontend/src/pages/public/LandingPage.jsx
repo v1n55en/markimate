@@ -24,13 +24,11 @@ import {
   Compass,
   Zap,
   HelpCircle,
-  ExternalLink,
   Coins,
 } from 'lucide-react';
 import { formatNumber } from '../../lib/format';
 import {
   ROLES,
-  AVAILABLE_ROLES,
   SOON_ROLES,
   ACTIVE_ROLES_COUNT,
   TOTAL_ROLES_COUNT,
@@ -44,9 +42,11 @@ import {
   formatCurrency,
   TRIAL,
   CREDIT_PRICE_IDR,
-  MODULES,
+  ACTION_COST_EXAMPLES,
   CREDIT_PACKS,
   TOPUP,
+  TOTAL_TYPICAL_MONTHLY_CREDITS,
+  AVERAGE_PRICE_PER_CREDIT,
 } from '../../config/pricing';
 import TopupCalculator from '../../components/common/TopupCalculator';
 import PublicNavbar from '../../components/PublicNavbar';
@@ -325,7 +325,7 @@ export default function LandingPage({ scrollToPricing = false }) {
                 </span>
                 <span style={styles.inHouseTotal}>{formatIDR(TEAM_COST_BENCHMARK.focus3, lang)}{t('benchmark.perMonth', '/ mo')}</span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--accent-green)', fontWeight: '700' }}>
-                  {t('benchmark.focus3Badge', { amount: formatCurrency(TEAM_COST_BENCHMARK.focus3Markimate, lang) }, `Markimate Focus 3: ${formatCurrency(TEAM_COST_BENCHMARK.focus3Markimate, lang)}/mo`)}
+                  {t('benchmark.focus3Badge', { amount: formatCurrency(TEAM_COST_BENCHMARK.focus3Markimate, lang) })}
                 </span>
               </div>
             </div>
@@ -369,14 +369,18 @@ export default function LandingPage({ scrollToPricing = false }) {
                     })}
                     <tr style={styles.totalRow}>
                       <td style={styles.tdTotal} colSpan={2}>
-                        <strong>{t('benchmark.totalTitle', 'Total Monthly Investment (3 Core Focus Pillars)')}</strong>
+                        <strong>{t('benchmark.totalTitle')}</strong>
                       </td>
                       <td style={{ ...styles.tdTotal, textAlign: 'right', color: 'var(--text-muted)' }}>
                         <strong>{formatIDR(TEAM_COST_BENCHMARK.focus3, lang)} {t('benchmark.perMonth', '/ mo')}</strong>
                       </td>
                       <td style={{ ...styles.tdTotal, textAlign: 'right' }}>
                         <strong style={{ color: 'var(--accent-green)', fontSize: '1.05rem' }}>
-                          {formatCurrency(TEAM_COST_BENCHMARK.focus3Markimate, lang)} {t('benchmark.perMonth', '/ mo')} ({t('benchmark.totalDiscount', 'Discount Bundle')})
+                          {formatCurrency(TEAM_COST_BENCHMARK.focus3Markimate, lang)} {t('benchmark.perMonth', '/ mo')} ({t('benchmark.totalDiscount', {
+                            credits: formatNumber(TOTAL_TYPICAL_MONTHLY_CREDITS, lang),
+                            rate: formatCurrency(AVERAGE_PRICE_PER_CREDIT, lang),
+                            pack: 'Growth',
+                          })})
                         </strong>
                       </td>
                     </tr>
@@ -385,7 +389,11 @@ export default function LandingPage({ scrollToPricing = false }) {
               </div>
               <div style={styles.benchmarkNote}>
                 <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                  * {t('benchmark.amortizationNote', { credits: 2800 })}
+                  * {t('benchmark.amortizationNote', {
+                    credits: formatNumber(TOTAL_TYPICAL_MONTHLY_CREDITS, lang),
+                    rate: formatCurrency(AVERAGE_PRICE_PER_CREDIT, lang),
+                    pack: 'Growth',
+                  })}
                 </p>
               </div>
             </div>
@@ -428,10 +436,10 @@ export default function LandingPage({ scrollToPricing = false }) {
               <div style={styles.mobileTotalCard}>
                 <div style={styles.mobileTotalHeader}>
                   <span style={styles.mobileTotalBadge}>
-                    {t('benchmark.focus3MobileBadge', 'Focus 3 Bundle · Save 89%')}
+                    {t('benchmark.focus3MobileBadge')}
                   </span>
                   <h4 style={styles.mobileTotalTitle}>
-                    {t('benchmark.totalTitle', 'Total Monthly Investment')}
+                    {t('benchmark.totalTitle')}
                   </h4>
                 </div>
 
@@ -446,7 +454,7 @@ export default function LandingPage({ scrollToPricing = false }) {
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <span style={{ fontSize: '0.7rem', color: 'var(--accent-green)', fontWeight: 600, display: 'block' }}>
-                      {t('benchmark.bundleMarkimateLabel', 'Markimate Bundle')}
+                      {t('benchmark.bundleMarkimateLabel')}
                     </span>
                     <span style={styles.mobileTotalMarkimate}>
                       {formatCurrency(TEAM_COST_BENCHMARK.focus3Markimate, lang)}{t('benchmark.perMonthShort', '/mo')}
@@ -456,7 +464,7 @@ export default function LandingPage({ scrollToPricing = false }) {
 
                 <div style={styles.mobileTotalNote}>
                   <Sparkles size={14} color="var(--accent-green)" style={{ flexShrink: 0 }} />
-                  <span>{t('benchmark.saveMonthlyNote', { amount: formatCurrency(TEAM_COST_BENCHMARK.focus3Savings, lang) }, `You save ${formatCurrency(TEAM_COST_BENCHMARK.focus3Savings, lang)} every month`)}</span>
+                  <span>{t('benchmark.saveMonthlyNote', { amount: formatCurrency(TEAM_COST_BENCHMARK.focus3Savings, lang) })}</span>
                 </div>
               </div>
             </div>
@@ -468,10 +476,7 @@ export default function LandingPage({ scrollToPricing = false }) {
           <div style={styles.sectionHeader}>
             <h2 style={styles.sectionHeading}>{t('bundles.pricingTitle', 'Semua Modul Gratis — Bayar Sesuai Pemakaian')}</h2>
             <p style={styles.sectionSub}>
-              {t(
-                'bundles.pricingSubtitle',
-                'Seluruh modul marketing AI dapat diaktifkan gratis tanpa biaya lisensi. Cukup bayar kredit sesuai aksi yang Anda jalankan.'
-              )}
+              {t('bundles.pricingSubtitle')}
             </p>
           </div>
 
@@ -500,21 +505,36 @@ export default function LandingPage({ scrollToPricing = false }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
               <Sparkles size={16} color="var(--accent-cyan)" />
               <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                {t('bundles.actionCostTitle', 'Contoh Biaya Per Aksi (Kredit Hanya Dipotong Saat Berhasil)')}
+                {t('bundles.actionCostTitle')}
               </h3>
             </div>
             <div style={styles.actionCostGrid}>
               <div style={styles.actionCostItem}>
-                <span style={styles.actionCostName}>{t('bundles.actionSeoArticle', 'Artikel SEO (900 kata + 3 gambar)')}</span>
-                <strong style={styles.actionCostVal}>75 credit <span style={styles.actionCostApprox}>≈ Rp75.000</span></strong>
+                <span style={styles.actionCostName}>{t('bundles.actionSeoArticle')}</span>
+                <strong style={styles.actionCostVal}>
+                  {t('bundles.actionCostCredits', { credits: formatNumber(ACTION_COST_EXAMPLES.seoArticle.credits, lang) })}{' '}
+                  <span style={styles.actionCostApprox}>
+                    {t('bundles.actionCostApprox', { price: formatCurrency(ACTION_COST_EXAMPLES.seoArticle.price, lang) })}
+                  </span>
+                </strong>
               </div>
               <div style={styles.actionCostItem}>
                 <span style={styles.actionCostName}>{t('bundles.actionAdsReport', 'Laporan Bulanan Ads Multi-Channel')}</span>
-                <strong style={styles.actionCostVal}>400 credit <span style={styles.actionCostApprox}>≈ Rp400.000</span></strong>
+                <strong style={styles.actionCostVal}>
+                  {t('bundles.actionCostCredits', { credits: formatNumber(ACTION_COST_EXAMPLES.adsReport.credits, lang) })}{' '}
+                  <span style={styles.actionCostApprox}>
+                    {t('bundles.actionCostApprox', { price: formatCurrency(ACTION_COST_EXAMPLES.adsReport.price, lang) })}
+                  </span>
+                </strong>
               </div>
               <div style={styles.actionCostItem}>
-                <span style={styles.actionCostName}>{t('bundles.actionAdsSpy', 'Scan Ad Library & Bedah Winning Ads')}</span>
-                <strong style={styles.actionCostVal}>65 credit <span style={styles.actionCostApprox}>≈ Rp65.000</span></strong>
+                <span style={styles.actionCostName}>{t('bundles.actionAdsSpy', 'Scan + insight 1 kompetitor')}</span>
+                <strong style={styles.actionCostVal}>
+                  {t('bundles.actionCostCredits', { credits: formatNumber(ACTION_COST_EXAMPLES.adsSpy.credits, lang) })}{' '}
+                  <span style={styles.actionCostApprox}>
+                    {t('bundles.actionCostApprox', { price: formatCurrency(ACTION_COST_EXAMPLES.adsSpy.price, lang) })}
+                  </span>
+                </strong>
               </div>
             </div>
           </div>
@@ -524,7 +544,7 @@ export default function LandingPage({ scrollToPricing = false }) {
             <div style={styles.sectionHeader}>
               <h3 style={{ ...styles.sectionHeading, fontSize: '1.4rem' }}>{t('billing.packsTitle', 'Paket Credit Hemat')}</h3>
               <p style={styles.sectionSub}>
-                {t('billing.packsSubtitle', 'Dapatkan potongan harga volume hingga 25%. Seluruh credit yang dibeli tidak pernah hangus.')}
+                {t('billing.packsSubtitle')}
               </p>
             </div>
 
@@ -544,7 +564,7 @@ export default function LandingPage({ scrollToPricing = false }) {
                     {isPopular && (
                       <span style={styles.popularBadge}>
                         <Sparkles size={11} />
-                        {t('bundles.popularBadge', 'Paling Populer')}
+                        {t('bundles.popularBadge')}
                       </span>
                     )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -559,7 +579,7 @@ export default function LandingPage({ scrollToPricing = false }) {
                     <div style={styles.packCreditBox}>
                       <Coins size={16} color="var(--accent-cyan)" />
                       <span style={styles.packCreditCount}>{formatNumber(pack.credits, lang)}</span>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>credit</span>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('common.credit', 'credit')}</span>
                     </div>
 
                     <div style={styles.packPriceRow}>
@@ -569,7 +589,7 @@ export default function LandingPage({ scrollToPricing = false }) {
                     <div style={styles.packFeatureList}>
                       <div style={styles.packFeatureItem}>
                         <Check size={13} color="var(--accent-green)" />
-                        <span>{t('billing.topupNeverExpires', 'Credit tidak pernah hangus')}</span>
+                        <span>{t('billing.topupNeverExpires')}</span>
                       </div>
                       <div style={styles.packFeatureItem}>
                         <Check size={13} color="var(--accent-green)" />
@@ -699,7 +719,7 @@ export default function LandingPage({ scrollToPricing = false }) {
                 {t('faq.q5', { days: TRIAL.days, credits: TRIAL.credits })}
               </h4>
               <p style={styles.faqAnswer}>
-                {t('faq.a5', { days: TRIAL.days, credits: TRIAL.credits, totalRoles: TOTAL_ROLES_COUNT })}
+                {t('faq.a5', { days: TRIAL.days, credits: TRIAL.credits })}
               </p>
             </div>
 
@@ -1508,12 +1528,6 @@ const styles = {
   planPeriod: {
     fontSize: '0.8rem',
     color: 'var(--text-muted)',
-  },
-  discountBadge: {
-    fontSize: '0.72rem',
-    fontWeight: '600',
-    color: 'var(--accent-green)',
-    marginBottom: '1rem',
   },
   preorderNotice: {
     fontSize: '0.72rem',

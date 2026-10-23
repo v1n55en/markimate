@@ -33,6 +33,19 @@ function getPaymentStatusMeta(status) {
   };
 }
 
+function formatInvoiceKind(p) {
+  if (p.kind === 'pack') {
+    return `Paket ${p.packName || p.packId || p.pack || 'Credit'}`.trim();
+  }
+  if (p.kind === 'topup') {
+    return `Top-Up (${p.credits} cr)`;
+  }
+  if (p.kind === 'module') {
+    return p.module ? `Modul: ${p.module}` : (p.bundle ? `Paket: ${p.bundle}` : 'Modul (lama)');
+  }
+  return p.kind || 'Top-up';
+}
+
 export default function BillingPage({ refreshMe }) {
   const { lang, t } = useLanguage();
   const { activeWorkspace } = useWorkspace();
@@ -128,15 +141,15 @@ export default function BillingPage({ refreshMe }) {
           </div>
           <div style={{ flex: 1, minWidth: '240px' }}>
             <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              {t('billing.allModulesActiveTitle', 'Semua Modul Marketing AI Aktif Gratis')}
+              {t('billing.allModulesActiveTitle')}
             </h3>
             <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
-              {t('billing.allModulesActiveDesc', 'SEO Specialist, Ads Report, dan Ads Creative Spy aktif tanpa biaya lisensi. Kredit hanya dipotong jika aksi AI berhasil dijalankan.')}
+              {t('billing.allModulesActiveDesc')}
             </p>
           </div>
           <Link to="/app/billing/wallet" style={styles.walletLinkBtn}>
             <Wallet size={14} />
-            <span>{t('billing.openWalletBtn', 'Buka Dompet Kredit')}</span>
+            <span>{t('billing.openWalletBtn')}</span>
             <ArrowRight size={14} />
           </Link>
         </div>
@@ -145,9 +158,9 @@ export default function BillingPage({ refreshMe }) {
       {/* 3. Grid Paket Credit Hemat (CREDIT_PACKS) */}
       <div style={styles.sectionHeadingRow}>
         <div>
-          <h2 style={styles.sectionHeading}>{t('billing.packsTitle', 'Paket Credit Hemat')}</h2>
+          <h2 style={styles.sectionHeading}>{t('billing.packsTitle')}</h2>
           <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.825rem', color: 'var(--text-muted)' }}>
-            {t('billing.packsSubtitle', 'Dapatkan potongan harga volume hingga 25%. Seluruh credit yang dibeli tidak pernah hangus.')}
+            {t('billing.packsSubtitle')}
           </p>
         </div>
       </div>
@@ -168,14 +181,14 @@ export default function BillingPage({ refreshMe }) {
               {isPopular && (
                 <span style={styles.popularBadge}>
                   <Sparkles size={11} />
-                  {t('bundles.popularBadge', 'Paling Populer')}
+                  {t('bundles.popularBadge')}
                 </span>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={styles.packName}>{pack.name}</h3>
                 {!isPopular && discountPct > 0 && (
                   <span style={styles.discountBadge}>
-                    {t('billing.savePctBadge', { pct: discountPct }, `Hemat ${discountPct}%`)}
+                    {t('billing.savePctBadge', { pct: discountPct })}
                   </span>
                 )}
               </div>
@@ -183,7 +196,7 @@ export default function BillingPage({ refreshMe }) {
               <div style={styles.packCreditBox}>
                 <Coins size={16} color="var(--accent-cyan)" />
                 <span style={styles.packCreditCount}>{formatNumber(pack.credits, lang)}</span>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>credit</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('common.credit', 'credit')}</span>
               </div>
 
               <div style={styles.packPriceRow}>
@@ -193,15 +206,15 @@ export default function BillingPage({ refreshMe }) {
               <div style={styles.packFeatureList}>
                 <div style={styles.packFeatureItem}>
                   <Check size={13} color="var(--accent-green)" />
-                  <span>{t('billing.topupNeverExpires', 'Credit tidak pernah hangus')}</span>
+                  <span>{t('billing.topupNeverExpires')}</span>
                 </div>
                 <div style={styles.packFeatureItem}>
                   <Check size={13} color="var(--accent-green)" />
-                  <span>{t('billing.packRateInfo', { rate: formatIDR(Math.round(pack.price / pack.credits)) }, `~${formatIDR(Math.round(pack.price / pack.credits))}/credit`)}</span>
+                  <span>{t('billing.packRateInfo', { rate: formatIDR(Math.round(pack.price / pack.credits)) })}</span>
                 </div>
                 <div style={styles.packFeatureItem}>
                   <Check size={13} color="var(--accent-green)" />
-                  <span>{t('billing.allModulesFree', 'Semua modul aktif gratis')}</span>
+                  <span>{t('billing.allModulesFree')}</span>
                 </div>
               </div>
 
@@ -267,9 +280,7 @@ export default function BillingPage({ refreshMe }) {
                         {formatDateTime(p.createdAt, lang)}
                       </td>
                       <td style={styles.historyTd}>
-                        {p.kind === 'module'
-                          ? (p.module ? `Modul: ${p.module}` : (p.bundle || t('bundles.fokus3Title')))
-                          : (p.kind === 'topup' ? `Top-Up: ${p.credits} cr` : p.kind)}
+                        {formatInvoiceKind(p)}
                       </td>
                       <td style={styles.historyTd}>
                         <strong style={{ color: 'var(--text-primary)' }}>
@@ -342,9 +353,7 @@ export default function BillingPage({ refreshMe }) {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
                     <span>
-                      {p.kind === 'module'
-                        ? (p.module ? `Modul: ${p.module}` : (p.bundle || t('bundles.fokus3Title')))
-                        : (p.kind === 'topup' ? `Top-Up: ${p.credits} cr` : p.kind)}
+                      {formatInvoiceKind(p)}
                     </span>
                     <strong style={{ color: 'var(--text-primary)' }}>{formatCurrency(p.amount, lang)}</strong>
                   </div>

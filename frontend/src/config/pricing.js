@@ -59,19 +59,35 @@ export function quoteTopup(credits) {
   };
 }
 
+export const ACTION_COST_EXAMPLES = {
+  seoArticle: {
+    credits: 75,
+    price: 75000,
+  },
+  adsReport: {
+    credits: 400,
+    price: 400000,
+  },
+  adsSpy: {
+    credits: 90,
+    price: 90000,
+  },
+};
+
 // Rata-rata harga per credit dari paket untuk estimasi biaya bulanan Markimate
 export const AVERAGE_PRICE_PER_CREDIT = 900;
 
 const seoMonthly = MODULES.seo.typicalMonthlyCredits * AVERAGE_PRICE_PER_CREDIT; // 600 * 900 = 540.000
 const adsReportMonthly = MODULES.ads_report.typicalMonthlyCredits * AVERAGE_PRICE_PER_CREDIT; // 400 * 900 = 360.000
 const adsSpyMonthly = MODULES.ads_spy.typicalMonthlyCredits * AVERAGE_PRICE_PER_CREDIT; // 260 * 900 = 234.000
-const focus3Monthly = (MODULES.seo.typicalMonthlyCredits + MODULES.ads_report.typicalMonthlyCredits + MODULES.ads_spy.typicalMonthlyCredits) * AVERAGE_PRICE_PER_CREDIT; // 1.260 * 900 = 1.134.000
+export const TOTAL_TYPICAL_MONTHLY_CREDITS = MODULES.seo.typicalMonthlyCredits + MODULES.ads_report.typicalMonthlyCredits + MODULES.ads_spy.typicalMonthlyCredits; // 1.260
+const focus3Monthly = TOTAL_TYPICAL_MONTHLY_CREDITS * AVERAGE_PRICE_PER_CREDIT; // 1.260 * 900 = 1.134.000
 
 export const TEAM_COST_BENCHMARK = {
   focus3: 29375000, // Rata-rata gaji 3 staf in-house
   focus3Markimate: focus3Monthly, // 1.260 credit * Rp900 = Rp1.134.000
   focus3Savings: 29375000 - focus3Monthly, // Penghematan riil per bulan
-  full: 64375000, // Gaji tim in-house lengkap 6-8 orang + tools berlangganan
+  full: 64375000, // Gaji tim in-house lengkap 6-8 orang + tools berbayar
 };
 
 export const IN_HOUSE_COMPARISON = [

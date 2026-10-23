@@ -6,11 +6,10 @@ import {
   Sparkles,
   HelpCircle,
   ShieldAlert,
-  Check,
   ArrowRight,
 } from 'lucide-react';
 import { getCredits, getCreditLedger, formatIDR, api } from '../../api';
-import { CREDIT_PRICE_IDR, MODULES, TRIAL_DAYS, CREDIT_PACKS, formatCurrency } from '../../config/pricing';
+import { CREDIT_PRICE_IDR, TRIAL_DAYS, CREDIT_PACKS, formatCurrency } from '../../config/pricing';
 import TopupCalculator from '../../components/common/TopupCalculator';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatDateTime, formatNumber } from '../../lib/format';
@@ -404,7 +403,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
             {t('billing.packsTitle', 'Paket Credit Hemat')}
           </h2>
           <p style={styles.sectionDesc}>
-            {t('billing.packsSubtitle', 'Dapatkan potongan harga volume hingga 25%. Seluruh credit yang dibeli tidak pernah hangus.')}
+            {t('billing.packsSubtitle')}
           </p>
         </div>
       </div>
@@ -426,7 +425,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
               {isPopular && (
                 <span style={styles.popularBadge}>
                   <Sparkles size={11} />
-                  {t('bundles.popularBadge', 'Paling Populer')}
+                  {t('bundles.popularBadge')}
                 </span>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -441,7 +440,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
               <div style={styles.packCreditBox}>
                 <Coins size={16} color="var(--accent-cyan)" />
                 <span style={styles.packCreditCount}>{formatNumber(pack.credits, lang)}</span>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>credit</span>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{t('common.credit', 'credit')}</span>
               </div>
 
               <div style={styles.packPriceRow}>
@@ -449,7 +448,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
               </div>
 
               <p style={styles.packDesc}>
-                {t('billing.packRateInfo', { rate: formatIDR(Math.round(pack.price / pack.credits)) }, `Tarif ~${formatIDR(Math.round(pack.price / pack.credits))}/credit · Tidak pernah hangus`)}
+                {t('billing.packRateInfo', { rate: formatIDR(Math.round(pack.price / pack.credits)) })}
               </p>
 
               <button

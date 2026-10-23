@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
-  Lock,
   CheckCircle2,
   Sparkles,
   ArrowRight,
@@ -28,8 +27,22 @@ export default function ModuleActivatePage() {
   const { t, lang } = useLanguage();
 
   const [waitlistRole, setWaitlistRole] = useState(null);
-  const [activating, setActivating] = useState(false);
   const [justActivated, setJustActivated] = useState(false);
+  const [walletBalance, setWalletBalance] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    api('/api/credits')
+      .then((res) => {
+        if (mounted && res?.balance) {
+          setWalletBalance(res.balance.total ?? 0);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [activeWorkspace?.id]);
 
   const role = getRoleByKey(key, lang);
 
@@ -52,21 +65,6 @@ export default function ModuleActivatePage() {
   const isAvailable = role.status === 'available';
   const isActive = isModuleActive(role.key);
   const modInfo = MODULES[role.key];
-  const [walletBalance, setWalletBalance] = useState(null);
-
-  useEffect(() => {
-    let mounted = true;
-    api('/api/credits')
-      .then((res) => {
-        if (mounted && res?.balance) {
-          setWalletBalance(res.balance.total ?? 0);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      mounted = false;
-    };
-  }, [activeWorkspace?.id]);
 
   const getModuleDesc = (moduleKey) => {
     if (moduleKey === 'seo') return t('common.moduleDescSeo');
@@ -89,12 +87,8 @@ export default function ModuleActivatePage() {
   };
 
   const handleActivate = () => {
-    setActivating(true);
-    setTimeout(() => {
-      activateModule(role.key);
-      setActivating(false);
-      setJustActivated(true);
-    }, 450);
+    activateModule(role.key);
+    setJustActivated(true);
   };
 
   return (
@@ -221,19 +215,19 @@ export default function ModuleActivatePage() {
                 </div>
 
                 <div style={styles.quotaBox}>
-                  <span style={styles.quotaTitle}>{t('app.activatePage.typicalUsageTitle', 'Perkiraan Pemakaian Bulanan:')}</span>
+                  <span style={styles.quotaTitle}>{t('app.activatePage.typicalUsageTitle')}</span>
                   <p style={styles.quotaValue}>{typicalUsage}</p>
                 </div>
 
                 <div style={{ ...styles.quotaBox, marginTop: '0.75rem', borderColor: 'rgba(16, 185, 129, 0.25)' }}>
-                  <span style={styles.quotaTitle}>{t('app.activatePage.currentBalanceTitle', 'Saldo Kredit Saat Ini:')}</span>
+                  <span style={styles.quotaTitle}>{t('app.activatePage.currentBalanceTitle')}</span>
                   <p style={{ ...styles.quotaValue, fontSize: '1.25rem', fontWeight: 700, color: (walletBalance === 0 ? 'var(--accent-yellow)' : 'var(--accent-green)') }}>
-                    {walletBalance !== null ? `${walletBalance} credit` : '...'}
+                    {walletBalance !== null ? `${walletBalance} ${t('common.credit', 'credit')}` : '...'}
                   </p>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.25rem 0 0 0' }}>
                     {walletBalance === 0
-                      ? t('app.activatePage.zeroBalanceNotice', 'Saldo kredit Anda 0. Top up kredit untuk mulai menjalankan aksi AI.')
-                      : t('app.activatePage.sufficientBalanceNotice', 'Siap digunakan. Kredit hanya dipotong jika aksi AI berhasil dijalankan.')}
+                      ? t('app.activatePage.zeroBalanceNotice')
+                      : t('app.activatePage.sufficientBalanceNotice')}
                   </p>
                 </div>
 
@@ -254,7 +248,7 @@ export default function ModuleActivatePage() {
                     style={styles.actionPrimaryBtn}
                   >
                     <Coins size={16} />
-                    <span>{t('app.activatePage.topupCredits', 'Top-up Kredit')}</span>
+                    <span>{t('app.activatePage.topupCredits')}</span>
                     <ArrowRight size={16} />
                   </button>
                 ) : (
@@ -265,7 +259,7 @@ export default function ModuleActivatePage() {
                     }}
                     style={styles.actionPrimaryBtn}
                   >
-                    <span>{t('app.activatePage.openModuleAndStart', 'Buka Modul & Mulai')}</span>
+                    <span>{t('app.activatePage.openModuleAndStart')}</span>
                     <ArrowRight size={16} />
                   </button>
                 )}
@@ -622,29 +616,6 @@ const styles = {
     cursor: 'pointer',
     width: '100%',
     transition: 'all var(--transition-fast)',
-  },
-  bundleHint: {
-    padding: '0.85rem',
-    borderRadius: '8px',
-    backgroundColor: 'rgba(6, 182, 212, 0.05)',
-    border: '1px dashed rgba(6, 182, 212, 0.25)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.45rem',
-  },
-  bundleHintText: {
-    fontSize: '0.78rem',
-    color: 'var(--text-secondary)',
-    lineHeight: 1.4,
-  },
-  bundleLink: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.25rem',
-    color: 'var(--accent-cyan)',
-    fontSize: '0.78rem',
-    fontWeight: '700',
-    textDecoration: 'none',
   },
   securityNote: {
     display: 'flex',
