@@ -308,7 +308,17 @@ export const ERROR_CODES = {
   PLAN_DISCONTINUED: {
     code: 'PLAN_DISCONTINUED',
     status: 410,
-    message: 'Monthly subscription plans have been discontinued. Please choose a lifetime module.'
+    message: 'Monthly subscription plans have been discontinued. Please choose a credit pack or top up credits.'
+  },
+  MODULE_PURCHASE_DISCONTINUED: {
+    code: 'MODULE_PURCHASE_DISCONTINUED',
+    status: 410,
+    message: 'Module purchases have been discontinued. All modules are now free to use; you only pay for credit usage.'
+  },
+  INVALID_PACK: {
+    code: 'INVALID_PACK',
+    status: 400,
+    message: 'Invalid credit pack.'
   },
 
   // SEO & CMS

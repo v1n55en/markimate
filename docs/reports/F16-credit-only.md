@@ -164,6 +164,55 @@ cd frontend && npm run i18n:check && npm run build
 - `npm run build` frontend: exit 0.
 
 ### 4. Hal yang Sengaja Tidak Dikerjakan pada Langkah Ini
-- Menjalankan file SQL 019 ke Supabase live (Sesuai aturan kerja `AGENTS.md`, agen berhenti di Langkah 4 dan menunggu 3Our menjalankan migrasi SQL ke Supabase).
-- Checkout `pack` dan 410 untuk checkout `module` (dijadwalkan Langkah 5).
+- Menjalankan file SQL 019 ke Supabase live (Sesuai aturan kerja `AGENTS.md`, agen berhenti di Langkah 4 dan menunggu 3Our menjalankan migrasi SQL ke Supabase). File migrasi telah dieksekusi oleh 3Our di Supabase sebelum melanjutkan ke Langkah 5.
+
+---
+
+## Langkah 5: Checkout Pack, 410 Module Discontinued & Reconcile Data Lama (PRD F16 §3.7)
+
+### 1. File yang Berubah
+- `backend/lib/payments/service.js`:
+  - `generateInvoiceNumber`: Prefix `T` untuk topup, `P` untuk pack.
+  - `createCheckout`:
+    - Mendukung `kind === 'pack'`: Validasi `itemId` ada di `CREDIT_PACKS`, nominal harga dan kredit dihitung server dari config, `periodDays = null`.
+    - Penolakan `kind === 'module'`: Melempar error status 410 `MODULE_PURCHASE_DISCONTINUED`.
+    - Penolakan `kind === 'subscription'`: Melempar error status 410 `PLAN_DISCONTINUED`.
+  - `fulfillPayment`: Note grant untuk pack disesuaikan menjadi `"Paket Growth (1.000 credit)"` (atau sesuai nama paket).
+- `backend/index.js`:
+  - Menambahkan endpoint `POST /api/billing/pack` untuk pemesanan paket credit.
+  - Memastikan `POST /api/billing/modules` menolak semua checkout modul dengan 410 `MODULE_PURCHASE_DISCONTINUED`.
+- `backend/lib/error-codes.js`, `frontend/src/i18n/locales/en/errors.js`, `frontend/src/i18n/locales/id/errors.js`:
+  - Mendaftarkan error code `MODULE_PURCHASE_DISCONTINUED` dan `INVALID_PACK`.
+- `backend/tests/pack-checkout.test.js`:
+  - File test baru untuk memvalidasi:
+    1. Checkout `pack_2500` menghasilkan amount Rp2.000.000, 2.500 credits, invoice prefix `MKM-P-`, dan manipulasi amount client diabaikan.
+    2. `itemId` tidak dikenal menghasilkan 400 `INVALID_PACK`.
+    3. Webhook pack 2x hanya menambah credit 1x (idempoten) dan `topup_expires_at` null.
+    4. Checkout module via HTTP dan SDK menghasilkan 410 `MODULE_PURCHASE_DISCONTINUED`.
+    5. Jalur rekonsiliasi data modul lama tetap memproses pemberian entitlement jika ada transaksi modul lama.
+- `backend/tests/module-billing.test.js`:
+  - Menyesuaikan tes checkout modul menjadi verifikasi 410, dan menguji webhook/reconcile data modul lama secara backward compatible.
+- `docs/reports/F16-credit-only.md`: Dokumentasi laporan langkah 5.
+
+### 2. Status Transaksi Modul Lama
+- Pemeriksaan data pembayaran modul lama yang masih `pending` atau `paid` tanpa `granted_at`: **0 baris ditemukan** (database bersih, tidak ada transaksi menggantung).
+
+### 3. Cara Tes
+```bash
+cd backend && node tests/pack-checkout.test.js
+cd backend && node tests/module-billing.test.js
+cd backend && npm test
+cd frontend && npm run i18n:check && npm run build
+```
+
+### 4. Hasil Tes
+- `tests/pack-checkout.test.js`: Lolos 100%.
+- `tests/module-billing.test.js`: Lolos 100%.
+- `npm test` backend: 27/27 file test lolos tanpa error.
+- `npm run i18n:check` frontend: 0 error, dictionary parity 2453 keys.
+- `npm run build` frontend: exit 0.
+
+### 5. Hal yang Sengaja Tidak Dikerjakan pada Langkah Ini
+- Perombakan UI pricing, landing page, role detail, wallet custom calculator, dan FAQ (dijadwalkan Langkah 6).
+- Terms & Ketentuan EN/ID (§4) serta template email mailer (§3.9) (dijadwalkan Langkah 7).
 

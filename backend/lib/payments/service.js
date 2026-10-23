@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { db } from '../../db.js';
-import { PLANS, MODULES, BUNDLES, TOPUP, quoteTopup } from '../catalog.js';
+import { PLANS, MODULES, BUNDLES, TOPUP, CREDIT_PACKS, quoteTopup } from '../catalog.js';
 import { grant } from '../credits.js';
 import {
   sendTopupSuccessEmail,
@@ -12,10 +12,10 @@ import { getProvider } from './index.js';
 /**
  * Menghasilkan nomor invoice unik sesuai spesifikasi PRD F14 §3 & PRD F15:
  * Format: MKM-{T|S|M}-{YYMMDD}-{6 karakter acak}
- * @param {'topup'|'subscription'|'module'} kind
+ * @param {'topup'|'pack'|'subscription'|'module'} kind
  */
 export function generateInvoiceNumber(kind) {
-  const prefix = kind === 'topup' ? 'T' : (kind === 'module' ? 'M' : 'S');
+  const prefix = kind === 'topup' ? 'T' : (kind === 'pack' ? 'P' : (kind === 'module' ? 'M' : 'S'));
   const now = new Date();
   const yy = String(now.getUTCFullYear()).slice(-2);
   const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
@@ -28,7 +28,7 @@ export function generateInvoiceNumber(kind) {
 /**
  * Membuat transaksi checkout pembayaran
  * @param {Object} params
- * @param {'topup'|'subscription'|'module'} params.kind
+ * @param {'topup'|'pack'|'subscription'|'module'} params.kind
  * @param {string|number} params.itemId
  * @param {number} [params.credits]
  * @param {string} params.workspaceId
@@ -36,20 +36,42 @@ export function generateInvoiceNumber(kind) {
  * @param {string} [params.callbackUrl]
  */
 export async function createCheckout({ kind, itemId, credits: inputCredits, workspaceId, userId, callbackUrl }) {
-  if (!['topup', 'subscription', 'module'].includes(kind)) {
-    throw Object.assign(new Error(`Invalid payment kind '${kind}'. Must be 'topup', 'subscription', or 'module'.`), {
+  if (!['topup', 'pack', 'subscription', 'module'].includes(kind)) {
+    throw Object.assign(new Error(`Invalid payment kind '${kind}'. Must be 'topup', 'pack', 'subscription', or 'module'.`), {
       status: 400,
       code: 'INVALID_PAYMENT_KIND'
     });
   }
 
+  // PRD F16 §3.7: Penolakan checkout module lama (410 MODULE_PURCHASE_DISCONTINUED)
+  if (kind === 'module') {
+    throw Object.assign(
+      new Error('Module purchases have been discontinued. All modules are now free to use; you only pay for credit usage.'),
+      {
+        status: 410,
+        code: 'MODULE_PURCHASE_DISCONTINUED'
+      }
+    );
+  }
+
+  // PRD F15 & F16: Langganan bulanan dihapus (410 PLAN_DISCONTINUED)
+  if (kind === 'subscription') {
+    throw Object.assign(
+      new Error('Monthly subscription plans have been discontinued. Please choose a credit pack or top up credits.'),
+      {
+        status: 410,
+        code: 'PLAN_DISCONTINUED'
+      }
+    );
+  }
+
   let itemName = '';
   let amount = 0;
   let credits = 0;
-  let periodDays = 30;
+  let periodDays = null;
 
   if (kind === 'topup') {
-    // PRD F15: Top-up Custom Credits (hanya lewat credits)
+    // PRD F16 §3.7: Top-up Custom Credits (min 100, max 50.000, 1 credit = Rp1.000)
     const rawCredits = inputCredits !== undefined ? inputCredits : itemId;
     const numCredits = Math.floor(Number(rawCredits));
     if (isNaN(numCredits) || numCredits < TOPUP.min || numCredits > TOPUP.max) {
@@ -62,74 +84,21 @@ export async function createCheckout({ kind, itemId, credits: inputCredits, work
     itemName = `Top-Up ${quote.credits.toLocaleString('id-ID')} Credit`;
     amount = quote.amount; // Server-calculated amount; client amount is completely ignored
     credits = quote.credits;
-    periodDays = TOPUP.validityDays || 365;
+    periodDays = null;
     itemId = `custom_${quote.credits}`;
-  } else if (kind === 'module') {
-    const mod = MODULES[itemId];
-    const bun = BUNDLES[itemId];
-    if (!mod && !bun) {
-      throw Object.assign(new Error(`Invalid module or bundle '${itemId}'.`), {
+  } else if (kind === 'pack') {
+    // PRD F16 §3.7: Paket Credit Baru (Starter, Growth, Pro, Agency)
+    const pack = CREDIT_PACKS[itemId];
+    if (!pack) {
+      throw Object.assign(new Error(`Invalid credit pack '${itemId}'.`), {
         status: 400,
-        code: 'INVALID_MODULE'
+        code: 'INVALID_PACK'
       });
     }
-
-    const existingEnts = await db.findMany('module_entitlements', { workspace_id: workspaceId });
-    const ownedLifetime = new Set(
-      (existingEnts || [])
-        .filter(e => e.source === 'lifetime' && e.active)
-        .map(e => e.module)
-    );
-
-    if (mod) {
-      if (ownedLifetime.has(mod.id)) {
-        throw Object.assign(new Error(`Workspace already owns module '${mod.name}'.`), {
-          status: 409,
-          code: 'MODULE_ALREADY_OWNED'
-        });
-      }
-      const getLegacyModPrice = (m) => MODULES[m]?.price ?? (m === 'seo' || m === 'ads_report' ? 1990000 : 1490000);
-      const getLegacyModMonthly = (m) => MODULES[m]?.monthlyCredits ?? (m === 'ads_report' ? 400 : 100);
-      itemName = mod.name;
-      amount = getLegacyModPrice(mod.id);
-      credits = getLegacyModMonthly(mod.id);
-      periodDays = null;
-    } else if (bun) {
-      const getLegacyModPrice = (m) => MODULES[m]?.price ?? (m === 'seo' || m === 'ads_report' ? 1990000 : 1490000);
-      const targetMods = bun.modules || [];
-      const unownedMods = targetMods.filter(m => !ownedLifetime.has(m));
-      if (unownedMods.length === 0) {
-        throw Object.assign(new Error(`Workspace already owns all modules in '${bun.name}'.`), {
-          status: 409,
-          code: 'MODULE_ALREADY_OWNED'
-        });
-      }
-
-      // PRD F15: Bundle saat sebagian modul sudah dimiliki -> harga bundle dikurangi harga modul
-      // yang sudah dimiliki, tapi tidak lebih rendah dari jumlah harga modul yang belum dimiliki x 0.8
-      const baseBundlePrice = bun.price;
-      const sumOwnedPrice = targetMods
-        .filter(m => ownedLifetime.has(m))
-        .reduce((sum, m) => sum + getLegacyModPrice(m), 0);
-      const sumUnownedPrice = unownedMods
-        .reduce((sum, m) => sum + getLegacyModPrice(m), 0);
-      const floorPrice = Math.round(sumUnownedPrice * 0.8);
-      const discountedBundlePrice = baseBundlePrice - sumOwnedPrice;
-
-      amount = Math.max(discountedBundlePrice, floorPrice);
-      itemName = bun.name;
-      credits = bun.monthlyCredits;
-      periodDays = null;
-    }
-  } else {
-    // PRD F15: Langganan bulanan dihapus, mengembalikan 410 PLAN_DISCONTINUED
-    throw Object.assign(
-      new Error('Monthly subscription plans have been discontinued. Please choose a lifetime module.'),
-      {
-        status: 410,
-        code: 'PLAN_DISCONTINUED'
-      }
-    );
+    itemName = `Paket ${pack.name} (${pack.credits.toLocaleString('id-ID')} credit)`;
+    amount = pack.price; // Server-calculated; client amount is completely ignored
+    credits = pack.credits;
+    periodDays = null;
   }
 
   const workspace = await db.findOne('workspaces', { id: workspaceId });
@@ -344,7 +313,7 @@ export async function fulfillPayment(payment, parsed = {}) {
     if (payment.kind === 'topup' || payment.kind === 'pack') {
       // PRD F16 §3.6: Credit top-up & paket tidak hangus (expires_at = null)
       const note = payment.kind === 'pack'
-        ? `${payment.item_name || 'Paket Credit'} via ${payment.provider.toUpperCase()} (${payment.invoice_number})`
+        ? (payment.item_name || 'Paket Credit')
         : `Top-up credit via ${payment.provider.toUpperCase()} (${payment.invoice_number})`;
 
       await grant(

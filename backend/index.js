@@ -3615,18 +3615,24 @@ app.post('/api/billing/topup', auth, requireWorkspace('admin'), wrap(async (req,
   res.json(checkout);
 }));
 
+app.post('/api/billing/pack', auth, requireWorkspace('admin'), wrap(async (req, res) => {
+  const { packId, itemId } = req.body || {};
+  const selectedItem = itemId || packId;
+  const checkout = await createCheckout({
+    kind: 'pack',
+    itemId: selectedItem,
+    workspaceId: req.workspace.id,
+    userId: req.user.id
+  });
+  res.json(checkout);
+}));
+
 app.post('/api/billing/modules', auth, requireWorkspace('admin'), wrap(async (req, res) => {
   const { module, bundle } = req.body || {};
   const itemId = module || bundle;
-  if (!itemId) {
-    throw Object.assign(new Error('Please specify module or bundle to purchase.'), {
-      status: 400,
-      code: 'INVALID_MODULE'
-    });
-  }
   const checkout = await createCheckout({
     kind: 'module',
-    itemId,
+    itemId: itemId || 'module',
     workspaceId: req.workspace.id,
     userId: req.user.id
   });
@@ -3635,7 +3641,7 @@ app.post('/api/billing/modules', auth, requireWorkspace('admin'), wrap(async (re
 
 app.post('/api/billing/checkout', auth, requireWorkspace('admin'), wrap(async (req, res) => {
   throw Object.assign(
-    new Error('Monthly subscription plans have been discontinued. Please choose a lifetime module or top up credits.'),
+    new Error('Monthly subscription plans have been discontinued. Please choose a credit pack or top up credits.'),
     { status: 410, code: 'PLAN_DISCONTINUED' }
   );
 }));

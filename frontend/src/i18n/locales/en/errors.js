@@ -87,6 +87,8 @@ export const errors = {
   "SEO_IMAGE_REGEN_DISABLED": "Image regeneration feature is currently disabled.",
   "INVALID_IMAGE_INDEX": "Invalid image index provided (must be between 0 and 5).",
   "IMAGE_GENERATION_FAILED": "Failed to generate image from AI model.",
-  "GENERATE_TIMEOUT": "Article generation timed out (exceeded 10 minutes). Please try again."
+  "GENERATE_TIMEOUT": "Article generation timed out (exceeded 10 minutes). Please try again.",
+  "MODULE_PURCHASE_DISCONTINUED": "Module purchases have been discontinued. All modules are now free to use; you only pay for credit usage.",
+  "INVALID_PACK": "Invalid credit pack."
 };
 

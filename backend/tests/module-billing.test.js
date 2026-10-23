@@ -151,31 +151,42 @@ async function runModuleBillingTests() {
   });
   setProvider(fakeDoku);
 
-  // 3. Menguji POST /api/billing/modules - Pembelian modul SEO
-  console.log('2. Menguji POST /api/billing/modules (Pembelian single module SEO)...');
+  // 3. Menguji POST /api/billing/modules - Pembelian modul SEO ditolak 410 (PRD F16 §3.7 & §7)
+  console.log('2. Menguji POST /api/billing/modules (410 MODULE_PURCHASE_DISCONTINUED)...');
   const modRes = await req('/api/billing/modules', {
     method: 'POST',
     headers: authHeaders,
     body: { module: 'seo' }
   });
-  assert.strictEqual(modRes.status, 200, 'Checkout modul SEO harus 200 OK');
-  assert.strictEqual(modRes.data.amount, MODULES.seo?.price ?? 1990000, 'Nominal harus sesuai harga lifetime SEO');
-  assert.strictEqual(modRes.data.currency, 'IDR');
-  assert.ok(modRes.data.invoiceNumber.startsWith('MKM-M-'), `Invoice prefix harus MKM-M-, didapat: ${modRes.data.invoiceNumber}`);
+  assert.strictEqual(modRes.status, 410, 'Checkout modul SEO harus 410 Gone (PRD F16 §3.7)');
+  assert.strictEqual(modRes.data.code, 'MODULE_PURCHASE_DISCONTINUED');
 
-  const paymentSeo = await db.findOne('payments', { invoice_number: modRes.data.invoiceNumber });
-  assert.ok(paymentSeo, 'Payment record harus tersimpan di DB');
-  assert.strictEqual(paymentSeo.kind, 'module');
-  assert.strictEqual(paymentSeo.item_id, 'seo');
-  assert.strictEqual(paymentSeo.status, 'pending');
-  assert.strictEqual(paymentSeo.granted_at, null);
+  // 4. Simulasi Pembayaran Modul Lama yang Sudah Pending (Backward Compatibility)
+  console.log('3. Menguji Webhook DOKU SUCCESS & Fulfillment Modul SEO Data Lama...');
+  const oldInvoiceNumber = 'MKM-M-261020-OLDSEO';
+  const paymentSeo = await db.insert('payments', {
+    workspace_id: workspaceId,
+    user_id: user.id,
+    kind: 'module',
+    item_id: 'seo',
+    item_name: 'SEO Specialist',
+    amount: 1990000,
+    currency: 'IDR',
+    credits: 100,
+    period_days: null,
+    provider: 'doku',
+    invoice_number: oldInvoiceNumber,
+    status: 'pending',
+    fulfilled_at: null,
+    granted_at: null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  });
 
-  // 4. Simulasi Webhook DOKU Payment Success untuk SEO
-  console.log('3. Menguji Webhook DOKU SUCCESS & Fulfillment Modul SEO...');
   const webhookPayloadSeo = {
     order: {
-      invoice_number: modRes.data.invoiceNumber,
-      amount: MODULES.seo?.price ?? 1990000
+      invoice_number: oldInvoiceNumber,
+      amount: 1990000
     },
     transaction: {
       status: 'SUCCESS',
@@ -198,7 +209,7 @@ async function runModuleBillingTests() {
   const updatedPaymentSeo = await db.findOne('payments', { id: paymentSeo.id });
   assert.strictEqual(updatedPaymentSeo.status, 'paid');
   assert.ok(updatedPaymentSeo.fulfilled_at, 'fulfilled_at harus terisi');
-  assert.ok(updatedPaymentSeo.granted_at, 'granted_at harus terisi sesuai PRD F15');
+  assert.ok(updatedPaymentSeo.granted_at, 'granted_at harus terisi sesuai PRD F15/F16');
 
   const entSeo = await db.findOne('module_entitlements', { workspace_id: workspaceId, module: 'seo' });
   assert.ok(entSeo, 'module_entitlements untuk SEO harus ada');
@@ -211,7 +222,7 @@ async function runModuleBillingTests() {
   const walletAfterSeo = await db.findOne('credit_wallets', { workspace_id: workspaceId });
   assert.strictEqual(walletAfterSeo?.balance_sub || 0, 0, 'Wallet tidak mendapat kredit bulanan karena kuota bulanan dihapus (PRD F16)');
 
-  // 5. Menguji Idempotensi Fulfillment & Webhook Duplikat
+  // 5. Menguji Idempotensi Fulfillment & Webhook Duplikat Modul Lama
   console.log('4. Menguji Idempotensi Webhook duplikat (pencegahan double grant)...');
   const hookDupRes = await req('/api/webhooks/doku', {
     method: 'POST',
@@ -227,116 +238,6 @@ async function runModuleBillingTests() {
 
   const walletAfterDup = await db.findOne('credit_wallets', { workspace_id: workspaceId });
   assert.strictEqual(walletAfterDup?.balance_sub || 0, 0, 'Saldo wallet sub tetap 0 saat webhook/fulfillment diulang');
-
-  // 6. Menguji Pencegahan Beli Ulang Modul yang Sudah Dimiliki
-  console.log('5. Menguji penolakan pembelian ulang modul yang sudah dimiliki...');
-  const rebuyRes = await req('/api/billing/modules', {
-    method: 'POST',
-    headers: authHeaders,
-    body: { module: 'seo' }
-  });
-  assert.strictEqual(rebuyRes.status, 409, 'Beli modul yang sudah dimiliki harus 409 Conflict');
-  assert.strictEqual(rebuyRes.data.code, 'MODULE_ALREADY_OWNED');
-
-  // 7. Menguji Bundle Pricing saat sebagian modul sudah dimiliki
-  console.log('6. Menguji Bundle Fokus 3 saat modul SEO sudah dimiliki (diskon & floor price)...');
-  // Pastikan workspace HANYA memiliki baris entitlement 'seo'
-  // (Hapus baris ads_report & ads_spy dari trial awal agar fulfillment bundle BENAR-BENAR melewati jalur INSERT)
-  await db.remove('module_entitlements', { workspace_id: workspaceId, module: 'ads_report' });
-  await db.remove('module_entitlements', { workspace_id: workspaceId, module: 'ads_spy' });
-
-  const onlySeoBefore = await db.findMany('module_entitlements', { workspace_id: workspaceId });
-  assert.strictEqual(onlySeoBefore.length, 1, 'Workspace harus hanya memiliki 1 baris entitlement sebelum beli bundle');
-  assert.strictEqual(onlySeoBefore[0].module, 'seo');
-
-  // Modul dimiliki: seo (Rp1.990.000)
-  // Modul belum dimiliki: ads_report (Rp1.990.000) + ads_spy (Rp1.490.000) = Rp3.480.000
-  // Discounted = 4.490.000 - 1.990.000 = 2.500.000
-  // Floor = 3.480.000 * 0.8 = 2.784.000
-  // Final = max(2.500.000, 2.784.000) = 2.784.000
-  const expectedBundlePrice = 2784000;
-
-  const bundleRes = await req('/api/billing/modules', {
-    method: 'POST',
-    headers: authHeaders,
-    body: { bundle: 'focus3' }
-  });
-  assert.strictEqual(bundleRes.status, 200, 'Checkout bundle harus 200 OK');
-  assert.strictEqual(bundleRes.data.amount, expectedBundlePrice, `Harga bundle terdiskon harus Rp${expectedBundlePrice}, didapat: ${bundleRes.data.amount}`);
-
-  // 8. Fulfill Bundle Fokus 3
-  console.log('7. Menguji Fulfillment Bundle Fokus 3 (aktivasi modul sisa + upgrade kuota bulanan)...');
-  const bundlePayment = await db.findOne('payments', { invoice_number: bundleRes.data.invoiceNumber });
-  assert.strictEqual(bundlePayment.kind, 'module');
-  assert.strictEqual(bundlePayment.item_id, 'focus3');
-
-  const webhookBundle = {
-    order: {
-      invoice_number: bundleRes.data.invoiceNumber,
-      amount: expectedBundlePrice
-    },
-    transaction: {
-      status: 'SUCCESS',
-      date: new Date().toISOString()
-    },
-    payment: {
-      payment_method_type: 'QRIS'
-    }
-  };
-
-  const hookBundleRes = await req('/api/webhooks/doku', {
-    method: 'POST',
-    headers: makeDokuWebhookHeaders(webhookBundle),
-    body: webhookBundle
-  });
-  assert.strictEqual(hookBundleRes.status, 200);
-
-  // Verifikasi semua modul lifetime aktif (ketiga modul aktif lifetime)
-  // seo melewati UPDATE, ads_report dan ads_spy melewati INSERT dengan created_at
-  const entSeoAfter = await db.findOne('module_entitlements', { workspace_id: workspaceId, module: 'seo' });
-  const entReport = await db.findOne('module_entitlements', { workspace_id: workspaceId, module: 'ads_report' });
-  const entSpy = await db.findOne('module_entitlements', { workspace_id: workspaceId, module: 'ads_spy' });
-  assert.strictEqual(entSeoAfter.active, true);
-  assert.strictEqual(entSeoAfter.source, 'lifetime');
-  assert.strictEqual(entReport.active, true);
-  assert.strictEqual(entReport.source, 'lifetime');
-  assert.strictEqual(entReport.ends_at, null);
-  assert.strictEqual(entReport.payment_id, bundlePayment.id);
-  assert.strictEqual(entSpy.active, true);
-  assert.strictEqual(entSpy.source, 'lifetime');
-  assert.strictEqual(entSpy.ends_at, null);
-  assert.strictEqual(entSpy.payment_id, bundlePayment.id);
-
-  // PRD F16 §3.5: Verifikasi saldo bulanan tetap 0 karena grant bulanan dihapus
-  const walletAfterBundle = await db.findOne('credit_wallets', { workspace_id: workspaceId });
-  assert.strictEqual(walletAfterBundle?.balance_sub || 0, 0, 'Saldo bulanan tetap 0 karena kuota bulanan dihapus (PRD F16)');
-
-  // 9. Menguji Penolakan Pembelian Bundle saat semua modul sudah dimiliki
-  console.log('8. Menguji penolakan pembelian bundle saat semua modul sudah dimiliki...');
-  const rebuyBundleRes = await req('/api/billing/modules', {
-    method: 'POST',
-    headers: authHeaders,
-    body: { bundle: 'focus3' }
-  });
-  assert.strictEqual(rebuyBundleRes.status, 409, 'Beli bundle saat semua modul dimiliki harus 409 Conflict');
-  assert.strictEqual(rebuyBundleRes.data.code, 'MODULE_ALREADY_OWNED');
-
-  // 10. Menguji Penolakan Input Modul / Bundle Tidak Valid
-  console.log('9. Menguji validasi input modul / bundle tidak valid...');
-  const invalidModRes = await req('/api/billing/modules', {
-    method: 'POST',
-    headers: authHeaders,
-    body: { module: 'non_existent_module' }
-  });
-  assert.strictEqual(invalidModRes.status, 400, 'Modul palsu harus 400 Bad Request');
-  assert.strictEqual(invalidModRes.data.code, 'INVALID_MODULE');
-
-  const emptyModRes = await req('/api/billing/modules', {
-    method: 'POST',
-    headers: authHeaders,
-    body: {}
-  });
-  assert.strictEqual(emptyModRes.status, 400, 'Body kosong harus 400 Bad Request');
   // 10. Menguji reconcile memulihkan baris paid + fulfilled_at terisi + granted_at null (tanpa re-claim)
   console.log('10. Menguji reconcile memulihkan baris paid + fulfilled_at terisi + granted_at null...');
   const wsReconcileId = randomUUID();

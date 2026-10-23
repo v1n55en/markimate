@@ -87,6 +87,8 @@ export const errors = {
   "SEO_IMAGE_REGEN_DISABLED": "Fitur regenerasi gambar belum diaktifkan.",
   "INVALID_IMAGE_INDEX": "Indeks gambar tidak valid (harus antara 0 dan 5).",
   "IMAGE_GENERATION_FAILED": "Gagal menghasilkan gambar dari model AI Imagen.",
-  "GENERATE_TIMEOUT": "Proses pembuatan artikel melebihi batas waktu (10 menit). Silakan coba lagi."
+  "GENERATE_TIMEOUT": "Proses pembuatan artikel melebihi batas waktu (10 menit). Silakan coba lagi.",
+  "MODULE_PURCHASE_DISCONTINUED": "Pembelian modul telah dihentikan. Semua modul kini aktif gratis; Anda hanya membayar sesuai pemakaian kredit.",
+  "INVALID_PACK": "Paket kredit tidak valid."
 };
 
