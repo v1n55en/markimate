@@ -46,23 +46,25 @@ export default function TopupCalculator({
   const estReports = Math.floor(safeCredits / 400);
   const estScans = Math.floor(safeCredits / 40);
 
+  const sortedTiers = [...TOPUP.tiers].sort((a, b) => a.min - b.min);
+
   return (
     <div className="topup-calculator-card">
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
           <Coins size={18} color="var(--accent-cyan)" />
           <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-            {t('billing.topupCustomTitle', 'Custom Credit Top-Up')}
+            {t('billing.topupCustomTitle')}
           </h3>
         </div>
-        <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+        <p className="topup-card-subtitle">
           {t('billing.topupCustomSubtitle', {
-            min: TOPUP.min,
-            rate: formatCurrency(TOPUP.pricePerCredit, lang),
-            tier1: 1000,
-            disc1: '5%',
-            tier2: 2500,
-            disc2: '10%'
+            t1: formatNumber(sortedTiers[0].min, lang),
+            d1: `${Math.round(sortedTiers[0].disc * 100)}%`,
+            t2: formatNumber(sortedTiers[1].min, lang),
+            d2: `${Math.round(sortedTiers[1].disc * 100)}%`,
+            t3: formatNumber(sortedTiers[2].min, lang),
+            d3: `${Math.round(sortedTiers[2].disc * 100)}%`
           })}
         </p>
       </div>
@@ -118,57 +120,49 @@ export default function TopupCalculator({
 
       {/* Rincian Harga & Diskon Volume */}
       <div className="topup-calc-result-box">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              {t('billing.topupGrossLabel', { rate: formatCurrency(TOPUP.pricePerCredit, lang) })}
-            </div>
-            <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-              {formatCurrency(safeCredits * TOPUP.pricePerCredit, lang)}
-            </div>
-          </div>
-
-          {quote.discountPct > 0 && (
-            <div style={{ textAlign: 'right' }}>
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.3rem',
-                  padding: '0.2rem 0.5rem',
-                  borderRadius: '4px',
-                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                  color: 'var(--accent-green)',
-                  fontSize: '0.78rem',
-                  fontWeight: 700
-                }}
-              >
-                <Sparkles size={12} />
-                {t('billing.topupDiscountBadge', { pct: Math.round(quote.discountPct * 100) })}
-              </span>
-              <div style={{ fontSize: '0.75rem', color: 'var(--accent-green)', marginTop: '0.2rem' }}>
-                -{formatCurrency(Math.round(safeCredits * TOPUP.pricePerCredit * quote.discountPct), lang)}
-              </div>
-            </div>
-          )}
+        <div className="topup-price-row">
+          <span className="topup-row-label">
+            {t('billing.topupGrossLabel')}
+          </span>
+          <span className="topup-row-value">
+            {formatCurrency(safeCredits * TOPUP.pricePerCredit, lang)}
+          </span>
         </div>
 
-        <div
-          style={{
-            borderTop: '1px dashed var(--border-muted)',
-            paddingTop: '0.75rem',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'baseline',
-            flexWrap: 'wrap',
-            gap: '0.5rem'
-          }}
-        >
-          <span style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-            {t('billing.topupTotalPayLabel', 'Total Investment:')}
+        {quote.discountPct > 0 && (
+          <div className="topup-price-row topup-discount-row">
+            <div className="topup-discount-label-group">
+              <span className="topup-row-label">
+                {t('billing.topupDiscountRow', { pct: Math.round(quote.discountPct * 100) })}
+              </span>
+              <span className="topup-badge-save">
+                <Sparkles size={11} />
+                {t('billing.savePctBadge', { pct: Math.round(quote.discountPct * 100) })}
+              </span>
+            </div>
+            <span className="topup-discount-value">
+              {'-' + formatCurrency(quote.discount, lang)}
+            </span>
+          </div>
+        )}
+
+        {quote.discountPct === 0 && quote.nextTier && (
+          <div className="topup-next-tier-hint">
+            <Sparkles size={13} color="var(--accent-cyan)" />
+            <span>
+              {t('billing.topupNextTierHint', {
+                n: formatNumber(quote.nextTier.creditsNeeded, lang),
+                pct: Math.round(quote.nextTier.disc * 100)
+              })}
+            </span>
+          </div>
+        )}
+
+        <div className="topup-total-row">
+          <span className="topup-total-label">
+            {t('billing.topupTotalPayLabel')}
           </span>
-          <span style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--accent-cyan)' }}>
+          <span className="topup-total-value">
             {formatCurrency(quote.amount, lang)}
           </span>
         </div>
@@ -177,7 +171,7 @@ export default function TopupCalculator({
       {/* Estimasi Hasil Nyata */}
       <div>
         <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-          {t('billing.topupOutputEstTitle', 'Estimated Real Deliverables:')}
+          {t('billing.topupOutputEstTitle')}
         </div>
         <div className="topup-est-grid">
           <div className="topup-est-item">
@@ -217,7 +211,7 @@ export default function TopupCalculator({
           <Coins size={16} />
           <span>
             {busy
-              ? t('billing.processing', 'Processing...')
+              ? t('billing.processing')
               : t('billing.btnBuyCustomCredits', {
                   credits: formatNumber(safeCredits, lang),
                   amount: formatCurrency(quote.amount, lang)

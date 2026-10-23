@@ -430,9 +430,9 @@ export default function CreditWalletPage({ me, onTopupClick }) {
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h3 style={styles.packName}>{pack.name}</h3>
-                {!isPopular && discountPct > 0 && (
+                {discountPct > 0 && (
                   <span style={styles.packBonusBadge}>
-                    {t('billing.savePctBadge', { pct: discountPct }, `Hemat ${discountPct}%`)}
+                    {t('billing.savePctBadge', { pct: discountPct })}
                   </span>
                 )}
               </div>

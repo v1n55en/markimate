@@ -93,8 +93,8 @@ function detectInitialLanguage() {
 
 import { api, getToken } from '../api.js';
 
-export function LanguageProvider({ children }) {
-  const [lang, setLangState] = useState(detectInitialLanguage);
+export function LanguageProvider({ children, defaultLanguage }) {
+  const [lang, setLangState] = useState(() => defaultLanguage || detectInitialLanguage());
   let location;
   let navigate;
   try {
