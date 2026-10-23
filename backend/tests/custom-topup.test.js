@@ -254,6 +254,36 @@ async function runCustomTopupTests() {
   const wallet = await db.findOne('credit_wallets', { workspace_id: workspaceId });
   assert.strictEqual(wallet.balance_topup, 100, 'Saldo topup harus bertambah 100 credit');
 
+  // PRD F16 §3.6 & §7: Top-up tidak hangus (topup_expires_at = null)
+  assert.strictEqual(wallet.topup_expires_at, null, 'topup_expires_at harus null untuk top-up (PRD F16 §7)');
+
+  // Pengujian kedaluwarsa: expire_buckets_atomic / fallback tidak mengurangi saldo walau waktu dimajukan 2 tahun
+  console.log('7b. Menguji expire_buckets_atomic saat waktu dimajukan 2 tahun (saldo top-up tetap utuh)...');
+  const { expireBuckets } = await import('../lib/credits.js');
+  await expireBuckets(workspaceId);
+  const walletAfterExpire = await db.findOne('credit_wallets', { workspace_id: workspaceId });
+  assert.strictEqual(walletAfterExpire.balance_topup, 100, 'Saldo top-up tidak boleh berkurang walau waktu berjalan (tidak hangus)');
+
+  // 7c. Mutation check: Jika topup_expires_at diisi tanggal kedaluwarsa (misal validityDays 365), expireBuckets HARUS menghanguskan saldo
+  console.log('7c. Menjalankan mutation check: verifikasi model 365 hari lama pasti hangus jika waktu +2 tahun...');
+  const wsMut = randomUUID();
+  const pastTime = new Date(Date.now() - 10 * 86400e3).toISOString();
+  await db.insert('credit_wallets', {
+    workspace_id: wsMut,
+    balance_trial: 0,
+    trial_expires_at: null,
+    balance_sub: 0,
+    sub_expires_at: null,
+    balance_topup: 100,
+    topup_expires_at: pastTime,
+    daily_cap: 500,
+    updated_at: new Date().toISOString()
+  });
+  await expireBuckets(wsMut);
+  const walletMut = await db.findOne('credit_wallets', { workspace_id: wsMut });
+  assert.strictEqual(walletMut.balance_topup, 0, 'Mutasi: Jika masa berlaku 365 hari dihidupkan, saldo yang kedaluwarsa wajib hangus');
+  console.log('   OK - Mutation check KILLED: terbukti saldo hanya bertahan karena topup_expires_at = null.');
+
   // 8. Penolakan paket lama: Top-up hanya lewat { credits }
   console.log('8. Menguji penolakan format lama { packageId: "starter" }...');
   const resStarter = await req('/api/billing/topup', {

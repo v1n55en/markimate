@@ -191,6 +191,24 @@ async function runSchemaContractTests() {
     }, true);
   });
 
+  // Terima payments.kind: 'pack' (PRD F16 Migrasi 019)
+  assert.ok(contract.payments.checkConstraints.kind.has('pack'), 'payments.kind CHECK constraint harus memuat pack');
+  assert.doesNotThrow(() => {
+    validateRowContract('payments', {
+      id: randomUUID(),
+      workspace_id: randomUUID(),
+      user_id: randomUUID(),
+      kind: 'pack',
+      item_id: 'pack_1000',
+      item_name: 'Growth (1.000 credit)',
+      provider: 'doku',
+      invoice_number: 'INV-TEST-PACK-1',
+      amount: 900000,
+      currency: 'IDR',
+      status: 'pending'
+    }, true);
+  });
+
   // Validasi tabel monthly_grants (PRD F15)
   assert.doesNotThrow(() => {
     validateRowContract('monthly_grants', {

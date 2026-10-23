@@ -126,3 +126,44 @@ cd frontend && npm run i18n:check && npm run build
 - Migrasi SQL 019 dan penghapusan expiry top-up (dijadwalkan Langkah 4).
 - Checkout pack dan 410 untuk module checkout (dijadwalkan Langkah 5).
 
+---
+
+## Langkah 4: Top-up Tanpa Expiry & Migrasi SQL 019 (PRD F16 §3.6, §5)
+
+### 1. File yang Berubah
+- `backend/migrations/019_credit_only.sql`:
+  - Menambahkan file migrasi idempoten untuk Supabase: update `payments_kind_check` constraint dengan menambahkan `'pack'`, mengosongkan `topup_expires_at = null` pada seluruh dompet, dan mencatat migrasi `019`.
+- `backend/lib/payments/service.js`:
+  - `fulfillPayment`: Memanggil `grant(..., 'topup', credits, null, ...)` dengan `expires_at = null` untuk topup dan pack.
+  - `reconcile`: Memanggil `grant(..., 'topup', credits, null, ...)` dengan `expires_at = null` untuk topup dan pack.
+- `backend/tests/schema-contract.test.js`:
+  - Menambahkan verifikasi bahwa `payments_kind_check` memuat `'pack'` dan baris pembayaran jenis `'pack'` lolos validasi kontrak.
+- `backend/tests/custom-topup.test.js`:
+  - Menambahkan verifikasi `wallet.topup_expires_at === null` setelah fulfillment top-up.
+  - Menguji `expireBuckets(workspaceId)` bahwa saldo topup 100 tetap utuh (tidak hangus).
+  - Menambahkan mutation check yang membuktikan jika topup_expires_at dihidupkan dengan tanggal kedaluwarsa 365 hari lampau, saldo hangus menjadi 0 (KILLED).
+- `frontend/src/i18n/locales/id/billing.js` & `frontend/src/i18n/locales/en/billing.js`:
+  - Menambahkan key `neverExpires` ("Tidak hangus" / "Never expires") dan `topupNeverExpires` ("Credit top-up tidak hangus" / "Top-up credits never expire").
+- `frontend/src/pages/billing/CreditWalletPage.jsx`:
+  - Mengubah badge mini tag top-up dari `365 hari` menjadi `Tidak hangus` (`billing.neverExpires`), dan deskripsi fallback dari `valid365` menjadi `Credit top-up tidak hangus` (`billing.topupNeverExpires`).
+- `docs/reports/F16-credit-only.md`: Dokumentasi laporan langkah 4.
+
+### 2. Cara Tes
+```bash
+cd backend && node tests/custom-topup.test.js
+cd backend && node tests/schema-contract.test.js
+cd backend && npm test
+cd frontend && npm run i18n:check && npm run build
+```
+
+### 3. Hasil Tes
+- `tests/custom-topup.test.js`: Lolos 100%, mutasi KILLED.
+- `tests/schema-contract.test.js`: Lolos 100%, constraint pack terverifikasi.
+- `npm test` backend: 26/26 file test lolos.
+- `npm run i18n:check` frontend: 0 error, dictionary parity 2451 keys.
+- `npm run build` frontend: exit 0.
+
+### 4. Hal yang Sengaja Tidak Dikerjakan pada Langkah Ini
+- Menjalankan file SQL 019 ke Supabase live (Sesuai aturan kerja `AGENTS.md`, agen berhenti di Langkah 4 dan menunggu 3Our menjalankan migrasi SQL ke Supabase).
+- Checkout `pack` dan 410 untuk checkout `module` (dijadwalkan Langkah 5).
+

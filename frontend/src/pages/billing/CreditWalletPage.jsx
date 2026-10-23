@@ -273,7 +273,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
         <div style={styles.bucketCard} className="card">
           <div style={styles.bucketCardTop}>
             <span style={styles.bucketLabel}>{t('billing.bucketTopup')}</span>
-            <span style={styles.bucketMiniTag}>{t('billing.daysUnit', { days: 365 })}</span>
+            <span style={styles.bucketMiniTag}>{t('billing.neverExpires')}</span>
           </div>
           <div style={styles.bucketValRow}>
             <span style={styles.bucketVal}>{formatNumber(topupBalance, lang)}</span>
@@ -284,7 +284,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
             <span>
               {topupEnds
                 ? t('billing.validUntil', { date: formatDate(topupEnds, lang) })
-                : t('billing.valid365')}
+                : t('billing.topupNeverExpires')}
             </span>
           </div>
         </div>

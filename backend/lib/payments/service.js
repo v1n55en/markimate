@@ -341,20 +341,21 @@ export async function fulfillPayment(payment, parsed = {}) {
     const user = payment.user_id ? await db.findOne('accounts', { id: payment.user_id }) : null;
     const userLocale = user?.locale || 'id';
 
-    if (payment.kind === 'topup') {
-      // 1. Tambah credit ke bucket topup dengan masa berlaku 365 hari
-      const validityDays = payment.period_days || 365;
-      const expiresAt = new Date(now.getTime() + validityDays * 86400e3);
+    if (payment.kind === 'topup' || payment.kind === 'pack') {
+      // PRD F16 §3.6: Credit top-up & paket tidak hangus (expires_at = null)
+      const note = payment.kind === 'pack'
+        ? `${payment.item_name || 'Paket Credit'} via ${payment.provider.toUpperCase()} (${payment.invoice_number})`
+        : `Top-up credit via ${payment.provider.toUpperCase()} (${payment.invoice_number})`;
 
       await grant(
         payment.workspace_id,
         'topup',
         payment.credits,
-        expiresAt,
+        null,
         'topup',
-        `Top-up credit via ${payment.provider.toUpperCase()} (${payment.invoice_number})`,
+        note,
         {
-          actionKey: 'billing.topup',
+          actionKey: payment.kind === 'pack' ? 'billing.pack' : 'billing.topup',
           refType: 'payment',
           refId: payment.id,
           invoiceNumber: payment.invoice_number,
@@ -664,8 +665,8 @@ export async function reconcile() {
       continue;
     }
 
-    // 2. Jika kind === 'topup' dan credits > 0, pastikan ada baris credit_ledger terkait
-    if (payment.kind === 'topup' && payment.credits > 0) {
+    // 2. Jika kind === 'topup' atau 'pack' dan credits > 0, pastikan ada baris credit_ledger terkait
+    if ((payment.kind === 'topup' || payment.kind === 'pack') && payment.credits > 0) {
       const existingLedger = await db.findMany('credit_ledger', {
         workspace_id: payment.workspace_id,
         ref_id: payment.id
@@ -673,17 +674,19 @@ export async function reconcile() {
       const hasGrantRow = (existingLedger || []).some(r => r.kind === 'topup' || (r.delta && r.delta > 0));
       if (!hasGrantRow) {
         try {
-          const validityDays = payment.period_days || 365;
-          const expiresAt = new Date(Date.now() + validityDays * 86400e3);
+          // PRD F16 §3.6: Credit top-up & paket tidak hangus (expires_at = null)
+          const note = payment.kind === 'pack'
+            ? `Reconciliation: ${payment.item_name || 'Paket Credit'} via ${payment.provider.toUpperCase()} (${payment.invoice_number})`
+            : `Reconciliation: Top-up credit via ${payment.provider.toUpperCase()} (${payment.invoice_number})`;
           await grant(
             payment.workspace_id,
             'topup',
             payment.credits,
-            expiresAt,
+            null,
             'topup',
-            `Reconciliation: Top-up credit via ${payment.provider.toUpperCase()} (${payment.invoice_number})`,
+            note,
             {
-              actionKey: 'billing.topup',
+              actionKey: payment.kind === 'pack' ? 'billing.pack' : 'billing.topup',
               refType: 'payment',
               refId: payment.id,
               invoiceNumber: payment.invoice_number,
