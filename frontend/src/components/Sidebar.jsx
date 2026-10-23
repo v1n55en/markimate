@@ -31,6 +31,7 @@ import { ROLES, getLocalizedRole } from '../config/roles';
 import { getCredits } from '../api';
 import { isAdsMock } from '../ads/adsApi';
 import { isSpyMock } from '../spy/spyApi';
+import { TRIAL } from '../config/pricing';
 
 import { useLanguage, LanguageToggle } from '../context/LanguageContext';
 import { formatNumber } from '../lib/format';
@@ -69,7 +70,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
   const isUnlimited = Boolean(user?.isPlatformAdmin || creditsData?.isUnlimited);
   const isTrialActive = Boolean(creditsData?.trial?.active);
   const trialDaysLeft = creditsData?.trial?.daysLeft ?? 0;
-  const maxBaseline = isTrialActive ? 300 : (creditsData?.dailyCap || 500);
+  const maxBaseline = isTrialActive ? TRIAL.credits : (creditsData?.dailyCap || 500);
   const creditPct = maxBaseline > 0 ? Math.min(100, Math.round((totalCredits / maxBaseline) * 100)) : 0;
 
   let barColor = 'var(--accent-cyan)';
@@ -512,7 +513,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
             )}
           </div>
 
-          {/* 4. Pengaturan Akun & Langganan */}
+          {/* 4. Pengaturan Akun & Tagihan */}
           <div style={styles.sectionBlock}>
             <div style={styles.sectionHeader}>
               <span style={styles.sectionGroupTitle}>{t('settings.accountTab')}</span>
@@ -552,7 +553,7 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
                       : 'var(--text-secondary)'
                   }
                 />
-                <span>{t('sidebar.billing', 'Subscription & Billing')}</span>
+                <span>{t('sidebar.billing')}</span>
               </button>
               <button
                 onClick={() => handleNavClick('/app/settings/account')}

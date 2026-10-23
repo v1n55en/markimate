@@ -87,7 +87,13 @@ export default function RoleDetailPage() {
   const isAvailable = role.status === 'available';
   const modInfo = MODULES[role.key];
   const typicalCredits = modInfo?.typicalMonthlyCredits || 0;
-  const typicalDesc = modInfo?.desc || '';
+  const getTypicalDesc = (moduleKey) => {
+    if (moduleKey === 'seo') return t('roleDetail.typicalDescSeo');
+    if (moduleKey === 'ads_report') return t('roleDetail.typicalDescAdsReport');
+    if (moduleKey === 'ads_spy') return t('roleDetail.typicalDescAdsSpy');
+    return '';
+  };
+  const typicalDesc = getTypicalDesc(role.key);
 
   return (
     <div style={styles.page}>
@@ -161,7 +167,7 @@ export default function RoleDetailPage() {
                 {typicalCredits > 0 && (
                   <div style={styles.quotaRow}>
                     <span style={styles.quotaText}>
-                      {t('roleDetail.typicalUsageNote', { credits: typicalCredits, desc: typicalDesc }, `Pemakaian khas: ~${typicalCredits} credit/bulan (${typicalDesc})`)}
+                      {t('roleDetail.typicalUsageNote', { credits: typicalCredits, desc: typicalDesc })}
                     </span>
                   </div>
                 )}
@@ -250,14 +256,14 @@ export default function RoleDetailPage() {
         <div style={styles.bottomCtaBox} className="card">
           <div>
             <h3 style={styles.bottomCtaTitle}>
-              {t('roleDetail.bottomCtaTitle', 'Need Multiple Roles? Save 20% with the Focus 3 Bundle')}
+              {t('roleDetail.bottomCtaTitle', 'All Modules Active for Free — Zero License Fees')}
             </h3>
             <p style={styles.bottomCtaDesc}>
-              {t('roleDetail.bottomCtaDesc', 'Deploy SEO Specialist, Ads Report, and Ads Creative Spy simultaneously with an automatic 20% discount.')}
+              {t('roleDetail.bottomCtaDesc', 'Deploy SEO Specialist, Ads Report, and Ads Creative Spy anytime without commitments. Simply top-up credits as your team needs.')}
             </p>
           </div>
           <LocalizedLink to="/#pricing" style={styles.bottomCtaLink}>
-            {t('hero.ctaSecondary', 'View Plans & Pricing')}
+            {t('hero.ctaSecondary', 'View Packs & Pricing')}
           </LocalizedLink>
         </div>
       </main>

@@ -453,7 +453,7 @@ export const REPORT_DETAILS = {
         category: 'Analisis Produk Unggulan',
         points: [
           'SKU "Arabica Single Origin 250g" menyumbang 31.9% dari total GMV dengan ROAS fantastis 7.2x.',
-          'Drip Bag Coffee bundle successfully increased Average Order Value (AOV) by 18.4%.',
+          'Drip Bag Coffee package successfully increased Average Order Value (AOV) by 18.4%.',
         ],
       },
       {

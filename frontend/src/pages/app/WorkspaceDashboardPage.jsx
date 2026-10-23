@@ -99,7 +99,7 @@ export default function WorkspaceDashboardPage({ me }) {
             </span>
           </div>
           <Link to="/app/billing" style={styles.headerUpgradeLink}>
-            <span>{t('sidebar.billing', 'Subscription & Billing')}</span>
+            <span>{t('sidebar.billing')}</span>
             <ArrowRight size={14} />
           </Link>
         </div>
@@ -178,8 +178,8 @@ export default function WorkspaceDashboardPage({ me }) {
                 {t('app.dashboard.seoDescLocked')}
               </p>
               <div style={styles.lockedPriceBox}>
-                <span>{t('app.dashboard.freeModuleTag', 'Semua Modul Gratis')}</span>
-                <span style={styles.lockedQuotaText}>{t('app.dashboard.typicalMonthlyCredits', { credits: MODULES.seo.typicalMonthlyCredits }, `~${MODULES.seo.typicalMonthlyCredits} credit/bulan`)}</span>
+                <span>{t('app.dashboard.freeModuleTag')}</span>
+                <span style={styles.lockedQuotaText}>{t('app.dashboard.typicalMonthlyCredits', { credits: MODULES.seo.typicalMonthlyCredits })}</span>
               </div>
               <Link to="/app/modules/seo" style={styles.cardActivateBtn}>
                 <Sparkles size={14} />
@@ -272,8 +272,8 @@ export default function WorkspaceDashboardPage({ me }) {
                 {t('app.dashboard.adsDescLocked')}
               </p>
               <div style={styles.lockedPriceBox}>
-                <span>{t('app.dashboard.freeModuleTag', 'Semua Modul Gratis')}</span>
-                <span style={styles.lockedQuotaText}>{t('app.dashboard.typicalMonthlyCredits', { credits: MODULES.ads_report.typicalMonthlyCredits }, `~${MODULES.ads_report.typicalMonthlyCredits} credit/bulan`)}</span>
+                <span>{t('app.dashboard.freeModuleTag')}</span>
+                <span style={styles.lockedQuotaText}>{t('app.dashboard.typicalMonthlyCredits', { credits: MODULES.ads_report.typicalMonthlyCredits })}</span>
               </div>
               <Link to="/app/modules/ads_report" style={styles.cardActivateBtn}>
                 <Sparkles size={14} />
@@ -360,8 +360,8 @@ export default function WorkspaceDashboardPage({ me }) {
                 {t('app.dashboard.spyDescLocked')}
               </p>
               <div style={styles.lockedPriceBox}>
-                <span>{t('app.dashboard.freeModuleTag', 'Semua Modul Gratis')}</span>
-                <span style={styles.lockedQuotaText}>{t('app.dashboard.typicalMonthlyCredits', { credits: MODULES.ads_spy.typicalMonthlyCredits }, `~${MODULES.ads_spy.typicalMonthlyCredits} credit/bulan`)}</span>
+                <span>{t('app.dashboard.freeModuleTag')}</span>
+                <span style={styles.lockedQuotaText}>{t('app.dashboard.typicalMonthlyCredits', { credits: MODULES.ads_spy.typicalMonthlyCredits })}</span>
               </div>
               <Link to="/app/modules/ads_spy" style={styles.cardActivateBtn}>
                 <Sparkles size={14} />

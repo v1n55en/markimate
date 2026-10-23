@@ -1562,10 +1562,10 @@ h1, h2, h3, h4, h5, h6, p, span, strong, a {
 }
 
 /* ========================================================
-   PRD F15: Pricing Lifetime, Custom Top-Up, & Wallet Styles
+   PRD F15: Pricing Packs, Custom Top-Up, & Wallet Styles
    ======================================================== */
 
-.pricing-lifetime-grid {
+.pricing-packs-grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 1.25rem;
@@ -1573,7 +1573,7 @@ h1, h2, h3, h4, h5, h6, p, span, strong, a {
 }
 
 @media (min-width: 640px) {
-  .pricing-lifetime-grid {
+  .pricing-packs-grid {
     grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
   }
 }
@@ -1906,7 +1906,7 @@ h1, h2, h3, h4, h5, h6, p, span, strong, a {
 }
 
 /* ========================================================
-   Admin Reports: Lifetime Liability & Revenue Mix (PRD F15)
+   Admin Reports: Liability & Revenue Mix (PRD F15)
    ======================================================== */
 .admin-reports-grid {
   display: grid;

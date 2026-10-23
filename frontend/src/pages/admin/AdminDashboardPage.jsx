@@ -6,7 +6,7 @@ import {
   Coins,
   Cpu,
   UserCheck,
-  CreditCard,
+
   AlertCircle,
   CheckCircle2,
   Calendar,
@@ -33,12 +33,7 @@ export default function AdminDashboardPage({ user }) {
   const [grantLoading, setGrantLoading] = useState(false);
   const [grantSuccess, setGrantSuccess] = useState(null);
 
-  // Form State: Manual Subscription
-  const [subWsId, setSubWsId] = useState('');
-  const [subPlan, setSubPlan] = useState('all_in_one');
-  const [subMonths, setSubMonths] = useState('1');
-  const [subLoading, setSubLoading] = useState(false);
-  const [subSuccess, setSubSuccess] = useState(null);
+
 
   const fetchMarginData = async (month = null) => {
     try {
@@ -92,29 +87,7 @@ export default function AdminDashboardPage({ user }) {
     }
   };
 
-  const handleSubSubmit = async (e) => {
-    e.preventDefault();
-    if (!subWsId.trim()) return;
-    try {
-      setSubLoading(true);
-      setSubSuccess(null);
-      setErrorMsg(null);
-      await api('/api/admin/subscriptions', {
-        method: 'POST',
-        body: {
-          workspaceId: subWsId.trim(),
-          plan: subPlan,
-          months: Number(subMonths || 1)
-        }
-      });
-      setSubSuccess(t('adminDashboard.successSub', 'Subscription activated successfully!'));
-      fetchMarginData(selectedMonth);
-    } catch (err) {
-      setErrorMsg(err.message || 'Failed to activate subscription');
-    } finally {
-      setSubLoading(false);
-    }
-  };
+
 
   if (!user?.isPlatformAdmin) {
     return (
@@ -129,7 +102,7 @@ export default function AdminDashboardPage({ user }) {
   const totals = marginData?.totals || {};
   const internalAdmin = marginData?.internal_admin_usage || {};
   const actions = marginData?.actions || [];
-  const lifetimeLiability = marginData?.lifetime_liability || null;
+  const liabilitySection = marginData?.lifetime_liability || null;
   const revenueMix = marginData?.revenue_mix || null;
 
   return (
@@ -275,7 +248,7 @@ export default function AdminDashboardPage({ user }) {
           </div>
 
           {/* 4b. Laporan Liabilitas Kredit Bulanan (Modul Lifetime) (PRD F15 Langkah 8) */}
-          {lifetimeLiability && (
+          {liabilitySection && (
             <div style={styles.reportSectionCard} className="card">
               <div style={styles.sectionHeader}>
                 <div style={styles.headerTitleRow}>
@@ -291,8 +264,8 @@ export default function AdminDashboardPage({ user }) {
                   <span style={styles.subMetricLabel}>{t('adminDashboard.totalActiveLifetimeOwners')}</span>
                   <span style={styles.subMetricVal}>
                     {t('adminDashboard.ratioSlash', {
-                      active: formatNumber(lifetimeLiability.summary?.active_lifetime_owners || 0, lang),
-                      total: formatNumber(lifetimeLiability.summary?.total_lifetime_owners || 0, lang)
+                      active: formatNumber(liabilitySection.summary?.active_lifetime_owners || 0, lang),
+                      total: formatNumber(liabilitySection.summary?.total_lifetime_owners || 0, lang)
                     })}
                   </span>
                 </div>
@@ -301,7 +274,7 @@ export default function AdminDashboardPage({ user }) {
                   <span style={styles.subMetricLabel}>{t('adminDashboard.totalCommittedCredits')}</span>
                   <span style={{ ...styles.subMetricVal, color: 'var(--accent-cyan)' }}>
                     {t('adminDashboard.creditsVal', {
-                      amount: formatNumber(lifetimeLiability.summary?.total_active_committed_credits || 0, lang)
+                      amount: formatNumber(liabilitySection.summary?.total_active_committed_credits || 0, lang)
                     })}
                   </span>
                 </div>
@@ -309,14 +282,14 @@ export default function AdminDashboardPage({ user }) {
                 <div style={styles.subMetricCard}>
                   <span style={styles.subMetricLabel}>{t('adminDashboard.estLiabilityReal')}</span>
                   <span style={{ ...styles.subMetricVal, color: 'var(--accent-yellow)' }}>
-                    {formatIDR(lifetimeLiability.summary?.total_liability_real_idr || 0)}
+                    {formatIDR(liabilitySection.summary?.total_liability_real_idr || 0)}
                   </span>
                 </div>
 
                 <div style={styles.subMetricCard}>
                   <span style={styles.subMetricLabel}>{t('adminDashboard.estLiabilityBuffer', { rate: formatIDR(100) })}</span>
                   <span style={{ ...styles.subMetricVal, color: 'var(--text-muted)' }}>
-                    {formatIDR(lifetimeLiability.summary?.total_liability_buffer_idr || 0)}
+                    {formatIDR(liabilitySection.summary?.total_liability_buffer_idr || 0)}
                   </span>
                 </div>
               </div>
@@ -336,7 +309,7 @@ export default function AdminDashboardPage({ user }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {Object.values(lifetimeLiability.by_module || {}).map((mod) => (
+                    {Object.values(liabilitySection.by_module || {}).map((mod) => (
                       <tr key={mod.module} style={styles.tr}>
                         <td style={styles.tdBold}>{mod.name}</td>
                         <td style={{ ...styles.td, textAlign: 'right' }}>
@@ -595,7 +568,7 @@ export default function AdminDashboardPage({ user }) {
             </div>
           )}
 
-          {/* 5. Operasi Admin: Manual Grant & Manual Subscription */}
+          {/* 5. Operasi Admin: Manual Grant */}
           <div style={styles.operationsGrid}>
             {/* Card Manual Grant */}
             <div style={styles.operationCard} className="card">
@@ -671,72 +644,7 @@ export default function AdminDashboardPage({ user }) {
               </form>
             </div>
 
-            {/* Card Manual Subscription */}
-            <div style={styles.operationCard} className="card">
-              <div style={styles.opHeader}>
-                <CreditCard size={18} color="var(--accent-green)" />
-                <h3 style={styles.cardHeading}>{t('adminDashboard.subTitle', 'Aktivasi Langganan Manual')}</h3>
-              </div>
-              <p style={styles.opDesc}>
-                {t('adminDashboard.subDesc', 'Aktifkan atau perpanjang modul langganan workspace secara manual.')}
-              </p>
 
-              {subSuccess && (
-                <div style={styles.successAlert}>
-                  <CheckCircle2 size={15} />
-                  <span>{subSuccess}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleSubSubmit} style={styles.form}>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>{t('adminDashboard.grantWsId', 'Workspace ID')}</label>
-                  <input
-                    type="text"
-                    value={subWsId}
-                    onChange={(e) => setSubWsId(e.target.value)}
-                    placeholder={t('adminDashboard.placeholderWs', 'uuid-workspace-target')}
-                    required
-                    style={styles.input}
-                  />
-                </div>
-                <div style={styles.formRow}>
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>{t('adminDashboard.subPlan', 'Paket')}</label>
-                    <select
-                      value={subPlan}
-                      onChange={(e) => setSubPlan(e.target.value)}
-                      style={styles.select}
-                    >
-                      <option value="all_in_one">{t('adminDashboard.planAllInOne', 'All-in-One AI Team')}</option>
-                      <option value="focus3">{t('adminDashboard.planFocus3', 'Focus 3 Bundle')}</option>
-                      <option value="seo">{t('adminDashboard.planSeo', 'SEO Specialist')}</option>
-                      <option value="ads_report">{t('adminDashboard.planAdsReport', 'Ads Report')}</option>
-                      <option value="ads_spy">{t('adminDashboard.planAdsSpy', 'Ads Spy')}</option>
-                    </select>
-                  </div>
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>{t('adminDashboard.subMonths', 'Duration (Months)')}</label>
-                    <input
-                      type="number"
-                      value={subMonths}
-                      onChange={(e) => setSubMonths(e.target.value)}
-                      min="1"
-                      max="24"
-                      required
-                      style={styles.input}
-                    />
-                  </div>
-                </div>
-                <button
-                  type="submit"
-                  disabled={subLoading}
-                  style={{ ...styles.submitBtn, backgroundColor: 'var(--accent-green)' }}
-                >
-                  {subLoading ? t('adminDashboard.activating', 'Activating...') : t('adminDashboard.btnActivateSub', 'Activate Subscription')}
-                </button>
-              </form>
-            </div>
           </div>
         </>
       )}

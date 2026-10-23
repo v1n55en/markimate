@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Coins, Sparkles, FileText, BarChart2, Eye, ArrowRight } from 'lucide-react';
-import { TOPUP, quoteTopup, formatCurrency } from '../../config/pricing';
+import { TOPUP, TRIAL, quoteTopup, formatCurrency } from '../../config/pricing';
 import { formatNumber } from '../../lib/format';
 import { useLanguage } from '../../context/LanguageContext';
 import { AppLink } from '../../lib/hosts';
@@ -204,7 +204,7 @@ export default function TopupCalculator({
       {/* Tombol Aksi */}
       {isPublic ? (
         <AppLink to="/register" className="topup-submit-btn">
-          <span>{t('billing.btnPublicTopupTrial', { credits: 300 })}</span>
+          <span>{t('billing.btnPublicTopupTrial', { credits: TRIAL.credits })}</span>
           <ArrowRight size={16} />
         </AppLink>
       ) : (

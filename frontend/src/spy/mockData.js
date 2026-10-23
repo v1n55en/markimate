@@ -240,9 +240,9 @@ export const INITIAL_SPY_INSIGHTS = {
     },
     {
       id: 'rec-2',
-      title: 'Test Bundling Offers Between Rp 35k - Rp 45k',
+      title: 'Test Package Offers Between Rp 35k - Rp 45k',
       action:
-        'Combine 2 top-selling items in a bundled offer to compete with rival flash promotions.',
+        'Combine 2 top-selling items in a special offer to compete with rival flash promotions.',
       impact: 'Increases conversion rate and contribution margin.',
     },
     {

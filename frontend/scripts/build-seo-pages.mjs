@@ -50,12 +50,12 @@ async function run() {
     {
       cleanPath: '/pricing',
       en: {
-        title: 'Lifetime Pricing & Modules — Markimate',
-        description: 'Lifetime access to AI SEO, Ads Reporting, and Creative Spy modules. Pay once, use forever with free monthly credits and flexible custom top-up.'
+        title: 'Pricing — Pay per Use Credits — Markimate',
+        description: 'All AI modules are free to activate. Purchase credit packs for up to 25% savings. Credits never expire. Start with a 400-credit free trial.'
       },
       id: {
-        title: 'Harga Lifetime & Modul AI — Markimate',
-        description: 'Akses seumur hidup modul AI SEO, Ads Reporting, dan Creative Spy. Sekali bayar tanpa langganan, kuota kredit bulanan gratis, dan top-up custom fleksibel.'
+        title: 'Harga — Bayar Sesuai Pemakaian Kredit — Markimate',
+        description: 'Semua modul AI gratis diaktifkan. Beli paket kredit hemat hingga 25%. Kredit tidak hangus. Mulai dengan trial 400 kredit gratis.'
       }
     },
     {

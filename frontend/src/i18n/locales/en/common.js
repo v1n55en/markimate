@@ -63,5 +63,6 @@ export const common = {
   "moduleDescSeo": "±1 illustrated article + topic research",
   "moduleDescAdsReport": "1 monthly ad account report",
   "moduleDescAdsSpy": "1 competitor scan + AI insight",
-  "moduleQuotaMonthly": "{credits} credits / month ({desc})"
+  "moduleQuotaMonthly": "Typical usage ~{credits} credits/mo ({desc})",
+  "credit": "credit"
 };
