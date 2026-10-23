@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Play, Plus, Trash2, Eye, ExternalLink, Loader2, RefreshCw, Rocket,
-  FileText, Lock, AlertTriangle, CheckCircle2, X, Link as LinkIcon, Globe,
+  FileText, AlertTriangle, CheckCircle2, X, Link as LinkIcon, Globe,
   Image as ImageIcon, Sparkles, TrendingUp, Check, Edit2, Layers, ArrowUpRight, Coins,
   ChevronDown, ChevronUp, ArrowUp, ArrowDown
 } from 'lucide-react';
@@ -160,8 +160,7 @@ function MarkdownRenderer({ content, images = [], imagePrompts = [] }) {
 export default function KeywordManager({ me, refreshMe, goTo }) {
   const { lang, t } = useLanguage();
   const user = me.user;
-  const isPremium = user.plan === 'premium' || (me.plan && me.plan.id !== 'free') || ['seo', 'focus3', 'all_in_one'].includes(user.plan);
-  const webApprover = isPremium && user.webApprover !== false;
+  const webApprover = user.webApprover !== false;
   const connectedCms = useMemo(() => (me.cms || []).filter(c => c.verified).map(c => c.cmsType), [me.cms]);
   const anyCms = useMemo(() => (me.cms || []).map(c => c.cmsType), [me.cms]);
 
@@ -547,16 +546,6 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
         </div>
       )}
 
-      {!isPremium && (
-        <div className="card" style={styles.alert}>
-          <Lock size={16} color="var(--text-muted)" />
-          <div style={{ flex: 1, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            {t('seo.freeQuotaAlert', { limit: me.usage?.limit || 3 })}
-          </div>
-          <button className="btn btn-primary" style={{ padding: '0.4rem 0.9rem', fontSize: '0.8rem' }} onClick={() => goTo && goTo('billing')}>{t('seo.viewPlans')}</button>
-        </div>
-      )}
-
       {/* Form tambah keyword */}
       <form onSubmit={addKeyword} className="card" style={{ marginBottom: '1.5rem' }}>
         <div style={styles.formRow}>
@@ -583,11 +572,11 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
             </select>
           </div>
           <div className="form-group" style={{ minWidth: '180px', marginBottom: 0 }}>
-            <label className="form-label">{t('seo.scheduleLabel')} {isPremium ? '' : '🔒 Pro'}</label>
+            <label className="form-label">{t('seo.scheduleLabel')}</label>
             <select className="form-select" value={form.schedule} onChange={e => setForm({ ...form, schedule: e.target.value })}>
               <option value="immediate">{t('seo.scheduleImmediate')}</option>
-              <option value="daily" disabled={!isPremium}>{t('seo.scheduleDaily')}</option>
-              <option value="weekly" disabled={!isPremium}>{t('seo.scheduleWeekly')}</option>
+              <option value="daily">{t('seo.scheduleDaily')}</option>
+              <option value="weekly">{t('seo.scheduleWeekly')}</option>
             </select>
           </div>
           <button type="submit" className="btn btn-primary" style={styles.addBtn} disabled={!form.keyword.trim() || !anyCms.length}>

@@ -1364,15 +1364,30 @@ app.get('/api/me', auth, wrap(async (req, res) => {
 
   const runs = await usageOf(activeWsId);
   const currentWs = workspaces.find(w => w.id === activeWsId) || workspaces[0] || null;
+  const walletData = await getWallet(activeWsId).catch(() => null);
+  const allModules = ['seo', 'ads_report', 'ads_spy'];
+  const allEntitlements = {
+    seo: { active: true, source: 'free' },
+    ads_report: { active: true, source: 'free' },
+    ads_spy: { active: true, source: 'free' }
+  };
   res.json({
     user: publicUser(req.user),
     workspaces,
     activeWorkspaceId: activeWsId,
     activeWorkspace: currentWs,
-    modules: currentWs ? currentWs.modules : ['seo'],
-    entitlements: currentWs ? currentWs.entitlements : { seo: { active: true, source: 'free' } },
-    plan: planOf(req.user),
-    usage: { runsThisMonth: runs, limit: planOf(req.user).monthlyArticles },
+    modules: allModules,
+    entitlements: (currentWs && currentWs.entitlements) || allEntitlements,
+    wallet: walletData ? {
+      balance: walletData.totalBalance,
+      buckets: walletData.activeBuckets,
+      expires: {
+        trial: walletData.wallet?.trial_expires_at || null,
+        sub: walletData.wallet?.sub_expires_at || null,
+        topup: null
+      }
+    } : null,
+    usage: { runsThisMonth: runs },
     cms: (conns || []).map(maskConn)
   });
 }));
@@ -1392,12 +1407,12 @@ app.post('/api/workspaces', auth, wrap(async (req, res) => {
     return res.status(400).json({ error: 'Workspace name is required.', code: 'NAME_REQUIRED' });
   }
 
-  // Cek batas maksimal 5 workspace untuk paket Free
+  // Cek batas maksimal 5 workspace untuk akun
   const currentWorkspaces = await getUserWorkspaces(req.user.id);
   const isPaid = req.user.plan && req.user.plan !== 'free';
   if (!isPaid && currentWorkspaces.length >= 5) {
     return res.status(403).json({
-      error: 'Maximum workspace limit reached. Please upgrade to add more workspaces.',
+      error: 'Maximum workspace limit reached. Please contact admin to add more workspaces.',
       code: 'WORKSPACE_LIMIT_REACHED'
     });
   }
@@ -3053,7 +3068,6 @@ async function publishFor(user, k, action, articleOverride) {
   const connConfig = resolveConnConfig(conn);
   const artSet = normalizeArticleSettings(conn.article_settings);
   const effectiveOptions = resolveEffectiveArticleOptions(k.article_options, artSet);
-  const plan = planOf(user);
 
   const cmsPayload = { ...connConfig };
   if (k.cms_type === 'sanity') {
@@ -3815,11 +3829,6 @@ app.get('/api/cron/run-scheduled', wrap(async (req, res) => {
   for (const k of due) {
     const user = await db.findOne('accounts', { id: k.user_id });
     if (!user) { results.push({ id: k.id, skipped: 'no_user' }); continue; }
-    if (!creditsEnabled && planOf(user).id === 'free') {
-      await db.update('keywords', { id: k.id }, { next_run_at: nextRun(k.schedule) });
-      results.push({ id: k.id, skipped: 'plan' });
-      continue;
-    }
     try {
       let row = await generateFor(user, k);
       if (row.status !== 'Duplicate' && !webApproverOn(user)) row = await publishFor(user, row, 'draft');

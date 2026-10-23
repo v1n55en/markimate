@@ -79,10 +79,6 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
     barColor = 'var(--accent-yellow)';
   }
 
-  const used = usage?.runsThisMonth ?? 0;
-  const limit = usage?.limit ?? 0;
-  const pct = limit ? Math.min(100, Math.round((used / limit) * 100)) : 0;
-
   const activeModules = activeWorkspace?.modules || ['seo', 'ads_report', 'ads_spy'];
 
   const isSeoActive = activeModules.includes('seo');
@@ -122,7 +118,6 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
           icon: Settings,
         },
       ],
-      showQuota: true,
     });
   }
 
@@ -446,60 +441,6 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
                   );
                 })}
               </div>
-
-              {/* Kuota Artikel - Hanya Tampil di Grup SEO */}
-              {section.showQuota && (
-                <div style={styles.quotaWrapper}>
-                  <div style={styles.planSection}>
-                    {plan === 'premium' ? (
-                      <button
-                        onClick={() => handleNavClick('/app/billing')}
-                        style={styles.premiumBadge}
-                        title={t('billing.manageSubscription')}
-                      >
-                        <span style={{ fontSize: '0.72rem', fontWeight: 'bold' }}>
-                          {`👑 ${t('common.planPro')}`}
-                        </span>
-                      </button>
-                    ) : (
-                      <div style={styles.freeBadgeContainer}>
-                        <span style={styles.freeBadge}>
-                          {t('common.planFree')}
-                        </span>
-                        <button
-                          onClick={() => handleNavClick('/app/billing')}
-                          style={styles.upgradeBtn}
-                          title={t('common.upgradeToPro')}
-                        >
-                          {`👑 ${t('common.upgradeBtn')}`}
-                        </button>
-                      </div>
-                    )}
-
-                    {limit > 0 && (
-                      <div
-                        style={styles.usageBox}
-                        title={t('common.monthlyArticlesProgress', { used, limit })}
-                      >
-                        <div style={styles.usageLabel}>
-                          <span>{t('common.monthlyQuota')}</span>
-                          <span>{used}/{limit}</span>
-                        </div>
-                        <div style={styles.usageTrack}>
-                          <div
-                            style={{
-                              ...styles.usageFill,
-                              width: `${pct}%`,
-                              backgroundColor:
-                                pct >= 100 ? 'var(--accent-red)' : 'var(--accent-cyan)',
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           ))}
 
@@ -938,68 +879,6 @@ const styles = {
     width: '3px',
     backgroundColor: 'var(--accent-cyan)',
     borderRadius: '0 4px 4px 0',
-  },
-  quotaWrapper: {
-    marginTop: '0.5rem',
-    padding: '0 0.25rem',
-  },
-  planSection: {
-    backgroundColor: 'var(--bg-base)',
-    padding: '0.6rem',
-    borderRadius: '8px',
-    border: '1px solid var(--border-muted)',
-  },
-  premiumBadge: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '0.3rem 0.5rem',
-    borderRadius: '6px',
-    background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-    color: '#ffffff',
-    border: '1px solid rgba(255,255,255,0.1)',
-    cursor: 'pointer',
-    width: '100%',
-  },
-  freeBadgeContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '0.2rem 0.4rem',
-  },
-  freeBadge: {
-    fontSize: '0.68rem',
-    fontWeight: 'bold',
-    color: 'var(--text-muted)',
-  },
-  upgradeBtn: {
-    padding: '0.2rem 0.45rem',
-    fontSize: '0.68rem',
-    fontWeight: 'bold',
-    color: '#ffffff',
-    backgroundColor: '#0a84ff',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-  usageBox: { marginTop: '0.5rem' },
-  usageLabel: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '0.68rem',
-    color: 'var(--text-muted)',
-    marginBottom: '0.25rem',
-  },
-  usageTrack: {
-    height: '5px',
-    borderRadius: '999px',
-    backgroundColor: 'var(--bg-surface)',
-    overflow: 'hidden',
-  },
-  usageFill: {
-    height: '100%',
-    borderRadius: '999px',
-    transition: 'width 0.3s ease',
   },
   footer: {
     marginTop: 'auto',

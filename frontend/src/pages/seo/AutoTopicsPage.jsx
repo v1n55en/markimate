@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   TrendingUp, Play, Plus, X, Calendar, Clock, AlertTriangle,
-  CheckCircle2, Loader2, Sparkles, Lock, RefreshCw, Layers, ArrowRight, Check
+  CheckCircle2, Loader2, Sparkles, RefreshCw, Layers, ArrowRight, Check
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import { formatDateTime, formatNumber } from '../../lib/format';
@@ -20,7 +20,6 @@ const getWeekdays = (t) => [
 export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
   const { lang, t } = useLanguage();
   const user = me?.user || {};
-  const isPremium = user.plan === 'premium' || (me.plan && me.plan.id !== 'free') || ['seo', 'focus3', 'all_in_one'].includes(user.plan);
   const anyCms = useMemo(() => (me.cms || []).map(c => c.cmsType), [me.cms]);
 
   const [loading, setLoading] = useState(true);
@@ -121,10 +120,6 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
   };
 
   const runNow = async () => {
-    if (!isPremium) {
-      setError(t('seo.autoTopics.proRequired'));
-      return;
-    }
     if (!source?.id) {
       await saveSource();
     }
@@ -174,18 +169,6 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
         </p>
       </header>
 
-      {!isPremium && (
-        <div className="card" style={{ ...styles.alert, marginBottom: '1.5rem', borderColor: 'rgba(245, 158, 11, 0.4)' }}>
-          <Lock size={18} color="var(--accent-yellow)" />
-          <div style={{ flex: 1, fontSize: '0.88rem' }}>
-            {t('seo.autoTopics.proBannerDesc')}
-          </div>
-          <button className="btn btn-primary" onClick={() => goTo && goTo('billing')}>
-            {t('seo.autoTopics.upgradeToPro')}
-          </button>
-        </div>
-      )}
-
       {error && (
         <div style={styles.errorBox}>
           <AlertTriangle size={16} />
@@ -216,7 +199,6 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
               type="checkbox"
               checked={active}
               onChange={e => setActive(e.target.checked)}
-              disabled={!isPremium}
             />
             <span>{active ? t('seo.autoTopics.scheduleActive') : t('seo.autoTopics.schedulePaused')}</span>
           </label>
@@ -353,7 +335,7 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
             <button
               className="btn btn-secondary"
               onClick={saveSource}
-              disabled={saving || !isPremium}
+              disabled={saving}
             >
               {saving ? <Loader2 size={15} className="spin-icon" /> : <Check size={15} />}
               {t('seo.autoTopics.saveSettings')}
@@ -361,7 +343,7 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
             <button
               className="btn btn-primary"
               onClick={runNow}
-              disabled={running || !isPremium}
+              disabled={running}
             >
               {running ? <Loader2 size={15} className="spin-icon" /> : <Play size={15} />}
               {t('seo.autoTopics.runNow')}

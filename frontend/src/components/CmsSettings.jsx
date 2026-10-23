@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Globe, Plug, CheckCircle2, AlertTriangle, Loader2, Key, Copy, RefreshCw, Lock, ExternalLink, Trash2 } from 'lucide-react';
+import { Globe, Plug, CheckCircle2, AlertTriangle, Loader2, Key, Copy, RefreshCw, ExternalLink, Trash2 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { api, API_BASE_URL } from '../api';
 import {
@@ -108,8 +108,6 @@ const DEFAULT_ARTICLE_SETTINGS = {
 export default function CmsSettings({ me, refreshMe, goTo }) {
   const { t } = useLanguage();
   const user = me.user;
-  const isPremium = user.plan === 'premium' || (me.plan && me.plan.id !== 'free');
-  const canUseImages = me.plan ? me.plan.images !== false : isPremium;
   const [forms, setForms] = useState({ wordpress: {}, wix: {}, sanity: {}, shopify: {} });
   const [articleSettings, setArticleSettings] = useState({ wordpress: {}, wix: {}, sanity: {}, shopify: {} });
   const [activeTab, setActiveTab] = useState({ wordpress: 'creds', wix: 'creds', sanity: 'creds', shopify: 'creds' });
@@ -815,17 +813,16 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
           <h2 style={{ fontSize: '1rem' }}>{t('seo.cms.approverTitle')}</h2>
           <div style={styles.toggleRow}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>{t('seo.cms.approverLabel')} {!isPremium && <Lock size={14} color="var(--text-muted)" />}</div>
+              <div style={{ fontWeight: 600 }}>{t('seo.cms.approverLabel')}</div>
               <div style={styles.sub}>
                 {t('seo.cms.approverDesc')}
               </div>
             </div>
-            <label className="switch" title={isPremium ? '' : t('seo.cms.proFeatureNotice')}>
-              <input type="checkbox" checked={isPremium && user.webApprover !== false} disabled={!isPremium} onChange={e => toggleApprover(e.target.checked)} />
+            <label className="switch">
+              <input type="checkbox" checked={user.webApprover !== false} onChange={e => toggleApprover(e.target.checked)} />
               <span className="slider round"></span>
             </label>
           </div>
-          {!isPremium && <button className="btn btn-secondary" style={{ marginTop: '0.75rem' }} onClick={() => goTo && goTo('billing')}>{t('seo.cms.approverUpgrade')}</button>}
           <hr style={styles.hr} />
           <form onSubmit={saveProfile}>
             <h2 style={{ fontSize: '1rem' }}>{t('seo.cms.brandProfileTitle')}</h2>
@@ -850,7 +847,6 @@ export default function CmsSettings({ me, refreshMe, goTo }) {
             <button className="btn btn-secondary" onClick={copyKey} title={t('seo.cms.copyTitle')}>{copied ? <CheckCircle2 size={16} /> : <Copy size={16} />}</button>
             <button className="btn btn-secondary" onClick={rotateKey} disabled={rotating} title={t('seo.cms.rotateTitle')}><RefreshCw size={16} className={rotating ? 'spin-icon' : ''} /></button>
           </div>
-          {!isPremium && <div style={{ ...styles.sub, marginTop: '0.5rem' }}>{t('seo.cms.freeQuotaNote', { limit: me.usage?.limit })}</div>}
           <label className="form-label" style={{ marginTop: '1rem' }}>{t('seo.cms.exampleTitle')}</label>
           <pre style={styles.pre}>{curl}</pre>
           <div style={{ ...styles.sub, lineHeight: 1.7 }}>
