@@ -209,7 +209,8 @@ async function runDokuPaymentsTests() {
   assert.strictEqual(catalogRes.data.topup.pricePerCredit, 1000);
   assert.strictEqual(catalogRes.data.topupPackages, undefined);
   assert.ok(Array.isArray(catalogRes.data.modules));
-  assert.ok(Array.isArray(catalogRes.data.bundles));
+  assert.strictEqual(catalogRes.data.bundles, undefined);
+  assert.ok(Array.isArray(catalogRes.data.packs));
 
   // ----------------------------------------------------
   // 3. Top-Up Credit Order & Checkout URL
@@ -236,7 +237,7 @@ async function runDokuPaymentsTests() {
   const paymentRecord = await db.findOne('payments', { invoice_number: topupInvoice });
   assert.ok(paymentRecord);
   assert.strictEqual(paymentRecord.status, 'pending');
-  assert.strictEqual(paymentRecord.amount, 950000);
+  assert.strictEqual(paymentRecord.amount, 1000000);
   assert.strictEqual(paymentRecord.credits, 1000);
 
   // ----------------------------------------------------
@@ -296,7 +297,7 @@ async function runDokuPaymentsTests() {
   // ----------------------------------------------------
   console.log('4. Menguji Webhook DOKU lewat HTTP sungguhan (/api/webhooks/doku)...');
   const validWebhookPayload = {
-    order: { invoice_number: topupInvoice, amount: 950000 },
+    order: { invoice_number: topupInvoice, amount: 1000000 },
     status: 'SUCCESS',
     transaction: { status: 'SUCCESS', date: new Date().toISOString() },
     channel: { id: 'QRIS' }

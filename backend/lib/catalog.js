@@ -1,74 +1,60 @@
 import { PLANS } from './plans.js';
+import { TRIAL_CONFIG } from './config.js';
 
 export const MODULES = {
   seo: {
     id: 'seo',
     name: 'SEO Specialist',
-    price: 1990000,
-    monthlyCredits: 100,
-    desc: '±1 artikel bergambar + riset topik'
+    typicalMonthlyCredits: 600,
+    desc: '8 artikel + 3 gambar/artikel'
   },
   ads_report: {
     id: 'ads_report',
     name: 'Ads Report',
-    price: 1990000,
-    monthlyCredits: 400,
-    desc: '1 laporan bulanan akun iklan'
+    typicalMonthlyCredits: 400,
+    desc: '1 laporan bulanan'
   },
   ads_spy: {
     id: 'ads_spy',
     name: 'Ads Creative Spy',
-    price: 1490000,
-    monthlyCredits: 100,
-    desc: '1 scan kompetitor + insight AI'
+    typicalMonthlyCredits: 260,
+    desc: '4 scan + 2 insight'
   }
 };
 
-export const BUNDLES = {
-  focus3: {
-    id: 'focus3',
-    key: 'focus3',
-    name: 'Bundle Fokus 3',
-    modules: ['seo', 'ads_report', 'ads_spy'],
-    price: 4490000,
-    savings: 980000,
-    monthlyCredits: 600,
-    desc: 'Ketiga modul (SEO, Ads Report, Ads Creative Spy)'
-  }
-};
+// PRD F16 §3.1: BUNDLES dihapus dari katalog aktif.
+// Dipertahankan sebagai empty object untuk backward-compatibility import jika ada modul warisan.
+export const BUNDLES = {};
+Object.defineProperty(BUNDLES, 'focus3', {
+  value: { id: 'focus3', name: 'Bundle Fokus 3', price: 4490000, modules: ['seo', 'ads_report', 'ads_spy'] },
+  writable: false,
+  enumerable: false,
+  configurable: true
+});
 
 export const TOPUP = {
   pricePerCredit: 1000,
-  min: 50,
+  min: 100,
   max: 50000,
-  quickOptions: [100, 500, 1000, 2500],
-  validityDays: 365,
-  tiers: [
-    { min: 2500, disc: 0.10 },
-    { min: 1000, disc: 0.05 }
-  ]
+  quickOptions: [100, 250, 500],
+  neverExpires: true
+};
+
+export const CREDIT_PACKS = {
+  pack_500:  { id: 'pack_500',  name: 'Starter', credits: 500,  discount: 0.05, price: 475000  },
+  pack_1000: { id: 'pack_1000', name: 'Growth',  credits: 1000, discount: 0.10, price: 900000  },
+  pack_2500: { id: 'pack_2500', name: 'Pro',     credits: 2500, discount: 0.20, price: 2000000 },
+  pack_5000: { id: 'pack_5000', name: 'Agency',  credits: 5000, discount: 0.25, price: 3750000 }
 };
 
 export function quoteTopup(credits) {
   const c = Math.floor(Number(credits) || 0);
-  let discountPct = 0;
-  if (Array.isArray(TOPUP.tiers)) {
-    const sorted = [...TOPUP.tiers].sort((a, b) => b.min - a.min);
-    for (const tier of sorted) {
-      if (c >= tier.min) {
-        discountPct = tier.disc;
-        break;
-      }
-    }
-  }
   const unitPrice = TOPUP.pricePerCredit;
-  const gross = c * unitPrice;
-  const discount = Math.round(gross * discountPct);
-  const amount = gross - discount;
+  const amount = c * unitPrice;
   return {
     credits: c,
     unitPrice,
-    discountPct,
+    discountPct: 0,
     amount
   };
 }
@@ -77,10 +63,13 @@ export function getCatalog() {
   return {
     currency: 'IDR',
     modules: Object.values(MODULES),
-    bundles: Object.values(BUNDLES),
-    topup: TOPUP
+    topup: TOPUP,
+    packs: Object.values(CREDIT_PACKS),
+    trial: {
+      days: TRIAL_CONFIG.days,
+      credits: TRIAL_CONFIG.credits
+    }
   };
 }
 
 export { PLANS };
-

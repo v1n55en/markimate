@@ -452,8 +452,9 @@ export async function ensureMonthlyGrant(workspaceId, now = new Date()) {
   let totalCredits = 0;
   for (const ent of activeModules) {
     const modConfig = MODULES[ent.module];
-    if (modConfig && modConfig.monthlyCredits) {
-      totalCredits += Number(modConfig.monthlyCredits);
+    const legacyMonthly = modConfig?.monthlyCredits ?? (ent.module === 'ads_report' ? 400 : 100);
+    if (legacyMonthly) {
+      totalCredits += Number(legacyMonthly);
     }
   }
 

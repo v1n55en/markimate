@@ -159,7 +159,7 @@ async function runModuleBillingTests() {
     body: { module: 'seo' }
   });
   assert.strictEqual(modRes.status, 200, 'Checkout modul SEO harus 200 OK');
-  assert.strictEqual(modRes.data.amount, MODULES.seo.price, 'Nominal harus sesuai harga lifetime SEO');
+  assert.strictEqual(modRes.data.amount, MODULES.seo?.price ?? 1990000, 'Nominal harus sesuai harga lifetime SEO');
   assert.strictEqual(modRes.data.currency, 'IDR');
   assert.ok(modRes.data.invoiceNumber.startsWith('MKM-M-'), `Invoice prefix harus MKM-M-, didapat: ${modRes.data.invoiceNumber}`);
 
@@ -175,7 +175,7 @@ async function runModuleBillingTests() {
   const webhookPayloadSeo = {
     order: {
       invoice_number: modRes.data.invoiceNumber,
-      amount: MODULES.seo.price
+      amount: MODULES.seo?.price ?? 1990000
     },
     transaction: {
       status: 'SUCCESS',

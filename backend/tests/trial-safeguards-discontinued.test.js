@@ -62,7 +62,7 @@ async function runStep6Tests() {
   console.log('1. Memverifikasi TRIAL_CONFIG dan penghapusan free tier...');
   assert.strictEqual(TRIAL_CONFIG.days, 30, 'TRIAL_CONFIG.days must be 30');
   assert.strictEqual(TRIAL_DAYS, 30, 'TRIAL_DAYS must be 30');
-  assert.strictEqual(TRIAL_CONFIG.credits, 300, 'TRIAL_CONFIG.credits must be 300');
+  assert.strictEqual(TRIAL_CONFIG.credits, 400, 'TRIAL_CONFIG.credits must be 400 (PRD F16 §3.3)');
   assert.strictEqual(FREE_MONTHLY_LIMIT, 0, 'FREE_MONTHLY_LIMIT must be 0');
   assert.strictEqual(PLANS.free.monthlyArticles, 0, 'PLANS.free monthlyArticles must be 0');
   for (const [k, p] of Object.entries(PLANS)) {
@@ -71,19 +71,19 @@ async function runStep6Tests() {
   console.log('   OK - Config trial 30 hari & free tier 0 terverifikasi.');
 
   // 2. Verifikasi grantTrialIfEligible 30 hari
-  console.log('2. Memverifikasi alokasi trial 30 hari...');
+  console.log('2. Memverifikasi alokasi trial 30 hari (400 kredit)...');
   const ws1 = randomUUID();
   const email1 = 'user1.step6@test.id';
   const trial1 = await grantTrialIfEligible(ws1, email1, null, { clientIp: '192.168.1.1' });
   assert.strictEqual(trial1.granted, true);
-  assert.strictEqual(trial1.credits, 300);
+  assert.strictEqual(trial1.credits, 400);
   assert.strictEqual(trial1.days, 30);
   const diffDays = Math.round((new Date(trial1.expiresAt).getTime() - Date.now()) / (24 * 3600 * 1000));
   assert.strictEqual(diffDays, 30, 'Trial expiration must be ~30 days in the future');
 
   const { activeBuckets } = await getWallet(ws1);
-  assert.strictEqual(activeBuckets.trial, 300, 'Wallet must receive 300 trial credits');
-  console.log('   OK - Trial berhasil dialokasikan 300 kredit selama 30 hari.');
+  assert.strictEqual(activeBuckets.trial, 400, 'Wallet must receive 400 trial credits');
+  console.log('   OK - Trial berhasil dialokasikan 400 kredit selama 30 hari.');
 
   // 3. Pengaman 1x per email terverifikasi
   console.log('3. Menguji pengaman 1x per email terverifikasi...');

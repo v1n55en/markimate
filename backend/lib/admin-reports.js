@@ -80,7 +80,7 @@ export async function getLifetimeLiability(monthStr = null) {
     modWsOwners.forEach((id) => totalWsOwners.add(id));
     activeModWsOwners.forEach((id) => totalActiveWsOwners.add(id));
 
-    const quotaPerOwner = Number(modConfig.monthlyCredits || 0);
+    const quotaPerOwner = Number(modConfig.monthlyCredits ?? (modKey === 'ads_report' ? 400 : 100));
     const cogsReal = MODULE_REAL_COGS[modKey] || 50;
     const cogsBuffer = BUFFER_COGS_PER_CREDIT;
 

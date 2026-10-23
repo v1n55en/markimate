@@ -57,33 +57,27 @@ async function runEntitlementsTests() {
   // --- BAGIAN 1: Validasi Konfigurasi Pricing & FAQ i18n ---
   console.log('1. Memvalidasi Konfigurasi Pricing & FAQ i18n...');
   assert.strictEqual(TRIAL.days, 30, 'Trial days must be 30');
-  assert.strictEqual(TRIAL.credits, 300, 'Trial credits must be 300');
+  assert.strictEqual(TRIAL.credits, 400, 'Trial credits must be 400 (PRD F16 §3.3)');
   assert.strictEqual(TRIAL.noCardRequired, true);
 
-  assert.strictEqual(MODULE_CREDITS.seo, 100);
-  assert.strictEqual(MODULE_CREDITS.ads_report, 400);
-  assert.strictEqual(MODULE_CREDITS.ads_spy, 100);
-  assert.strictEqual(MODULE_CREDITS.focus3, 600);
-
   assert.strictEqual(TOPUP.pricePerCredit, 1000);
-  assert.strictEqual(TOPUP.min, 50);
+  assert.strictEqual(TOPUP.min, 100);
   assert.strictEqual(TOPUP.max, 50000);
-  assert.strictEqual(TOPUP.validityDays, 365);
-  assert.strictEqual(TOPUP.tiers.length, 2);
+  assert.strictEqual(TOPUP.neverExpires, true);
 
   // Verifikasi FAQ: Pastikan ID menggunakan "kredit", bukan "credit"
   assert.ok(TRANSLATIONS.en.faq.q4);
   assert.ok(TRANSLATIONS.en.faq.q5);
   assert.ok(TRANSLATIONS.en.faq.q6);
   const enA5 = translate('en', 'faq.a5', { credits: TRIAL.credits, days: TRIAL.days, totalRoles: 16 });
-  assert.match(enA5, /300\s+(free\s+)?credits?/i);
+  assert.match(enA5, /400\s+(free\s+)?credits?/i);
 
   assert.ok(TRANSLATIONS.id.faq.q4);
   assert.ok(TRANSLATIONS.id.faq.q5);
   assert.ok(TRANSLATIONS.id.faq.q6);
   const idA5 = translate('id', 'faq.a5', { credits: TRIAL.credits, days: TRIAL.days, totalRoles: 16 });
-  assert.match(idA5, /300\s+(gratis\s+)?kredit/i, 'FAQ Indonesia wajib menggunakan "kredit"');
-  assert.doesNotMatch(idA5, /300\s+credit/i, 'FAQ Indonesia tidak boleh menerima "300 credit"');
+  assert.match(idA5, /400\s+(gratis\s+)?kredit/i, 'FAQ Indonesia wajib menggunakan "kredit"');
+  assert.doesNotMatch(idA5, /400\s+credit/i, 'FAQ Indonesia tidak boleh menerima "400 credit"');
   console.log('   OK - Pricing & FAQ i18n valid.');
 
   // --- BAGIAN 2: Lifecycle Modul di Backend ---

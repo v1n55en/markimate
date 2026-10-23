@@ -146,15 +146,15 @@ async function runCustomTopupTests() {
   });
   setProvider(fakeDoku);
 
-  // 2. Validasi Batas Minimum (< 50 credit)
-  console.log('2. Menguji validasi batas minimum top-up (credits < 50 ditolak)...');
-  const min49Res = await req('/api/billing/topup', {
+  // 2. Validasi Batas Minimum (< 100 credit) (PRD F16 §3.1 & §7)
+  console.log('2. Menguji validasi batas minimum top-up (credits < 100 ditolak)...');
+  const min99Res = await req('/api/billing/topup', {
     method: 'POST',
     headers: authHeaders,
-    body: { credits: 49 }
+    body: { credits: 99 }
   });
-  assert.strictEqual(min49Res.status, 400, 'Top-up 49 credit harus ditolak 400');
-  assert.strictEqual(min49Res.data.code, 'INVALID_TOPUP_AMOUNT');
+  assert.strictEqual(min99Res.status, 400, 'Top-up 99 credit harus ditolak 400 (PRD F16 §7)');
+  assert.strictEqual(min99Res.data.code, 'INVALID_TOPUP_AMOUNT');
 
   const minZeroRes = await req('/api/billing/topup', {
     method: 'POST',
@@ -182,68 +182,57 @@ async function runCustomTopupTests() {
   assert.strictEqual(maxRes.status, 400, 'Top-up 50.001 credit harus ditolak 400');
   assert.strictEqual(maxRes.data.code, 'INVALID_TOPUP_AMOUNT');
 
-  // 4. Pengujian Top-Up Normal & Kriteria PRD F15: 75 credit -> Rp75.000
-  console.log('4. Menguji top-up 75 credit (Rp75.000) dan manipulasi amount client diabaikan...');
-  const res75 = await req('/api/billing/topup', {
+  // 4. Pengujian Top-Up Normal & Kriteria PRD F16: 100 credit -> Rp100.000
+  console.log('4. Menguji top-up 100 credit (Rp100.000) dan manipulasi amount client diabaikan...');
+  const res100 = await req('/api/billing/topup', {
     method: 'POST',
     headers: authHeaders,
     // Client iseng mencoba mengirim amount yang lebih kecil (Rp1.000)
-    body: { credits: 75, amount: 1000 }
+    body: { credits: 100, amount: 1000 }
   });
-  assert.strictEqual(res75.status, 200, 'Top-up 75 credit harus berhasil 200 OK');
-  assert.strictEqual(res75.data.amount, 75000, 'Server wajib mengabaikan amount client & menagih Rp75.000');
-  assert.ok(res75.data.invoiceNumber.startsWith('MKM-T-'));
+  assert.strictEqual(res100.status, 200, 'Top-up 100 credit harus berhasil 200 OK');
+  assert.strictEqual(res100.data.amount, 100000, 'Server wajib mengabaikan amount client & menagih Rp100.000');
+  assert.ok(res100.data.invoiceNumber.startsWith('MKM-T-'));
 
-  const payment75 = await db.findOne('payments', { invoice_number: res75.data.invoiceNumber });
-  assert.strictEqual(payment75.amount, 75000);
-  assert.strictEqual(payment75.credits, 75);
-  assert.strictEqual(payment75.kind, 'topup');
+  const payment100 = await db.findOne('payments', { invoice_number: res100.data.invoiceNumber });
+  assert.strictEqual(payment100.amount, 100000);
+  assert.strictEqual(payment100.credits, 100);
+  assert.strictEqual(payment100.kind, 'topup');
 
-  // 5. Pengujian Diskon Otomatis Tier 1: 1.000 credit -> Diskon 5% -> Rp950.000
-  console.log('5. Menguji diskon otomatis tier 1: 1.000 credit -> diskon 5% -> Rp950.000...');
+  // 5. Pengujian Top-Up 1.000 credit -> Tanpa Diskon -> Rp1.000.000 (PRD F16 §7)
+  console.log('5. Menguji top-up 1.000 credit -> tanpa diskon -> Rp1.000.000...');
   const res1000 = await req('/api/billing/topup', {
     method: 'POST',
     headers: authHeaders,
     body: { credits: 1000 }
   });
   assert.strictEqual(res1000.status, 200);
-  assert.strictEqual(res1000.data.amount, 950000, 'Top-up 1.000 credit harus mendapat diskon 5% (Rp950.000)');
+  assert.strictEqual(res1000.data.amount, 1000000, 'Top-up 1.000 credit harus tanpa diskon (Rp1.000.000)');
 
-  // 6. Pengujian Diskon Otomatis Tier 2: 2.500 credit -> Diskon 10% -> Rp2.250.000
-  console.log('6. Menguji diskon otomatis tier 2: 2.500 credit -> diskon 10% -> Rp2.250.000...');
+  // 6. Pengujian Top-Up 2.500 credit -> Tanpa Diskon -> Rp2.500.000 (PRD F16 §7)
+  console.log('6. Menguji top-up 2.500 credit -> tanpa diskon -> Rp2.500.000...');
   const res2500 = await req('/api/billing/topup', {
     method: 'POST',
     headers: authHeaders,
     body: { credits: 2500 }
   });
   assert.strictEqual(res2500.status, 200);
-  assert.strictEqual(res2500.data.amount, 2250000, 'Top-up 2.500 credit harus mendapat diskon 10% (Rp2.250.000)');
+  assert.strictEqual(res2500.data.amount, 2500000, 'Top-up 2.500 credit harus tanpa diskon (Rp2.500.000)');
 
-  // 6b. Pengujian Dinamis quoteTopup membaca TOPUP.tiers (Poin 13)
-  console.log('6b. Menguji quoteTopup dinamis membaca konfigurasi TOPUP.tiers...');
+  // 6b. Pengujian quoteTopup tanpa diskon tier (PRD F16 §3.1)
+  console.log('6b. Menguji quoteTopup menghasilkan 0% diskon tier...');
   const { quoteTopup, TOPUP } = await import('../lib/catalog.js');
   const quote1 = quoteTopup(2500);
-  assert.strictEqual(quote1.discountPct, 0.10);
-  assert.strictEqual(quote1.amount, 2250000);
+  assert.strictEqual(quote1.discountPct, 0);
+  assert.strictEqual(quote1.amount, 2500000);
+  assert.strictEqual(TOPUP.neverExpires, true);
 
-  // Simulasi tier kustom dinamis
-  const origTiers = TOPUP.tiers;
-  TOPUP.tiers = [
-    { min: 5000, disc: 0.20 },
-    { min: 2500, disc: 0.10 },
-    { min: 1000, disc: 0.05 }
-  ];
-  const quoteCustom = quoteTopup(5000);
-  assert.strictEqual(quoteCustom.discountPct, 0.20, 'Tier 5.000 harus otomatis menghasilkan diskon 20%');
-  assert.strictEqual(quoteCustom.amount, 4000000);
-  TOPUP.tiers = origTiers;
-
-  // 7. Pengujian Fulfillment Webhook DOKU untuk Custom Top-up
-  console.log('7. Menguji fulfillment custom top-up 75 credit via webhook...');
-  const webhook75 = {
+  // 7. Pengujian Fulfillment Webhook DOKU untuk Custom Top-up (100 credit)
+  console.log('7. Menguji fulfillment custom top-up 100 credit via webhook...');
+  const webhook100 = {
     order: {
-      invoice_number: res75.data.invoiceNumber,
-      amount: 75000
+      invoice_number: res100.data.invoiceNumber,
+      amount: 100000
     },
     transaction: {
       status: 'SUCCESS',
@@ -256,14 +245,14 @@ async function runCustomTopupTests() {
 
   const hookRes = await req('/api/webhooks/doku', {
     method: 'POST',
-    headers: makeDokuWebhookHeaders(webhook75),
-    body: webhook75
+    headers: makeDokuWebhookHeaders(webhook100),
+    body: webhook100
   });
   assert.strictEqual(hookRes.status, 200);
   assert.strictEqual(hookRes.data.status, 'ok');
 
   const wallet = await db.findOne('credit_wallets', { workspace_id: workspaceId });
-  assert.strictEqual(wallet.balance_topup, 75, 'Saldo topup harus bertambah 75 credit');
+  assert.strictEqual(wallet.balance_topup, 100, 'Saldo topup harus bertambah 100 credit');
 
   // 8. Penolakan paket lama: Top-up hanya lewat { credits }
   console.log('8. Menguji penolakan format lama { packageId: "starter" }...');

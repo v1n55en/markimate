@@ -163,7 +163,7 @@ async function runAuthTests() {
 
   const walletAfter = await db.findOne('credit_wallets', { workspace_id: createdUser.id });
   assert.ok(walletAfter, 'Wallet harus ada');
-  assert.strictEqual(walletAfter.balance_trial, 300, '300 trial credits harus dialokasikan setelah email terverifikasi');
+  assert.strictEqual(walletAfter.balance_trial, 400, '400 trial credits harus dialokasikan setelah email terverifikasi');
 
   const reusedVerifyRes = await request('/api/auth/verify', {
     method: 'POST',
@@ -171,7 +171,7 @@ async function runAuthTests() {
   });
   assert.strictEqual(reusedVerifyRes.status, 400, 'Token yang sudah dipakai harus ditolak');
   assert.strictEqual(reusedVerifyRes.data.code, 'INVALID_TOKEN');
-  console.log('✓ 5. POST /api/auth/verify berhasil: status active, 300 trial credits aktif, token 1x pakai');
+  console.log('✓ 5. POST /api/auth/verify berhasil: status active, 400 trial credits aktif, token 1x pakai');
 
   // 6. Login Setelah Verifikasi & Bcrypt Cost 12 Rehash
   const successLoginRes = await request('/api/auth/login', {

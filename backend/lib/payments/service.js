@@ -88,11 +88,14 @@ export async function createCheckout({ kind, itemId, credits: inputCredits, work
           code: 'MODULE_ALREADY_OWNED'
         });
       }
+      const getLegacyModPrice = (m) => MODULES[m]?.price ?? (m === 'seo' || m === 'ads_report' ? 1990000 : 1490000);
+      const getLegacyModMonthly = (m) => MODULES[m]?.monthlyCredits ?? (m === 'ads_report' ? 400 : 100);
       itemName = mod.name;
-      amount = mod.price;
-      credits = mod.monthlyCredits;
+      amount = getLegacyModPrice(mod.id);
+      credits = getLegacyModMonthly(mod.id);
       periodDays = null;
     } else if (bun) {
+      const getLegacyModPrice = (m) => MODULES[m]?.price ?? (m === 'seo' || m === 'ads_report' ? 1990000 : 1490000);
       const targetMods = bun.modules || [];
       const unownedMods = targetMods.filter(m => !ownedLifetime.has(m));
       if (unownedMods.length === 0) {
@@ -107,9 +110,9 @@ export async function createCheckout({ kind, itemId, credits: inputCredits, work
       const baseBundlePrice = bun.price;
       const sumOwnedPrice = targetMods
         .filter(m => ownedLifetime.has(m))
-        .reduce((sum, m) => sum + (MODULES[m]?.price || 0), 0);
+        .reduce((sum, m) => sum + getLegacyModPrice(m), 0);
       const sumUnownedPrice = unownedMods
-        .reduce((sum, m) => sum + (MODULES[m]?.price || 0), 0);
+        .reduce((sum, m) => sum + getLegacyModPrice(m), 0);
       const floorPrice = Math.round(sumUnownedPrice * 0.8);
       const discountedBundlePrice = baseBundlePrice - sumOwnedPrice;
 

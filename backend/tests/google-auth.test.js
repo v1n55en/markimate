@@ -162,7 +162,7 @@ async function runGoogleAuthTests() {
 
   const wallet = await db.findOne('credit_wallets', { workspace_id: members[0].workspace_id });
   if (wallet) {
-    assert.strictEqual(wallet.balance_trial, 300, 'Akun baru via Google harus menerima 300 credit trial');
+    assert.strictEqual(wallet.balance_trial, 400, 'Akun baru via Google harus menerima 400 credit trial');
   }
 
   // 4. Login Akun Google-only via Password Endpoint Harus Ditolak (PASSWORD_NOT_SET)

@@ -8,7 +8,7 @@ export function getAppUrl() {
 
 export const TRIAL_CONFIG = {
   days: Number(process.env.TRIAL_DAYS || 30),
-  credits: Number(process.env.TRIAL_CREDITS || 300),
+  credits: Number(process.env.TRIAL_CREDITS || 400),
 };
 export const TRIAL_DAYS = TRIAL_CONFIG.days;
 

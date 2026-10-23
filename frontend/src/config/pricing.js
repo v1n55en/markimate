@@ -1,5 +1,5 @@
-// Konfigurasi harga, kuota, bundle, dan benchmark biaya tim marketing in-house
-// Mengikuti data kalkulator Supermat v3 (Supermat-v3-Kalkulator-Paket-Biaya-Development.xlsx)
+// Konfigurasi harga, kuota, paket credit, dan benchmark biaya tim marketing in-house
+// Mengikuti PRD F16 (Model Credit-Only: Modul Gratis, Top-up & Paket Credit Tanpa Kedaluwarsa)
 
 export const CREDIT_PRICE_IDR = 1000;
 
@@ -7,7 +7,7 @@ export const TRIAL_DAYS = 30;
 
 export const TRIAL = {
   days: TRIAL_DAYS,
-  credits: 300,
+  credits: 400,
   noCardRequired: true,
 };
 
@@ -15,120 +15,71 @@ export const MODULES = {
   seo: {
     id: 'seo',
     name: 'SEO Specialist',
-    price: 1990000,
-    monthlyCredits: 100,
-    desc: '±1 artikel bergambar + riset topik'
+    typicalMonthlyCredits: 600,
+    desc: '8 artikel + 3 gambar/artikel'
   },
   ads_report: {
     id: 'ads_report',
     name: 'Ads Report',
-    price: 1990000,
-    monthlyCredits: 400,
-    desc: '1 laporan bulanan akun iklan'
+    typicalMonthlyCredits: 400,
+    desc: '1 laporan bulanan'
   },
   ads_spy: {
     id: 'ads_spy',
     name: 'Ads Creative Spy',
-    price: 1490000,
-    monthlyCredits: 100,
-    desc: '1 scan kompetitor + insight AI'
-  }
-};
-
-export const LIFETIME_BUNDLES = {
-  focus3: {
-    id: 'focus3',
-    key: 'focus3',
-    name: 'Bundle Fokus 3',
-    modules: ['seo', 'ads_report', 'ads_spy'],
-    price: 4490000,
-    savings: 980000,
-    monthlyCredits: 600,
-    desc: 'Ketiga modul (SEO, Ads Report, Ads Creative Spy)'
+    typicalMonthlyCredits: 260,
+    desc: '4 scan + 2 insight'
   }
 };
 
 export const TOPUP = {
   pricePerCredit: 1000,
-  min: 50,
+  min: 100,
   max: 50000,
-  quickOptions: [100, 500, 1000, 2500],
-  validityDays: 365,
-  tiers: [
-    { min: 2500, disc: 0.10 },
-    { min: 1000, disc: 0.05 }
-  ]
+  quickOptions: [100, 250, 500],
+  neverExpires: true
+};
+
+export const CREDIT_PACKS = {
+  pack_500:  { id: 'pack_500',  name: 'Starter', credits: 500,  discount: 0.05, price: 475000  },
+  pack_1000: { id: 'pack_1000', name: 'Growth',  credits: 1000, discount: 0.10, price: 900000  },
+  pack_2500: { id: 'pack_2500', name: 'Pro',     credits: 2500, discount: 0.20, price: 2000000 },
+  pack_5000: { id: 'pack_5000', name: 'Agency',  credits: 5000, discount: 0.25, price: 3750000 }
 };
 
 export function quoteTopup(credits) {
   const c = Math.floor(Number(credits) || 0);
-  let discountPct = 0;
-  if (Array.isArray(TOPUP.tiers)) {
-    const sorted = [...TOPUP.tiers].sort((a, b) => b.min - a.min);
-    for (const tier of sorted) {
-      if (c >= tier.min) {
-        discountPct = tier.disc;
-        break;
-      }
-    }
-  }
   const unitPrice = TOPUP.pricePerCredit;
-  const gross = c * unitPrice;
-  const discount = Math.round(gross * discountPct);
-  const amount = gross - discount;
+  const amount = c * unitPrice;
   return {
     credits: c,
     unitPrice,
-    discountPct,
+    discountPct: 0,
     amount
   };
 }
 
-export const MODULE_CREDITS = {
-  seo: 100, // 100 credit / bulan
-  ads_report: 400, // 400 credit / bulan
-  ads_spy: 100, // 100 credit / bulan
-  focus3: 600, // 600 credit / bulan
-};
+// Rata-rata harga per credit dari paket untuk estimasi biaya bulanan Markimate
+export const AVERAGE_PRICE_PER_CREDIT = 900;
 
-export const BUNDLES = [
-  {
-    key: 'focus3',
-    modules: ['seo', 'ads_report', 'ads_spy'],
-    credits: 3200,
-    discount: 0.2,
-  },
-  {
-    key: 'all_in_one',
-    modules: 'all',
-    credits: 7875,
-    price: 7875000,
-    preorder: true,
-  },
-  {
-    key: 'managed',
-    contactSales: true,
-    contactUrl: 'https://wa.me/6285179642520?text=Halo%203Our,%20saya%20tertarik%20dengan%20paket%20Managed%20by%203Our%20Markimate',
-  },
-];
-BUNDLES.focus3 = LIFETIME_BUNDLES.focus3;
+const seoMonthly = MODULES.seo.typicalMonthlyCredits * AVERAGE_PRICE_PER_CREDIT; // 600 * 900 = 540.000
+const adsReportMonthly = MODULES.ads_report.typicalMonthlyCredits * AVERAGE_PRICE_PER_CREDIT; // 400 * 900 = 360.000
+const adsSpyMonthly = MODULES.ads_spy.typicalMonthlyCredits * AVERAGE_PRICE_PER_CREDIT; // 260 * 900 = 234.000
+const focus3Monthly = (MODULES.seo.typicalMonthlyCredits + MODULES.ads_report.typicalMonthlyCredits + MODULES.ads_spy.typicalMonthlyCredits) * AVERAGE_PRICE_PER_CREDIT; // 1.260 * 900 = 1.134.000
 
 export const TEAM_COST_BENCHMARK = {
-  focus3: 29375000, // Rata-rata gaji 3 staf in-house (SEO Specialist, Media Buyer, Market Researcher)
-  focus3Markimate: Math.round(LIFETIME_BUNDLES.focus3.price / 24) + 100000, // Amortisasi 24 bulan Bundle Fokus 3 (Rp4.490.000 / 24 = Rp187.083) + estimasi top-up Rp100.000
-  focus3Savings: 29375000 - (Math.round(LIFETIME_BUNDLES.focus3.price / 24) + 100000), // Penghematan riil per bulan
+  focus3: 29375000, // Rata-rata gaji 3 staf in-house
+  focus3Markimate: focus3Monthly, // 1.260 credit * Rp900 = Rp1.134.000
+  focus3Savings: 29375000 - focus3Monthly, // Penghematan riil per bulan
   full: 64375000, // Gaji tim in-house lengkap 6-8 orang + tools berlangganan
 };
-
-const seoMonthly = Math.round(MODULES.seo.price / 24) + 37500;
-const adsReportMonthly = Math.round(MODULES.ads_report.price / 24) + 50000; // Amortisasi 24 bulan (Rp82.917) + estimasi top-up (Rp50.000)
-const adsSpyMonthly = Math.round(MODULES.ads_spy.price / 24) + 50000; // Amortisasi 24 bulan (Rp62.083) + estimasi top-up (Rp50.000)
 
 export const IN_HOUSE_COMPARISON = [
   {
     role: 'SEO Specialist',
     role_id: 'SEO Specialist',
     role_en: 'SEO Specialist',
+    typicalCredits: MODULES.seo.typicalMonthlyCredits,
     inHouseMonthly: 9000000,
     markimateMonthly: seoMonthly,
     supermatMonthly: seoMonthly,
@@ -141,6 +92,7 @@ export const IN_HOUSE_COMPARISON = [
     role: 'Ads Specialist (Reporting)',
     role_id: 'Ads Specialist (Pelaporan)',
     role_en: 'Ads Specialist (Reporting)',
+    typicalCredits: MODULES.ads_report.typicalMonthlyCredits,
     inHouseMonthly: 11000000,
     markimateMonthly: adsReportMonthly,
     supermatMonthly: adsReportMonthly,
@@ -153,6 +105,7 @@ export const IN_HOUSE_COMPARISON = [
     role: 'Ads Creative Researcher (Spy)',
     role_id: 'Ads Creative Researcher (Spy)',
     role_en: 'Ads Creative Researcher (Spy)',
+    typicalCredits: MODULES.ads_spy.typicalMonthlyCredits,
     inHouseMonthly: 9375000,
     markimateMonthly: adsSpyMonthly,
     supermatMonthly: adsSpyMonthly,
@@ -177,3 +130,15 @@ export const formatCurrency = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-I
 // Alias formatIDR
 export const formatIDR = (n) => formatCurrency(n);
 
+// Deprecation stubs untuk kompatibilitas impor sementara selama transisi ke Step 6
+export const LIFETIME_BUNDLES = {
+  focus3: { id: 'focus3', key: 'focus3', name: 'Bundle Fokus 3', price: 4490000, savings: 980000, monthlyCredits: 600 }
+};
+export const BUNDLES = [LIFETIME_BUNDLES.focus3];
+BUNDLES.focus3 = LIFETIME_BUNDLES.focus3;
+export const MODULE_CREDITS = {
+  seo: 600,
+  ads_report: 400,
+  ads_spy: 260,
+  focus3: 1260
+};
