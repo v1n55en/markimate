@@ -237,7 +237,7 @@ async function runDokuPaymentsTests() {
   const paymentRecord = await db.findOne('payments', { invoice_number: topupInvoice });
   assert.ok(paymentRecord);
   assert.strictEqual(paymentRecord.status, 'pending');
-  assert.strictEqual(paymentRecord.amount, 1000000);
+  assert.strictEqual(paymentRecord.amount, 900000);
   assert.strictEqual(paymentRecord.credits, 1000);
 
   // ----------------------------------------------------
@@ -297,7 +297,7 @@ async function runDokuPaymentsTests() {
   // ----------------------------------------------------
   console.log('4. Menguji Webhook DOKU lewat HTTP sungguhan (/api/webhooks/doku)...');
   const validWebhookPayload = {
-    order: { invoice_number: topupInvoice, amount: 1000000 },
+    order: { invoice_number: topupInvoice, amount: 900000 },
     status: 'SUCCESS',
     transaction: { status: 'SUCCESS', date: new Date().toISOString() },
     channel: { id: 'QRIS' }

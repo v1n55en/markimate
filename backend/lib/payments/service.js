@@ -81,7 +81,9 @@ export async function createCheckout({ kind, itemId, credits: inputCredits, work
       });
     }
     const quote = quoteTopup(numCredits);
-    itemName = `Top-Up ${quote.credits.toLocaleString('id-ID')} Credit`;
+    itemName = quote.discountPct > 0
+      ? `Top-Up ${quote.credits.toLocaleString('id-ID')} Credit (hemat ${Math.round(quote.discountPct * 100)}%)`
+      : `Top-Up ${quote.credits.toLocaleString('id-ID')} Credit`;
     amount = quote.amount; // Server-calculated amount; client amount is completely ignored
     credits = quote.credits;
     periodDays = null;

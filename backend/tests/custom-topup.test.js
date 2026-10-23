@@ -199,32 +199,38 @@ async function runCustomTopupTests() {
   assert.strictEqual(payment100.credits, 100);
   assert.strictEqual(payment100.kind, 'topup');
 
-  // 5. Pengujian Top-Up 1.000 credit -> Tanpa Diskon -> Rp1.000.000 (PRD F16 §7)
-  console.log('5. Menguji top-up 1.000 credit -> tanpa diskon -> Rp1.000.000...');
+  // 5. Pengujian Top-Up 1.000 credit -> Diskon Volume 10% -> Rp900.000 (PRD F16b §3.1 & §4)
+  console.log('5. Menguji top-up 1.000 credit -> diskon 10% -> Rp900.000 (client amount diabaikan)...');
   const res1000 = await req('/api/billing/topup', {
     method: 'POST',
     headers: authHeaders,
-    body: { credits: 1000 }
+    body: { credits: 1000, amount: 500 } // Client manipulasi amount Rp500
   });
   assert.strictEqual(res1000.status, 200);
-  assert.strictEqual(res1000.data.amount, 1000000, 'Top-up 1.000 credit harus tanpa diskon (Rp1.000.000)');
+  assert.strictEqual(res1000.data.amount, 900000, 'Top-up 1.000 credit harus dapat diskon 10% (Rp900.000)');
 
-  // 6. Pengujian Top-Up 2.500 credit -> Tanpa Diskon -> Rp2.500.000 (PRD F16 §7)
-  console.log('6. Menguji top-up 2.500 credit -> tanpa diskon -> Rp2.500.000...');
+  const payment1000 = await db.findOne('payments', { invoice_number: res1000.data.invoiceNumber });
+  assert.strictEqual(payment1000.amount, 900000);
+  assert.strictEqual(payment1000.credits, 1000);
+  assert.ok(payment1000.item_name.includes('hemat 10%'), 'item_name harus memuat keterangan hemat 10%');
+
+  // 6. Pengujian Top-Up 2.500 credit -> Diskon Volume 20% -> Rp2.000.000 (PRD F16b §3.1 & §4)
+  console.log('6. Menguji top-up 2.500 credit -> diskon 20% -> Rp2.000.000...');
   const res2500 = await req('/api/billing/topup', {
     method: 'POST',
     headers: authHeaders,
     body: { credits: 2500 }
   });
   assert.strictEqual(res2500.status, 200);
-  assert.strictEqual(res2500.data.amount, 2500000, 'Top-up 2.500 credit harus tanpa diskon (Rp2.500.000)');
+  assert.strictEqual(res2500.data.amount, 2000000, 'Top-up 2.500 credit harus dapat diskon 20% (Rp2.000.000)');
 
-  // 6b. Pengujian quoteTopup tanpa diskon tier (PRD F16 §3.1)
-  console.log('6b. Menguji quoteTopup menghasilkan 0% diskon tier...');
+  // 6b. Pengujian quoteTopup diskon volume tier seragam (PRD F16b §3.1)
+  console.log('6b. Menguji quoteTopup menghasilkan diskon volume tier seragam...');
   const { quoteTopup, TOPUP } = await import('../lib/catalog.js');
   const quote1 = quoteTopup(2500);
-  assert.strictEqual(quote1.discountPct, 0);
-  assert.strictEqual(quote1.amount, 2500000);
+  assert.strictEqual(quote1.discountPct, 0.20);
+  assert.strictEqual(quote1.amount, 2000000);
+  assert.strictEqual(quote1.discount, 500000);
   assert.strictEqual(TOPUP.neverExpires, true);
 
   // 7. Pengujian Fulfillment Webhook DOKU untuk Custom Top-up (100 credit)

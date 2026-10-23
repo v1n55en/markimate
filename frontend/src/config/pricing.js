@@ -36,28 +36,67 @@ export const TOPUP = {
   pricePerCredit: 1000,
   min: 100,
   max: 50000,
-  quickOptions: [100, 250, 500],
-  neverExpires: true
+  neverExpires: true,
+  quickOptions: [100, 500, 1000, 2500],
+  tiers: [
+    { min: 5000, disc: 0.25 },
+    { min: 2500, disc: 0.20 },
+    { min: 1000, disc: 0.10 }
+  ]
 };
 
-export const CREDIT_PACKS = {
-  pack_500:  { id: 'pack_500',  name: 'Starter', credits: 500,  discount: 0.05, price: 475000  },
-  pack_1000: { id: 'pack_1000', name: 'Growth',  credits: 1000, discount: 0.10, price: 900000  },
-  pack_2500: { id: 'pack_2500', name: 'Pro',     credits: 2500, discount: 0.20, price: 2000000 },
-  pack_5000: { id: 'pack_5000', name: 'Agency',  credits: 5000, discount: 0.25, price: 3750000 }
-};
+export function discountFor(credits) {
+  const c = Math.floor(Number(credits) || 0);
+  for (const t of TOPUP.tiers) {
+    if (c >= t.min) return t.disc;
+  }
+  return 0;
+}
 
 export function quoteTopup(credits) {
   const c = Math.floor(Number(credits) || 0);
   const unitPrice = TOPUP.pricePerCredit;
-  const amount = c * unitPrice;
+  const gross = c * unitPrice;
+  const disc = discountFor(c);
+  const discount = Math.round(gross * disc);
+  const amount = gross - discount;
+
+  const ascendingTiers = [...TOPUP.tiers].sort((a, b) => a.min - b.min);
+  const next = ascendingTiers.find((t) => t.min > c) || null;
+  const nextTier = next ? {
+    min: next.min,
+    disc: next.disc,
+    creditsNeeded: next.min - c
+  } : null;
+
   return {
     credits: c,
     unitPrice,
-    discountPct: 0,
-    amount
+    discountPct: disc,
+    discount,
+    amount,
+    nextTier
   };
 }
+
+// PRD F16b §3.1: Harga paket DITURUNKAN dari quoteTopup, bukan ditulis langsung
+export const CREDIT_PACKS = Object.fromEntries(
+  [
+    ['pack_500', 'Starter', 500],
+    ['pack_1000', 'Growth', 1000],
+    ['pack_2500', 'Pro', 2500],
+    ['pack_5000', 'Agency', 5000]
+  ].map(([id, name, credits]) => [
+    id,
+    {
+      id,
+      name,
+      credits,
+      discount: discountFor(credits),
+      price: quoteTopup(credits).amount
+    }
+  ])
+);
 
 export const ACTION_COST_EXAMPLES = {
   seoArticle: {

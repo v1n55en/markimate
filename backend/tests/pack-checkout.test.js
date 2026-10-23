@@ -166,6 +166,23 @@ async function runPackCheckoutTests() {
   assert.strictEqual(payment2500.item_id, 'pack_2500');
   console.log('   OK - Checkout pack_2500 sukses dengan prefix P dan amount server-calculated.');
 
+  // 2b. Checkout pack_500 -> amount 500.000 dan credits 500 (PRD F16b §4)
+  console.log('2b. Menguji checkout pack_500 (Rp500.000, 500 credits)...');
+  const res500 = await req('/api/billing/pack', {
+    method: 'POST',
+    headers: authHeaders,
+    body: { itemId: 'pack_500', amount: 999 }
+  });
+  assert.strictEqual(res500.status, 200, 'Checkout pack_500 harus 200 OK');
+  assert.strictEqual(res500.data.amount, 500000, 'Server wajib menagih Rp500.000 untuk pack_500');
+
+  const payment500 = await db.findOne('payments', { invoice_number: res500.data.invoiceNumber });
+  assert.strictEqual(payment500.amount, 500000);
+  assert.strictEqual(payment500.credits, 500);
+  assert.strictEqual(payment500.kind, 'pack');
+  assert.strictEqual(payment500.item_id, 'pack_500');
+  console.log('   OK - Checkout pack_500 sukses dengan amount Rp500.000.');
+
   // 3. Validasi itemId tidak dikenal -> 400 INVALID_PACK (PRD F16 §7)
   console.log('3. Menguji validasi itemId pack tidak dikenal -> 400...');
   const resInvalidPack = await req('/api/billing/pack', {
