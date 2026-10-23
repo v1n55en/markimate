@@ -49,6 +49,7 @@ export const errors = {
   "INVITE_NOT_FOUND": "Undangan tidak ditemukan atau telah kedaluwarsa.",
   "CONFIRM_MISMATCH": "Kata konfirmasi yang dimasukkan tidak sesuai.",
   "MODULE_INACTIVE": "Modul ini tidak aktif pada paket langganan workspace Anda.",
+  "MODULE_NOT_AVAILABLE": "Modul ini belum tersedia.",
   "INSUFFICIENT_CREDITS": "Kredit tidak mencukupi untuk melakukan tindakan ini. Silakan isi ulang kredit Anda.",
   "DAILY_CAP": "Batas penggunaan kredit harian tercapai. Silakan coba lagi besok.",
   "BILLING_DISABLED": "Pembayaran langsung belum tersedia. Hubungi bantuan untuk aktivasi paket.",

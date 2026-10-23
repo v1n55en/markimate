@@ -49,6 +49,7 @@ export const errors = {
   "INVITE_NOT_FOUND": "Invitation not found or has expired.",
   "CONFIRM_MISMATCH": "Confirmation phrase mismatch.",
   "MODULE_INACTIVE": "This module is not active in your current workspace subscription.",
+  "MODULE_NOT_AVAILABLE": "This module is not yet available.",
   "INSUFFICIENT_CREDITS": "Insufficient credits to perform this action. Please top up your wallet.",
   "DAILY_CAP": "Daily credit limit reached. Please try again tomorrow.",
   "BILLING_DISABLED": "Direct payment is currently unavailable. Please contact support.",

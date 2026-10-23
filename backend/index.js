@@ -2784,13 +2784,7 @@ app.put('/api/cms/:type', auth, requireWorkspace('admin'), requireModule('seo'),
     ? normalizeArticleSettings(req.body.articleSettings)
     : (existing?.article_settings ? normalizeArticleSettings(existing.article_settings) : normalizeArticleSettings({}));
 
-  const creditsEnabled = process.env.CREDITS_ENABLED !== 'false';
-  if (articleSettings.images?.enabled) {
-    const hasSeo = await hasActiveModuleEntitlement(req.workspace.id, 'seo');
-    if (!hasSeo && !creditsEnabled && !planOf(req.user).images) {
-      throw Object.assign(new Error('AI image generation is only available with an active SEO module.'), { status: 402, code: 'UPGRADE_REQUIRED' });
-    }
-  }
+
 
   const row = await db.upsert('cms_connections', { workspace_id: req.workspace.id, cms_type: type }, {
     workspace_id: req.workspace.id,
@@ -2891,12 +2885,7 @@ app.post('/api/keywords', auth, requireWorkspace('admin'), requireModule('seo'),
   const keyword = String(b.keyword || '').trim(); if (!keyword) throw Object.assign(new Error('Keyword is required.'), { status: 400, code: 'KEYWORD_REQUIRED' });
   const cms = String(b.cmsType || b.cms || 'wordpress').toLowerCase();
   const schedule = ['immediate', 'daily', 'weekly'].includes(b.schedule) ? b.schedule : 'immediate';
-  if (schedule !== 'immediate') {
-    const hasSeo = await hasActiveModuleEntitlement(req.workspace.id, 'seo');
-    if (!hasSeo && planOf(req.user).id === 'free') {
-      throw Object.assign(new Error('Automated scheduling is only available on paid plans or active SEO module.'), { status: 402, code: 'UPGRADE_REQUIRED' });
-    }
-  }
+
 
   // Validasi & normalisasi opsi artikel per-keyword (PRD F6b §3.6)
   const articleOptions = normalizeKeywordArticleOptions(b.articleOptions || b.article_options);
@@ -2955,17 +2944,10 @@ async function generateFor(user, k) {
   const effectiveOptions = resolveEffectiveArticleOptions(k.article_options, artSet);
   const articleActionKey = ARTICLE_LENGTHS[effectiveOptions.length]?.actionKey || 'seo.article';
 
-  const hasSeo = await hasActiveModuleEntitlement(wsId, 'seo');
   const creditsEnabled = process.env.CREDITS_ENABLED !== 'false';
+  // PRD F16 §3.4: Yang membatasi hanya saldo credit
   if (creditsEnabled) {
-    // Assert credit sebelum aksi (PRD §4.2 & PRD F6b §3.2)
     await assertAffordable(wsId, articleActionKey, 1);
-  } else {
-    if (!hasSeo) {
-      const plan = planOf(user);
-      const used = await usageOf(wsId);
-      if (used >= plan.monthlyArticles) throw Object.assign(new Error(`Kuota ${plan.name} bulan ini habis (${plan.monthlyArticles} artikel). Upgrade ke Pro untuk melanjutkan.`), { status: 402 });
-    }
   }
 
   const runStartTime = new Date().toISOString();
@@ -2980,7 +2962,7 @@ async function generateFor(user, k) {
     externalLinks: artSet.links?.external !== false,
     maxExternal: artSet.links?.maxExternal ?? 2,
     excludeDomains: Array.isArray(artSet.links?.excludeDomains) ? artSet.links.excludeDomains : [],
-    imagePrompts: hasSeo && (effectiveOptions.images.mode !== 'none'),
+    imagePrompts: effectiveOptions.images.mode !== 'none',
     imageCount: effectiveOptions.images.count,
     imageStyle: effectiveOptions.images.style || '',
     imageMode: effectiveOptions.images.mode,
@@ -3074,6 +3056,7 @@ async function generateFor(user, k) {
 
 async function publishFor(user, k, action, articleOverride) {
   const wsId = k.workspace_id || user.id;
+  const creditsEnabled = process.env.CREDITS_ENABLED !== 'false';
   const conn = await db.findOne('cms_connections', { workspace_id: wsId, cms_type: k.cms_type });
   if (!conn) throw Object.assign(new Error(`CMS credentials for ${k.cms_type} have not been configured yet.`), { status: 400, code: 'CMS_NOT_CONFIGURED' });
   const connConfig = resolveConnConfig(conn);
@@ -3107,8 +3090,8 @@ async function publishFor(user, k, action, articleOverride) {
   if (!baseArticle.links && k.links) baseArticle.links = k.links;
 
   const useExisting = !!k.post_id && !articleOverride; // publish draf yang sudah ada tanpa perubahan konten
-  const hasSeo = await hasActiveModuleEntitlement(wsId, 'seo');
-  const makeImages = !useExisting && hasSeo && (effectiveOptions.images.mode !== 'none');
+  // PRD F16 §3.4: Pembuatan gambar AI tidak lagi digating entitlement
+  const makeImages = !useExisting && (effectiveOptions.images.mode !== 'none');
   const options = {
     images: makeImages,
     imageCount: effectiveOptions.images.mode === 'none' ? 0 : effectiveOptions.images.count,
@@ -3117,8 +3100,7 @@ async function publishFor(user, k, action, articleOverride) {
     imageHero: effectiveOptions.images.hero !== false
   };
 
-  const creditsEnabled = process.env.CREDITS_ENABLED !== 'false';
-  if (creditsEnabled && makeImages && options.imageCount > 0) {
+  if (makeImages && options.imageCount > 0) {
     // Assert saldo gambar sebelum publish (PRD §4.2: seo.image × jumlah imagePrompts/count)
     await assertAffordable(wsId, 'seo.image', options.imageCount);
   }
@@ -3871,7 +3853,7 @@ app.get('/api/cron/run-scheduled', wrap(async (req, res) => {
       const user = await db.findOne('accounts', { id: s.user_id });
       if (!user) continue;
       const hasSeo = await hasActiveModuleEntitlement(s.workspace_id, 'seo');
-      if (!hasSeo && !creditsEnabled) continue;
+      if (!hasSeo) continue;
       try {
         const resTopics = await runTopicSource(user, s);
         results.push({ topicSourceId: s.id, status: 'ok', generated: resTopics.created });

@@ -131,7 +131,15 @@ export const app = {
     "benefitCancel": "Batal kapan saja tanpa kontrak tahunan terikat",
     "unlimitedAccess": "Akses tak terbatas",
     "activeBannerTitle": "Modul ini aktif untuk {name}!",
-    "fullAccessNotice": "Anda memiliki akses penuh ke fitur dan otomasi {role}."
+    "fullAccessNotice": "Anda memiliki akses penuh ke fitur dan otomasi {role}.",
+    "typicalUsageTitle": "Perkiraan Pemakaian Bulanan:",
+    "currentBalanceTitle": "Saldo Kredit Saat Ini:",
+    "freeModuleBadge": "Modul Gratis",
+    "payPerUse": "Semua modul gratis — bayar sesuai pemakaian",
+    "topupCredits": "Top-up Kredit",
+    "openModuleAndStart": "Buka Modul & Mulai",
+    "zeroBalanceNotice": "Saldo kredit Anda 0. Top-up kredit untuk mulai menjalankan aksi AI.",
+    "sufficientBalanceNotice": "Siap digunakan. Kredit hanya dipotong jika aksi AI berhasil dijalankan."
   },
   "comingSoon": {
     "badge": "Segera Hadir di Produksi",

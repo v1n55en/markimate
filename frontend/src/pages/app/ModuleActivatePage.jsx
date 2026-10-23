@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Lock,
@@ -12,12 +12,13 @@ import {
   Check,
   ChevronLeft,
   Bell,
-  ArrowUpRight,
+  Coins,
 } from 'lucide-react';
 import { getRoleByKey } from '../../config/roles';
-import { MODULES, formatCurrency } from '../../config/pricing';
+import { MODULES } from '../../config/pricing';
 import { useWorkspace } from '../../context/WorkspaceContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { api } from '../../api';
 import WaitlistModal from '../../components/common/WaitlistModal';
 
 export default function ModuleActivatePage() {
@@ -51,16 +52,31 @@ export default function ModuleActivatePage() {
   const isAvailable = role.status === 'available';
   const isActive = isModuleActive(role.key);
   const modInfo = MODULES[role.key];
-  const price = modInfo?.price || 0;
+  const [walletBalance, setWalletBalance] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    api('/api/credits')
+      .then((res) => {
+        if (mounted && res?.balance) {
+          setWalletBalance(res.balance.total ?? 0);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [activeWorkspace?.id]);
+
   const getModuleDesc = (moduleKey) => {
     if (moduleKey === 'seo') return t('common.moduleDescSeo');
     if (moduleKey === 'ads_report') return t('common.moduleDescAdsReport');
     if (moduleKey === 'ads_spy') return t('common.moduleDescAdsSpy');
     return modInfo?.desc || '';
   };
-  const quota = modInfo
+  const typicalUsage = modInfo
     ? t('common.moduleQuotaMonthly', {
-        credits: modInfo.monthlyCredits,
+        credits: modInfo.typicalMonthlyCredits,
         desc: getModuleDesc(role.key)
       })
     : t('app.activatePage.unlimitedAccess');
@@ -194,24 +210,31 @@ export default function ModuleActivatePage() {
               <div style={styles.actionCard} className="card">
                 <div style={styles.actionHeader}>
                   <div style={styles.lockIconBox}>
-                    {isActive ? (
-                      <CheckCircle2 size={24} color="var(--accent-green)" />
-                    ) : (
-                      <Lock size={24} color="var(--accent-cyan)" />
-                    )}
+                    <CheckCircle2 size={24} color="var(--accent-green)" />
                   </div>
                   <div>
-                    <span style={styles.planSub}>{t('activatePage.pricingCardTitle', 'Module Pricing')}</span>
-                    <div style={styles.priceRow}>
-                      <span style={styles.priceNumber}>{formatCurrency(price, lang)}</span>
-                      <span style={styles.pricePeriod}>{t('bundles.lifetimeBadge', 'Lifetime Access')}</span>
-                    </div>
+                    <span style={styles.planSub}>{t('app.activatePage.freeModuleBadge', 'Free Module')}</span>
+                    <h3 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--text-primary)' }}>
+                      {t('app.activatePage.payPerUse', 'Semua modul gratis — bayar sesuai pemakaian')}
+                    </h3>
                   </div>
                 </div>
 
                 <div style={styles.quotaBox}>
-                  <span style={styles.quotaTitle}>{t('roleDetail.quotaTitle', 'Included Quota:')}</span>
-                  <p style={styles.quotaValue}>{quota}</p>
+                  <span style={styles.quotaTitle}>{t('app.activatePage.typicalUsageTitle', 'Perkiraan Pemakaian Bulanan:')}</span>
+                  <p style={styles.quotaValue}>{typicalUsage}</p>
+                </div>
+
+                <div style={{ ...styles.quotaBox, marginTop: '0.75rem', borderColor: 'rgba(16, 185, 129, 0.25)' }}>
+                  <span style={styles.quotaTitle}>{t('app.activatePage.currentBalanceTitle', 'Saldo Kredit Saat Ini:')}</span>
+                  <p style={{ ...styles.quotaValue, fontSize: '1.25rem', fontWeight: 700, color: (walletBalance === 0 ? 'var(--accent-yellow)' : 'var(--accent-green)') }}>
+                    {walletBalance !== null ? `${walletBalance} credit` : '...'}
+                  </p>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '0.25rem 0 0 0' }}>
+                    {walletBalance === 0
+                      ? t('app.activatePage.zeroBalanceNotice', 'Saldo kredit Anda 0. Top up kredit untuk mulai menjalankan aksi AI.')
+                      : t('app.activatePage.sufficientBalanceNotice', 'Siap digunakan. Kredit hanya dipotong jika aksi AI berhasil dijalankan.')}
+                  </p>
                 </div>
 
                 <div style={styles.actionBenefits}>
@@ -223,46 +246,29 @@ export default function ModuleActivatePage() {
                     <Check size={14} color="var(--accent-green)" />
                     <span>{t('app.activatePage.benefitHitl')}</span>
                   </div>
-                  <div style={styles.benefitRow}>
-                    <Check size={14} color="var(--accent-green)" />
-                    <span>{t('app.activatePage.benefitCancel')}</span>
-                  </div>
                 </div>
 
-                {isActive ? (
+                {walletBalance !== null && walletBalance <= 0 ? (
                   <button
-                    onClick={() => navigate(getModuleHomePath(role.key))}
+                    onClick={() => navigate('/app/billing/wallet')}
                     style={styles.actionPrimaryBtn}
                   >
-                    <span>{t('dashboard.openModule', 'Open Console')}</span>
+                    <Coins size={16} />
+                    <span>{t('app.activatePage.topupCredits', 'Top-up Kredit')}</span>
                     <ArrowRight size={16} />
                   </button>
                 ) : (
                   <button
-                    onClick={handleActivate}
-                    disabled={activating}
+                    onClick={() => {
+                      if (!isActive) handleActivate();
+                      navigate(getModuleHomePath(role.key));
+                    }}
                     style={styles.actionPrimaryBtn}
                   >
-                    {activating ? (
-                      <span>{t('activatePage.activating', 'Activating Module...')}</span>
-                    ) : (
-                      <>
-                        <Sparkles size={16} />
-                        <span>{t('activatePage.btnActivate', 'Activate Module Now (1-Click)')}</span>
-                      </>
-                    )}
+                    <span>{t('app.activatePage.openModuleAndStart', 'Buka Modul & Mulai')}</span>
+                    <ArrowRight size={16} />
                   </button>
                 )}
-
-                <div style={styles.bundleHint}>
-                  <span style={styles.bundleHintText}>
-                    {t('app.moduleActivate.bundleHint')}
-                  </span>
-                  <Link to="/app/billing" style={styles.bundleLink}>
-                    <span>{t('app.moduleActivate.bundleCta')}</span>
-                    <ArrowUpRight size={14} />
-                  </Link>
-                </div>
 
                 <div style={styles.securityNote}>
                   <Shield size={14} color="var(--text-muted)" />

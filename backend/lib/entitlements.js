@@ -10,17 +10,14 @@ export { VALID_MODULES, ensurePlatformAdmin };
 
 /**
  * Mengambil daftar modul yang aktif untuk workspace tertentu.
- * Aturan PRD:
- * - Trial: modul aktif sampai ends_at (7 hari).
- * - Setelah trial lewat: ads_report & ads_spy nonaktif.
- * - Modul 'seo' selalu turun ke kuota Free (PLANS.free) jika trial/langganan habis.
- * - Langganan berbayar (subscription/admin): modul aktif sesuai paket sampai ends_at.
+ * PRD F16 §3.4: Semua modul aktif gratis untuk setiap workspace yang valid (source: 'free').
+ * Admin tetap source: 'admin'.
  * 
  * @param {string} workspaceId
  * @returns {Promise<Array<string> & { details: Record<string, object>, isSeoFree: boolean }>}
  */
 export async function getModules(workspaceId) {
-  if (!workspaceId) return Object.assign([], { details: {}, isSeoFree: true });
+  if (!workspaceId) return Object.assign([], { details: {}, isSeoFree: false });
 
   if (await isWorkspacePlatformAdmin(workspaceId)) {
     const active = ['seo', 'ads_report', 'ads_spy'];
@@ -34,69 +31,15 @@ export async function getModules(workspaceId) {
     return active;
   }
 
-  const now = new Date();
-  const rows = await db.findMany('module_entitlements', { workspace_id: workspaceId });
-
-  const map = {};
-  for (const row of (rows || [])) {
-    const isNotExpired = !row.ends_at || new Date(row.ends_at) > now;
-    if (row.active && isNotExpired) {
-      map[row.module] = {
-        active: true,
-        source: row.source || 'trial',
-        starts_at: row.starts_at,
-        ends_at: row.ends_at
-      };
-    } else {
-      if (!map[row.module]) {
-        map[row.module] = {
-          active: false,
-          source: row.source,
-          starts_at: row.starts_at,
-          ends_at: row.ends_at,
-          expired: !isNotExpired
-        };
-      }
-    }
-  }
-
-  const activeModules = [];
-  let isSeoFree = false;
-
-  // 1. Evaluasi Modul SEO
-  if (map['seo'] && map['seo'].active) {
-    activeModules.push('seo');
-    isSeoFree = map['seo'].source === 'free';
-  } else {
-    // Fallback: SEO selalu tersedia di tingkat Free tier
-    activeModules.push('seo');
-    isSeoFree = true;
-    if (!map['seo']) {
-      map['seo'] = { active: true, source: 'free', freeTier: true };
-    } else {
-      map['seo'].active = true;
-      map['seo'].source = 'free';
-      map['seo'].freeTier = true;
-    }
-  }
-
-  // 2. Evaluasi Modul Ads Report
-  if (map['ads_report'] && map['ads_report'].active) {
-    activeModules.push('ads_report');
-  } else if (!map['ads_report']) {
-    map['ads_report'] = { active: false, source: null };
-  }
-
-  // 3. Evaluasi Modul Ads Creative Spy
-  if (map['ads_spy'] && map['ads_spy'].active) {
-    activeModules.push('ads_spy');
-  } else if (!map['ads_spy']) {
-    map['ads_spy'] = { active: false, source: null };
-  }
-
-  activeModules.details = map;
-  activeModules.isSeoFree = isSeoFree;
-  return activeModules;
+  // PRD F16 §3.4: Semua modul aktif gratis untuk setiap workspace yang valid
+  const active = ['seo', 'ads_report', 'ads_spy'];
+  active.details = {
+    seo: { active: true, source: 'free', starts_at: null, ends_at: null },
+    ads_report: { active: true, source: 'free', starts_at: null, ends_at: null },
+    ads_spy: { active: true, source: 'free', starts_at: null, ends_at: null }
+  };
+  active.isSeoFree = false;
+  return active;
 }
 
 /**
@@ -108,22 +51,20 @@ export async function isModuleActive(workspaceId, moduleName) {
 }
 
 /**
- * Mengecek apakah suatu modul aktif pada workspace dengan sumber valid (lifetime, trial, admin, subscription)
- * Mengabaikan fallback free tier.
+ * Mengecek apakah suatu modul aktif pada workspace.
+ * PRD F16 §3.4: Selalu lolos (true) untuk modul yang sudah rilis (VALID_MODULES) pada workspace valid.
+ * Modul coming soon / tidak tersedia mengembalikan false.
  */
 export async function hasActiveModuleEntitlement(workspaceId, moduleName = 'seo') {
   if (!workspaceId) return false;
-  if (await isWorkspacePlatformAdmin(workspaceId)) return true;
-  const now = new Date();
-  const ent = await db.findOne('module_entitlements', { workspace_id: workspaceId, module: moduleName });
-  if (!ent || ent.active === false) return false;
-  if (ent.ends_at && new Date(ent.ends_at) <= now) return false;
-  return ['lifetime', 'trial', 'admin', 'subscription'].includes(ent.source);
+  if (!VALID_MODULES.includes(moduleName)) return false;
+  return true;
 }
 
 /**
  * Middleware express untuk membatasi endpoint berdasarkan entitlement modul
- * Mengembalikan HTTP 403 { code: 'MODULE_INACTIVE', module } jika modul tidak aktif.
+ * PRD F16 §3.4: Selalu lolos untuk modul yang sudah rilis (VALID_MODULES).
+ * Modul "coming soon" tetap ditolak (404/403 MODULE_NOT_AVAILABLE).
  */
 export function requireModule(moduleName) {
   return async (req, res, next) => {
@@ -137,18 +78,17 @@ export function requireModule(moduleName) {
         });
       }
 
-      const activeList = await getModules(wsId);
-      if (!activeList.includes(moduleName)) {
-        return res.status(403).json({
-          error: 'This module is not active for the current workspace subscription.',
-          code: 'MODULE_INACTIVE',
+      if (!VALID_MODULES.includes(moduleName)) {
+        return res.status(404).json({
+          error: `Module '${moduleName}' is not yet available.`,
+          code: 'MODULE_NOT_AVAILABLE',
           module: moduleName
         });
       }
 
-      // Sematkan info entitlement modul ke request
+      const activeList = await getModules(wsId);
       req.activeModules = activeList;
-      req.isSeoFree = activeList.isSeoFree;
+      req.isSeoFree = false;
 
       next();
     } catch (err) {

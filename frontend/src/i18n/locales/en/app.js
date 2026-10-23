@@ -131,7 +131,15 @@ export const app = {
     "benefitCancel": "Cancel anytime with zero long-term lock-in",
     "unlimitedAccess": "Unlimited access",
     "activeBannerTitle": "This module is active for {name}!",
-    "fullAccessNotice": "You have full access to features and automations of {role}."
+    "fullAccessNotice": "You have full access to features and automations of {role}.",
+    "typicalUsageTitle": "Typical Monthly Usage:",
+    "currentBalanceTitle": "Current Credit Balance:",
+    "freeModuleBadge": "Free Module",
+    "payPerUse": "Free access — pay only for what you use",
+    "topupCredits": "Top Up Credits",
+    "openModuleAndStart": "Open Module & Start",
+    "zeroBalanceNotice": "Your credit balance is 0. Top up credits to start running AI actions.",
+    "sufficientBalanceNotice": "Ready to run actions. Credits are only deducted when actions succeed."
   },
   "comingSoon": {
     "badge": "Coming Soon to Production",

@@ -40,3 +40,51 @@ cd frontend && npm run i18n:check && npm run build
 - Penghapusan penuh gating module dan plan di frontend/backend (dijadwalkan Langkah 2).
 - Penghapusan cron/alert grant bulanan (dijadwalkan Langkah 3).
 - Migrasi SQL 019 dan checkout pack (dijadwalkan Langkah 4 & 5).
+
+---
+
+## Langkah 2: Akses Modul Gratis + Hapus Gating Entitlement & Plan (§3.4)
+
+### 1. File yang Berubah
+- `backend/lib/entitlements.js`:
+  - `getModules(workspaceId)`: Selalu mengembalikan `['seo', 'ads_report', 'ads_spy']` aktif untuk setiap workspace yang valid dengan `source: 'free'`. Admin tetap `source: 'admin'`. Hapus fallback free tier dan `isSeoFree` (diset `false`).
+  - `hasActiveModuleEntitlement(workspaceId, moduleName)`: Selalu lolos (`true`) untuk semua modul rilis (`VALID_MODULES`), mengembalikan `false` untuk modul yang belum rilis ("coming soon").
+  - `requireModule(moduleName)`: Lolos untuk modul rilis; menolak modul belum rilis dengan status 404 `{ code: 'MODULE_NOT_AVAILABLE', module }`.
+- `backend/lib/error-codes.js`:
+  - Menambahkan definisi `MODULE_NOT_AVAILABLE` (status 404).
+- `frontend/src/i18n/locales/en/errors.js` & `frontend/src/i18n/locales/id/errors.js`:
+  - Menambahkan terjemahan `MODULE_NOT_AVAILABLE` untuk kepatuhan i18n dan error coverage check.
+- `backend/index.js`:
+  - Menghapus gating entitlement modul pada pembuatan gambar AI SEO di pengaturan CMS (`cms_connections`), penjadwalan keyword (`schedule !== 'immediate'`), dan eksekusi artikel (`generateFor`).
+  - AI Images SEO (`makeImages`) kini aktif murni berdasarkan opsi keyword dan dibatasi oleh saldo kredit via `assertAffordable(wsId, 'seo.image', count)`.
+  - Hapus pembatasan `plan.monthlyArticles` lama.
+- `frontend/src/pages/app/ModuleActivatePage.jsx`:
+  - Dirombak dari alur "beli modul lifetime" menjadi "Aktifkan & Mulai".
+  - Menampilkan deskripsi modul, perkiraan pemakaian bulanan (`modInfo.typicalMonthlyCredits` kredit/bulan), saldo kredit workspace saat ini (dari `GET /api/credits`), dan tombol dinamis: "Buka Modul & Mulai" jika saldo cukup, atau "Top-up Kredit" jika saldo 0.
+  - Menghapus badge lifetime, harga modul, dan hint bundle Fokus 3.
+- `frontend/src/i18n/locales/en/app.js` & `frontend/src/i18n/locales/id/app.js`:
+  - Menambahkan keys terjemahan untuk halaman aktivasi credit-only: `typicalUsageTitle`, `currentBalanceTitle`, `freeModuleBadge`, `payPerUse`, `topupCredits`, `openModuleAndStart`, `zeroBalanceNotice`, `sufficientBalanceNotice`.
+- `backend/tests/entitlements.test.js`:
+  - Ditulis ulang untuk menguji model modul gratis F16: workspace baru tanpa baris entitlement di DB langsung aktif untuk ketiga modul, penolakan modul coming soon dengan 404 `MODULE_NOT_AVAILABLE`, akses ke seluruh endpoint modul, serta verifikasi pemotongan kredit & pembatasan 402 `INSUFFICIENT_CREDITS`.
+  - Menyertakan **Mutation Checks** yang membuktikan bahwa mutasi pengecekan database entitlement digagalkan (KILLED).
+
+### 2. Catatan Kompatibilitas `plans.js`
+- File `backend/lib/plans.js` masih diimpor oleh `notifications.js` dan `trial-safeguards-discontinued.test.js` sebagai referensi fallback paket legacy. Seluruh gating logika runtime di `index.js` dan `entitlements.js` yang sebelumnya membatasi fitur berdasarkan `planOf(user)` telah dicabut sepenuhnya.
+
+### 3. Cara Tes
+```bash
+cd backend && node tests/entitlements.test.js
+cd backend && npm test
+cd frontend && npm run i18n:check && npm run build
+```
+
+### 4. Hasil Tes
+- `node tests/entitlements.test.js`: Lolos 100%, mutasi KILLED.
+- `npm test` backend: 26/26 file test lolos tanpa error.
+- `npm run i18n:check` frontend: 0 error, dictionary parity 2449 keys.
+- `npm run build` frontend: exit 0.
+
+### 5. Hal yang Sengaja Tidak Dikerjakan pada Langkah Ini
+- Penghapusan cron/alert grant bulanan (dijadwalkan Langkah 3).
+- Migrasi SQL 019 dan checkout pack (dijadwalkan Langkah 4 & 5).
+

@@ -260,6 +260,11 @@ export const ERROR_CODES = {
     status: 403,
     message: 'This module is not active for the current workspace subscription.'
   },
+  MODULE_NOT_AVAILABLE: {
+    code: 'MODULE_NOT_AVAILABLE',
+    status: 404,
+    message: 'This module is not yet available.'
+  },
   INSUFFICIENT_CREDITS: {
     code: 'INSUFFICIENT_CREDITS',
     status: 402,
