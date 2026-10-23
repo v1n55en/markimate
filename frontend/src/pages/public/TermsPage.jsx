@@ -40,7 +40,11 @@ export default function TermsPage() {
 
         <div style={styles.contentCard} className="card">
           {content.sections.map((sec) => (
-            <section key={sec.number} style={styles.section}>
+            <section
+              key={sec.number}
+              id={sec.number === '4' ? 'credit-system' : undefined}
+              style={styles.section}
+            >
               <h2 style={styles.sectionHeading}>
                 {`${sec.number}. ${sec.title}`}
               </h2>

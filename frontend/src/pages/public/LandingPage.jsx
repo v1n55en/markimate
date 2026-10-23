@@ -4,6 +4,7 @@ import { AppLink } from '../../lib/hosts';
 import {
   Sparkles,
   ArrowRight,
+  Check,
   CheckCircle2,
   Bell,
   Terminal,
@@ -26,6 +27,7 @@ import {
   ExternalLink,
   Coins,
 } from 'lucide-react';
+import { formatNumber } from '../../lib/format';
 import {
   ROLES,
   AVAILABLE_ROLES,
@@ -97,9 +99,6 @@ export default function LandingPage({ scrollToPricing = false }) {
     selectedCategory === 'all'
       ? localizedRoles
       : localizedRoles.filter((r) => r.category === selectedCategory);
-
-  const allInOneBundle = BUNDLES.find((b) => b.key === 'all_in_one');
-  const managedBundle = BUNDLES.find((b) => b.key === 'managed');
 
   return (
     <div style={styles.page}>

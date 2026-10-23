@@ -8,6 +8,7 @@ import { storage } from './storage';
  */
 export const PUBLIC_PAGES = [
   '/',
+  '/pricing',
   '/privacy',
   '/terms',
   '/data-deletion'
