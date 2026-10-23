@@ -148,7 +148,7 @@ export const publicTranslations = {
     "q9": "Apakah ada garansi uang kembali (refund)?",
     "a9": "Refund penuh dalam {days} hari kalender jika kredit dari pembelian tersebut belum digunakan sama sekali.",
     "q10": "Bagaimana jika saldo kredit habis di tengah pemakaian?",
-    "a10": "Anda dapat mengisi ulang saldo secara fleksibel kapan saja melalui 4 pilihan paket kredit (diskon 10–25% mulai 1.000 kredit) atau top-up custom mulai {min} kredit, dan diskon yang sama berlaku otomatis di top-up custom. Kredit langsung masuk dan tidak pernah hangus."
+    "a10": "Anda dapat mengisi ulang saldo secara fleksibel kapan saja melalui 3 pilihan paket kredit (diskon 10–25% mulai 1.000 kredit) atau top-up custom mulai {min} kredit, dan diskon yang sama berlaku otomatis di top-up custom. Kredit langsung masuk dan tidak pernah hangus."
   },
   "finalCta": {
     "title": "Siap Tingkatkan Pemasaran dengan Tim AI?",

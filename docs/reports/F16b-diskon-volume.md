@@ -20,10 +20,10 @@ Sesuai keputusan 3Our pada PRD F16b:
   - ≥ 5.000 (maks 50.000): 25% diskon (Rp750/cr)
 - **Satu aturan harga tunggal:** Harga untuk N credit selalu sama, baik dibeli lewat paket credit maupun top-up custom.
 - **Harga paket kredit DITURUNKAN dari `quoteTopup(credits).amount`**, bukan di-hardcode:
-  - Starter (500 cr): Rp500.000 (diskon 0%, tanpa badge diskon)
-  - Growth (1.000 cr): Rp900.000 (diskon 10%, badge Hemat 10% · Paling populer)
-  - Pro (2.500 cr): Rp2.000.000 (diskon 20%, badge Hemat 20%)
+  - Starter (1.000 cr): Rp900.000 (diskon 10%, badge Hemat 10%)
+  - Pro (2.500 cr): Rp2.000.000 (diskon 20%, badge Hemat 20% · BEST VALUE / Paling Populer)
   - Agency (5.000 cr): Rp3.750.000 (diskon 25%, badge Hemat 25%)
+  - *(Paket 500 cr dihapus dari daftar paket kredit; kredit mulai dari 1.000 cr untuk paket, sedangkan nominal di bawah 1.000 cr dapat dibeli via Custom Top-Up)*.
 
 ---
 
@@ -196,43 +196,43 @@ Pengambilan screenshot dilakukan menggunakan Google Chrome Headless CDP (`captur
 
 | No | File Screenshot | Viewport | Bahasa | Ukuran Byte | Hash MD5 | Cek Overflow 390px (`scrollWidth <= innerWidth`) |
 |---|---|---|---|---|---|---|
-| 1 | `f16b-calc-500-en-1280.png` | 1280px | EN | 94.981 B | `175ba521468c229c0a4f4f91f8cdfcf4` | OK |
-| 2 | `f16b-calc-500-en-390.png` | 390px | EN | 172.704 B | `a06df02db231a6248f58b870e99c4523` | OK |
-| 3 | `f16b-calc-500-id-1280.png` | 1280px | ID | 91.424 B | `9ee94d8ef4c253b01d80e4b0a5c0e5e7` | OK |
-| 4 | `f16b-calc-500-id-390.png` | 390px | ID | 175.065 B | `c9a5a2e37af184ad159de876abcb4d37` | OK |
-| 5 | `f16b-calc-1000-en-1280.png` | 1280px | EN | 96.029 B | `f37abac8148b485f3b6d313179efa661` | OK |
-| 6 | `f16b-calc-1000-en-390.png` | 390px | EN | 164.473 B | `07b68625c83feafeb8e53fd1b5b47c58` | OK |
-| 7 | `f16b-calc-1000-id-1280.png` | 1280px | ID | 92.615 B | `07c5d6121000413ceba617e97ec06623` | OK |
-| 8 | `f16b-calc-1000-id-390.png` | 390px | ID | 177.758 B | `26fe573bca984d68a0d216dbb846cea1` | OK |
-| 9 | `f16b-packs-en-1280.png` | 1280px | EN | 139.611 B | `7c3d547a863693dfe20c5c15433ded67` | OK |
-| 10 | `f16b-packs-en-390.png` | 390px | EN | 141.799 B | `a7d80128c131730cf7334c6331aacd5c` | OK |
-| 11 | `f16b-packs-id-1280.png` | 1280px | ID | 124.104 B | `8a5278210532cde3129c71c4e8f7f07d` | OK |
-| 12 | `f16b-packs-id-390.png` | 390px | ID | 135.540 B | `ce3045ac36c193a9224ed10a8d9c9496` | OK |
+| 1 | `f16b-calc-500-en-1280.png` | 1280px | EN | 93.803 B | `428b3a73e373b204e5374655e6481a43` | OK |
+| 2 | `f16b-calc-500-en-390.png` | 390px | EN | 173.194 B | `d642fe1250a8204d194d5bb75b649337` | OK |
+| 3 | `f16b-calc-500-id-1280.png` | 1280px | ID | 91.163 B | `2e15d98f6d78fa548ea97b34c679b9f5` | OK |
+| 4 | `f16b-calc-500-id-390.png` | 390px | ID | 175.250 B | `1ca20b73f089efaf5fa5a1611d047b05` | OK |
+| 5 | `f16b-calc-1000-en-1280.png` | 1280px | EN | 95.092 B | `0a113de16d2b9c0bfc682d50febdb5d1` | OK |
+| 6 | `f16b-calc-1000-en-390.png` | 390px | EN | 164.414 B | `91194721d20147d2df3087be7367fa7c` | OK |
+| 7 | `f16b-calc-1000-id-1280.png` | 1280px | ID | 92.679 B | `dc6f259348395f0f05c6522b7aa6a340` | OK |
+| 8 | `f16b-calc-1000-id-390.png` | 390px | ID | 177.989 B | `09ab5ee853f49688f6df86eaed1219ad` | OK |
+| 9 | `f16b-packs-en-1280.png` | 1280px | EN | 111.568 B | `24f4c2f2b26ba0365e0cfb9c643d96b2` | OK |
+| 10 | `f16b-packs-en-390.png` | 390px | EN | 137.561 B | `9f0d2ef1a91d77e8b55e337f2e17788d` | OK |
+| 11 | `f16b-packs-id-1280.png` | 1280px | ID | 111.022 B | `00a1eed9db56ab0cfd57ad3da170cb0f` | OK |
+| 12 | `f16b-packs-id-390.png` | 390px | ID | 137.679 B | `536569e0603f4ea9e1dc31fd259d8a11` | OK |
 | 13 | `f16b-wallet-calc-500-id-390.png` | 390px | ID | 155.703 B | `5700b1a270ee499672bba2450e74f8dd` | OK |
 | 14 | `f16b-wallet-calc-1000-id-390.png` | 390px | ID | 158.546 B | `e367909f466357c28a979785a9ecaa9a` | OK |
-| 15 | `f16b-wallet-packs-id-390.png` | 390px | ID | 158.363 B | `4090c036682f608b6eed01b83e752a21` | OK |
-| 16 | `f16b-wallet-id-1280.png` | 1280px | ID | 150.184 B | `d465dadde3c891db6fe97be68dfdb8a9` | OK |
+| 15 | `f16b-wallet-packs-id-390.png` | 390px | ID | 142.228 B | `f167c38e81a46d97b1aaba0882c47b84` | OK |
+| 16 | `f16b-wallet-id-1280.png` | 1280px | ID | 150.271 B | `a5a6557f9146fc6b30959e1e743f39ec` | OK |
 
 **Verifikasi Integritas:** 16 dari 16 screenshot 100% UNIK dan tidak ada satupun hash MD5 yang sama.
 
 ### Output `ls -l docs/reports/img/f16b*`
 ```
--rw-r--r--@ 1 mm  staff   96029 Oct 23 17:11 docs/reports/img/f16b-calc-1000-en-1280.png
--rw-r--r--@ 1 mm  staff  164473 Oct 23 17:12 docs/reports/img/f16b-calc-1000-en-390.png
--rw-r--r--@ 1 mm  staff   92615 Oct 23 17:12 docs/reports/img/f16b-calc-1000-id-1280.png
--rw-r--r--@ 1 mm  staff  177758 Oct 23 17:12 docs/reports/img/f16b-calc-1000-id-390.png
--rw-r--r--@ 1 mm  staff   94981 Oct 23 17:11 docs/reports/img/f16b-calc-500-en-1280.png
--rw-r--r--@ 1 mm  staff  172704 Oct 23 17:11 docs/reports/img/f16b-calc-500-en-390.png
--rw-r--r--@ 1 mm  staff   91424 Oct 23 17:11 docs/reports/img/f16b-calc-500-id-1280.png
--rw-r--r--@ 1 mm  staff  175065 Oct 23 17:11 docs/reports/img/f16b-calc-500-id-390.png
--rw-r--r--@ 1 mm  staff  139611 Oct 23 17:12 docs/reports/img/f16b-packs-en-1280.png
--rw-r--r--@ 1 mm  staff  141799 Oct 23 17:12 docs/reports/img/f16b-packs-en-390.png
--rw-r--r--@ 1 mm  staff  124104 Oct 23 17:12 docs/reports/img/f16b-packs-id-1280.png
--rw-r--r--@ 1 mm  staff  135540 Oct 23 17:12 docs/reports/img/f16b-packs-id-390.png
--rw-r--r--@ 1 mm  staff  158546 Oct 23 17:12 docs/reports/img/f16b-wallet-calc-1000-id-390.png
--rw-r--r--@ 1 mm  staff  155703 Oct 23 17:12 docs/reports/img/f16b-wallet-calc-500-id-390.png
--rw-r--r--@ 1 mm  staff  150184 Oct 23 17:12 docs/reports/img/f16b-wallet-id-1280.png
--rw-r--r--@ 1 mm  staff  158363 Oct 23 17:12 docs/reports/img/f16b-wallet-packs-id-390.png
+-rw-r--r--@ 1 mm  staff   95092 Oct 23 17:41 docs/reports/img/f16b-calc-1000-en-1280.png
+-rw-r--r--@ 1 mm  staff  164414 Oct 23 17:41 docs/reports/img/f16b-calc-1000-en-390.png
+-rw-r--r--@ 1 mm  staff   92679 Oct 23 17:41 docs/reports/img/f16b-calc-1000-id-1280.png
+-rw-r--r--@ 1 mm  staff  177989 Oct 23 17:41 docs/reports/img/f16b-calc-1000-id-390.png
+-rw-r--r--@ 1 mm  staff   93803 Oct 23 17:41 docs/reports/img/f16b-calc-500-en-1280.png
+-rw-r--r--@ 1 mm  staff  173194 Oct 23 17:41 docs/reports/img/f16b-calc-500-en-390.png
+-rw-r--r--@ 1 mm  staff   91163 Oct 23 17:41 docs/reports/img/f16b-calc-500-id-1280.png
+-rw-r--r--@ 1 mm  staff  175250 Oct 23 17:41 docs/reports/img/f16b-calc-500-id-390.png
+-rw-r--r--@ 1 mm  staff  111568 Oct 23 17:41 docs/reports/img/f16b-packs-en-1280.png
+-rw-r--r--@ 1 mm  staff  137561 Oct 23 17:41 docs/reports/img/f16b-packs-en-390.png
+-rw-r--r--@ 1 mm  staff  111022 Oct 23 17:42 docs/reports/img/f16b-packs-id-1280.png
+-rw-r--r--@ 1 mm  staff  137679 Oct 23 17:42 docs/reports/img/f16b-packs-id-390.png
+-rw-r--r--@ 1 mm  staff  158546 Oct 23 17:42 docs/reports/img/f16b-wallet-calc-1000-id-390.png
+-rw-r--r--@ 1 mm  staff  155703 Oct 23 17:42 docs/reports/img/f16b-wallet-calc-500-id-390.png
+-rw-r--r--@ 1 mm  staff  150271 Oct 23 17:42 docs/reports/img/f16b-wallet-id-1280.png
+-rw-r--r--@ 1 mm  staff  142228 Oct 23 17:42 docs/reports/img/f16b-wallet-packs-id-390.png
 ```
 
 ---
@@ -243,7 +243,7 @@ Pengambilan screenshot dilakukan menggunakan Google Chrome Headless CDP (`captur
 - **Kalkulator Top-up & Paket:**
   - 500 kredit: tanpa baris diskon, hint "tambah 500 kredit lagi untuk hemat 10%" tampil jelas.
   - 1.000 kredit: baris diskon −Rp100.000 dan total Rp900.000 tampil dengan badge Hemat 10%.
-  - Paket Starter Rp500.000 tanpa badge Hemat.
+  - Paket Starter mulai dari 1.000 kredit (Rp900.000) dengan diskon 10%, paket Pro (2.500 kredit, Rp2.000.000, diskon 20%) ditonjolkan dengan highlight BEST VALUE / Paling Populer, dan paket Agency (5.000 kredit, Rp3.750.000, diskon 25%).
 - **Tanpa SQL / Migrasi Database Baru:** Tidak ada perubahan skema database atau tabel baru.
 - **Tanpa Perubahan `automation/`:** Folder `automation/` tidak tersentuh sama sekali.
 - **Tanpa Transaksi Live:** Semua pengujian menggunakan mode mock / DB terisolasi.

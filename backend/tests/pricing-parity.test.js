@@ -46,8 +46,8 @@ async function runPricingParityTests() {
 
   // 2. Uji Kesetaraan dan Rumus Matematis CREDIT_PACKS
   console.log('2. Memverifikasi kesetaraan dan rumus harga CREDIT_PACKS (BE vs FE)...');
-  assert.deepStrictEqual(Object.keys(BE_CREDIT_PACKS), ['pack_500', 'pack_1000', 'pack_2500', 'pack_5000']);
-  assert.deepStrictEqual(Object.keys(FE_CREDIT_PACKS), ['pack_500', 'pack_1000', 'pack_2500', 'pack_5000']);
+  assert.deepStrictEqual(Object.keys(BE_CREDIT_PACKS), ['pack_1000', 'pack_2500', 'pack_5000']);
+  assert.deepStrictEqual(Object.keys(FE_CREDIT_PACKS), ['pack_1000', 'pack_2500', 'pack_5000']);
 
   for (const packKey of Object.keys(BE_CREDIT_PACKS)) {
     const bePack = BE_CREDIT_PACKS[packKey];
@@ -68,10 +68,11 @@ async function runPricingParityTests() {
     );
   }
 
-  // Nilai nominal spesifik PRD F16b §2
-  assert.strictEqual(BE_CREDIT_PACKS.pack_500.price, 500000, 'Starter 500 must be Rp500.000 (0% diskon)');
-  assert.strictEqual(BE_CREDIT_PACKS.pack_500.discount, 0, 'Starter 500 discount must be 0');
-  assert.strictEqual(BE_CREDIT_PACKS.pack_1000.price, 900000, 'Growth 1000 must be Rp900.000 (-10%)');
+  // Nilai nominal spesifik: Starter 1000, Pro 2500, Agency 5000
+  assert.strictEqual(BE_CREDIT_PACKS.pack_500, undefined, 'pack_500 harus dihapus');
+  assert.strictEqual(BE_CREDIT_PACKS.pack_1000.name, 'Starter', 'pack_1000 name must be Starter');
+  assert.strictEqual(BE_CREDIT_PACKS.pack_1000.price, 900000, 'Starter 1000 must be Rp900.000 (-10%)');
+  assert.strictEqual(BE_CREDIT_PACKS.pack_1000.discount, 0.10, 'Starter 1000 discount must be 10%');
   assert.strictEqual(BE_CREDIT_PACKS.pack_2500.price, 2000000, 'Pro 2500 must be Rp2.000.000 (-20%)');
   assert.strictEqual(BE_CREDIT_PACKS.pack_5000.price, 3750000, 'Agency 5000 must be Rp3.750.000 (-25%)');
 
@@ -148,7 +149,7 @@ async function runPricingParityTests() {
   assert.strictEqual(cat.topup.min, 100);
   assert.strictEqual(cat.topup.neverExpires, true);
   assert.deepStrictEqual(cat.topup.tiers, BE_TOPUP.tiers);
-  assert.strictEqual(cat.packs.length, 4, 'getCatalog() wajib memuat 4 paket credit');
+  assert.strictEqual(cat.packs.length, 3, 'getCatalog() wajib memuat 3 paket credit (Starter 1000, Pro 2500, Agency 5000)');
   assert.strictEqual(cat.trial.days, 30);
   assert.strictEqual(cat.trial.credits, 400);
 

@@ -551,7 +551,7 @@ export default function LandingPage({ scrollToPricing = false }) {
             <div style={styles.packsGrid}>
               {Object.values(CREDIT_PACKS).map((pack) => {
                 const discountPct = Math.round(pack.discount * 100);
-                const isPopular = pack.id === 'pack_1000';
+                const isPopular = pack.id === 'pack_2500';
                 return (
                   <div
                     key={pack.id}

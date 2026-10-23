@@ -82,8 +82,7 @@ export function quoteTopup(credits) {
 // PRD F16b §3.1: Harga paket DITURUNKAN dari quoteTopup, bukan ditulis langsung
 export const CREDIT_PACKS = Object.fromEntries(
   [
-    ['pack_500', 'Starter', 500],
-    ['pack_1000', 'Growth', 1000],
+    ['pack_1000', 'Starter', 1000],
     ['pack_2500', 'Pro', 2500],
     ['pack_5000', 'Agency', 5000]
   ].map(([id, name, credits]) => [

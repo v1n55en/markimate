@@ -92,42 +92,47 @@ try {
   );
   console.log('   OK - 1.000 kredit: baris diskon −Rp100.000, total Rp900.000, badge Hemat 10% tampil.');
 
-  // 3. Render kartu Starter tidak memuat "Hemat"
-  console.log('3. Memverifikasi kartu paket Starter (pack_500)...');
-  const starter = CREDIT_PACKS.pack_500;
-  assert.strictEqual(starter.credits, 500);
-  assert.strictEqual(starter.price, 500000);
-  assert.strictEqual(starter.discount, 0);
+  // 3. Render kartu Starter (1000 cr), Pro (2500 cr), Agency (5000 cr)
+  console.log('3. Memverifikasi kartu paket: Starter (1000), Pro (2500), Agency (5000)...');
+  assert.strictEqual(CREDIT_PACKS.pack_500, undefined, 'pack_500 harus dihapus');
 
-  // Growth (pack_1000)
-  const growth = CREDIT_PACKS.pack_1000;
-  assert.strictEqual(growth.credits, 1000);
-  assert.strictEqual(growth.price, 900000);
-  assert.strictEqual(growth.discount, 0.10);
+  // Starter (pack_1000)
+  const starter = CREDIT_PACKS.pack_1000;
+  assert.strictEqual(starter.name, 'Starter');
+  assert.strictEqual(starter.credits, 1000);
+  assert.strictEqual(starter.price, 900000);
+  assert.strictEqual(starter.discount, 0.10);
 
   // Pro (pack_2500)
   const pro = CREDIT_PACKS.pack_2500;
+  assert.strictEqual(pro.name, 'Pro');
   assert.strictEqual(pro.credits, 2500);
   assert.strictEqual(pro.price, 2000000);
   assert.strictEqual(pro.discount, 0.20);
 
   // Agency (pack_5000)
   const agency = CREDIT_PACKS.pack_5000;
+  assert.strictEqual(agency.name, 'Agency');
   assert.strictEqual(agency.credits, 5000);
   assert.strictEqual(agency.price, 3750000);
   assert.strictEqual(agency.discount, 0.25);
 
-  // Test rendering pack cards logic directly
+  // Highlight Best Value / Paling Populer di card Pro (pack_2500)
+  const isPopular = (packId) => packId === 'pack_2500';
+  assert.strictEqual(isPopular(pro.id), true, 'Kartu Pro wajib di-highlight sebagai Best Value / Paling Populer');
+  assert.strictEqual(isPopular(starter.id), false, 'Kartu Starter tidak boleh di-highlight Best Value');
+  assert.strictEqual(isPopular(agency.id), false, 'Kartu Agency tidak boleh di-highlight Best Value');
+
+  // Badge diskon untuk setiap paket
   function renderPackBadge(pack) {
     const discountPct = Math.round(pack.discount * 100);
     return discountPct > 0 ? `Hemat ${discountPct}%` : null;
   }
 
-  assert.strictEqual(renderPackBadge(starter), null, 'Kartu Starter tidak boleh memiliki badge Hemat');
-  assert.strictEqual(renderPackBadge(growth), 'Hemat 10%', 'Kartu Growth harus memiliki badge Hemat 10%');
-  assert.strictEqual(renderPackBadge(pro), 'Hemat 20%', 'Kartu Pro harus memiliki badge Hemat 20%');
-  assert.strictEqual(renderPackBadge(agency), 'Hemat 25%', 'Kartu Agency harus memiliki badge Hemat 25%');
-  console.log('   OK - Kartu Starter bebas badge Hemat, Growth/Pro/Agency memiliki badge diskon yang sesuai.');
+  assert.strictEqual(renderPackBadge(starter), 'Hemat 10%', 'Kartu Starter (1000 cr) harus memiliki badge Hemat 10%');
+  assert.strictEqual(renderPackBadge(pro), 'Hemat 20%', 'Kartu Pro (2500 cr) harus memiliki badge Hemat 20%');
+  assert.strictEqual(renderPackBadge(agency), 'Hemat 25%', 'Kartu Agency (5000 cr) harus memiliki badge Hemat 25%');
+  console.log('   OK - Starter mulai 1.000 cr, Pro di-highlight Best Value, badge diskon akurat.');
 
   // 4. Paritas nominal PRD F16b
   console.log('4. Memverifikasi seluruh 8 nominal PRD F16b di frontend config...');

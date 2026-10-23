@@ -166,22 +166,31 @@ async function runPackCheckoutTests() {
   assert.strictEqual(payment2500.item_id, 'pack_2500');
   console.log('   OK - Checkout pack_2500 sukses dengan prefix P dan amount server-calculated.');
 
-  // 2b. Checkout pack_500 -> amount 500.000 dan credits 500 (PRD F16b §4)
-  console.log('2b. Menguji checkout pack_500 (Rp500.000, 500 credits)...');
+  // 2b. Checkout pack_1000 -> amount 900.000 dan credits 1000 (Starter)
+  console.log('2b. Menguji checkout pack_1000 (Rp900.000, 1000 credits, Starter)...');
+  const res1000 = await req('/api/billing/pack', {
+    method: 'POST',
+    headers: authHeaders,
+    body: { itemId: 'pack_1000', amount: 999 }
+  });
+  assert.strictEqual(res1000.status, 200, 'Checkout pack_1000 harus 200 OK');
+  assert.strictEqual(res1000.data.amount, 900000, 'Server wajib menagih Rp900.000 untuk pack_1000');
+
+  const payment1000 = await db.findOne('payments', { invoice_number: res1000.data.invoiceNumber });
+  assert.strictEqual(payment1000.amount, 900000);
+  assert.strictEqual(payment1000.credits, 1000);
+  assert.strictEqual(payment1000.kind, 'pack');
+  assert.strictEqual(payment1000.item_id, 'pack_1000');
+  console.log('   OK - Checkout pack_1000 sukses dengan amount Rp900.000.');
+
+  // 2c. pack_500 sudah dihapus -> 400 INVALID_PACK
   const res500 = await req('/api/billing/pack', {
     method: 'POST',
     headers: authHeaders,
-    body: { itemId: 'pack_500', amount: 999 }
+    body: { itemId: 'pack_500' }
   });
-  assert.strictEqual(res500.status, 200, 'Checkout pack_500 harus 200 OK');
-  assert.strictEqual(res500.data.amount, 500000, 'Server wajib menagih Rp500.000 untuk pack_500');
-
-  const payment500 = await db.findOne('payments', { invoice_number: res500.data.invoiceNumber });
-  assert.strictEqual(payment500.amount, 500000);
-  assert.strictEqual(payment500.credits, 500);
-  assert.strictEqual(payment500.kind, 'pack');
-  assert.strictEqual(payment500.item_id, 'pack_500');
-  console.log('   OK - Checkout pack_500 sukses dengan amount Rp500.000.');
+  assert.strictEqual(res500.status, 400, 'pack_500 yang sudah dihapus harus menghasilkan 400');
+  assert.strictEqual(res500.data.code, 'INVALID_PACK');
 
   // 3. Validasi itemId tidak dikenal -> 400 INVALID_PACK (PRD F16 §7)
   console.log('3. Menguji validasi itemId pack tidak dikenal -> 400...');

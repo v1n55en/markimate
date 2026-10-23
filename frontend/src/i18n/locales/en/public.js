@@ -148,7 +148,7 @@ export const publicTranslations = {
     "q9": "Is there a money-back refund guarantee?",
     "a9": "Full refund within {days} calendar days of purchase if none of the credits from that purchase have been used.",
     "q10": "What happens if my credit balance runs out?",
-    "a10": "You can easily replenish your balance anytime via 4 credit pack options (10–25% discount starting from 1,000 credits) or custom top-up starting from {min} credits, and the same discount applies automatically to custom top-up. Credits are added instantly and never expire."
+    "a10": "You can easily replenish your balance anytime via 3 credit pack options (10–25% discount starting from 1,000 credits) or custom top-up starting from {min} credits, and the same discount applies automatically to custom top-up. Credits are added instantly and never expire."
   },
   "finalCta": {
     "title": "Ready to Scale Your Marketing with AI?",
