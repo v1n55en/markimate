@@ -207,6 +207,42 @@ const idorUpdateTpl = await req(`/api/ads/templates/${customTplId}`, {
 });
 assert.ok(idorUpdateTpl.status === 403 || idorUpdateTpl.status === 404);
 
+// e. Daftar template menyertakan spec (dipakai editor halaman & duplikasi di frontend)
+{
+  const list = await req('/api/ads/templates', { headers: authA });
+  const std = list.data.templates.find((t) => t.is_system);
+  assert.ok(Array.isArray(std.spec?.pages) && std.spec.pages.length > 0, 'list template berisi spec.pages');
+}
+
+// f. Deck Google Slides milik user (opsi A): disimpan di spec.deck.presentationId
+{
+  const DECK = '1AbCdEfGhIjKlMnOpQrStUvWxYz_0123456789-abc';
+  const cur = await req(`/api/ads/templates/${customTplId}`, { headers: authA });
+  const okDeck = await req(`/api/ads/templates/${customTplId}`, {
+    method: 'PUT', headers: authA, body: { spec: { ...cur.data.template.spec, deck: { presentationId: DECK } } }
+  });
+  assert.strictEqual(okDeck.status, 200);
+  assert.strictEqual(okDeck.data.template.spec.deck.presentationId, DECK);
+  const badDeck = await req(`/api/ads/templates/${customTplId}`, {
+    method: 'PUT', headers: authA, body: { spec: { ...cur.data.template.spec, deck: { presentationId: "abc' or 1=1" } } }
+  });
+  assert.strictEqual(badDeck.status, 400, 'ID deck tidak valid ditolak');
+  assert.ok(badDeck.data.errors.some((e) => e.code === 'INVALID_DECK'));
+  const clearDeck = await req(`/api/ads/templates/${customTplId}`, {
+    method: 'PUT', headers: authA, body: { spec: { ...cur.data.template.spec, deck: null } }
+  });
+  assert.strictEqual(clearDeck.status, 200, 'deck bisa dikosongkan (kembali ke base deck)');
+
+  const cfg = await req('/api/ads/deck/config', { headers: authA });
+  assert.strictEqual(cfg.status, 200);
+  assert.ok('serviceEmail' in cfg.data && 'templateCopyUrl' in cfg.data);
+  const badUrl = await req('/api/ads/deck/check', { method: 'POST', headers: authA, body: { url: 'https://example.com/x' } });
+  assert.strictEqual(badUrl.status, 400);
+  assert.strictEqual(badUrl.data.code, 'INVALID_DECK');
+  const noAuth = await req('/api/ads/deck/check', { method: 'POST', body: { url: DECK } });
+  assert.strictEqual(noAuth.status, 401, 'cek deck butuh login');
+}
+
 console.log('   OK - Duplikasi & validasi spec template lolos.');
 
 // -------------------------------------------------------------
