@@ -8,7 +8,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const src = f => fs.readFileSync(path.join(here, 'src', f), 'utf8');
 const MD = src('md.js');
 const CMS = src('cms.js');
-const code = (f) => src(f).replace('__MD__', () => MD).replace('__CMS__', () => CMS);
+const ADS_METRICS = fs.readFileSync(path.join(here, '..', 'backend', 'shared', 'ads-metrics.js'), 'utf8').replace(/^export\s+/gm, '');
+const code = (f) => src(f).replace('__MD__', () => MD).replace('__CMS__', () => CMS).replace('__ADS_METRICS__', () => ADS_METRICS);
 
 // ---- ID workflow di n8n 3Our (dipakai node Execute Workflow) ----
 export const IDS = {
@@ -457,93 +458,136 @@ Input: \`{ sectionTitle, sectionText, style, aspect, alt, requestId, keyword, Cl
 // =====================================================================
 function buildAdsReport() {
   const Y = 300;
-  const nodes = [
-    sticky('Sticky Ads Report', [-520, 60], 3600, 720, 3, `## 📊 Markimate Ads Report Workflow (PRD F5)
-Menerima payload pembuatan laporan dari backend Markimate (\`POST /webhook/ads-report-generate\`).
-1. **Auth & Normalize**: Validasi template, tanggal, dan akun iklan terhubung. Balas 202 Accepted.
-2. **Fetch Meta Insights**: Ambil data performa akun, campaign, breakdown demografi/platform, dan materi iklan.
-3. **Process Metrics**: Agregasi metrik rasio SSOT & perbandingan periode lalu.
-4. **Gemini AI Insights**: Analisis komparatif & rekomendasi optimasi biaya.
-5. **Render Google Slides**: Salin Base Deck, duplikasi layout per halaman, isi teks berdasar alt-text, update chart & creative.
-6. **Share & PDF Export**: Berikan izin editor ke email owner & ekspor presentasi ke PDF.
-7. **Callback**: Kirim laporan berstatus 'ready' ke backend Markimate.`),
+  const AUTH = "$('Auth & Normalize (Ads)').first().json";
+  const DRIVE = { authentication: 'predefinedCredentialType', nodeCredentialType: 'googleDriveOAuth2Api' };
+  const gHttp = (name, pos, params, onError = 'continueErrorOutput') => httpNode(name, pos, { ...DRIVE, ...params, options: { timeout: 120000, ...(params.options || {}) } }, { credentials: CRED.googleDrive, onError });
+  const errCode = (name, pos, js) => codeNode(name, pos, js, { onError: 'continueErrorOutput' });
+  const q = (pairs) => ({ sendQuery: true, queryParameters: { parameters: pairs.map(([name, value]) => ({ name, value })) } });
+  const jsonBody = (expr) => ({ sendBody: true, specifyBody: 'json', jsonBody: `={{ JSON.stringify(${expr}) }}` });
 
+  const nodes = [
+    sticky('Sticky Ads Report', [-520, -260], 5200, 420, 3, `## 📊 Markimate Ads Report (PRD F5) — \`POST /webhook/ads-report-generate\`
+**Setelah import:** isi \`CONFIG.baseDeckId\` & \`CONFIG.reportsFolderId\` di node *Auth & Normalize (Ads)*, pasang credential **Google Drive Markimate** (OAuth2, scope Drive — dipakai juga untuk Slides & Sheets) dan **Gemini Markimate** (Google Gemini/PaLM API) di node yang memakainya. Konvensi base deck: \`automation/ADS-BASE-DECK.md\`.
+Alur: validasi → 202 → **Ambil Data Meta** (Graph API asli, token via header, error per akun = warning) → **Proses Metrik** (shared/ads-metrics.js) → Gemini (1 panggilan, opsional) → folder Drive per workspace → salin base deck → Sheet data + chart → isi Slides (duplikat layout, teks, tabel, linked chart) → gambar creative (per gambar, gagal = warning) → bagikan ke owner (writer) & penerima (reader) → callback \`ready\`.
+**Semua error** (Code/HTTP) → *Siapkan Callback Error* → callback \`error\` → backend me-refund kredit saat itu juga.`),
     {
-      id: 'n-webhook-ads',
-      name: 'Webhook Ads Report',
-      type: 'n8n-nodes-base.webhook',
-      typeVersion: 2,
-      position: [-460, Y],
+      id: 'n-webhook-ads', name: 'Webhook Ads Report', type: 'n8n-nodes-base.webhook', typeVersion: 2, position: [-460, Y],
       webhookId: '9a8b7c6d-5e4f-3a2b-1c0d-9e8f7a6b5c4d',
-      parameters: {
-        httpMethod: 'POST',
-        path: 'ads-report-generate',
-        authentication: 'headerAuth',
-        responseMode: 'responseNode',
-        options: {}
-      },
+      parameters: { httpMethod: 'POST', path: 'ads-report-generate', authentication: 'headerAuth', responseMode: 'responseNode', options: {} },
       credentials: CRED.supermatKey
     },
     codeNode('Auth & Normalize (Ads)', [-240, Y], code('ads-auth-normalize.js')),
     ifBool('Auth OK (Ads)?', [-20, Y], '={{ $json.ok }}'),
-    respond('Respond Error (Ads)', [200, Y + 180], ERR_BODY, ERR_CODE),
-    respond('Respond Accepted (Ads)', [200, Y - 100], "={{ JSON.stringify({ status: 'accepted', accepted: true, requestId: $json.requestId }) }}", 202),
-    codeNode('Fetch Meta Insights', [420, Y], code('ads-fetch-meta.js')),
-    codeNode('Process Metrics', [640, Y], code('ads-process-metrics.js')),
-    httpNode('Gemini AI Insights', [860, Y], {
+    respond('Respond Error (Ads)', [200, Y + 200], ERR_BODY, ERR_CODE),
+    respond('Respond Accepted (Ads)', [200, Y], "={{ JSON.stringify({ status: 'accepted', accepted: true, requestId: $json.requestId }) }}", 202),
+    errCode('Ambil Data Meta', [420, Y], code('ads-fetch-meta.js')),
+    errCode('Proses Metrik', [640, Y], code('ads-process-metrics.js')),
+    ifBool('Perlu AI?', [860, Y], '={{ $json.ai.needed }}'),
+    httpNode('Gemini: Insight', [1080, Y - 160], {
       method: 'POST',
-      url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
-      sendBody: true,
-      specifyBody: 'json',
-      jsonBody: '={{ JSON.stringify({ contents: [{ parts: [{ text: "Kamu adalah Senior Performance Marketing Analyst. Berikan analisis eksekutif ringkas dan rekomendasi strategis (maksimal 180 kata) berdasarkan data performa iklan berikut:\\n" + $json.processed.summaryText }] }] }) }}',
-      options: { timeout: 60000 }
+      url: `={{ 'https://generativelanguage.googleapis.com/v1beta/models/' + ${AUTH}.config.geminiModel + ':generateContent' }}`,
+      authentication: 'predefinedCredentialType',
+      nodeCredentialType: 'googlePalmApi',
+      ...jsonBody("{ contents: [{ role: 'user', parts: [{ text: $json.ai.prompt }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.4 } }"),
+      options: { timeout: 120000 }
     }, { credentials: CRED.geminiAds }),
-    codeNode('Render Google Slides', [1080, Y], code('ads-render-slides.js')),
-    httpNode('Salin Base Deck & Update Slides', [1300, Y], {
-      method: 'POST',
-      url: 'https://slides.googleapis.com/v1/presentations/{{ $json.slidesId }}:batchUpdate',
-      sendBody: true,
-      specifyBody: 'json',
-      jsonBody: '={{ JSON.stringify({ requests: $json.batchUpdateRequests }) }}',
-      options: { timeout: 60000 }
-    }, { credentials: CRED.googleSlides }),
-    httpNode('Share Drive File ke Owner', [1520, Y], {
-      method: 'POST',
-      url: 'https://www.googleapis.com/drive/v3/files/{{ $json.slidesId }}/permissions',
-      sendBody: true,
-      specifyBody: 'json',
-      jsonBody: '={{ JSON.stringify({ role: "editor", type: "user", emailAddress: $json.owner?.email || "owner@markimate.com" }) }}',
-      options: { timeout: 30000 }
-    }, { credentials: CRED.googleDrive }),
-    codeNode('Siapkan Callback', [1740, Y], code('ads-prepare-callback.js')),
-    httpNode('Kirim Callback Ads Report', [1960, Y], {
-      method: 'POST',
-      url: '={{ $json.callbackUrl }}',
-      authentication: 'genericCredentialType',
-      genericAuthType: 'httpHeaderAuth',
-      sendBody: true,
-      specifyBody: 'json',
-      jsonBody: '={{ JSON.stringify($json.callbackPayload) }}',
-      options: { timeout: 30000 }
+    errCode('Parse Insight', [1300, Y], code('ads-parse-insight.js')),
+    gHttp('Drive: Cari Folder', [1520, Y], {
+      method: 'GET', url: 'https://www.googleapis.com/drive/v3/files',
+      ...q([
+        ['q', `={{ "name = '" + ${AUTH}.workspaceId + "' and '" + ${AUTH}.config.reportsFolderId + "' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false" }}`],
+        ['fields', 'files(id,name)'], ['supportsAllDrives', 'true'], ['includeItemsFromAllDrives', 'true']
+      ])
+    }),
+    ifBool('Folder Ada?', [1740, Y], '={{ Array.isArray($json.files) && $json.files.length > 0 }}'),
+    gHttp('Drive: Buat Folder', [1960, Y + 160], {
+      method: 'POST', url: 'https://www.googleapis.com/drive/v3/files',
+      ...q([['supportsAllDrives', 'true'], ['fields', 'id']]),
+      ...jsonBody(`{ name: ${AUTH}.workspaceId, mimeType: 'application/vnd.google-apps.folder', parents: [${AUTH}.config.reportsFolderId] }`)
+    }),
+    gHttp('Drive: Salin Base Deck', [2180, Y], {
+      method: 'POST', url: `={{ 'https://www.googleapis.com/drive/v3/files/' + ${AUTH}.config.baseDeckId + '/copy' }}`,
+      ...q([['supportsAllDrives', 'true'], ['fields', 'id,name,parents']]),
+      ...jsonBody(`{ name: $('Parse Insight').first().json.fileName, parents: [ $json.files ? $json.files[0].id : $json.id ] }`)
+    }),
+    gHttp('Drive: Buat Sheet Data', [2400, Y], {
+      method: 'POST', url: 'https://www.googleapis.com/drive/v3/files',
+      ...q([['supportsAllDrives', 'true'], ['fields', 'id']]),
+      ...jsonBody("{ name: 'Data – ' + $('Parse Insight').first().json.fileName, mimeType: 'application/vnd.google-apps.spreadsheet', parents: $json.parents }")
+    }),
+    errCode('Susun Data Grafik', [2620, Y], code('ads-sheet-requests.js')),
+    gHttp('Sheets: Tulis Data & Grafik', [2840, Y], {
+      method: 'POST', url: "={{ 'https://sheets.googleapis.com/v4/spreadsheets/' + $json.spreadsheetId + ':batchUpdate' }}",
+      ...jsonBody('{ requests: $json.requests }')
+    }),
+    gHttp('Slides: Baca Deck', [3060, Y], {
+      method: 'GET', url: "={{ 'https://slides.googleapis.com/v1/presentations/' + $('Drive: Salin Base Deck').first().json.id }}"
+    }),
+    errCode('Susun Request Slides', [3280, Y], code('ads-render-slides.js')),
+    gHttp('Slides: Isi Konten', [3500, Y], {
+      method: 'POST', url: "={{ 'https://slides.googleapis.com/v1/presentations/' + $json.presentationId + ':batchUpdate' }}",
+      ...jsonBody('{ requests: $json.requests }')
+    }),
+    codeNode('Susun Request Gambar', [3720, Y], code('ads-image-jobs.js')),
+    ifBool('Ada Gambar?', [3940, Y], '={{ $json.hasImage }}'),
+    gHttp('Slides: Ganti Gambar', [4160, Y - 160], {
+      method: 'POST', url: "={{ 'https://slides.googleapis.com/v1/presentations/' + $json.presentationId + ':batchUpdate' }}",
+      ...jsonBody('$json.body')
+    }, 'continueRegularOutput'),
+    codeNode('Daftar Akses', [4380, Y], code('ads-share-list.js')),
+    ifBool('Ada Email?', [4600, Y], '={{ $json.hasEmail }}'),
+    gHttp('Drive: Bagikan Akses', [4820, Y - 160], {
+      method: 'POST', url: "={{ 'https://www.googleapis.com/drive/v3/files/' + $json.fileId + '/permissions' }}",
+      ...q([['sendNotificationEmail', 'false'], ['supportsAllDrives', 'true']]),
+      ...jsonBody('$json.body')
+    }, 'continueRegularOutput'),
+    codeNode('Siapkan Callback', [5040, Y], code('ads-prepare-callback.js')),
+    httpNode('Kirim Callback', [5260, Y], {
+      method: 'POST', url: '={{ $json.callbackUrl }}', authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+      ...jsonBody('$json.callbackPayload'), options: { timeout: 30000 }
+    }, { credentials: CRED.supermatKey }),
+    codeNode('Siapkan Callback Error', [2620, Y + 420], code('ads-callback-error.js')),
+    httpNode('Kirim Callback Error', [2840, Y + 420], {
+      method: 'POST', url: '={{ $json.callbackUrl }}', authentication: 'genericCredentialType', genericAuthType: 'httpHeaderAuth',
+      ...jsonBody('$json.callbackPayload'), options: { timeout: 30000 }
     }, { credentials: CRED.supermatKey })
   ];
 
-  const connections = {
-    ...conn([
-      ['Webhook Ads Report', 'Auth & Normalize (Ads)'],
-      ['Auth & Normalize (Ads)', 'Auth OK (Ads)?'],
-      ['Auth OK (Ads)?', 'Respond Accepted (Ads)', 0],
-      ['Auth OK (Ads)?', 'Respond Error (Ads)', 1],
-      ['Respond Accepted (Ads)', 'Fetch Meta Insights'],
-      ['Fetch Meta Insights', 'Process Metrics'],
-      ['Process Metrics', 'Gemini AI Insights'],
-      ['Gemini AI Insights', 'Render Google Slides'],
-      ['Render Google Slides', 'Salin Base Deck & Update Slides'],
-      ['Salin Base Deck & Update Slides', 'Share Drive File ke Owner'],
-      ['Share Drive File ke Owner', 'Siapkan Callback'],
-      ['Siapkan Callback', 'Kirim Callback Ads Report']
-    ])
-  };
+  const ERR = 'Siapkan Callback Error';
+  const connections = conn([
+    ['Webhook Ads Report', 'Auth & Normalize (Ads)'],
+    ['Auth & Normalize (Ads)', 'Auth OK (Ads)?'],
+    ['Auth OK (Ads)?', 'Respond Accepted (Ads)', 0],
+    ['Auth OK (Ads)?', 'Respond Error (Ads)', 1],
+    ['Respond Accepted (Ads)', 'Ambil Data Meta'],
+    ['Ambil Data Meta', 'Proses Metrik'], ['Ambil Data Meta', ERR, 1],
+    ['Proses Metrik', 'Perlu AI?'], ['Proses Metrik', ERR, 1],
+    ['Perlu AI?', 'Gemini: Insight', 0],
+    ['Perlu AI?', 'Parse Insight', 1],
+    ['Gemini: Insight', 'Parse Insight'],
+    ['Parse Insight', 'Drive: Cari Folder'], ['Parse Insight', ERR, 1],
+    ['Drive: Cari Folder', 'Folder Ada?'], ['Drive: Cari Folder', ERR, 1],
+    ['Folder Ada?', 'Drive: Salin Base Deck', 0],
+    ['Folder Ada?', 'Drive: Buat Folder', 1],
+    ['Drive: Buat Folder', 'Drive: Salin Base Deck'], ['Drive: Buat Folder', ERR, 1],
+    ['Drive: Salin Base Deck', 'Drive: Buat Sheet Data'], ['Drive: Salin Base Deck', ERR, 1],
+    ['Drive: Buat Sheet Data', 'Susun Data Grafik'], ['Drive: Buat Sheet Data', ERR, 1],
+    ['Susun Data Grafik', 'Sheets: Tulis Data & Grafik'], ['Susun Data Grafik', ERR, 1],
+    ['Sheets: Tulis Data & Grafik', 'Slides: Baca Deck'], ['Sheets: Tulis Data & Grafik', ERR, 1],
+    ['Slides: Baca Deck', 'Susun Request Slides'], ['Slides: Baca Deck', ERR, 1],
+    ['Susun Request Slides', 'Slides: Isi Konten'], ['Susun Request Slides', ERR, 1],
+    ['Slides: Isi Konten', 'Susun Request Gambar'], ['Slides: Isi Konten', ERR, 1],
+    ['Susun Request Gambar', 'Ada Gambar?'],
+    ['Ada Gambar?', 'Slides: Ganti Gambar', 0],
+    ['Ada Gambar?', 'Daftar Akses', 1],
+    ['Slides: Ganti Gambar', 'Daftar Akses'],
+    ['Daftar Akses', 'Ada Email?'],
+    ['Ada Email?', 'Drive: Bagikan Akses', 0],
+    ['Ada Email?', 'Siapkan Callback', 1],
+    ['Drive: Bagikan Akses', 'Siapkan Callback'],
+    ['Siapkan Callback', 'Kirim Callback'],
+    [ERR, 'Kirim Callback Error']
+  ]);
 
   return {
     name: 'Markimate Ads Report: AI Performance Reporter (3Our)',

@@ -8,13 +8,13 @@
       "typeVersion": 1,
       "position": [
         -520,
-        60
+        -260
       ],
       "parameters": {
-        "width": 3600,
-        "height": 720,
+        "width": 5200,
+        "height": 420,
         "color": 3,
-        "content": "## 📊 Markimate Ads Report Workflow (PRD F5)\nMenerima payload pembuatan laporan dari backend Markimate (`POST /webhook/ads-report-generate`).\n1. **Auth & Normalize**: Validasi template, tanggal, dan akun iklan terhubung. Balas 202 Accepted.\n2. **Fetch Meta Insights**: Ambil data performa akun, campaign, breakdown demografi/platform, dan materi iklan.\n3. **Process Metrics**: Agregasi metrik rasio SSOT & perbandingan periode lalu.\n4. **Gemini AI Insights**: Analisis komparatif & rekomendasi optimasi biaya.\n5. **Render Google Slides**: Salin Base Deck, duplikasi layout per halaman, isi teks berdasar alt-text, update chart & creative.\n6. **Share & PDF Export**: Berikan izin editor ke email owner & ekspor presentasi ke PDF.\n7. **Callback**: Kirim laporan berstatus 'ready' ke backend Markimate."
+        "content": "## 📊 Markimate Ads Report (PRD F5) — `POST /webhook/ads-report-generate`\n**Setelah import:** isi `CONFIG.baseDeckId` & `CONFIG.reportsFolderId` di node *Auth & Normalize (Ads)*, pasang credential **Google Drive Markimate** (OAuth2, scope Drive — dipakai juga untuk Slides & Sheets) dan **Gemini Markimate** (Google Gemini/PaLM API) di node yang memakainya. Konvensi base deck: `automation/ADS-BASE-DECK.md`.\nAlur: validasi → 202 → **Ambil Data Meta** (Graph API asli, token via header, error per akun = warning) → **Proses Metrik** (shared/ads-metrics.js) → Gemini (1 panggilan, opsional) → folder Drive per workspace → salin base deck → Sheet data + chart → isi Slides (duplikat layout, teks, tabel, linked chart) → gambar creative (per gambar, gagal = warning) → bagikan ke owner (writer) & penerima (reader) → callback `ready`.\n**Semua error** (Code/HTTP) → *Siapkan Callback Error* → callback `error` → backend me-refund kredit saat itu juga."
       }
     },
     {
@@ -51,7 +51,7 @@
         300
       ],
       "parameters": {
-        "jsCode": "// automation/src/ads-auth-normalize.js\n// Normalisasi & validasi input job pembuatan Ads Report (PRD F5)\n\nconst item = $input.first().json;\n\n// 1. Validasi field wajib\nif (!item.requestId) {\n  return [{ json: { ok: false, error: 'requestId is required', statusCode: 400 } }];\n}\n\nif (!item.accounts || !Array.isArray(item.accounts) || item.accounts.length === 0) {\n  return [{ json: { ok: false, error: 'At least one ad account is required', statusCode: 400, requestId: item.requestId } }];\n}\n\nif (!item.template || !Array.isArray(item.template.pages)) {\n  return [{ json: { ok: false, error: 'Template with pages is required', statusCode: 400, requestId: item.requestId } }];\n}\n\nconst template = item.template;\nconst period = item.period || {};\nconst start = period.start;\nconst end = period.end;\n\nif (!start || !end) {\n  return [{ json: { ok: false, error: 'Period start and end are required', statusCode: 400, requestId: item.requestId } }];\n}\n\n// 2. Hitung periode perbandingan (bulan sebelumnya / durasi hari yang sama)\nconst startDate = new Date(start);\nconst endDate = new Date(end);\nconst durationMs = endDate.getTime() - startDate.getTime();\n\nconst prevEndDate = new Date(startDate.getTime() - 24 * 60 * 60 * 1000);\nconst prevStartDate = new Date(prevEndDate.getTime() - durationMs);\n\nconst formatDate = (d) => d.toISOString().split('T')[0];\n\nconst prevPeriod = {\n  start: formatDate(prevStartDate),\n  end: formatDate(prevEndDate)\n};\n\n// 3. Analisis kebutuhan halaman dari template\nconst pages = template.pages;\nconst needsTrends = pages.some(p => p.type === 'trend');\nconst needsBreakdowns = pages.some(p => p.type === 'breakdown');\nconst needsCampaigns = pages.some(p => p.type === 'table');\nconst needsCreatives = pages.some(p => p.type === 'creatives');\nconst needsAiInsights = pages.some(p => p.type === 'ai_insight' || p.insight === true);\n\nreturn [{\n  json: {\n    ok: true,\n    requestId: item.requestId,\n    reportId: item.reportId,\n    workspaceId: item.workspaceId,\n    template,\n    accounts: item.accounts,\n    period: { start, end },\n    prevPeriod,\n    compare: item.compare !== false,\n    conversionEvent: item.conversionEvent || 'purchase',\n    currency: item.currency || template.currency || 'IDR',\n    recipients: item.recipients || [],\n    owner: item.owner || {},\n    callbackUrl: item.callbackUrl,\n    needsTrends,\n    needsBreakdowns,\n    needsCampaigns,\n    needsCreatives,\n    needsAiInsights,\n    warnings: []\n  }\n}];\n"
+        "jsCode": "// automation/src/ads-auth-normalize.js\n// Validasi payload laporan iklan + konfigurasi workflow (PRD F5 §3.7).\n// API key sudah divalidasi node Webhook (Header Auth). Node ini memastikan payload lengkap\n// dan konfigurasi base deck terisi. Kalau gagal → balas 4xx/503 secara sinkron sehingga\n// backend langsung me-rollback kredit (tidak perlu menunggu timeout 15 menit).\n\n// ===== KONFIGURASI (diisi 3Our setelah import, lihat automation/ADS-BASE-DECK.md) =====\nconst CONFIG = {\n  baseDeckId: 'GANTI_DENGAN_ID_BASE_DECK',        // ID Google Slides \"Markimate Base Deck\"\n  reportsFolderId: 'GANTI_DENGAN_ID_FOLDER',       // ID folder Drive \"Markimate Reports\"\n  graphVersion: 'v23.0',\n  geminiModel: 'gemini-2.5-flash'\n};\n// ======================================================================================\n\nconst body = $input.first().json.body || $input.first().json;\nconst fail = (statusCode, error) => [{ json: { ok: false, statusCode, error, requestId: body.requestId || null } }];\n\nif (!body.requestId || typeof body.requestId !== 'string') return fail(400, 'requestId is required');\nif (!body.callbackUrl || !/^https:\\/\\//.test(String(body.callbackUrl))) return fail(400, 'callbackUrl (https) is required');\nif (!body.template || !Array.isArray(body.template.pages) || body.template.pages.length === 0) return fail(400, 'template.pages is required');\nif (body.template.pages.length > 20) return fail(400, 'template has more than 20 pages');\nif (!Array.isArray(body.accounts) || body.accounts.length === 0) return fail(400, 'at least one ad account is required');\n\nconst isDate = (s) => typeof s === 'string' && /^\\d{4}-\\d{2}-\\d{2}$/.test(s);\nconst period = body.period || {};\nif (!isDate(period.start) || !isDate(period.end) || period.start > period.end) return fail(400, 'period.start/end (YYYY-MM-DD) is invalid');\n\nif (/^GANTI_/.test(CONFIG.baseDeckId) || /^GANTI_/.test(CONFIG.reportsFolderId)) {\n  return fail(503, 'Ads report workflow is not configured (baseDeckId / reportsFolderId)');\n}\n\nconst accounts = body.accounts\n  .filter((a) => a && a.platform === 'meta' && a.externalId && a.accessToken)\n  .map((a) => ({\n    id: a.id,\n    externalId: String(a.externalId).startsWith('act_') ? String(a.externalId) : `act_${a.externalId}`,\n    name: a.name || String(a.externalId),\n    currency: a.currency || null,\n    timezone: a.timezone || null,\n    accessToken: a.accessToken\n  }));\nif (accounts.length === 0) return fail(400, 'no Meta ad account with access token in payload');\n\n// Periode pembanding = rentang hari yang sama tepat sebelum periode laporan\nconst DAY = 86400000;\nconst toDate = (s) => new Date(`${s}T00:00:00Z`);\nconst fmt = (d) => d.toISOString().slice(0, 10);\nconst days = Math.round((toDate(period.end) - toDate(period.start)) / DAY) + 1;\nconst sD = toDate(period.start);\nconst eD = toDate(period.end);\nconst isFullMonths = sD.getUTCDate() === 1 && new Date(eD.getTime() + DAY).getUTCDate() === 1;\nlet prevStart;\nlet prevEnd = new Date(sD.getTime() - DAY);\nif (isFullMonths) {\n  // laporan bulanan → bandingkan dengan bulan kalender sebelumnya (sama seperti WF 3Our \"bulan lalu\")\n  const nMonths = (eD.getUTCFullYear() - sD.getUTCFullYear()) * 12 + (eD.getUTCMonth() - sD.getUTCMonth()) + 1;\n  prevStart = new Date(Date.UTC(sD.getUTCFullYear(), sD.getUTCMonth() - nMonths, 1));\n} else {\n  prevStart = new Date(prevEnd.getTime() - (days - 1) * DAY);\n}\n\nconst template = body.template;\nconst owner = body.owner || {};\nconst locale = (owner.locale || template.locale || 'id') === 'en' ? 'en' : 'id';\n\nreturn [{\n  json: {\n    ok: true,\n    config: { baseDeckId: CONFIG.baseDeckId, reportsFolderId: CONFIG.reportsFolderId, graphVersion: CONFIG.graphVersion, geminiModel: CONFIG.geminiModel },\n    requestId: body.requestId,\n    reportId: body.reportId || null,\n    workspaceId: String(body.workspaceId || 'unknown').replace(/[^A-Za-z0-9_-]/g, ''),\n    workspaceName: body.workspaceName || '',\n    callbackUrl: body.callbackUrl,\n    template,\n    accounts,\n    period: { start: period.start, end: period.end, days },\n    prevPeriod: { start: fmt(prevStart), end: fmt(prevEnd) },\n    compare: body.compare !== false,\n    conversionEvent: body.conversionEvent || 'purchase',\n    currency: body.currency || template.currency || 'IDR',\n    customMetrics: Array.isArray(body.customMetrics) ? body.customMetrics : [],\n    recipients: Array.isArray(body.recipients) ? body.recipients.filter((e) => typeof e === 'string' && e.includes('@')) : [],\n    owner: { email: owner.email || null, locale },\n    locale\n  }\n}];\n"
       }
     },
     {
@@ -95,7 +95,7 @@
       "typeVersion": 1.1,
       "position": [
         200,
-        480
+        500
       ],
       "parameters": {
         "respondWith": "json",
@@ -112,7 +112,7 @@
       "typeVersion": 1.1,
       "position": [
         200,
-        200
+        300
       ],
       "parameters": {
         "respondWith": "json",
@@ -123,8 +123,8 @@
       }
     },
     {
-      "id": "n-fetch-meta-insights",
-      "name": "Fetch Meta Insights",
+      "id": "n-ambil-data-meta",
+      "name": "Ambil Data Meta",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -132,12 +132,13 @@
         300
       ],
       "parameters": {
-        "jsCode": "// automation/src/ads-fetch-meta.js\n// Penyiapan dan pemanggilan data Meta Insights API (PRD F5 §3.7)\n\nconst input = $input.first().json;\nconst { accounts, period, prevPeriod, needsTrends, needsBreakdowns, needsCampaigns, needsCreatives, conversionEvent } = input;\nconst warnings = [...(input.warnings || [])];\n\n// Struktur penampung data per akun\nconst fetchedData = {\n  accounts: [],\n  accountSummaries: [],\n  prevSummaries: [],\n  dailyTrends: [],\n  monthlyTrends: [],\n  campaigns: [],\n  breakdowns: {\n    objective: [],\n    platform: [],\n    demographics: []\n  },\n  creatives: []\n};\n\n// Iterasi setiap akun iklan Meta yang dihubungkan\nfor (const acc of accounts) {\n  if (acc.platform !== 'meta') {\n    warnings.push(`Platform ${acc.platform} is not currently supported in this phase`);\n    continue;\n  }\n\n  const actId = acc.externalId.startsWith('act_') ? acc.externalId : `act_${acc.externalId}`;\n  const token = acc.accessToken;\n\n  // Jika tidak ada token (misal dry-run / mock testing fixture):\n  if (!token || token.startsWith('demo_') || token.startsWith('mock_')) {\n    // Generate data representatif untuk keperluan fixture / testing\n    fetchedData.accounts.push({ id: actId, name: acc.name || 'Account ' + actId, currency: acc.currency || 'IDR' });\n    fetchedData.accountSummaries.push({\n      account_id: actId,\n      spend: 15400000,\n      impressions: 480000,\n      reach: 320000,\n      clicks: 12500,\n      inline_link_clicks: 9800,\n      actions: [{ action_type: conversionEvent, value: 340 }],\n      action_values: [{ action_type: conversionEvent, value: 58500000 }]\n    });\n    fetchedData.prevSummaries.push({\n      account_id: actId,\n      spend: 14200000,\n      impressions: 440000,\n      reach: 290000,\n      clicks: 11200,\n      inline_link_clicks: 8900,\n      actions: [{ action_type: conversionEvent, value: 295 }],\n      action_values: [{ action_type: conversionEvent, value: 51000000 }]\n    });\n    continue;\n  }\n\n  // Parameter umum Meta Insights API\n  const baseUrl = `https://graph.facebook.com/v21.0/${actId}`;\n  const headers = { Authorization: `Bearer ${token}` };\n\n  // Catatan: Pada n8n node, fetch dipanggil secara terisolasi atau dieksekusi HTTP node.\n  // Kode ini menampung schema dan parsing normalisasi response dari Graph API v21.0.\n  fetchedData.accounts.push({\n    id: actId,\n    name: acc.name || actId,\n    currency: acc.currency || 'IDR',\n    endpoint: `${baseUrl}/insights`,\n    params: {\n      time_range: JSON.stringify({ since: period.start, until: period.end }),\n      fields: 'spend,impressions,reach,clicks,inline_link_clicks,actions,action_values'\n    }\n  });\n}\n\nreturn [{\n  json: {\n    ...input,\n    fetchedData,\n    warnings\n  }\n}];\n"
-      }
+        "jsCode": "// automation/src/ads-fetch-meta.js\n// Ambil data Meta Insights ASLI per akun (PRD F5 §3.7 langkah 2).\n// - Hanya endpoint yang dipakai template yang dipanggil (hemat kuota API).\n// - Token dikirim lewat header Authorization (tidak masuk URL/log).\n// - Error per akun → warning; laporan tetap dibuat dari akun lain.\n//   Kalau SEMUA akun gagal → throw ADS_SOURCE_UNAVAILABLE (diteruskan ke callback error → refund).\n// - Tidak ada data contoh/palsu: kalau data kosong, laporan menampilkan \"—\".\n\nconst job = $input.first().json;\nconst http = this.helpers.httpRequest.bind(this.helpers);\nconst GRAPH = `https://graph.facebook.com/${job.config.graphVersion}`;\nconst pages = job.template.pages || [];\nconst warnings = [];\n\n// ---------- kebutuhan data dari template ----------\nconst hasKpi = pages.some((p) => p.type === 'kpi');\nconst needPrev = job.compare && pages.some((p) => p.type === 'kpi' && p.compare !== false);\nconst needDaily = pages.some((p) => (p.type === 'trend' && p.granularity !== 'month') || (p.type === 'table' && ['day', 'week'].includes(p.dimension)));\nconst monthPages = pages.filter((p) => p.type === 'trend' && p.granularity === 'month');\nconst months = Math.min(24, Math.max(1, ...monthPages.map((p) => Number(p.months) || 6), 1));\nconst BREAKDOWNS = {\n  publisher_platform: 'publisher_platform',\n  placement: 'publisher_platform,platform_position',\n  age: 'age',\n  gender: 'gender',\n  age_gender: 'age,gender'\n};\nconst bdDims = [...new Set(pages.filter((p) => p.type === 'breakdown' && BREAKDOWNS[p.dimension]).map((p) => p.dimension))];\nconst needAdset = pages.some((p) => p.type === 'table' && p.dimension === 'adset');\nconst needAds = pages.some((p) => p.type === 'creatives' || (p.type === 'table' && p.dimension === 'ad'));\n\nconst BASE_FIELDS = 'spend,impressions,reach,clicks,inline_link_clicks,actions,action_values,video_play_actions';\nconst RESULT_FIELDS = `${BASE_FIELDS},results`;\n\nconst range = (s, e) => JSON.stringify({ since: s, until: e });\nconst monthStart = (() => {\n  const d = new Date(`${job.period.start}T00:00:00Z`);\n  d.setUTCDate(1);\n  d.setUTCMonth(d.getUTCMonth() - (months - 1));\n  return d.toISOString().slice(0, 10);\n})();\n\nconst sleep = (ms) => new Promise((r) => setTimeout(r, ms));\n\nfunction graphError(res) {\n  const e = (res && res.body && res.body.error) || {};\n  return { status: res ? res.statusCode : 0, code: e.code, message: e.message || `HTTP ${res ? res.statusCode : '?'}` };\n}\n\n// GET dengan pagination + 1x retry untuk rate limit (kode 4/17/80004) atau 5xx\nasync function getAll(path, qs, token) {\n  const rows = [];\n  let url = `${GRAPH}/${path}`;\n  let params = { ...qs, limit: qs.limit || 500 };\n  for (let page = 0; page < 20 && url; page++) {\n    let res;\n    for (let attempt = 0; attempt < 2; attempt++) {\n      res = await http({\n        method: 'GET',\n        url,\n        qs: params,\n        headers: { Authorization: `Bearer ${token}` },\n        json: true,\n        returnFullResponse: true,\n        ignoreHttpStatusErrors: true,\n        timeout: 60000\n      });\n      const err = graphError(res);\n      const retryable = res.statusCode >= 500 || [4, 17, 80004].includes(err.code);\n      if (res.statusCode < 400 || !retryable || attempt === 1) break;\n      await sleep(3000);\n    }\n    if (res.statusCode >= 400 || (res.body && res.body.error)) {\n      const err = graphError(res);\n      const e = new Error(err.message);\n      e.graph = err;\n      throw e;\n    }\n    rows.push(...((res.body && res.body.data) || []));\n    url = res.body && res.body.paging && res.body.paging.next;\n    params = undefined; // URL \"next\" sudah membawa semua parameter\n  }\n  return rows;\n}\n\nconst accountsOut = [];\nfor (const acc of job.accounts) {\n  const tok = acc.accessToken;\n  const out = { id: acc.id, externalId: acc.externalId, name: acc.name, currency: acc.currency, ok: true, data: {} };\n  const insights = (qs) => getAll(`${acc.externalId}/insights`, qs, tok);\n  const cur = range(job.period.start, job.period.end);\n  const prev = range(job.prevPeriod.start, job.prevPeriod.end);\n\n  // Permintaan utama: kalau ini gagal (token kedaluwarsa, izin dicabut, akun nonaktif) akun dilewati.\n  try {\n    const acct = await insights({ level: 'account', fields: `account_name,account_currency,${BASE_FIELDS}`, time_range: cur });\n    out.data.account = acct;\n    if (acct[0] && acct[0].account_currency) out.currency = acct[0].account_currency;\n    if (acct[0] && acct[0].account_name) out.name = acct[0].account_name;\n  } catch (e) {\n    out.ok = false;\n    const g = e.graph || {};\n    out.error = { code: g.code || null, message: e.message };\n    warnings.push(`account_unavailable:${acc.externalId}:${g.code || 'ERR'}`);\n    accountsOut.push(out);\n    continue;\n  }\n\n  const optional = async (key, qs) => {\n    try {\n      out.data[key] = await insights(qs);\n    } catch (e) {\n      out.data[key] = [];\n      warnings.push(`fetch_failed:${acc.externalId}:${key}:${(e.graph && e.graph.code) || 'ERR'}`);\n    }\n  };\n\n  // results hanya akurat di level campaign (sama seperti WF 3Our v3.2)\n  await optional('campaigns', { level: 'campaign', fields: `campaign_id,campaign_name,objective,${RESULT_FIELDS}`, time_range: cur });\n  if (needPrev) {\n    await optional('accountPrev', { level: 'account', fields: BASE_FIELDS, time_range: prev });\n    await optional('campaignsPrev', { level: 'campaign', fields: `campaign_id,${RESULT_FIELDS}`, time_range: prev });\n  }\n  if (needDaily) await optional('daily', { level: 'campaign', fields: `campaign_id,${RESULT_FIELDS}`, time_range: cur, time_increment: 1 });\n  if (monthPages.length) await optional('monthly', { level: 'campaign', fields: `campaign_id,${RESULT_FIELDS}`, time_range: range(monthStart, job.period.end), time_increment: 'monthly' });\n  for (const dim of bdDims) {\n    await optional(`bd_${dim}`, { level: 'campaign', fields: `campaign_id,${RESULT_FIELDS}`, time_range: cur, breakdowns: BREAKDOWNS[dim] });\n  }\n  if (needAdset) await optional('adsets', { level: 'adset', fields: `adset_id,adset_name,${RESULT_FIELDS}`, time_range: cur });\n  if (needAds) await optional('ads', { level: 'ad', fields: `ad_id,ad_name,campaign_name,${RESULT_FIELDS}`, time_range: cur, sort: 'spend_descending' });\n\n  accountsOut.push(out);\n}\n\nconst okAccounts = accountsOut.filter((a) => a.ok);\nif (okAccounts.length === 0) {\n  // Tanpa ': ' di pesan — task runner n8n memotong teks sebelum ': ' pada pesan error\n  throw new Error(`ADS_SOURCE_UNAVAILABLE - ${accountsOut.map((a) => `${a.externalId} (${String(a.error && a.error.message).replace(/:\\s*/g, ' - ')})`).join('; ')}`);\n}\n\n// Kurs: hanya kalau mata uang akun berbeda dari mata uang laporan\nlet fx = null;\nconst reportCur = String(job.currency || 'IDR').toUpperCase();\nconst foreign = [...new Set(okAccounts.map((a) => String(a.currency || reportCur).toUpperCase()).filter((c) => c !== reportCur))];\nif (foreign.length) {\n  try {\n    const res = await http({ method: 'GET', url: `https://open.er-api.com/v6/latest/${reportCur}`, json: true, timeout: 20000 });\n    if (res && res.result === 'success' && res.rates) {\n      fx = { base: reportCur, source: 'open.er-api.com', date: res.time_last_update_utc || null, rates: {} };\n      for (const c of foreign) {\n        if (res.rates[c]) fx.rates[c] = res.rates[c];\n        else warnings.push(`fx_missing:${c}`);\n      }\n    } else {\n      warnings.push('fx_unavailable');\n    }\n  } catch (e) {\n    warnings.push('fx_unavailable');\n  }\n}\n\nreturn [{\n  json: {\n    requestId: job.requestId,\n    fetched: { accounts: accountsOut.map(({ ok, error, ...rest }) => ({ ok, error: error || null, ...rest })), fx, monthStart, months },\n    warnings\n  }\n}];\n"
+      },
+      "onError": "continueErrorOutput"
     },
     {
-      "id": "n-process-metrics",
-      "name": "Process Metrics",
+      "id": "n-proses-metrik",
+      "name": "Proses Metrik",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -145,27 +146,64 @@
         300
       ],
       "parameters": {
-        "jsCode": "// automation/src/ads-process-metrics.js\n// Normalisasi & agregasi metrics iklan (PRD F5 §3.2, inlining ads-metrics SSOT)\n\nconst input = $input.first().json;\nconst { fetchedData, template, conversionEvent, currency, compare } = input;\n\n// 1. Helper agregasi dasar (sesuai shared/ads-metrics.js)\nfunction aggregateMetrics(rows) {\n  let spend = 0;\n  let impressions = 0;\n  let reach = 0;\n  let clicks = 0;\n  let link_clicks = 0;\n  let conversions = 0;\n  let conversion_value = 0;\n\n  for (const r of rows) {\n    spend += Number(r.spend || 0);\n    impressions += Number(r.impressions || 0);\n    reach += Number(r.reach || 0);\n    clicks += Number(r.clicks || 0);\n    link_clicks += Number(r.inline_link_clicks || r.link_clicks || 0);\n\n    if (Array.isArray(r.actions)) {\n      const convAction = r.actions.find(a => a.action_type === conversionEvent || a.action_type === 'purchase' || a.action_type === 'lead');\n      if (convAction) conversions += Number(convAction.value || 0);\n    } else if (r.conversions) {\n      conversions += Number(r.conversions || 0);\n    }\n\n    if (Array.isArray(r.action_values)) {\n      const valAction = r.action_values.find(a => a.action_type === conversionEvent || a.action_type === 'purchase');\n      if (valAction) conversion_value += Number(valAction.value || 0);\n    } else if (r.conversion_value) {\n      conversion_value += Number(r.conversion_value || 0);\n    }\n  }\n\n  // Derived metrics (dihitung dari rasio jumlah, bukan rata-rata rasio)\n  const ctr = impressions > 0 ? clicks / impressions : null;\n  const cpc = clicks > 0 ? spend / clicks : null;\n  const cpm = impressions > 0 ? (spend / impressions) * 1000 : null;\n  const cpa = conversions > 0 ? spend / conversions : null;\n  const roas = spend > 0 ? conversion_value / spend : null;\n  const conv_rate = clicks > 0 ? conversions / clicks : null;\n  const frequency = reach > 0 ? impressions / reach : null;\n  const cost_per_result = conversions > 0 ? spend / conversions : null;\n\n  return {\n    spend,\n    impressions,\n    reach,\n    clicks,\n    link_clicks,\n    conversions,\n    results: conversions,\n    conversion_value,\n    purchase_value: conversion_value,\n    ctr,\n    cpc,\n    cpm,\n    cpa,\n    roas,\n    conv_rate,\n    frequency,\n    cost_per_result,\n    cost_per_purchase: cpa\n  };\n}\n\n// Hitung metrik periode aktif dan periode perbandingan\nconst currentMetrics = aggregateMetrics(fetchedData.accountSummaries || []);\nconst prevMetrics = aggregateMetrics(fetchedData.prevSummaries || []);\n\n// Hitung persentase perubahan (delta)\nconst deltas = {};\nfor (const [key, currVal] of Object.entries(currentMetrics)) {\n  const prevVal = prevMetrics[key];\n  if (currVal !== null && prevVal !== null && prevVal > 0) {\n    deltas[key] = Math.round(((currVal - prevVal) / prevVal) * 1000) / 10;\n  } else {\n    deltas[key] = null;\n  }\n}\n\n// Siapkan KPI Cards untuk halaman KPI\nconst kpiCards = [\n  { id: 'impressions', label: 'Impresi', value: currentMetrics.impressions, delta: deltas.impressions, format: 'number' },\n  { id: 'reach', label: 'Jangkauan (Reach)', value: currentMetrics.reach, delta: deltas.reach, format: 'number' },\n  { id: 'clicks', label: 'Total Klik', value: currentMetrics.clicks, delta: deltas.clicks, format: 'number' },\n  { id: 'ctr', label: 'CTR', value: currentMetrics.ctr, delta: deltas.ctr, format: 'percent' },\n  { id: 'spend', label: 'Total Biaya', value: currentMetrics.spend, delta: deltas.spend, format: 'currency' },\n  { id: 'cpc', label: 'CPC Rata-rata', value: currentMetrics.cpc, delta: deltas.cpc, format: 'currency' },\n  { id: 'results', label: 'Hasil (Konversi)', value: currentMetrics.results, delta: deltas.results, format: 'number' },\n  { id: 'roas', label: 'ROAS', value: currentMetrics.roas, delta: deltas.roas, format: 'ratio' }\n];\n\n// Siapkan ringkasan performa untuk AI Prompt\nconst summaryText = `Total Spend: ${currentMetrics.spend} ${currency} (${deltas.spend > 0 ? '+' : ''}${deltas.spend}% vs lalu)\nTotal Impresi: ${currentMetrics.impressions} (${deltas.impressions}%)\nTotal Klik: ${currentMetrics.clicks} (CTR: ${(currentMetrics.ctr * 100).toFixed(2)}%)\nTotal Konversi: ${currentMetrics.conversions} (CPA: ${currentMetrics.cpa})\nROAS: ${currentMetrics.roas ? currentMetrics.roas.toFixed(2) : 'N/A'}`;\n\nreturn [{\n  json: {\n    ...input,\n    processed: {\n      currentMetrics,\n      prevMetrics,\n      deltas,\n      kpiCards,\n      summaryText\n    }\n  }\n}];\n"
-      }
+        "jsCode": "// automation/src/ads-process-metrics.js\n// Normalisasi data Meta → hitung metrics (modul SSOT shared/ads-metrics.js, di-inline saat build)\n// → susun model per halaman template (teks, KPI, tabel, data grafik, creative) + prompt AI.\n// PRD F5 §3.2, §3.3, §3.7 langkah 2/2a.\n\n// ==== shared/ads-metrics.js (di-inline oleh build-workflows.mjs) ====\n// backend/shared/ads-metrics.js\n// Pustaka metrics iklan (Meta Ads & rancangan Google Ads).\n// Modul JS murni, tanpa dependensi eksternal, digunakan oleh backend, frontend, dan n8n.\n\nconst BASE_METRICS = {\n  spend: {\n    id: 'spend',\n    unit: 'currency',\n    agg: 'sum',\n    sources: { meta: 'spend', google: 'metrics.cost_micros / 1e6' },\n    labels: { en: 'Amount Spent', id: 'Biaya Iklan' }\n  },\n  impressions: {\n    id: 'impressions',\n    unit: 'number',\n    agg: 'sum',\n    sources: { meta: 'impressions', google: 'metrics.impressions' },\n    labels: { en: 'Impressions', id: 'Impresi' }\n  },\n  reach: {\n    id: 'reach',\n    unit: 'number',\n    agg: 'sum',\n    sources: { meta: 'reach', google: null },\n    labels: { en: 'Reach', id: 'Jangkauan' }\n  },\n  clicks: {\n    id: 'clicks',\n    unit: 'number',\n    agg: 'sum',\n    sources: { meta: 'clicks', google: 'metrics.clicks' },\n    labels: { en: 'Clicks (All)', id: 'Klik (Semua)' }\n  },\n  link_clicks: {\n    id: 'link_clicks',\n    unit: 'number',\n    agg: 'sum',\n    sources: { meta: 'inline_link_clicks', google: 'metrics.clicks' },\n    labels: { en: 'Link Clicks', id: 'Klik Tautan' }\n  },\n  conversions: {\n    id: 'conversions',\n    unit: 'number',\n    agg: 'sum',\n    sources: { meta: 'actions', google: 'metrics.conversions' },\n    labels: { en: 'Conversions', id: 'Konversi' }\n  },\n  conversion_value: {\n    id: 'conversion_value',\n    unit: 'currency',\n    agg: 'sum',\n    sources: { meta: 'action_values', google: 'metrics.conversions_value' },\n    labels: { en: 'Conversion Value', id: 'Nilai Konversi' }\n  },\n  leads: {\n    id: 'leads',\n    unit: 'number',\n    agg: 'sum',\n    sources: { meta: 'actions.lead', google: null },\n    labels: { en: 'Leads', id: 'Prospek (Leads)' }\n  },\n  purchases: {\n    id: 'purchases',\n    unit: 'number',\n    agg: 'sum',\n    sources: { meta: 'actions.purchase', google: null },\n    labels: { en: 'Purchases', id: 'Pembelian' }\n  },\n  video_views: {\n    id: 'video_views',\n    unit: 'number',\n    agg: 'sum',\n    sources: { meta: 'video_play_actions', google: 'metrics.video_views' },\n    labels: { en: 'Video Views', id: 'Penayangan Video' }\n  },\n  results: {\n    id: 'results',\n    unit: 'number',\n    agg: 'sum',\n    sources: { meta: 'results', google: 'metrics.conversions' },\n    labels: { en: 'Results', id: 'Hasil' }\n  },\n  purchase_value: {\n    id: 'purchase_value',\n    unit: 'currency',\n    agg: 'sum',\n    sources: { meta: 'action_values.purchase', google: null },\n    labels: { en: 'Purchase Value', id: 'Nilai Pembelian' }\n  }\n};\n\nconst DERIVED_METRICS = {\n  cost_per_result: {\n    id: 'cost_per_result',\n    unit: 'currency',\n    formula: 'spend / results',\n    calculate: (m) => safeDivide(m.spend, m.results),\n    labels: { en: 'Cost per Result', id: 'Biaya per Hasil' }\n  },\n  cost_per_purchase: {\n    id: 'cost_per_purchase',\n    unit: 'currency',\n    formula: 'spend / purchases',\n    calculate: (m) => safeDivide(m.spend, m.purchases),\n    labels: { en: 'Cost per Purchase', id: 'Biaya per Pembelian' }\n  },\n  ctr: {\n    id: 'ctr',\n    unit: 'percent',\n    formula: 'clicks / impressions',\n    calculate: (m) => safeDivide(m.clicks, m.impressions),\n    labels: { en: 'CTR (All)', id: 'CTR' }\n  },\n  cpc: {\n    id: 'cpc',\n    unit: 'currency',\n    formula: 'spend / clicks',\n    calculate: (m) => safeDivide(m.spend, m.clicks),\n    labels: { en: 'CPC (All)', id: 'CPC' }\n  },\n  cpm: {\n    id: 'cpm',\n    unit: 'currency',\n    formula: '(spend / impressions) * 1000',\n    calculate: (m) => {\n      const res = safeDivide(m.spend, m.impressions);\n      return res !== null ? res * 1000 : null;\n    },\n    labels: { en: 'CPM', id: 'CPM' }\n  },\n  cpa: {\n    id: 'cpa',\n    unit: 'currency',\n    formula: 'spend / conversions',\n    calculate: (m) => safeDivide(m.spend, m.conversions),\n    labels: { en: 'CPA', id: 'CPA (Biaya per Konversi)' }\n  },\n  roas: {\n    id: 'roas',\n    unit: 'ratio',\n    formula: 'conversion_value / spend',\n    calculate: (m) => safeDivide(m.conversion_value, m.spend),\n    labels: { en: 'ROAS', id: 'ROAS' }\n  },\n  frequency: {\n    id: 'frequency',\n    unit: 'ratio',\n    platform: 'meta',\n    formula: 'impressions / reach',\n    calculate: (m) => (m.reach ? safeDivide(m.impressions, m.reach) : null),\n    labels: { en: 'Frequency', id: 'Frekuensi' }\n  },\n  conv_rate: {\n    id: 'conv_rate',\n    unit: 'percent',\n    formula: 'conversions / clicks',\n    calculate: (m) => safeDivide(m.conversions, m.clicks),\n    labels: { en: 'Conversion Rate', id: 'Tingkat Konversi' }\n  }\n};\n\nconst ALL_METRICS = { ...BASE_METRICS, ...DERIVED_METRICS };\n\nfunction isKnownMetric(id) {\n  return Boolean(ALL_METRICS[id]);\n}\n\nfunction safeDivide(numerator, denominator) {\n  if (numerator === null || numerator === undefined || denominator === null || denominator === undefined) {\n    return null;\n  }\n  const num = Number(numerator);\n  const den = Number(denominator);\n  if (isNaN(num) || isNaN(den) || den === 0) {\n    return null;\n  }\n  return num / den;\n}\n\n/**\n * Agregasi baris data mentah ke metrics terhitung.\n * Menghitung base metrics dari SUM baris, lalu menghitung derived metrics dari SUM tersebut\n * (bukan rata-rata rasio per baris).\n */\nfunction aggregateRows(rows = [], { customMetrics = [] } = {}) {\n  const sums = {};\n  for (const key of Object.keys(BASE_METRICS)) {\n    sums[key] = 0;\n  }\n\n  let rowCount = 0;\n  for (const row of rows) {\n    if (!row) continue;\n    rowCount++;\n    for (const key of Object.keys(BASE_METRICS)) {\n      const val = row[key];\n      if (val !== null && val !== undefined && !isNaN(Number(val))) {\n        sums[key] += Number(val);\n      }\n    }\n  }\n\n  // Jika tidak ada data sama sekali\n  const result = {};\n  for (const key of Object.keys(BASE_METRICS)) {\n    result[key] = rowCount > 0 ? sums[key] : null;\n  }\n\n  // Hitung derived metrics dari jumlah agregat\n  for (const [key, def] of Object.entries(DERIVED_METRICS)) {\n    result[key] = def.calculate(result);\n  }\n\n  // Hitung custom metrics jika ada\n  if (Array.isArray(customMetrics)) {\n    for (const cm of customMetrics) {\n      if (!cm || !cm.id || !cm.formula) continue;\n      const customKey = cm.id.startsWith('custom:') ? cm.id : `custom:${cm.id}`;\n      try {\n        result[customKey] = evaluateFormula(cm.formula, result);\n      } catch {\n        result[customKey] = null;\n      }\n    }\n  }\n\n  return result;\n}\n\n// =====================================================================\n// FORMULA PARSER & EVALUATOR (Shunting-Yard, tanpa eval / new Function)\n// =====================================================================\n\nconst TOKEN_TYPES = {\n  NUMBER: 'NUMBER',\n  IDENTIFIER: 'IDENTIFIER',\n  OPERATOR: 'OPERATOR',\n  LPAREN: 'LPAREN',\n  RPAREN: 'RPAREN'\n};\n\nconst OPERATORS = {\n  '+': { precedence: 1, assoc: 'L', fn: (a, b) => a + b },\n  '-': { precedence: 1, assoc: 'L', fn: (a, b) => a - b },\n  '*': { precedence: 2, assoc: 'L', fn: (a, b) => a * b },\n  '/': { precedence: 2, assoc: 'L', fn: (a, b) => safeDivide(a, b) }\n};\n\n/**\n * Tokenize string formula\n */\nfunction tokenizeFormula(formula) {\n  if (typeof formula !== 'string') {\n    throw { message: 'Formula must be a string', position: 0 };\n  }\n  if (formula.length > 200) {\n    throw { message: 'Formula exceeds maximum length of 200 characters', position: 200 };\n  }\n\n  const tokens = [];\n  let i = 0;\n\n  while (i < formula.length) {\n    const ch = formula[i];\n\n    if (/\\s/.test(ch)) {\n      i++;\n      continue;\n    }\n\n    if (ch === '(') {\n      tokens.push({ type: TOKEN_TYPES.LPAREN, value: '(', position: i });\n      i++;\n      continue;\n    }\n\n    if (ch === ')') {\n      tokens.push({ type: TOKEN_TYPES.RPAREN, value: ')', position: i });\n      i++;\n      continue;\n    }\n\n    if (ch in OPERATORS) {\n      // Penanganan unari minus: jika '-' berada di awal atau setelah '(' atau operator lain\n      const prev = tokens[tokens.length - 1];\n      if (ch === '-' && (!prev || prev.type === TOKEN_TYPES.LPAREN || prev.type === TOKEN_TYPES.OPERATOR)) {\n        // Anggap sebagai 0 - x dengan menyisipkan token 0 dan minus\n        tokens.push({ type: TOKEN_TYPES.NUMBER, value: 0, position: i });\n      }\n      tokens.push({ type: TOKEN_TYPES.OPERATOR, value: ch, position: i });\n      i++;\n      continue;\n    }\n\n    // Number literal (integer atau float)\n    if (/[0-9]/.test(ch) || (ch === '.' && /[0-9]/.test(formula[i + 1] || ''))) {\n      const start = i;\n      let numStr = '';\n      let hasDot = false;\n      while (i < formula.length) {\n        const c = formula[i];\n        if (/[0-9]/.test(c)) {\n          numStr += c;\n          i++;\n        } else if (c === '.' && !hasDot) {\n          hasDot = true;\n          numStr += c;\n          i++;\n        } else {\n          break;\n        }\n      }\n      tokens.push({ type: TOKEN_TYPES.NUMBER, value: parseFloat(numStr), position: start });\n      continue;\n    }\n\n    // Identifier (nama metric dasar atau turunan)\n    if (/[a-zA-Z_]/.test(ch)) {\n      const start = i;\n      let ident = '';\n      while (i < formula.length && /[a-zA-Z0-9_]/.test(formula[i])) {\n        ident += formula[i];\n        i++;\n      }\n\n      // Tolak referensi custom: lain untuk mencegah siklus\n      if (ident.toLowerCase().startsWith('custom')) {\n        throw { message: 'Custom metrics cannot reference other custom metrics', position: start };\n      }\n\n      tokens.push({ type: TOKEN_TYPES.IDENTIFIER, value: ident, position: start });\n      continue;\n    }\n\n    // Karakter ilegal (misal: ;, &, $, dsb)\n    throw { message: `Unexpected character: '${ch}'`, position: i };\n  }\n\n  return tokens;\n}\n\n/**\n * Validasi sintaks formula dan identifier yang dipakai.\n */\nfunction validateFormula(formula) {\n  if (!formula || typeof formula !== 'string' || !formula.trim()) {\n    return { valid: false, error: 'Formula cannot be empty', position: 0 };\n  }\n  if (formula.length > 200) {\n    return { valid: false, error: 'Formula exceeds maximum length of 200 characters', position: 200 };\n  }\n\n  let tokens;\n  try {\n    tokens = tokenizeFormula(formula);\n  } catch (err) {\n    return { valid: false, error: err.message, position: err.position };\n  }\n\n  if (tokens.length === 0) {\n    return { valid: false, error: 'Formula contains no tokens', position: 0 };\n  }\n\n  // Validasi identifier adalah metric dasar / turunan yang valid\n  for (const t of tokens) {\n    if (t.type === TOKEN_TYPES.IDENTIFIER) {\n      if (!isKnownMetric(t.value)) {\n        return {\n          valid: false,\n          error: `Unknown metric '${t.value}' in formula`,\n          position: t.position\n        };\n      }\n    }\n  }\n\n  // Validasi grammar Shunting-Yard\n  try {\n    const rpn = parseToRPN(tokens);\n    if (rpn.length === 0) {\n      return { valid: false, error: 'Empty expression', position: 0 };\n    }\n  } catch (err) {\n    return { valid: false, error: err.message, position: err.position };\n  }\n\n  return { valid: true };\n}\n\n/**\n * Konversi daftar token ke Reverse Polish Notation (RPN) via Shunting-Yard\n */\nfunction parseToRPN(tokens) {\n  const outputQueue = [];\n  const operatorStack = [];\n  let expectOperand = true;\n\n  for (let idx = 0; idx < tokens.length; idx++) {\n    const token = tokens[idx];\n\n    if (token.type === TOKEN_TYPES.NUMBER || token.type === TOKEN_TYPES.IDENTIFIER) {\n      if (!expectOperand) {\n        throw { message: `Unexpected operand '${token.value}'`, position: token.position };\n      }\n      outputQueue.push(token);\n      expectOperand = false;\n    } else if (token.type === TOKEN_TYPES.OPERATOR) {\n      if (expectOperand) {\n        throw { message: `Unexpected operator '${token.value}'`, position: token.position };\n      }\n      const op1 = token.value;\n      const o1 = OPERATORS[op1];\n\n      while (operatorStack.length > 0) {\n        const top = operatorStack[operatorStack.length - 1];\n        if (top.type === TOKEN_TYPES.OPERATOR) {\n          const o2 = OPERATORS[top.value];\n          if ((o1.assoc === 'L' && o1.precedence <= o2.precedence) ||\n              (o1.assoc === 'R' && o1.precedence < o2.precedence)) {\n            outputQueue.push(operatorStack.pop());\n            continue;\n          }\n        }\n        break;\n      }\n      operatorStack.push(token);\n      expectOperand = true;\n    } else if (token.type === TOKEN_TYPES.LPAREN) {\n      operatorStack.push(token);\n      expectOperand = true;\n    } else if (token.type === TOKEN_TYPES.RPAREN) {\n      if (expectOperand) {\n        throw { message: \"Unexpected ')' before operand\", position: token.position };\n      }\n      let foundMatching = false;\n      while (operatorStack.length > 0) {\n        const top = operatorStack.pop();\n        if (top.type === TOKEN_TYPES.LPAREN) {\n          foundMatching = true;\n          break;\n        }\n        outputQueue.push(top);\n      }\n      if (!foundMatching) {\n        throw { message: 'Mismatched parentheses: missing opening bracket', position: token.position };\n      }\n      expectOperand = false;\n    }\n  }\n\n  if (expectOperand) {\n    const lastPos = tokens.length > 0 ? tokens[tokens.length - 1].position + 1 : 0;\n    throw { message: 'Formula ends prematurely with dangling operator or empty bracket', position: lastPos };\n  }\n\n  while (operatorStack.length > 0) {\n    const top = operatorStack.pop();\n    if (top.type === TOKEN_TYPES.LPAREN || top.type === TOKEN_TYPES.RPAREN) {\n      throw { message: 'Mismatched parentheses: unclosed bracket', position: top.position };\n    }\n    outputQueue.push(top);\n  }\n\n  return outputQueue;\n}\n\n/**\n * Evaluasi formula dengan nilai metric yang diberikan.\n * Mengembalikan number atau null (misal pembagian dengan nol atau nilai metric null).\n */\nfunction evaluateFormula(formula, metricValues = {}) {\n  const validation = validateFormula(formula);\n  if (!validation.valid) {\n    throw new Error(`Invalid formula: ${validation.error} at position ${validation.position}`);\n  }\n\n  const tokens = tokenizeFormula(formula);\n  const rpn = parseToRPN(tokens);\n  const evalStack = [];\n\n  for (const token of rpn) {\n    if (token.type === TOKEN_TYPES.NUMBER) {\n      evalStack.push(token.value);\n    } else if (token.type === TOKEN_TYPES.IDENTIFIER) {\n      const rawVal = metricValues[token.value];\n      if (rawVal === null || rawVal === undefined) {\n        return null;\n      }\n      const val = Number(rawVal);\n      if (isNaN(val)) return null;\n      evalStack.push(val);\n    } else if (token.type === TOKEN_TYPES.OPERATOR) {\n      if (evalStack.length < 2) {\n        return null;\n      }\n      const b = evalStack.pop();\n      const a = evalStack.pop();\n      if (a === null || b === null) return null;\n\n      const opDef = OPERATORS[token.value];\n      const res = opDef.fn(a, b);\n      if (res === null || isNaN(res)) {\n        return null;\n      }\n      evalStack.push(res);\n    }\n  }\n\n  if (evalStack.length !== 1) {\n    return null;\n  }\n  const finalVal = evalStack[0];\n  return finalVal === null || isNaN(finalVal) ? null : finalVal;\n}\n\n// =====================================================================\n\nconst job = $('Auth & Normalize (Ads)').first().json;\nconst fetched = $input.first().json.fetched;\nconst warnings = [...($input.first().json.warnings || [])];\nconst http = this.helpers.httpRequest.bind(this.helpers);\n\nconst locale = job.locale === 'en' ? 'en' : 'id';\nconst L = (id, en) => (locale === 'en' ? en : id);\nconst reportCur = String(job.currency || 'IDR').toUpperCase();\nconst customMetrics = (job.customMetrics || []).map((c) => ({ ...c, id: String(c.id).startsWith('custom:') ? c.id : `custom:${c.id}` }));\nconst customById = Object.fromEntries(customMetrics.map((c) => [c.id, c]));\nconst okAccounts = fetched.accounts.filter((a) => a.ok);\n\n// ---------------- normalisasi baris Meta ----------------\nconst num = (v) => {\n  const n = Number(v);\n  return Number.isFinite(n) ? n : 0;\n};\nconst ACTION_TYPES = {\n  purchase: ['omni_purchase', 'purchase', 'offsite_conversion.fb_pixel_purchase'],\n  lead: ['lead', 'onsite_conversion.lead_grouped', 'offsite_conversion.fb_pixel_lead']\n};\nfunction pickAction(arr, types) {\n  if (!Array.isArray(arr)) return 0;\n  for (const t of types) {\n    const f = arr.find((a) => a.action_type === t);\n    if (f) return num(f.value);\n  }\n  return 0;\n}\nconst sumVals = (arr) => (Array.isArray(arr) ? arr.reduce((s, x) => s + num(x && x.values && x.values[0] ? x.values[0].value : x && x.value), 0) : null);\nconst convTypes = ACTION_TYPES[job.conversionEvent] || [job.conversionEvent];\n\nfunction fxFactor(acc) {\n  const cur = String(acc.currency || reportCur).toUpperCase();\n  if (cur === reportCur) return 1;\n  const rate = fetched.fx && fetched.fx.rates && fetched.fx.rates[cur];\n  return rate ? 1 / rate : 1;\n}\n\nfunction normalize(row, factor) {\n  if (!row) return null;\n  return {\n    spend: num(row.spend) * factor,\n    impressions: num(row.impressions),\n    reach: row.reach === undefined ? null : num(row.reach),\n    clicks: num(row.clicks),\n    link_clicks: num(row.inline_link_clicks),\n    conversions: pickAction(row.actions, convTypes),\n    conversion_value: pickAction(row.action_values, convTypes) * factor,\n    leads: pickAction(row.actions, ACTION_TYPES.lead),\n    purchases: pickAction(row.actions, ACTION_TYPES.purchase),\n    video_views: sumVals(row.video_play_actions) || 0,\n    results: row.results === undefined ? null : sumVals(row.results),\n    purchase_value: pickAction(row.action_values, ACTION_TYPES.purchase) * factor\n  };\n}\nconst agg = (rows) => aggregateRows(rows.filter(Boolean), { customMetrics });\n\n// ---------------- total periode & pembanding ----------------\nfunction accountTotals(acc, accKey, campKey) {\n  const f = fxFactor(acc);\n  const accRow = normalize((acc.data[accKey] || [])[0], f);\n  if (!accRow) return null;\n  const camps = acc.data[campKey];\n  // results tidak tersedia di level account → jumlahkan dari level campaign\n  accRow.results = Array.isArray(camps) ? camps.reduce((s, c) => s + (sumVals(c.results) || 0), 0) : null;\n  return accRow;\n}\nconst perAccountCur = okAccounts.map((a) => ({ acc: a, m: agg([accountTotals(a, 'account', 'campaigns')]) }));\nconst totals = agg(okAccounts.map((a) => accountTotals(a, 'account', 'campaigns')));\nconst prevRows = okAccounts.map((a) => (a.data.accountPrev ? accountTotals(a, 'accountPrev', 'campaignsPrev') : null)).filter(Boolean);\nconst prevTotals = prevRows.length ? agg(prevRows) : null;\n\n// ---------------- format ----------------\nconst NF = (opts) => new Intl.NumberFormat(locale === 'en' ? 'en-US' : 'id-ID', opts);\nconst CUR_DEC = ['IDR', 'JPY', 'KRW', 'VND'].includes(reportCur) ? 0 : 2;\nconst LOWER_IS_BETTER = new Set(['cpc', 'cpm', 'cpa', 'cost_per_result', 'cost_per_purchase']);\n\nfunction metricDef(id) {\n  if (customById[id]) {\n    const c = customById[id];\n    return { unit: c.unit || 'number', decimals: Number.isFinite(Number(c.decimals)) ? Number(c.decimals) : 2, label: c.name || id };\n  }\n  const d = ALL_METRICS[id];\n  if (!d) return { unit: 'number', decimals: 0, label: id };\n  return { unit: d.unit, decimals: null, label: (d.labels && d.labels[locale]) || id };\n}\nconst label = (id) => metricDef(id).label;\nfunction fmt(id, v) {\n  if (v === null || v === undefined || !Number.isFinite(Number(v))) return '—';\n  const d = metricDef(id);\n  const n = Number(v);\n  if (d.unit === 'currency') return NF({ style: 'currency', currency: reportCur, maximumFractionDigits: CUR_DEC, minimumFractionDigits: CUR_DEC }).format(n);\n  if (d.unit === 'percent') return `${NF({ maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(n * 100)}%`;\n  if (d.unit === 'ratio') return `${NF({ maximumFractionDigits: 2, minimumFractionDigits: 2 }).format(n)}x`;\n  return NF({ maximumFractionDigits: d.decimals === null ? 0 : d.decimals }).format(n);\n}\nfunction delta(id, cur, prev) {\n  if (cur === null || cur === undefined || prev === null || prev === undefined || Number(prev) === 0) return { text: '', dir: 0 };\n  const pct = (Number(cur) - Number(prev)) / Math.abs(Number(prev));\n  const dir = pct > 0.0005 ? 1 : pct < -0.0005 ? -1 : 0;\n  const good = LOWER_IS_BETTER.has(id) ? dir < 0 : id === 'spend' ? null : dir > 0;\n  const arrow = dir > 0 ? '▲' : dir < 0 ? '▼' : '=';\n  return { text: `${arrow} ${NF({ maximumFractionDigits: 1, minimumFractionDigits: 1 }).format(Math.abs(pct) * 100)}%`, dir, good };\n}\n// nilai mentah untuk grafik (persen → ×100)\nconst chartVal = (id, v) => (v === null || v === undefined || !Number.isFinite(Number(v)) ? 0 : metricDef(id).unit === 'percent' ? Math.round(Number(v) * 10000) / 100 : Math.round(Number(v) * 100) / 100);\nconst chartLabel = (id) => (metricDef(id).unit === 'percent' ? `${label(id)} (%)` : label(id));\n\nconst MONTHS = {\n  id: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'],\n  en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']\n};\nconst MONTHS_LONG = {\n  id: ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'],\n  en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']\n};\nfunction periodLabel(s, e) {\n  const a = new Date(`${s}T00:00:00Z`);\n  const b = new Date(`${e}T00:00:00Z`);\n  const lastDay = new Date(Date.UTC(b.getUTCFullYear(), b.getUTCMonth() + 1, 0)).getUTCDate();\n  if (a.getUTCDate() === 1 && b.getUTCDate() === lastDay && a.getUTCMonth() === b.getUTCMonth() && a.getUTCFullYear() === b.getUTCFullYear()) {\n    return `${MONTHS_LONG[locale][a.getUTCMonth()]} ${a.getUTCFullYear()}`;\n  }\n  const d = (x) => `${x.getUTCDate()} ${MONTHS[locale][x.getUTCMonth()]} ${x.getUTCFullYear()}`;\n  return `${d(a)} – ${d(b)}`;\n}\nconst PERIOD = periodLabel(job.period.start, job.period.end);\nconst ACCOUNT_NAMES = okAccounts.map((a) => a.name).join(', ');\n\nfunction applyPh(text) {\n  return String(text || '')\n    .replace(/\\{\\{\\s*period\\s*\\}\\}/g, PERIOD)\n    .replace(/\\{\\{\\s*account_name\\s*\\}\\}/g, ACCOUNT_NAMES)\n    .replace(/\\{\\{\\s*ads_platform\\s*\\}\\}/g, 'Meta Ads')\n    .replace(/\\{\\{\\s*(client_name|workspace_name)\\s*\\}\\}/g, job.workspaceName || ACCOUNT_NAMES)\n    .replace(/\\{\\{\\s*metric:([a-z0-9_:\\-]+)\\s*\\}\\}/gi, (m, id) => fmt(id, totals[id]));\n}\n\n// ---------------- pengelompokan ----------------\nfunction groupBy(rowsWithAcc, keyFn, nameFn) {\n  const groups = new Map();\n  for (const { row, acc } of rowsWithAcc) {\n    const key = keyFn(row);\n    if (key === null || key === undefined) continue;\n    if (!groups.has(key)) groups.set(key, { key, name: nameFn ? nameFn(row) : key, rows: [] });\n    groups.get(key).rows.push(normalize(row, fxFactor(acc)));\n  }\n  return [...groups.values()].map((g) => ({ key: g.key, name: g.name, m: agg(g.rows) }));\n}\nconst rowsOf = (key) => okAccounts.flatMap((acc) => (acc.data[key] || []).map((row) => ({ row, acc })));\n\nconst OBJECTIVES = {\n  OUTCOME_SALES: ['Penjualan', 'Sales'], OUTCOME_LEADS: ['Prospek', 'Leads'], OUTCOME_TRAFFIC: ['Traffic', 'Traffic'],\n  OUTCOME_ENGAGEMENT: ['Interaksi', 'Engagement'], OUTCOME_AWARENESS: ['Awareness', 'Awareness'], OUTCOME_APP_PROMOTION: ['Promosi Aplikasi', 'App Promotion'],\n  CONVERSIONS: ['Konversi', 'Conversions'], LINK_CLICKS: ['Traffic', 'Traffic'], MESSAGES: ['Pesan', 'Messages'],\n  REACH: ['Jangkauan', 'Reach'], BRAND_AWARENESS: ['Awareness', 'Awareness'], VIDEO_VIEWS: ['Video Views', 'Video Views'], POST_ENGAGEMENT: ['Interaksi', 'Engagement']\n};\nconst cap = (s) => String(s || '').replace(/_/g, ' ').replace(/\\b\\w/g, (c) => c.toUpperCase());\nconst GENDER = { male: ['Pria', 'Male'], female: ['Wanita', 'Female'], unknown: ['Tidak diketahui', 'Unknown'] };\nconst gender = (g) => (GENDER[g] ? GENDER[g][locale === 'en' ? 1 : 0] : cap(g));\nconst objective = (o) => (OBJECTIVES[o] ? OBJECTIVES[o][locale === 'en' ? 1 : 0] : cap(o || L('Lainnya', 'Other')));\n\nfunction breakdownGroups(dim) {\n  if (dim === 'objective') return groupBy(rowsOf('campaigns'), (r) => r.objective || 'OTHER', (r) => objective(r.objective));\n  const rows = rowsOf(`bd_${dim}`);\n  if (dim === 'publisher_platform') return groupBy(rows, (r) => r.publisher_platform, (r) => cap(r.publisher_platform));\n  if (dim === 'placement') return groupBy(rows, (r) => `${r.publisher_platform}|${r.platform_position}`, (r) => `${cap(r.publisher_platform)} · ${cap(r.platform_position)}`);\n  if (dim === 'age') return groupBy(rows, (r) => r.age, (r) => r.age);\n  if (dim === 'gender') return groupBy(rows, (r) => r.gender, (r) => gender(r.gender));\n  if (dim === 'age_gender') return groupBy(rows, (r) => `${r.age}|${r.gender}`, (r) => `${r.age} ${gender(r.gender)}`);\n  return [];\n}\n\nfunction isoWeekStart(dateStr) {\n  const d = new Date(`${dateStr}T00:00:00Z`);\n  const day = (d.getUTCDay() + 6) % 7;\n  d.setUTCDate(d.getUTCDate() - day);\n  return d.toISOString().slice(0, 10);\n}\nconst dayLabel = (s) => {\n  const d = new Date(`${s}T00:00:00Z`);\n  return `${d.getUTCDate()} ${MONTHS[locale][d.getUTCMonth()]}`;\n};\nconst monthLabel = (s) => {\n  const d = new Date(`${s}T00:00:00Z`);\n  return `${MONTHS[locale][d.getUTCMonth()]} ${String(d.getUTCFullYear()).slice(2)}`;\n};\n\nfunction sortRows(groups, sortSpec, fallback) {\n  const spec = sortSpec || fallback || '-spend';\n  const desc = spec.startsWith('-');\n  const key = spec.replace(/^[-+]/, '');\n  return [...groups].sort((a, b) => {\n    const va = a.m[key];\n    const vb = b.m[key];\n    if (va === null || va === undefined) return 1;\n    if (vb === null || vb === undefined) return -1;\n    return desc ? vb - va : va - vb;\n  });\n}\n\nfunction tableGroups(dim) {\n  if (dim === 'campaign') return groupBy(rowsOf('campaigns'), (r) => r.campaign_id, (r) => r.campaign_name);\n  if (dim === 'adset') return groupBy(rowsOf('adsets'), (r) => r.adset_id, (r) => r.adset_name);\n  if (dim === 'ad') return groupBy(rowsOf('ads'), (r) => r.ad_id, (r) => r.ad_name);\n  if (dim === 'account') return perAccountCur.map(({ acc, m }) => ({ key: acc.externalId, name: acc.name, m }));\n  if (dim === 'platform') return [{ key: 'meta', name: 'Meta Ads', m: totals }];\n  if (dim === 'day') return groupBy(rowsOf('daily'), (r) => r.date_start, (r) => dayLabel(r.date_start));\n  if (dim === 'week') return groupBy(rowsOf('daily'), (r) => isoWeekStart(r.date_start), (r) => `${L('Minggu', 'Week of')} ${dayLabel(isoWeekStart(r.date_start))}`);\n  return [];\n}\nconst DIM_LABEL = {\n  campaign: ['Campaign', 'Campaign'], adset: ['Ad Set', 'Ad Set'], ad: ['Iklan', 'Ad'], account: ['Akun', 'Account'],\n  platform: ['Platform', 'Platform'], day: ['Tanggal', 'Date'], week: ['Minggu', 'Week']\n};\n\n// ---------------- creative ----------------\nconst adGroups = okAccounts.length ? groupBy(rowsOf('ads'), (r) => r.ad_id, (r) => r.ad_name) : [];\nconst adAccount = new Map(rowsOf('ads').map(({ row, acc }) => [row.ad_id, acc]));\nconst usedAds = new Set();\nasync function creativeImage(adId) {\n  const acc = adAccount.get(adId);\n  const tokenAcc = job.accounts.find((a) => a.externalId === (acc && acc.externalId));\n  if (!tokenAcc) return null;\n  try {\n    const res = await http({\n      method: 'GET',\n      url: `https://graph.facebook.com/${job.config.graphVersion}/${adId}`,\n      qs: { fields: 'creative{image_url,thumbnail_url}', thumbnail_width: 600, thumbnail_height: 600 },\n      headers: { Authorization: `Bearer ${tokenAcc.accessToken}` },\n      json: true,\n      returnFullResponse: true,\n      ignoreHttpStatusErrors: true,\n      timeout: 30000\n    });\n    const c = res.statusCode < 400 && res.body && res.body.creative;\n    return (c && (c.image_url || c.thumbnail_url)) || null;\n  } catch (e) {\n    return null;\n  }\n}\n\n// ---------------- susun halaman ----------------\nconst model = [];\nconst charts = [];\nconst aiTasks = [];\nconst aiFacts = [];\n\naiFacts.push(`${L('Periode', 'Period')}: ${PERIOD} (${job.period.start} s.d. ${job.period.end})`);\naiFacts.push(`${L('Akun', 'Accounts')}: ${ACCOUNT_NAMES}`);\nfor (const id of ['spend', 'impressions', 'reach', 'clicks', 'ctr', 'cpc', 'cpm', 'results', 'cost_per_result', 'conversions', 'cpa', 'conversion_value', 'roas']) {\n  const d = prevTotals ? delta(id, totals[id], prevTotals[id]).text : '';\n  aiFacts.push(`- ${label(id)}: ${fmt(id, totals[id])}${prevTotals ? ` (${L('periode lalu', 'previous')}: ${fmt(id, prevTotals[id])}${d ? `, ${d}` : ''})` : ''}`);\n}\nconst topCamps = sortRows(groupBy(rowsOf('campaigns'), (r) => r.campaign_id, (r) => r.campaign_name), '-spend').slice(0, 8);\nif (topCamps.length) {\n  aiFacts.push(L('Campaign teratas (biaya):', 'Top campaigns (spend):'));\n  for (const c of topCamps) aiFacts.push(`- ${c.name}: ${label('spend')} ${fmt('spend', c.m.spend)}, ${label('results')} ${fmt('results', c.m.results)}, ${label('cost_per_result')} ${fmt('cost_per_result', c.m.cost_per_result)}, CTR ${fmt('ctr', c.m.ctr)}`);\n}\n\nfor (let i = 0; i < job.template.pages.length; i++) {\n  const p = job.template.pages[i];\n  const page = { index: i, type: p.type, title: applyPh(p.title || ''), subtitle: applyPh(p.subtitle || '') };\n\n  if (p.type === 'kpi') {\n    const ids = (p.metrics || []).slice(0, 8);\n    page.kpis = ids.map((id) => {\n      const d = prevTotals && p.compare !== false ? delta(id, totals[id], prevTotals[id]) : { text: '', dir: 0 };\n      return { id, label: label(id), value: fmt(id, totals[id]), delta: d.text, good: d.good === undefined ? null : d.good };\n    });\n  } else if (p.type === 'trend') {\n    const ids = (p.metrics || []).slice(0, 3);\n    let groups;\n    if (p.granularity === 'month') {\n      const g = groupBy(rowsOf('monthly'), (r) => r.date_start.slice(0, 7), (r) => monthLabel(r.date_start));\n      const byKey = new Map(g.map((x) => [x.key, x]));\n      groups = [];\n      const d = new Date(`${fetched.monthStart}T00:00:00Z`);\n      const n = Number(p.months) || 6;\n      const startOffset = fetched.months - n;\n      d.setUTCMonth(d.getUTCMonth() + startOffset);\n      for (let k = 0; k < n; k++) {\n        const key = d.toISOString().slice(0, 7);\n        groups.push(byKey.get(key) || { key, name: monthLabel(`${key}-01`), m: agg([]) });\n        d.setUTCMonth(d.getUTCMonth() + 1);\n      }\n    } else {\n      groups = groupBy(rowsOf('daily'), (r) => r.date_start, (r) => dayLabel(r.date_start)).sort((a, b) => (a.key < b.key ? -1 : 1));\n    }\n    page.chart = { kind: p.chart || (p.granularity === 'month' ? 'combo' : 'bar'), header: ['', ...ids.map(chartLabel)], rows: groups.map((g) => [g.name, ...ids.map((id) => chartVal(id, g.m[id]))]) };\n    if (!groups.length) warnings.push(`no_data:page${i}:trend`);\n  } else if (p.type === 'breakdown') {\n    const ids = (p.metrics || ['spend']).slice(0, 2);\n    const groups = sortRows(breakdownGroups(p.dimension), `-${ids[0]}`).slice(0, 12);\n    page.chart = { kind: p.chart || 'bar', header: ['', ...ids.map(chartLabel)], rows: groups.map((g) => [g.name, ...ids.map((id) => chartVal(id, g.m[id]))]) };\n    page.summary = groups.slice(0, 6).map((g) => `${g.name}: ${ids.map((id) => `${label(id)} ${fmt(id, g.m[id])}`).join(', ')}`).join('; ');\n    if (!groups.length) warnings.push(`no_data:page${i}:breakdown`);\n    if (groups.length) aiFacts.push(`${page.title} — ${page.summary}`);\n    if (p.insight) aiTasks.push({ key: `p${i}`, kind: 'short', title: page.title, facts: page.summary });\n  } else if (p.type === 'table') {\n    const ids = (p.metrics || []).slice(0, 8);\n    const limit = Math.min(25, Number(p.limit) || 10);\n    const groups = sortRows(tableGroups(p.dimension), p.sort, '-spend').slice(0, limit);\n    page.table = {\n      header: [(DIM_LABEL[p.dimension] || [p.dimension, p.dimension])[locale === 'en' ? 1 : 0], ...ids.map(label)],\n      rows: groups.map((g) => [String(g.name || '—'), ...ids.map((id) => fmt(id, g.m[id]))]),\n      empty: L('Tidak ada data pada periode ini', 'No data for this period')\n    };\n  } else if (p.type === 'creatives') {\n    const ids = (p.metrics || ['spend', 'results', 'cost_per_result']).slice(0, 4);\n    const limit = Math.min(9, Number(p.limit) || 3);\n    let list = adGroups.filter((g) => g.m.spend > 0 && !usedAds.has(g.key));\n    if (p.variant === 'lowest') {\n      // biaya per hasil tertinggi; iklan ber-spend tanpa hasil dianggap paling perlu dievaluasi\n      list = [...list].sort((a, b) => {\n        const ca = a.m.cost_per_result === null ? Infinity : a.m.cost_per_result;\n        const cb = b.m.cost_per_result === null ? Infinity : b.m.cost_per_result;\n        return cb === ca ? b.m.spend - a.m.spend : cb - ca;\n      });\n    } else {\n      list = sortRows(list, p.sort, '-results');\n    }\n    list = list.slice(0, limit);\n    page.creatives = [];\n    for (const g of list) {\n      usedAds.add(g.key);\n      const imageUrl = await creativeImage(g.key);\n      if (!imageUrl) warnings.push(`creative_image_missing:${g.key}`);\n      page.creatives.push({ adId: g.key, name: g.name, imageUrl, metrics: ids.map((id) => `${label(id)}: ${fmt(id, g.m[id])}`).join('\\n') });\n    }\n  } else if (p.type === 'ai_insight') {\n    aiTasks.push({ key: `p${i}`, kind: 'long', title: page.title, focus: p.focus || '' });\n  } else if (p.type === 'custom_text') {\n    page.text = applyPh(p.text || '');\n  } else if (p.type === 'custom_image') {\n    page.imageUrl = p.imageUrl || null;\n    page.caption = applyPh(p.caption || '');\n    if (!page.imageUrl) warnings.push(`custom_image_missing:page${i}`);\n  }\n  if (page.chart) charts.push({ pageIndex: i, ...page.chart });\n  model.push(page);\n}\n\n// ---------------- prompt AI (satu panggilan Gemini untuk semua halaman) ----------------\nlet aiPrompt = null;\nif (aiTasks.length) {\n  const lang = L('Bahasa Indonesia yang profesional dan mudah dipahami pemilik bisnis', 'clear professional English for business owners');\n  aiPrompt = [\n    L('Kamu adalah Senior Performance Marketing Analyst. Gunakan HANYA data berikut, jangan mengarang angka.', 'You are a Senior Performance Marketing Analyst. Use ONLY the data below; never invent numbers.'),\n    '',\n    'DATA:',\n    ...aiFacts,\n    '',\n    L('TUGAS (tulis dalam', 'TASKS (write in') + ` ${lang}):`,\n    ...aiTasks.map((t) => t.kind === 'long'\n      ? `- \"${t.key}\": ${L('ringkasan eksekutif + 3–5 rekomendasi konkret bulan depan, maksimal 180 kata', 'executive summary + 3–5 concrete recommendations for next month, max 180 words')}${t.focus ? ` (${L('fokus', 'focus')}: ${t.focus})` : ''}. ${L('Judul halaman', 'Page title')}: ${t.title}`\n      : `- \"${t.key}\": ${L('1–2 kalimat insight untuk grafik', '1–2 sentence insight for the chart')} \"${t.title}\" (${t.facts})`),\n    '',\n    L('Balas HANYA JSON objek dengan key persis seperti di atas, nilai berupa teks biasa (boleh baris baru dan \"• \"), tanpa markdown.', 'Reply with ONLY a JSON object using exactly the keys above; values are plain text (newlines and \"• \" allowed), no markdown.')\n  ].join('\\n');\n}\n\nreturn [{\n  json: {\n    requestId: job.requestId,\n    period: PERIOD,\n    fileName: `${L('Laporan Iklan', 'Ads Report')} – ${PERIOD} – ${ACCOUNT_NAMES}`.slice(0, 150) + ` – ${String(job.requestId).slice(-6)}`,\n    model,\n    charts,\n    ai: { needed: aiTasks.length > 0, prompt: aiPrompt, keys: aiTasks.map((t) => t.key) },\n    summary: {\n      period: { start: job.period.start, end: job.period.end, label: PERIOD },\n      currency: reportCur,\n      accounts: okAccounts.map((a) => ({ id: a.externalId, name: a.name })),\n      totals: Object.fromEntries(['spend', 'impressions', 'reach', 'clicks', 'ctr', 'cpc', 'results', 'cost_per_result', 'conversions', 'conversion_value', 'roas'].map((k) => [k, totals[k] === undefined ? null : totals[k]])),\n      previous: prevTotals ? Object.fromEntries(['spend', 'impressions', 'reach', 'clicks', 'results'].map((k) => [k, prevTotals[k]])) : null,\n      fx: fetched.fx ? { source: fetched.fx.source, date: fetched.fx.date, rates: fetched.fx.rates } : null\n    },\n    warnings\n  }\n}];\n"
+      },
+      "onError": "continueErrorOutput"
     },
     {
-      "id": "n-gemini-ai-insights",
-      "name": "Gemini AI Insights",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "n-perlu-ai-",
+      "name": "Perlu AI?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
       "position": [
         860,
         300
       ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.ai.needed }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n-gemini-insight",
+      "name": "Gemini: Insight",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1080,
+        140
+      ],
       "onError": "continueRegularOutput",
       "parameters": {
         "method": "POST",
-        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "url": "={{ 'https://generativelanguage.googleapis.com/v1beta/models/' + $('Auth & Normalize (Ads)').first().json.config.geminiModel + ':generateContent' }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ contents: [{ parts: [{ text: \"Kamu adalah Senior Performance Marketing Analyst. Berikan analisis eksekutif ringkas dan rekomendasi strategis (maksimal 180 kata) berdasarkan data performa iklan berikut:\\n\" + $json.processed.summaryText }] }] }) }}",
+        "jsonBody": "={{ JSON.stringify({ contents: [{ role: 'user', parts: [{ text: $json.ai.prompt }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.4 } }) }}",
         "options": {
-          "timeout": 60000
+          "timeout": 120000
         }
       },
       "credentials": {
@@ -176,63 +214,494 @@
       }
     },
     {
-      "id": "n-render-google-slides",
-      "name": "Render Google Slides",
+      "id": "n-parse-insight",
+      "name": "Parse Insight",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        1080,
-        300
-      ],
-      "parameters": {
-        "jsCode": "// automation/src/ads-render-slides.js\n// Logika rendering Google Slides berdasar alt text & duplikasi layout (PRD F5 §3.7 langkah 2, 2a)\n\nconst input = $input.first().json;\nconst { template, processed, period, currency, owner } = input;\nconst { currentMetrics, deltas, kpiCards, summaryText } = processed;\n\n// 1. Katalog Pemetaan Alt Text per Layout (Base Deck)\n// Setiap bentuk atau teks di Google Slides dasar dikenali berdasarkan deskripsi alt-text.\nconst ALT_TEXT_CATALOG = {\n  cover: {\n    title: 'title',\n    subtitle: 'subtitle',\n    period: 'period',\n    logo: 'logo'\n  },\n  kpi: {\n    cards: Array.from({ length: 8 }, (_, i) => ({\n      label: `kpi ${i + 1} label`,\n      value: `kpi ${i + 1} value`,\n      delta: `kpi ${i + 1} delta`\n    }))\n  },\n  trend: {\n    title: 'trend title',\n    chart: 'chart main',\n    note: 'trend note'\n  },\n  breakdown: {\n    title: 'breakdown title',\n    chart: 'chart breakdown',\n    insight: 'insight text'\n  },\n  table: {\n    title: 'table title',\n    table: 'performance table'\n  },\n  creatives: {\n    title: 'creatives title',\n    items: Array.from({ length: 3 }, (_, i) => ({\n      img: `creative ${i + 1} img`,\n      label: `creative ${i + 1} label`,\n      cost: `creative ${i + 1} cost`,\n      results: `creative ${i + 1} results`,\n      roas: `creative ${i + 1} roas`\n    }))\n  },\n  ai_insight: {\n    title: 'ai title',\n    summary: 'ai summary',\n    recommendations: 'ai recommendations'\n  },\n  custom_text: {\n    title: 'custom text title',\n    body: 'custom text body'\n  },\n  custom_image: {\n    title: 'custom image title',\n    image: 'custom image',\n    caption: 'custom image caption'\n  },\n  closing: {\n    title: 'closing title',\n    contact: 'closing contact'\n  }\n};\n\n// 2. Siapkan instruksi batchUpdate untuk Google Slides API\nconst requests = [];\n\n// Parameter dasar penggantian teks global per deck\nconst formatNumber = (num) => new Intl.NumberFormat('id-ID').format(Math.round(num || 0));\nconst formatCurrency = (num) => `Rp${formatNumber(num)}`;\nconst formatPercent = (ratio) => `${((Number(ratio) || 0) * 100).toFixed(2)}%`;\n\n// Helper replaceAllText scoped per slide atau global\nfunction makeReplaceTextReq(findText, replaceText, pageObjectId = null) {\n  return {\n    replaceAllText: {\n      containsText: {\n        text: findText,\n        matchCase: false\n      },\n      replaceText: String(replaceText || '-'),\n      ...(pageObjectId ? { pageObjectIds: [pageObjectId] } : {})\n    }\n  };\n}\n\n// Global text replacements\nconst periodStr = `${period.start} s/d ${period.end}`;\nrequests.push(makeReplaceTextReq('{{period}}', periodStr));\nrequests.push(makeReplaceTextReq('{{currency}}', currency));\nrequests.push(makeReplaceTextReq('{{metric:spend}}', formatCurrency(currentMetrics.spend)));\nrequests.push(makeReplaceTextReq('{{metric:impressions}}', formatNumber(currentMetrics.impressions)));\nrequests.push(makeReplaceTextReq('{{metric:clicks}}', formatNumber(currentMetrics.clicks)));\nrequests.push(makeReplaceTextReq('{{metric:conversions}}', formatNumber(currentMetrics.conversions)));\n\n// Susun payload duplikasi dan pemetaan slide per template.pages\nconst slidePlans = template.pages.map((page, idx) => {\n  return {\n    pageIndex: idx,\n    type: page.type,\n    title: page.title || '',\n    subtitle: page.subtitle || '',\n    metrics: page.metrics || [],\n    altCatalog: ALT_TEXT_CATALOG[page.type] || {}\n  };\n});\n\n// Menghasilkan metadata deck baru per laporan (bukan menimpa deck klien, riwayat tetap ada)\nconst generatedSlidesId = `deck_${input.reportId || Date.now()}`;\nconst slidesUrl = `https://docs.google.com/presentation/d/${generatedSlidesId}/edit`;\nconst pdfPath = `ads-reports/${input.workspaceId}/${input.reportId || Date.now()}.pdf`;\n\nreturn [{\n  json: {\n    ...input,\n    slidesId: generatedSlidesId,\n    slidesUrl,\n    pdfPath,\n    slidePlans,\n    batchUpdateRequests: requests,\n    altTextCatalog: ALT_TEXT_CATALOG,\n    summary: {\n      totalSpend: currentMetrics.spend,\n      totalImpressions: currentMetrics.impressions,\n      totalClicks: currentMetrics.clicks,\n      totalConversions: currentMetrics.conversions,\n      roas: currentMetrics.roas,\n      period: periodStr,\n      pagesCount: template.pages.length\n    }\n  }\n}];\n"
-      }
-    },
-    {
-      "id": "n-salin-base-deck-update-slides",
-      "name": "Salin Base Deck & Update Slides",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
       "position": [
         1300,
         300
       ],
-      "onError": "continueRegularOutput",
       "parameters": {
-        "method": "POST",
-        "url": "https://slides.googleapis.com/v1/presentations/{{ $json.slidesId }}:batchUpdate",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ requests: $json.batchUpdateRequests }) }}",
-        "options": {
-          "timeout": 60000
-        }
+        "jsCode": "// automation/src/ads-parse-insight.js\n// Gabungkan hasil Gemini (satu panggilan untuk semua halaman AI) ke model halaman.\n// Kalau Gemini gagal/kosong, laporan TETAP dibuat dengan teks cadangan + warning ai_unavailable.\n\nconst proc = $('Proses Metrik').first().json;\nconst job = $('Auth & Normalize (Ads)').first().json;\nconst warnings = [...(proc.warnings || [])];\nconst L = (id, en) => (job.locale === 'en' ? en : id);\n\nlet insights = {};\nlet aiUsed = 0;\nif (proc.ai && proc.ai.needed) {\n  const res = $input.first().json || {};\n  try {\n    const text = res.candidates && res.candidates[0] && res.candidates[0].content && res.candidates[0].content.parts\n      ? res.candidates[0].content.parts.map((p) => p.text || '').join('')\n      : '';\n    const cleaned = text.replace(/^```(?:json)?\\s*/i, '').replace(/```\\s*$/, '').trim();\n    const parsed = cleaned ? JSON.parse(cleaned) : {};\n    if (parsed && typeof parsed === 'object') insights = parsed;\n  } catch (e) {\n    insights = {};\n  }\n  if (!Object.keys(insights).length) warnings.push('ai_unavailable');\n}\n\nconst clean = (s, max) => String(s || '').replace(/\\*\\*/g, '').replace(/^#+\\s*/gm, '').trim().slice(0, max);\nconst model = proc.model.map((page) => {\n  const key = `p${page.index}`;\n  if (page.type === 'ai_insight') {\n    const t = clean(insights[key], 1600);\n    if (t) aiUsed++;\n    return { ...page, insight: t || L('Insight AI tidak tersedia untuk laporan ini. Silakan buat ulang laporan untuk mencoba lagi.', 'AI insight is not available for this report. Please regenerate the report to try again.') };\n  }\n  if (page.type === 'breakdown') {\n    return { ...page, insight: clean(insights[key], 400) };\n  }\n  return page;\n});\n\nreturn [{ json: { ...proc, model, warnings, aiPages: aiUsed } }];\n"
       },
-      "credentials": {
-        "googleSlidesOAuth2Api": {
-          "id": "placeholder-slides",
-          "name": "Google Slides Markimate"
-        }
-      }
+      "onError": "continueErrorOutput"
     },
     {
-      "id": "n-share-drive-file-ke-owner",
-      "name": "Share Drive File ke Owner",
+      "id": "n-drive-cari-folder",
+      "name": "Drive: Cari Folder",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
         1520,
         300
       ],
-      "onError": "continueRegularOutput",
+      "onError": "continueErrorOutput",
       "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "method": "GET",
+        "url": "https://www.googleapis.com/drive/v3/files",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ \"name = '\" + $('Auth & Normalize (Ads)').first().json.workspaceId + \"' and '\" + $('Auth & Normalize (Ads)').first().json.config.reportsFolderId + \"' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false\" }}"
+            },
+            {
+              "name": "fields",
+              "value": "files(id,name)"
+            },
+            {
+              "name": "supportsAllDrives",
+              "value": "true"
+            },
+            {
+              "name": "includeItemsFromAllDrives",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "placeholder-drive",
+          "name": "Google Drive Markimate"
+        }
+      }
+    },
+    {
+      "id": "n-folder-ada-",
+      "name": "Folder Ada?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1740,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ Array.isArray($json.files) && $json.files.length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n-drive-buat-folder",
+      "name": "Drive: Buat Folder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1960,
+        460
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
         "method": "POST",
-        "url": "https://www.googleapis.com/drive/v3/files/{{ $json.slidesId }}/permissions",
+        "url": "https://www.googleapis.com/drive/v3/files",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "supportsAllDrives",
+              "value": "true"
+            },
+            {
+              "name": "fields",
+              "value": "id"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ role: \"editor\", type: \"user\", emailAddress: $json.owner?.email || \"owner@markimate.com\" }) }}",
+        "jsonBody": "={{ JSON.stringify({ name: $('Auth & Normalize (Ads)').first().json.workspaceId, mimeType: 'application/vnd.google-apps.folder', parents: [$('Auth & Normalize (Ads)').first().json.config.reportsFolderId] }) }}",
         "options": {
-          "timeout": 30000
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "placeholder-drive",
+          "name": "Google Drive Markimate"
+        }
+      }
+    },
+    {
+      "id": "n-drive-salin-base-deck",
+      "name": "Drive: Salin Base Deck",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2180,
+        300
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "method": "POST",
+        "url": "={{ 'https://www.googleapis.com/drive/v3/files/' + $('Auth & Normalize (Ads)').first().json.config.baseDeckId + '/copy' }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "supportsAllDrives",
+              "value": "true"
+            },
+            {
+              "name": "fields",
+              "value": "id,name,parents"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: $('Parse Insight').first().json.fileName, parents: [ $json.files ? $json.files[0].id : $json.id ] }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "placeholder-drive",
+          "name": "Google Drive Markimate"
+        }
+      }
+    },
+    {
+      "id": "n-drive-buat-sheet-data",
+      "name": "Drive: Buat Sheet Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2400,
+        300
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "method": "POST",
+        "url": "https://www.googleapis.com/drive/v3/files",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "supportsAllDrives",
+              "value": "true"
+            },
+            {
+              "name": "fields",
+              "value": "id"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: 'Data – ' + $('Parse Insight').first().json.fileName, mimeType: 'application/vnd.google-apps.spreadsheet', parents: $json.parents }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "placeholder-drive",
+          "name": "Google Drive Markimate"
+        }
+      }
+    },
+    {
+      "id": "n-susun-data-grafik",
+      "name": "Susun Data Grafik",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2620,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// automation/src/ads-sheet-requests.js\n// Susun Google Sheets batchUpdate: satu tab data per grafik + chart (ID deterministik 1000+k)\n// supaya bisa langsung di-link ke Slides tanpa membaca respons (PRD F5 §3.7 2a, \"linked Sheets chart\").\n\nconst proc = $('Parse Insight').first().json;\nconst job = $('Auth & Normalize (Ads)').first().json;\nconst spreadsheetId = $input.first().json.id;\nif (!spreadsheetId) throw new Error('ADS_REPORT_FAILED - spreadsheet data tidak terbuat');\n\nconst L = (id, en) => (job.locale === 'en' ? en : id);\nconst requests = [{ updateSpreadsheetProperties: { properties: { title: `Data – ${proc.period}` }, fields: 'title' } }];\nconst chartMap = {};\n\nproc.charts.forEach((c, k) => {\n  const sheetId = 100 + k;\n  const chartId = 1000 + k;\n  const header = [c.header[0] || L('Kategori', 'Category'), ...c.header.slice(1)];\n  const rows = c.rows.length ? c.rows : [['—', ...header.slice(1).map(() => 0)]];\n  const nCols = header.length;\n  const cell = (v) => (typeof v === 'number' ? { userEnteredValue: { numberValue: v } } : { userEnteredValue: { stringValue: String(v) } });\n  requests.push({ addSheet: { properties: { sheetId, title: `p${c.pageIndex + 1}`, gridProperties: { rowCount: Math.max(rows.length + 5, 20), columnCount: nCols + 12 } } } });\n  requests.push({ updateCells: { start: { sheetId, rowIndex: 0, columnIndex: 0 }, rows: [header, ...rows].map((r) => ({ values: r.map(cell) })), fields: 'userEnteredValue' } });\n\n  const src = (col) => ({ sourceRange: { sources: [{ sheetId, startRowIndex: 0, endRowIndex: rows.length + 1, startColumnIndex: col, endColumnIndex: col + 1 }] } });\n  let spec;\n  if (c.kind === 'pie') {\n    spec = { pieChart: { legendPosition: 'RIGHT_LEGEND', domain: src(0), series: src(1), pieHole: 0.45 } };\n  } else {\n    const type = c.kind === 'line' ? 'LINE' : c.kind === 'combo' ? 'COMBO' : 'COLUMN';\n    spec = {\n      basicChart: {\n        chartType: type,\n        legendPosition: 'BOTTOM_LEGEND',\n        headerCount: 1,\n        axis: [{ position: 'BOTTOM_AXIS' }, { position: 'LEFT_AXIS' }],\n        domains: [{ domain: src(0) }],\n        series: header.slice(1).map((_, j) => ({\n          series: src(j + 1),\n          targetAxis: j === 0 ? 'LEFT_AXIS' : 'RIGHT_AXIS',\n          ...(type === 'COMBO' ? { type: j === 0 ? 'COLUMN' : 'LINE' } : {})\n        }))\n      }\n    };\n  }\n  requests.push({ addChart: { chart: { chartId, spec, position: { overlayPosition: { anchorCell: { sheetId, rowIndex: 0, columnIndex: nCols + 1 } } } } } });\n  chartMap[c.pageIndex] = chartId;\n});\n\nreturn [{ json: { spreadsheetId, requests, chartMap } }];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "n-sheets-tulis-data-grafik",
+      "name": "Sheets: Tulis Data & Grafik",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2840,
+        300
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "method": "POST",
+        "url": "={{ 'https://sheets.googleapis.com/v4/spreadsheets/' + $json.spreadsheetId + ':batchUpdate' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ requests: $json.requests }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "placeholder-drive",
+          "name": "Google Drive Markimate"
+        }
+      }
+    },
+    {
+      "id": "n-slides-baca-deck",
+      "name": "Slides: Baca Deck",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3060,
+        300
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "method": "GET",
+        "url": "={{ 'https://slides.googleapis.com/v1/presentations/' + $('Drive: Salin Base Deck').first().json.id }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "placeholder-drive",
+          "name": "Google Drive Markimate"
+        }
+      }
+    },
+    {
+      "id": "n-susun-request-slides",
+      "name": "Susun Request Slides",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3280,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// automation/src/ads-render-slides.js\n// Susun Slides batchUpdate untuk deck salinan base deck (PRD F5 §3.7 langkah 2, 2a).\n// Base deck: 1 slide layout per jenis halaman, ditandai di SPEAKER NOTES dengan \"layout:<type>\".\n// Elemen dikenali lewat alt text (description) atau placeholder teks {{...}} — bukan posisi.\n// Detail konvensi: automation/ADS-BASE-DECK.md.\n//\n// Urutan request: duplikat layout per halaman (ID objek deterministik) → isi teks/tabel/grafik\n// → urutkan slide → hapus semua slide asli base deck. Gambar creative dikirim TERPISAH\n// (node \"Susun Request Gambar\") supaya satu URL gambar yang gagal tidak menggagalkan laporan.\n\nconst pres = $input.first().json;\nconst proc = $('Parse Insight').first().json;\nconst job = $('Auth & Normalize (Ads)').first().json;\nconst sheet = $('Susun Data Grafik').first().json;\nconst warnings = [];\n\nif (!pres || !Array.isArray(pres.slides)) throw new Error('ADS_REPORT_FAILED - base deck tidak bisa dibaca');\n\n// ---------- util ----------\nconst textOf = (te) => (Array.isArray(te) ? te.map((t) => (t.textRun ? t.textRun.content : '')).join('') : '');\nfunction walk(elements, fn) {\n  for (const el of elements || []) {\n    fn(el);\n    if (el.elementGroup) walk(el.elementGroup.children, fn);\n  }\n}\nfunction slideTexts(slide) {\n  const out = [];\n  walk(slide.pageElements, (el) => {\n    if (el.shape && el.shape.text) out.push(textOf(el.shape.text.textElements));\n    if (el.table) for (const r of el.table.tableRows || []) for (const c of r.tableCells || []) if (c.text) out.push(textOf(c.text.textElements));\n  });\n  return out.join('\\n');\n}\nfunction notesText(slide) {\n  const np = slide.slideProperties && slide.slideProperties.notesPage;\n  if (!np) return '';\n  const parts = [];\n  walk(np.pageElements, (el) => {\n    if (el.shape && el.shape.text) parts.push(textOf(el.shape.text.textElements));\n  });\n  return parts.join('\\n');\n}\nconst role = (el) => String(el.description || '').trim().toLowerCase();\nconst toEmu = (d) => (!d ? 0 : d.unit === 'PT' ? d.magnitude * 12700 : d.magnitude || 0);\nfunction boxOf(el) {\n  const t = el.transform || {};\n  const k = t.unit === 'PT' ? 12700 : 1;\n  return {\n    x: Math.round((t.translateX || 0) * k),\n    y: Math.round((t.translateY || 0) * k),\n    w: Math.round(toEmu(el.size && el.size.width) * (t.scaleX || 1)),\n    h: Math.round(toEmu(el.size && el.size.height) * (t.scaleY || 1))\n  };\n}\n\n// ---------- peta layout ----------\nconst layouts = {};\nfor (const s of pres.slides) {\n  const m = notesText(s).match(/layout\\s*:\\s*([a-z_]+)/i);\n  if (m && !layouts[m[1].toLowerCase()]) layouts[m[1].toLowerCase()] = s;\n}\nif (!Object.keys(layouts).length) throw new Error('ADS_REPORT_FAILED - base deck tidak punya slide layout (speaker notes \"layout:<type>\")');\n\nconst common = {\n  period: proc.period,\n  account_name: (proc.summary.accounts || []).map((a) => a.name).join(', '),\n  workspace_name: job.workspaceName || '',\n  client_name: job.workspaceName || '',\n  ads_platform: 'Meta Ads'\n};\n\nconst requests = [];\nconst contentReqs = [];\nconst imageJobs = [];\nconst newSlideIds = [];\n\nproc.model.forEach((page, pi) => {\n  const layout = layouts[page.type];\n  if (!layout) {\n    warnings.push(`layout_missing:${page.type}`);\n    return;\n  }\n  const P = `mk${String(pi).padStart(2, '0')}`;\n  const slideId = `${P}slide`;\n  const idMap = { [layout.objectId]: slideId };\n  let seq = 0;\n  walk(layout.pageElements, (el) => {\n    idMap[el.objectId] = `${P}e${++seq}`;\n  });\n  requests.push({ duplicateObject: { objectId: layout.objectId, objectIds: idMap } });\n  newSlideIds.push(slideId);\n  const nid = (el) => idMap[el.objectId];\n\n  // ---- nilai placeholder teks ----\n  const values = { ...common, title: page.title || '', subtitle: page.subtitle || '', insight: page.insight || '', text: page.text || '', caption: page.caption || '' };\n  (page.kpis || []).forEach((k, i) => {\n    values[`kpi${i + 1}_label`] = k.label;\n    values[`kpi${i + 1}_value`] = k.value;\n    values[`kpi${i + 1}_delta`] = k.delta;\n  });\n  (page.creatives || []).forEach((c, i) => {\n    values[`c${i + 1}_name`] = c.name;\n    values[`c${i + 1}_metrics`] = c.metrics;\n  });\n  const found = new Set();\n  const re = /\\{\\{\\s*([a-z0-9_]+)\\s*\\}\\}/gi;\n  let m;\n  const txt = slideTexts(layout);\n  while ((m = re.exec(txt))) found.add(m[0]);\n  for (const token of found) {\n    const key = token.replace(/[{}\\s]/g, '').toLowerCase();\n    // slot KPI/creative yang tidak terpakai → kosong; placeholder tak dikenal → kosong + warning\n    const known = key in values || /^kpi\\d+_(label|value|delta)$/.test(key) || /^c\\d+_(name|metrics)$/.test(key);\n    if (!known) warnings.push(`unknown_placeholder:${page.type}:${key}`);\n    contentReqs.push({ replaceAllText: { containsText: { text: token, matchCase: true }, replaceText: String(values[key] ?? ''), pageObjectIds: [slideId] } });\n  }\n\n  // ---- elemen berdasarkan alt text ----\n  let chartSeq = 0;\n  const nKpi = (page.kpis || []).length;\n  const nCre = (page.creatives || []).length;\n  walk(layout.pageElements, (el) => {\n    const r = role(el);\n    if (!r) return;\n    let mm;\n    if ((mm = r.match(/^kpi (\\d+)$/)) && Number(mm[1]) > nKpi) {\n      contentReqs.push({ deleteObject: { objectId: nid(el) } });\n    } else if ((mm = r.match(/^creative (\\d+)( img)?$/))) {\n      const n = Number(mm[1]);\n      if (n > nCre) contentReqs.push({ deleteObject: { objectId: nid(el) } });\n      else if (mm[2] && el.image) {\n        const c = page.creatives[n - 1];\n        if (c.imageUrl) imageJobs.push({ replaceImage: { imageObjectId: nid(el), url: c.imageUrl, imageReplaceMethod: 'CENTER_CROP' }, ref: `creative:${c.adId}` });\n      }\n    } else if (r === 'custom image' && el.image && page.imageUrl) {\n      imageJobs.push({ replaceImage: { imageObjectId: nid(el), url: page.imageUrl, imageReplaceMethod: 'CENTER_INSIDE' }, ref: `custom_image:page${pi}` });\n    } else if (r === 'chart') {\n      const chartId = sheet.chartMap[String(page.index)];\n      if (chartId === undefined) {\n        warnings.push(`chart_without_data:page${pi}`);\n        return;\n      }\n      const b = boxOf(el);\n      contentReqs.push({\n        createSheetsChart: {\n          objectId: `${P}ch${++chartSeq}`,\n          spreadsheetId: sheet.spreadsheetId,\n          chartId,\n          linkingMode: 'LINKED',\n          elementProperties: {\n            pageObjectId: slideId,\n            size: { width: { magnitude: b.w, unit: 'EMU' }, height: { magnitude: b.h, unit: 'EMU' } },\n            transform: { scaleX: 1, scaleY: 1, shearX: 0, shearY: 0, translateX: b.x, translateY: b.y, unit: 'EMU' }\n          }\n        }\n      });\n      contentReqs.push({ deleteObject: { objectId: nid(el) } });\n    } else if (r === 'table' && el.table && page.table) {\n      const tid = nid(el);\n      const t = page.table;\n      const R = el.table.rows;\n      const C = el.table.columns;\n      const header = t.header.slice(0, C);\n      if (t.header.length > C) warnings.push(`table_columns_truncated:page${pi}:${t.header.length}>${C}`);\n      const n = header.length;\n      const data = t.rows.length ? t.rows.map((row) => row.slice(0, n)) : [[t.empty, ...header.slice(1).map(() => '–')]];\n      const cellHasText = (ri, ci) => {\n        const row = el.table.tableRows[ri];\n        const cell = row && row.tableCells[ci];\n        return Boolean(cell && cell.text && textOf(cell.text.textElements).replace(/\\n/g, '').length);\n      };\n      // kolom berlebih (dari kanan)\n      for (let c = C - 1; c >= n; c--) contentReqs.push({ deleteTableColumn: { tableObjectId: tid, cellLocation: { rowIndex: 0, columnIndex: c } } });\n      // baris data: tambah / hapus\n      const have = R - 1;\n      if (data.length > have) contentReqs.push({ insertTableRows: { tableObjectId: tid, cellLocation: { rowIndex: R - 1, columnIndex: 0 }, insertBelow: true, number: data.length - have } });\n      for (let r2 = have; r2 > data.length; r2--) contentReqs.push({ deleteTableRow: { tableObjectId: tid, cellLocation: { rowIndex: r2, columnIndex: 0 } } });\n      const put = (ri, ci, text) => {\n        if (ri < R && ci < C && cellHasText(ri, ci)) contentReqs.push({ deleteText: { objectId: tid, cellLocation: { rowIndex: ri, columnIndex: ci }, textRange: { type: 'ALL' } } });\n        if (String(text).length) contentReqs.push({ insertText: { objectId: tid, cellLocation: { rowIndex: ri, columnIndex: ci }, text: String(text), insertionIndex: 0 } });\n      };\n      header.forEach((h, ci) => put(0, ci, h));\n      data.forEach((row, ri) => row.forEach((v, ci) => put(ri + 1, ci, v)));\n    }\n  });\n});\n\nif (!newSlideIds.length) throw new Error('ADS_REPORT_FAILED - tidak ada halaman yang punya layout di base deck');\n\nrequests.push(...contentReqs);\nrequests.push({ updateSlidesPosition: { slideObjectIds: newSlideIds, insertionIndex: 0 } });\nfor (const s of pres.slides) requests.push({ deleteObject: { objectId: s.objectId } });\n\nreturn [{ json: { presentationId: pres.presentationId, requests, imageJobs, warnings } }];\n"
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "id": "n-slides-isi-konten",
+      "name": "Slides: Isi Konten",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3500,
+        300
+      ],
+      "onError": "continueErrorOutput",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "method": "POST",
+        "url": "={{ 'https://slides.googleapis.com/v1/presentations/' + $json.presentationId + ':batchUpdate' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ requests: $json.requests }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "placeholder-drive",
+          "name": "Google Drive Markimate"
+        }
+      }
+    },
+    {
+      "id": "n-susun-request-gambar",
+      "name": "Susun Request Gambar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3720,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// automation/src/ads-image-jobs.js\n// Satu item per gambar (creative / custom image) → node Slides \"Ganti Gambar\" dijalankan per item\n// dengan continueRegularOutput: gambar yang gagal hanya jadi warning, laporan tetap jadi.\n// Selalu keluarkan minimal 1 item (hasImage=false) supaya alur n8n tidak berhenti.\n\nconst r = $('Susun Request Slides').first().json;\nconst jobs = r.imageJobs || [];\nif (!jobs.length) return [{ json: { hasImage: false, presentationId: r.presentationId } }];\nreturn jobs.map((j) => ({ json: { hasImage: true, presentationId: r.presentationId, ref: j.ref, body: { requests: [{ replaceImage: j.replaceImage }] } } }));\n"
+      }
+    },
+    {
+      "id": "n-ada-gambar-",
+      "name": "Ada Gambar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3940,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.hasImage }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n-slides-ganti-gambar",
+      "name": "Slides: Ganti Gambar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4160,
+        140
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "method": "POST",
+        "url": "={{ 'https://slides.googleapis.com/v1/presentations/' + $json.presentationId + ':batchUpdate' }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "placeholder-drive",
+          "name": "Google Drive Markimate"
+        }
+      }
+    },
+    {
+      "id": "n-daftar-akses",
+      "name": "Daftar Akses",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4380,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// automation/src/ads-share-list.js\n// Daftar penerima akses file Slides: owner workspace = writer (editor), penerima laporan = reader.\n// Selalu minimal 1 item (hasEmail=false) supaya alur tidak berhenti.\n\nconst job = $('Auth & Normalize (Ads)').first().json;\nconst copy = $('Drive: Salin Base Deck').first().json;\nconst seen = new Set();\nconst items = [];\nconst add = (email, role) => {\n  const e = String(email || '').trim().toLowerCase();\n  if (!e || !e.includes('@') || seen.has(e)) return;\n  seen.add(e);\n  items.push({ json: { hasEmail: true, fileId: copy.id, body: { type: 'user', role, emailAddress: e } } });\n};\nadd(job.owner && job.owner.email, 'writer');\nfor (const r of job.recipients || []) add(r, 'reader');\nreturn items.length ? items : [{ json: { hasEmail: false, fileId: copy.id } }];\n"
+      }
+    },
+    {
+      "id": "n-ada-email-",
+      "name": "Ada Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4600,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.hasEmail }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n-drive-bagikan-akses",
+      "name": "Drive: Bagikan Akses",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4820,
+        140
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "method": "POST",
+        "url": "={{ 'https://www.googleapis.com/drive/v3/files/' + $json.fileId + '/permissions' }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "sendNotificationEmail",
+              "value": "false"
+            },
+            {
+              "name": "supportsAllDrives",
+              "value": "true"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "timeout": 120000
         }
       },
       "credentials": {
@@ -248,21 +717,63 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1740,
+        5040,
         300
       ],
       "parameters": {
-        "jsCode": "// automation/src/ads-prepare-callback.js\n// Penyiapan payload callback ke backend Markimate saat laporan selesai dibuat (PRD F5 §3.7 langkah 3)\n\nconst item = $input.first().json;\n\nconst callbackPayload = {\n  requestId: item.requestId,\n  reportId: item.reportId,\n  status: 'ready',\n  slidesUrl: item.slidesUrl,\n  slidesFileId: item.slidesId,\n  pdfPath: item.pdfPath,\n  summary: item.summary,\n  warnings: item.warnings || []\n};\n\nreturn [{\n  json: {\n    ...item,\n    callbackPayload\n  }\n}];\n"
+        "jsCode": "// automation/src/ads-prepare-callback.js\n// Callback sukses ke backend (POST /api/ads/reports/callback, header X-Supermat-Key).\n// pdfPath = tautan ekspor PDF Google Slides (bisa dibuka oleh owner/penerima yang diberi akses).\n\nconst job = $('Auth & Normalize (Ads)').first().json;\nconst proc = $('Parse Insight').first().json;\nconst render = $('Susun Request Slides').first().json;\nconst copy = $('Drive: Salin Base Deck').first().json;\nconst warnings = [...(proc.warnings || []), ...(render.warnings || [])];\n\nconst safeAll = (name) => {\n  try {\n    return $(name).all();\n  } catch (e) {\n    return []; // node tidak dieksekusi (cabang IF lain)\n  }\n};\nconst failed = (it) => it.json && (it.json.error || (it.json.statusCode && it.json.statusCode >= 400));\nconst imgIn = safeAll('Susun Request Gambar').filter((it) => it.json.hasImage);\nsafeAll('Slides: Ganti Gambar').forEach((it, i) => {\n  if (failed(it)) warnings.push(`image_failed:${(imgIn[i] && imgIn[i].json.ref) || i}`);\n});\nconst shareIn = safeAll('Daftar Akses').filter((it) => it.json.hasEmail);\nsafeAll('Drive: Bagikan Akses').forEach((it, i) => {\n  if (failed(it)) warnings.push(`share_failed:${(shareIn[i] && shareIn[i].json.body.emailAddress) || i}`);\n});\nif (!shareIn.length) warnings.push('share_skipped:no_owner_email');\n\nconst id = copy.id;\nreturn [{\n  json: {\n    callbackUrl: job.callbackUrl,\n    callbackPayload: {\n      requestId: job.requestId,\n      reportId: job.reportId,\n      status: 'ready',\n      slidesUrl: `https://docs.google.com/presentation/d/${id}/edit`,\n      slidesFileId: id,\n      pdfPath: `https://docs.google.com/presentation/d/${id}/export/pdf`,\n      summary: { ...proc.summary, spreadsheetId: $('Susun Data Grafik').first().json.spreadsheetId },\n      aiPages: proc.aiPages || 0,\n      warnings: [...new Set(warnings)].slice(0, 100)\n    }\n  }\n}];\n"
       }
     },
     {
-      "id": "n-kirim-callback-ads-report",
-      "name": "Kirim Callback Ads Report",
+      "id": "n-kirim-callback",
+      "name": "Kirim Callback",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1960,
+        5260,
         300
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.callbackUrl }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.callbackPayload) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "yRMoELEk1ya3tXjx",
+          "name": "Supermat API Key (Header)"
+        }
+      }
+    },
+    {
+      "id": "n-siapkan-callback-error",
+      "name": "Siapkan Callback Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2620,
+        720
+      ],
+      "parameters": {
+        "jsCode": "// automation/src/ads-callback-error.js\n// Semua error output (Code/HTTP) bermuara ke sini → callback status 'error' supaya backend\n// langsung me-refund kredit (tanpa menunggu timeout 15 menit).\n\nconst job = $('Auth & Normalize (Ads)').first().json;\nconst it = $input.first().json || {};\nconst raw = it.error && typeof it.error === 'object' ? (it.error.message || JSON.stringify(it.error)) : (it.error || it.message || 'unknown error');\nconst msg = String(raw);\nconst code = /ADS_SOURCE_UNAVAILABLE/.test(msg) ? 'ADS_SOURCE_UNAVAILABLE' : 'ADS_REPORT_FAILED';\n\nreturn [{\n  json: {\n    callbackUrl: job.callbackUrl,\n    callbackPayload: {\n      requestId: job.requestId,\n      reportId: job.reportId,\n      status: 'error',\n      errorCode: code,\n      // token tidak pernah ada di pesan error (dikirim via header), tetap dipotong supaya ringkas\n      warnings: [`error:${msg.replace(/access_token=[^&\\s]+/g, 'access_token=***').slice(0, 300)}`]\n    }\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "n-kirim-callback-error",
+      "name": "Kirim Callback Error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2840,
+        720
       ],
       "onError": "continueRegularOutput",
       "parameters": {
@@ -330,69 +841,346 @@
       "main": [
         [
           {
-            "node": "Fetch Meta Insights",
+            "node": "Ambil Data Meta",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Fetch Meta Insights": {
+    "Ambil Data Meta": {
       "main": [
         [
           {
-            "node": "Process Metrics",
+            "node": "Proses Metrik",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Siapkan Callback Error",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Process Metrics": {
+    "Proses Metrik": {
       "main": [
         [
           {
-            "node": "Gemini AI Insights",
+            "node": "Perlu AI?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Siapkan Callback Error",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Gemini AI Insights": {
+    "Perlu AI?": {
       "main": [
         [
           {
-            "node": "Render Google Slides",
+            "node": "Gemini: Insight",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Parse Insight",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Render Google Slides": {
+    "Gemini: Insight": {
       "main": [
         [
           {
-            "node": "Salin Base Deck & Update Slides",
+            "node": "Parse Insight",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Salin Base Deck & Update Slides": {
+    "Parse Insight": {
       "main": [
         [
           {
-            "node": "Share Drive File ke Owner",
+            "node": "Drive: Cari Folder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Siapkan Callback Error",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Share Drive File ke Owner": {
+    "Drive: Cari Folder": {
+      "main": [
+        [
+          {
+            "node": "Folder Ada?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Siapkan Callback Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Folder Ada?": {
+      "main": [
+        [
+          {
+            "node": "Drive: Salin Base Deck",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Drive: Buat Folder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive: Buat Folder": {
+      "main": [
+        [
+          {
+            "node": "Drive: Salin Base Deck",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Siapkan Callback Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive: Salin Base Deck": {
+      "main": [
+        [
+          {
+            "node": "Drive: Buat Sheet Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Siapkan Callback Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive: Buat Sheet Data": {
+      "main": [
+        [
+          {
+            "node": "Susun Data Grafik",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Siapkan Callback Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Susun Data Grafik": {
+      "main": [
+        [
+          {
+            "node": "Sheets: Tulis Data & Grafik",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Siapkan Callback Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sheets: Tulis Data & Grafik": {
+      "main": [
+        [
+          {
+            "node": "Slides: Baca Deck",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Siapkan Callback Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slides: Baca Deck": {
+      "main": [
+        [
+          {
+            "node": "Susun Request Slides",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Siapkan Callback Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Susun Request Slides": {
+      "main": [
+        [
+          {
+            "node": "Slides: Isi Konten",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Siapkan Callback Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slides: Isi Konten": {
+      "main": [
+        [
+          {
+            "node": "Susun Request Gambar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Siapkan Callback Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Susun Request Gambar": {
+      "main": [
+        [
+          {
+            "node": "Ada Gambar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ada Gambar?": {
+      "main": [
+        [
+          {
+            "node": "Slides: Ganti Gambar",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Daftar Akses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slides: Ganti Gambar": {
+      "main": [
+        [
+          {
+            "node": "Daftar Akses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daftar Akses": {
+      "main": [
+        [
+          {
+            "node": "Ada Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ada Email?": {
+      "main": [
+        [
+          {
+            "node": "Drive: Bagikan Akses",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Siapkan Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Drive: Bagikan Akses": {
       "main": [
         [
           {
@@ -407,7 +1195,18 @@
       "main": [
         [
           {
-            "node": "Kirim Callback Ads Report",
+            "node": "Kirim Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Siapkan Callback Error": {
+      "main": [
+        [
+          {
+            "node": "Kirim Callback Error",
             "type": "main",
             "index": 0
           }

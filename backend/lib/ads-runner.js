@@ -213,10 +213,28 @@ export async function triggerAdsReportGenerate({
   const apiKey = n8nKey || getN8nApiKey();
   const callbackUrl = `${getAppUrl()}/api/ads/reports/callback`;
 
+  // Owner workspace (akses editor ke file Slides) + metrics custom untuk n8n
+  const workspace = await db.findOne('workspaces', { id: workspaceId });
+  const ownerAcc = workspace?.owner_user_id ? await db.findOne('accounts', { id: workspace.owner_user_id }) : null;
+  const creatorAcc = userId && userId !== workspace?.owner_user_id ? await db.findOne('accounts', { id: userId }) : null;
+  const customMetricsRows = await db.findMany('ads_custom_metrics', { workspace_id: workspaceId });
+
   const payload = {
     requestId,
     reportId,
     workspaceId,
+    workspaceName: workspace?.name || '',
+    owner: {
+      email: ownerAcc?.email || creatorAcc?.email || null,
+      locale: ownerAcc?.locale || creatorAcc?.locale || spec?.locale || 'id'
+    },
+    customMetrics: (customMetricsRows || []).map((m) => ({
+      id: m.id,
+      name: m.name,
+      formula: m.formula,
+      unit: m.unit,
+      decimals: m.decimals
+    })),
     template: spec,
     accounts: preparedAccounts,
     period: {
@@ -226,7 +244,7 @@ export async function triggerAdsReportGenerate({
     compare: resolvedCompare,
     conversionEvent: resolvedConversionEvent,
     currency: resolvedCurrency,
-    recipients: resolvedRecipients,
+    recipients: [...new Set([...(resolvedRecipients || []), ...(creatorAcc?.email ? [creatorAcc.email] : [])])],
     callbackUrl
   };
 
