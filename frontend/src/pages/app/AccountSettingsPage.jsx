@@ -263,7 +263,7 @@ export default function AccountSettingsPage({ me, refreshMe }) {
       </div>
 
       {/* Tab Navigasi Horizontal */}
-      <div style={{
+      <div className="settings-tabs" style={{
         display: 'flex',
         gap: '0.5rem',
         borderBottom: '1px solid var(--border-color)',

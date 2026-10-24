@@ -257,18 +257,18 @@ export default function MembersSettingsPage({ me, refreshMe }) {
                 placeholder={t('settings.members.inviteEmailPlaceholder')}
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
-                className="input"
+                className="form-input"
                 style={{ width: '100%', boxSizing: 'border-box' }}
                 required
                 disabled={inviting}
               />
             </div>
 
-            <div style={{ width: '160px' }}>
+            <div style={{ flex: '1 1 140px' }}>
               <select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value)}
-                className="select"
+                className="form-select"
                 style={{ width: '100%', boxSizing: 'border-box' }}
                 disabled={inviting}
               >
@@ -281,7 +281,7 @@ export default function MembersSettingsPage({ me, refreshMe }) {
               type="submit"
               disabled={inviting}
               className="btn btn-primary"
-              style={{ padding: '0.65rem 1.25rem', whiteSpace: 'nowrap' }}
+              style={{ padding: '0.65rem 1.25rem', whiteSpace: 'nowrap', flex: '1 1 auto', justifyContent: 'center' }}
             >
               <span>{inviting ? t('settings.members.sending') : t('settings.members.sendInvite')}</span>
             </button>
