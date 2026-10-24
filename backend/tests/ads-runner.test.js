@@ -238,6 +238,11 @@ const successTriggerRes = await triggerAdsReportGenerate({
 });
 
 assert.strictEqual(successTriggerRes.ok, true);
+// Payload n8n membawa email owner (akses editor Slides), nama workspace & metrics custom (PR #2)
+assert.strictEqual(capturedN8nPayload.owner.email, userA.email, 'payload.owner.email = email owner workspace');
+assert.ok(['id', 'en'].includes(capturedN8nPayload.owner.locale), 'payload.owner.locale terisi');
+assert.strictEqual(capturedN8nPayload.workspaceName, wsA.name);
+assert.ok(Array.isArray(capturedN8nPayload.customMetrics), 'payload.customMetrics berupa array');
 assert.strictEqual(successTriggerRes.status, 'running');
 assert.strictEqual(successTriggerRes.creditsCharged, 350);
 assert.ok(capturedN8nPayload);
