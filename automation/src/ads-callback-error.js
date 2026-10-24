@@ -6,7 +6,12 @@ const job = $('Auth & Normalize (Ads)').first().json;
 const it = $input.first().json || {};
 const raw = it.error && typeof it.error === 'object' ? (it.error.message || JSON.stringify(it.error)) : (it.error || it.message || 'unknown error');
 const msg = String(raw);
-const code = /ADS_SOURCE_UNAVAILABLE/.test(msg) ? 'ADS_SOURCE_UNAVAILABLE' : 'ADS_REPORT_FAILED';
+// Deck milik user gagal disalin (belum dibagikan / dihapus) → kode khusus supaya UI bisa menjelaskan
+let prev = '';
+try { prev = $prevNode.name; } catch (e) { prev = ''; }
+const code = /ADS_SOURCE_UNAVAILABLE/.test(msg)
+  ? 'ADS_SOURCE_UNAVAILABLE'
+  : (job.deckId && prev === 'Drive: Salin Base Deck' ? 'ADS_DECK_UNAVAILABLE' : 'ADS_REPORT_FAILED');
 
 return [{
   json: {

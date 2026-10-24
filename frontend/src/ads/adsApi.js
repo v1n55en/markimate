@@ -319,6 +319,18 @@ export async function removeTemplate(id) {
   return api(`/api/ads/templates/${id}`, { method: 'DELETE' });
 }
 
+// 10b. Deck Google Slides milik user (PRD F5 opsi A)
+export async function getDeckConfig() {
+  return api('/api/ads/deck/config');
+}
+
+export async function checkDeck(url, pageTypes = []) {
+  return api('/api/ads/deck/check', {
+    method: 'POST',
+    body: { url, pageTypes }
+  });
+}
+
 // 11. Metrics Custom & Formula Tester (PRD F5 Langkah 4 / F5b)
 export async function getCustomMetrics() {
   return api('/api/ads/metrics');

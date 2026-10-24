@@ -6,9 +6,9 @@
 
 // ===== KONFIGURASI (diisi 3Our setelah import, lihat automation/ADS-BASE-DECK.md) =====
 const CONFIG = {
-  baseDeckId: 'GANTI_DENGAN_ID_BASE_DECK',        // ID Google Slides "Markimate Base Deck"
+  baseDeckId: 'GANTI_DENGAN_ID_BASE_DECK',        // ID Google Slides "Markimate Base Deck" (dipakai bila template tidak punya deck sendiri)
   reportsFolderId: 'GANTI_DENGAN_ID_FOLDER',       // ID folder Drive "Markimate Reports"
-  graphVersion: 'v23.0',
+  graphVersion: 'v26.0',
   geminiModel: 'gemini-2.5-flash'
 };
 // ======================================================================================
@@ -60,6 +60,11 @@ if (isFullMonths) {
   prevStart = new Date(prevEnd.getTime() - (days - 1) * DAY);
 }
 
+// Deck milik user (opsional): harus sudah dibagikan ke akun Google credential Drive (Viewer cukup, karena yang diedit salinannya)
+const rawDeck = body.deckId || (body.template.deck && body.template.deck.presentationId) || null;
+if (rawDeck !== null && !/^[A-Za-z0-9_-]{20,100}$/.test(String(rawDeck))) return fail(400, 'deckId is invalid');
+const deckId = rawDeck ? String(rawDeck) : null;
+
 const template = body.template;
 const owner = body.owner || {};
 const locale = (owner.locale || template.locale || 'id') === 'en' ? 'en' : 'id';
@@ -72,6 +77,8 @@ return [{
     reportId: body.reportId || null,
     workspaceId: String(body.workspaceId || 'unknown').replace(/[^A-Za-z0-9_-]/g, ''),
     workspaceName: body.workspaceName || '',
+    deckId,
+    deckSource: deckId ? 'custom' : 'base',
     callbackUrl: body.callbackUrl,
     template,
     accounts,

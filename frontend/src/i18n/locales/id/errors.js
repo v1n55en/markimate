@@ -95,6 +95,7 @@ export const errors = {
   "ADS_ACCOUNT_NOT_FOUND": "Akun iklan tidak ditemukan.",
   "ADS_RECONNECT_REQUIRED": "Koneksi platform iklan telah kedaluwarsa. Silakan sambungkan ulang.",
   "ADS_SOURCE_UNAVAILABLE": "Akun sumber platform iklan tidak tersedia atau izin telah dicabut.",
+  "ADS_DECK_UNAVAILABLE": "Deck Google Slides Anda tidak bisa dibaca. Pastikan sudah dibagikan ke email layanan Markimate (Viewer).",
   "INVALID_TEMPLATE": "Spesifikasi template laporan tidak valid.",
   "INVALID_FORMULA": "Rumus metrik kustom tidak valid.",
   "ADS_REPORT_TIMEOUT": "Proses pembuatan laporan iklan melebihi batas waktu. Silakan coba lagi.",

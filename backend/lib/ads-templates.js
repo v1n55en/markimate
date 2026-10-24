@@ -57,6 +57,7 @@ export async function listTemplates(workspaceId) {
       name: tpl.name,
       workspace_id: tpl.workspace_id,
       is_system: Boolean(tpl.is_system),
+      spec: tpl.spec,
       pagesCount: Array.isArray(tpl.spec?.pages) ? tpl.spec.pages.length : 0,
       aiPagesCount: aiPages,
       creditsEstimate: calculateCredits({ accountsCount: 1, aiPagesCount: aiPages }),

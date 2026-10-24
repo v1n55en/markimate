@@ -30,6 +30,7 @@ import {
   saveProfile,
   removeProfile
 } from '../../ads/adsApi';
+import AdsDeckSettings from './AdsDeckSettings';
 
 const PAGE_TYPES = [
   { type: 'kpi', label: '+ KPI' },
@@ -89,6 +90,10 @@ export default function AdsTemplatesPage() {
         setSelectedTemplate(tpls[0]);
         setTplPages(tpls[0].spec?.pages || []);
         setProfileTemplateId(tpls[0].id);
+      } else if (selectedTemplate) {
+        // segarkan spec template terpilih (mis. deck baru disimpan) tanpa mengubah editor halaman
+        const fresh = tpls.find((x) => x.id === selectedTemplate.id);
+        if (fresh) setSelectedTemplate(fresh);
       }
     } catch (err) {
       setError(err.message || t('common.error'));
@@ -181,6 +186,13 @@ export default function AdsTemplatesPage() {
     } catch (err) {
       setError(err.message || t('common.error'));
     }
+  };
+
+  const handleDeckSaved = async (tpl, message) => {
+    if (tpl) setSelectedTemplate((prev) => ({ ...prev, ...tpl }));
+    setSuccess(message);
+    setTimeout(() => setSuccess(''), 3000);
+    await loadAll();
   };
 
   // Metric handlers
@@ -512,6 +524,12 @@ export default function AdsTemplatesPage() {
                     </div>
                   </div>
                 )}
+
+                <AdsDeckSettings
+                  template={selectedTemplate}
+                  pageTypes={tplPages.map((p) => p.type)}
+                  onSaved={handleDeckSaved}
+                />
               </div>
             )}
           </div>

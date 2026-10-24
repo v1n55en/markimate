@@ -506,7 +506,7 @@ Alur: validasi → 202 → **Ambil Data Meta** (Graph API asli, token via header
       ...jsonBody(`{ name: ${AUTH}.workspaceId, mimeType: 'application/vnd.google-apps.folder', parents: [${AUTH}.config.reportsFolderId] }`)
     }),
     gHttp('Drive: Salin Base Deck', [2180, Y], {
-      method: 'POST', url: `={{ 'https://www.googleapis.com/drive/v3/files/' + ${AUTH}.config.baseDeckId + '/copy' }}`,
+      method: 'POST', url: `={{ 'https://www.googleapis.com/drive/v3/files/' + (${AUTH}.deckId || ${AUTH}.config.baseDeckId) + '/copy' }}`,
       ...q([['supportsAllDrives', 'true'], ['fields', 'id,name,parents']]),
       ...jsonBody(`{ name: $('Parse Insight').first().json.fileName, parents: [ $json.files ? $json.files[0].id : $json.id ] }`)
     }),
@@ -597,6 +597,45 @@ Alur: validasi → 202 → **Ambil Data Meta** (Graph API asli, token via header
   };
 }
 
+function buildAdsDeckCheck() {
+  const Y = 300;
+  const nodes = [
+    sticky('Sticky Ads Deck Check', [-520, -60], 1500, 220, 5, `## 🔎 Markimate Ads Deck Check (PRD F5 opsi A) — \`POST /webhook/ads-deck-check\`
+Dipanggil backend \`POST /api/ads/deck/check\` saat user menempelkan URL deck Google Slides miliknya di template.
+Body: \`{ presentationId }\`. Balasan 200: \`{ accessible, httpStatus, title, slideCount, layouts, missingLayouts, issues[] }\`.
+**Setelah import:** pasang credential **Google Drive Markimate** (sama dengan workflow Ads Report) di node *Slides: Baca Deck (Cek)*, lalu aktifkan.`),
+    {
+      id: 'n-webhook-ads-deck-check', name: 'Webhook Deck Check', type: 'n8n-nodes-base.webhook', typeVersion: 2, position: [-460, Y],
+      webhookId: '4d3c2b1a-0f9e-4d8c-b7a6-5e4d3c2b1a0f',
+      parameters: { httpMethod: 'POST', path: 'ads-deck-check', authentication: 'headerAuth', responseMode: 'responseNode', options: {} },
+      credentials: CRED.supermatKey
+    },
+    codeNode('Validasi Deck ID', [-240, Y], code('ads-deck-check-input.js')),
+    ifBool('Deck ID OK?', [-20, Y], '={{ $json.ok }}'),
+    respond('Respond Error (Deck)', [200, Y + 200], ERR_BODY, ERR_CODE),
+    httpNode('Slides: Baca Deck (Cek)', [200, Y], {
+      method: 'GET',
+      url: "={{ 'https://slides.googleapis.com/v1/presentations/' + $json.presentationId }}",
+      authentication: 'predefinedCredentialType',
+      nodeCredentialType: 'googleDriveOAuth2Api',
+      sendQuery: true,
+      queryParameters: { parameters: [{ name: 'fields', value: 'title,slides(objectId,pageElements,slideProperties(notesPage(pageElements)))' }] },
+      options: { timeout: 60000, response: { response: { fullResponse: true, neverError: true, responseFormat: 'json' } } }
+    }, { credentials: CRED.googleDrive }),
+    codeNode('Analisa Deck', [420, Y], code('ads-deck-check.js')),
+    respondFirst('Respond Hasil Cek', [640, Y], 200)
+  ];
+  const connections = conn([
+    ['Webhook Deck Check', 'Validasi Deck ID'],
+    ['Validasi Deck ID', 'Deck ID OK?'],
+    ['Deck ID OK?', 'Slides: Baca Deck (Cek)', 0],
+    ['Deck ID OK?', 'Respond Error (Deck)', 1],
+    ['Slides: Baca Deck (Cek)', 'Analisa Deck'],
+    ['Analisa Deck', 'Respond Hasil Cek']
+  ]);
+  return { name: 'Markimate Ads Deck Check (3Our)', nodes, connections, settings: { executionOrder: 'v1' } };
+}
+
 const out = {
   'n8n-main-workflow.json': buildMain(),
   'n8n-adapter-wordpress.json': buildWordPress(),
@@ -604,7 +643,8 @@ const out = {
   'n8n-adapter-sanity.json': buildSanity(),
   'n8n-adapter-shopify.json': buildShopify(),
   'n8n-image-workflow.json': buildImageWorkflow(),
-  'n8n-ads-report-workflow.json': buildAdsReport()
+  'n8n-ads-report-workflow.json': buildAdsReport(),
+  'n8n-ads-deck-check-workflow.json': buildAdsDeckCheck()
 };
 for (const [f, w] of Object.entries(out)) {
   fs.writeFileSync(path.join(here, f), JSON.stringify(w, null, 2));

@@ -21,6 +21,22 @@ export const ALLOWED_PAGE_TYPES = [
   'closing'
 ];
 
+// Deck Google Slides milik user (opsional). ID Google Drive: huruf, angka, '-' dan '_'.
+export const SLIDES_ID_RE = /^[A-Za-z0-9_-]{20,100}$/;
+
+/**
+ * Ambil ID presentasi dari URL Google Slides (atau ID mentah). Kembalikan null bila tidak valid.
+ * Contoh: https://docs.google.com/presentation/d/<ID>/edit#slide=id.p
+ */
+export function parseSlidesId(input) {
+  if (typeof input !== 'string') return null;
+  const s = input.trim();
+  if (!s) return null;
+  const m = s.match(/\/presentation\/(?:u\/\d+\/)?d\/([A-Za-z0-9_-]+)/);
+  const id = m ? m[1] : s;
+  return SLIDES_ID_RE.test(id) ? id : null;
+}
+
 export const ALLOWED_TABLE_DIMENSIONS = [
   'platform',
   'account',
@@ -204,6 +220,13 @@ export function validateTemplate(spec, { customMetricIds = [] } = {}) {
       error: 'Google Ads platform is not available until phase F5-Google',
       code: 'PLATFORM_NOT_AVAILABLE'
     });
+  }
+
+  if (spec.deck !== undefined && spec.deck !== null) {
+    const pid = spec.deck && typeof spec.deck === 'object' ? spec.deck.presentationId : undefined;
+    if (typeof pid !== 'string' || !SLIDES_ID_RE.test(pid)) {
+      errors.push({ error: 'deck.presentationId must be a valid Google Slides ID', code: 'INVALID_DECK' });
+    }
   }
 
   if (!Array.isArray(spec.pages)) {

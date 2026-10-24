@@ -26,15 +26,15 @@ function getCode(name) {
   assert.strictEqual(n.type, 'n8n-nodes-base.code');
   return n.parameters.jsCode;
 }
-async function runCode(name, inputItems, http, override) {
+async function runCode(name, inputItems, http, override, prevNodeName) {
   const js = override || getCode(name);
   const $input = { first: () => inputItems[0], all: () => inputItems };
   const $ = (n) => {
     if (!ctx[n]) throw new Error(`Node '${n}' hasn't been executed`);
     return { first: () => ctx[n][0], all: () => ctx[n] };
   };
-  const fn = new AsyncFunction('$input', '$', js);
-  const out = await fn.call({ helpers: { httpRequest: http || (async () => { throw new Error('no http'); }) } }, $input, $);
+  const fn = new AsyncFunction('$input', '$', '$prevNode', js);
+  const out = await fn.call({ helpers: { httpRequest: http || (async () => { throw new Error('no http'); }) } }, $input, $, { name: prevNodeName || '' });
   ctx[name] = out;
   return out;
 }
@@ -144,7 +144,23 @@ const auth = await runCode('Auth & Normalize (Ads)', [{ json: { body: payload } 
 assert.strictEqual(auth[0].json.ok, true);
 assert.strictEqual(auth[0].json.accounts[0].externalId, 'act_111', 'externalId dinormalisasi ke act_');
 assert.deepStrictEqual(auth[0].json.prevPeriod, { start: '2026-09-01', end: '2026-09-30' }, 'periode pembanding = 31 hari sebelumnya');
-console.log('   OK - Auth & Normalize: 503 saat belum dikonfigurasi, validasi periode, periode pembanding.');
+assert.strictEqual(auth[0].json.deckId, null, 'tanpa deck user → pakai base deck');
+assert.strictEqual(auth[0].json.deckSource, 'base');
+assert.strictEqual(auth[0].json.config.graphVersion, 'v26.0', 'Graph API v26.0');
+{
+  const USER_DECK = '1AbCdEfGhIjKlMnOpQrStUvWxYz_0123456789-abc';
+  const viaField = (await runCode('Auth & Normalize (Ads)', [{ json: { body: { ...payload, deckId: USER_DECK } } }], null, authCode))[0].json;
+  assert.strictEqual(viaField.deckId, USER_DECK, 'deckId dari payload backend');
+  assert.strictEqual(viaField.deckSource, 'custom');
+  const viaTpl = (await runCode('Auth & Normalize (Ads)', [{ json: { body: { ...payload, template: { ...payload.template, deck: { presentationId: USER_DECK } } } } }], null, authCode))[0].json;
+  assert.strictEqual(viaTpl.deckId, USER_DECK, 'fallback ke template.deck.presentationId');
+  const bad = (await runCode('Auth & Normalize (Ads)', [{ json: { body: { ...payload, deckId: "x' or name contains 'a" } } }], null, authCode))[0].json;
+  assert.strictEqual(bad.statusCode, 400, 'deckId tidak valid ditolak (tidak masuk ke URL Drive)');
+  ctx['Auth & Normalize (Ads)'] = auth;
+}
+const copyUrl = nodeByName['Drive: Salin Base Deck'].parameters.url;
+assert.ok(copyUrl.includes('.deckId || ') && copyUrl.includes('.config.baseDeckId'), 'salin deck user bila ada, kalau tidak base deck');
+console.log('   OK - Auth & Normalize: 503 saat belum dikonfigurasi, validasi periode, periode pembanding, deck user.');
 
 // ---------------------------------------------------------------- 2. Ambil Data Meta
 const fetchOut = await runCode('Ambil Data Meta', auth, graphMock);
@@ -325,6 +341,15 @@ assert.ok(!JSON.stringify(cb).includes('EAAtoken'), 'token tidak ada di callback
   assert.strictEqual(err.callbackPayload.errorCode, 'ADS_SOURCE_UNAVAILABLE');
   const err2 = (await runCode('Siapkan Callback Error', [{ json: { error: { message: 'File not found: BASEDECK123' } } }]))[0].json;
   assert.strictEqual(err2.callbackPayload.errorCode, 'ADS_REPORT_FAILED');
+  // deck user gagal disalin → ADS_DECK_UNAVAILABLE (hanya bila memakai deck user & gagal di node salin)
+  ctx['Auth & Normalize (Ads)'] = [{ json: { ...auth[0].json, deckId: '1AbCdEfGhIjKlMnOpQrStUvWxYz_0123456789-abc' } }];
+  const err3 = (await runCode('Siapkan Callback Error', [{ json: { error: { message: '404 - File not found' } } }], null, null, 'Drive: Salin Base Deck'))[0].json;
+  assert.strictEqual(err3.callbackPayload.errorCode, 'ADS_DECK_UNAVAILABLE');
+  const err4 = (await runCode('Siapkan Callback Error', [{ json: { error: { message: '500' } } }], null, null, 'Slides: Isi Konten'))[0].json;
+  assert.strictEqual(err4.callbackPayload.errorCode, 'ADS_REPORT_FAILED', 'error di node lain tetap ADS_REPORT_FAILED');
+  ctx['Auth & Normalize (Ads)'] = auth;
+  const err5 = (await runCode('Siapkan Callback Error', [{ json: { error: { message: '404' } } }], null, null, 'Drive: Salin Base Deck'))[0].json;
+  assert.strictEqual(err5.callbackPayload.errorCode, 'ADS_REPORT_FAILED', 'base deck Markimate gagal → bukan salah user');
 }
 console.log('   OK - Gambar per item, akses Drive, callback sukses & error.');
 

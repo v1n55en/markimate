@@ -243,6 +243,7 @@ assert.strictEqual(capturedN8nPayload.owner.email, userA.email, 'payload.owner.e
 assert.ok(['id', 'en'].includes(capturedN8nPayload.owner.locale), 'payload.owner.locale terisi');
 assert.strictEqual(capturedN8nPayload.workspaceName, wsA.name);
 assert.ok(Array.isArray(capturedN8nPayload.customMetrics), 'payload.customMetrics berupa array');
+assert.strictEqual(capturedN8nPayload.deckId, null, 'template tanpa deck user → deckId null (n8n pakai base deck)');
 assert.strictEqual(successTriggerRes.status, 'running');
 assert.strictEqual(successTriggerRes.creditsCharged, 350);
 assert.ok(capturedN8nPayload);
