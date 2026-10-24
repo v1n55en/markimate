@@ -37,7 +37,14 @@ const TABLES = [
   'webhook_events',
   'oauth_pending_links',
   'payments',
-  'monthly_grants'
+  'monthly_grants',
+  // Tabel baru PRD F5 (Ads Report & Template Builder)
+  'ad_connections',
+  'ad_accounts',
+  'report_templates',
+  'ads_custom_metrics',
+  'report_profiles',
+  'ad_reports'
 ];
 
 const log = (msg) => console.log(`[${new Date().toISOString()}] ${msg}`);
@@ -84,7 +91,13 @@ class JsonStore {
       webhook_events: [],
       oauth_pending_links: [],
       payments: [],
-      monthly_grants: []
+      monthly_grants: [],
+      ad_connections: [],
+      ad_accounts: [],
+      report_templates: [],
+      ads_custom_metrics: [],
+      report_profiles: [],
+      ad_reports: []
     };
     try {
       if (fs.existsSync(this.file)) {
