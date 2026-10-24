@@ -403,6 +403,61 @@ export const ERROR_CODES = {
     code: 'GENERATE_TIMEOUT',
     status: 504,
     message: 'Article generation timed out (exceeded 10 minutes).'
+  },
+  INVALID_OAUTH_STATE: {
+    code: 'INVALID_OAUTH_STATE',
+    status: 400,
+    message: 'OAuth authentication session expired or state mismatch. Please try again.'
+  },
+  ADS_CONNECTION_NOT_FOUND: {
+    code: 'ADS_CONNECTION_NOT_FOUND',
+    status: 404,
+    message: 'Ad connection not found.'
+  },
+  ADS_ACCOUNT_NOT_FOUND: {
+    code: 'ADS_ACCOUNT_NOT_FOUND',
+    status: 404,
+    message: 'Ad account not found.'
+  },
+  ADS_RECONNECT_REQUIRED: {
+    code: 'ADS_RECONNECT_REQUIRED',
+    status: 409,
+    message: 'Ad platform connection has expired. Please reconnect.'
+  },
+  ADS_SOURCE_UNAVAILABLE: {
+    code: 'ADS_SOURCE_UNAVAILABLE',
+    status: 502,
+    message: 'Ad platform source accounts are unavailable or unauthorized.'
+  },
+  INVALID_TEMPLATE: {
+    code: 'INVALID_TEMPLATE',
+    status: 400,
+    message: 'Report template specification is invalid.'
+  },
+  INVALID_FORMULA: {
+    code: 'INVALID_FORMULA',
+    status: 400,
+    message: 'Custom metric formula is invalid.'
+  },
+  ADS_REPORT_TIMEOUT: {
+    code: 'ADS_REPORT_TIMEOUT',
+    status: 504,
+    message: 'Ad report generation timed out. Please try again.'
+  },
+  TEMPLATE_IN_USE: {
+    code: 'TEMPLATE_IN_USE',
+    status: 409,
+    message: 'This template is currently in use by active report profiles.'
+  },
+  CUSTOM_METRIC_IN_USE: {
+    code: 'CUSTOM_METRIC_IN_USE',
+    status: 409,
+    message: 'This custom metric is currently in use by report templates.'
+  },
+  PLATFORM_NOT_AVAILABLE: {
+    code: 'PLATFORM_NOT_AVAILABLE',
+    status: 400,
+    message: 'Selected ad platform is not yet available.'
   }
 };
 

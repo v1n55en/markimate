@@ -89,6 +89,17 @@ export const errors = {
   "IMAGE_GENERATION_FAILED": "Gagal menghasilkan gambar dari model AI Imagen.",
   "GENERATE_TIMEOUT": "Proses pembuatan artikel melebihi batas waktu (10 menit). Silakan coba lagi.",
   "MODULE_PURCHASE_DISCONTINUED": "Pembelian modul telah dihentikan. Semua modul kini aktif gratis; Anda hanya membayar sesuai pemakaian kredit.",
-  "INVALID_PACK": "Paket kredit tidak valid."
+  "INVALID_PACK": "Paket kredit tidak valid.",
+  "INVALID_OAUTH_STATE": "Sesi otorisasi OAuth kedaluwarsa atau parameter state tidak cocok. Silakan coba lagi.",
+  "ADS_CONNECTION_NOT_FOUND": "Koneksi akun iklan tidak ditemukan.",
+  "ADS_ACCOUNT_NOT_FOUND": "Akun iklan tidak ditemukan.",
+  "ADS_RECONNECT_REQUIRED": "Koneksi platform iklan telah kedaluwarsa. Silakan sambungkan ulang.",
+  "ADS_SOURCE_UNAVAILABLE": "Akun sumber platform iklan tidak tersedia atau izin telah dicabut.",
+  "INVALID_TEMPLATE": "Spesifikasi template laporan tidak valid.",
+  "INVALID_FORMULA": "Rumus metrik kustom tidak valid.",
+  "ADS_REPORT_TIMEOUT": "Proses pembuatan laporan iklan melebihi batas waktu. Silakan coba lagi.",
+  "TEMPLATE_IN_USE": "Template ini sedang digunakan oleh profil laporan aktif.",
+  "CUSTOM_METRIC_IN_USE": "Metrik kustom ini sedang digunakan dalam template laporan.",
+  "PLATFORM_NOT_AVAILABLE": "Platform iklan yang dipilih belum tersedia."
 };
 

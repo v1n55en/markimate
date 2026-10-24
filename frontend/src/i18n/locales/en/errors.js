@@ -89,6 +89,17 @@ export const errors = {
   "IMAGE_GENERATION_FAILED": "Failed to generate image from AI model.",
   "GENERATE_TIMEOUT": "Article generation timed out (exceeded 10 minutes). Please try again.",
   "MODULE_PURCHASE_DISCONTINUED": "Module purchases have been discontinued. All modules are now free to use; you only pay for credit usage.",
-  "INVALID_PACK": "Invalid credit pack."
+  "INVALID_PACK": "Invalid credit pack.",
+  "INVALID_OAUTH_STATE": "OAuth authentication session expired or state mismatch. Please try again.",
+  "ADS_CONNECTION_NOT_FOUND": "Ad connection not found.",
+  "ADS_ACCOUNT_NOT_FOUND": "Ad account not found.",
+  "ADS_RECONNECT_REQUIRED": "Ad platform connection has expired. Please reconnect.",
+  "ADS_SOURCE_UNAVAILABLE": "Ad platform source accounts are unavailable or unauthorized.",
+  "INVALID_TEMPLATE": "Report template specification is invalid.",
+  "INVALID_FORMULA": "Custom metric formula is invalid.",
+  "ADS_REPORT_TIMEOUT": "Ad report generation timed out. Please try again.",
+  "TEMPLATE_IN_USE": "This template is currently in use by active report profiles.",
+  "CUSTOM_METRIC_IN_USE": "This custom metric is currently in use by report templates.",
+  "PLATFORM_NOT_AVAILABLE": "Selected ad platform is not yet available."
 };
 

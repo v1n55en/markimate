@@ -91,6 +91,20 @@ import {
   resolveEffectiveArticleOptions,
   estimateArticleCredits
 } from './lib/article-options.js';
+import {
+  isMetaOAuthConfigured,
+  getMetaRedirectUri,
+  generateMetaOAuthState,
+  verifyMetaOAuthState,
+  getMetaOAuthUrl,
+  exchangeMetaCode,
+  fetchMetaProfile,
+  fetchMetaAdAccounts,
+  saveMetaConnection,
+  disconnectAdConnection,
+  listAdConnections
+} from './lib/ads-oauth.js';
+import { sendError } from './lib/error-codes.js';
 
 export { PLANS };
 
@@ -3772,10 +3786,111 @@ app.get('/api/v1/articles', apiKeyAuth, requireModule('seo'), wrap(async (req, r
   res.json({ status: 'ok', articles: articles.map(kwPublic) });
 }));
 
-// ---------- Module Entitlements: Ads Report & Ads Spy Ready Endpoints (PRD F1+F2 Langkah 7) ----------
-app.get('/api/ads/reports', auth, requireWorkspace('viewer'), requireModule('ads_report'), wrap(async (req, res) => {
-  res.json({ status: 'ok', module: 'ads_report', reports: [] });
+// ---------- Module Entitlements: Ads Report & Ads Connections (PRD F5 Langkah 3) ----------
+app.get('/api/ads/connections', auth, requireWorkspace('viewer'), requireModule('ads_report'), wrap(async (req, res) => {
+  const result = await listAdConnections(req.workspace.id);
+  res.json({ status: 'ok', ...result });
 }));
+
+app.get('/api/ads/oauth/meta/url', auth, requireWorkspace('admin'), requireModule('ads_report'), wrap(async (req, res) => {
+  if (!isMetaOAuthConfigured()) {
+    return res.json({ status: 'unconfigured', message: 'Meta Ads integration is not configured' });
+  }
+  const state = generateMetaOAuthState({ workspaceId: req.workspace.id, userId: req.user.id });
+  const url = getMetaOAuthUrl(state);
+  res.json({ status: 'ok', url, state });
+}));
+
+app.get('/api/ads/oauth/meta/callback', wrap(async (req, res) => {
+  const appUrl = getAppUrl();
+  const acceptsJson = req.headers.accept?.includes('application/json');
+
+  if (req.query.error) {
+    const errDesc = req.query.error_description || req.query.error;
+    if (acceptsJson) {
+      return sendError(res, 'BAD_REQUEST', String(errDesc));
+    }
+    return res.redirect(`${appUrl}/app/ads/connections?error=${encodeURIComponent(errDesc)}`);
+  }
+
+  const stateStr = req.query.state;
+  const verified = verifyMetaOAuthState(stateStr);
+  if (!verified.valid) {
+    if (acceptsJson) {
+      return sendError(res, 'INVALID_OAUTH_STATE', verified.error);
+    }
+    return res.redirect(`${appUrl}/app/ads/connections?error=INVALID_OAUTH_STATE`);
+  }
+
+  const { workspaceId, userId } = verified;
+  const code = req.query.code;
+  if (!code) {
+    if (acceptsJson) {
+      return sendError(res, 'BAD_REQUEST', 'Missing authorization code');
+    }
+    return res.redirect(`${appUrl}/app/ads/connections?error=MISSING_CODE`);
+  }
+
+  try {
+    const doExchange = exchangeMetaCode(code, getMetaRedirectUri(req));
+    const { accessToken, expiresIn } = await doExchange();
+    const profile = await fetchMetaProfile(accessToken);
+    const adAccounts = await fetchMetaAdAccounts(accessToken);
+
+    await saveMetaConnection({
+      workspaceId,
+      userId,
+      externalUserId: profile.id,
+      displayName: profile.name,
+      accessToken,
+      expiresInSeconds: expiresIn,
+      adAccounts
+    });
+
+    if (acceptsJson) {
+      return res.json({ status: 'ok', connected: 'meta', adAccountsCount: adAccounts.length });
+    }
+    return res.redirect(`${appUrl}/app/ads/connections?connected=meta`);
+  } catch (err) {
+    log(`[AdsOAuth] Meta callback error: ${err.message}`);
+    if (acceptsJson) {
+      return sendError(res, 'BAD_REQUEST', err.message);
+    }
+    return res.redirect(`${appUrl}/app/ads/connections?error=${encodeURIComponent(err.message)}`);
+  }
+}));
+
+app.delete('/api/ads/connections/:id', auth, requireWorkspace('admin'), requireModule('ads_report'), wrap(async (req, res) => {
+  const result = await disconnectAdConnection(req.params.id, req.workspace.id);
+  if (!result.ok) {
+    return sendError(res, result.code || 'ADS_CONNECTION_NOT_FOUND');
+  }
+  res.json({ status: 'ok', message: 'Connection disconnected successfully' });
+}));
+
+app.get('/api/ads/accounts', auth, requireWorkspace('viewer'), requireModule('ads_report'), wrap(async (req, res) => {
+  const accounts = await db.findMany('ad_accounts', { workspace_id: req.workspace.id });
+  res.json({ status: 'ok', accounts });
+}));
+
+app.patch('/api/ads/accounts/:id/select', auth, requireWorkspace('admin'), requireModule('ads_report'), wrap(async (req, res) => {
+  const account = await db.findOne('ad_accounts', { id: req.params.id, workspace_id: req.workspace.id });
+  if (!account) {
+    return sendError(res, 'ADS_ACCOUNT_NOT_FOUND');
+  }
+  const selected = typeof req.body.selected === 'boolean' ? req.body.selected : true;
+  await db.update('ad_accounts', { id: account.id }, {
+    selected,
+    updated_at: new Date().toISOString()
+  });
+  res.json({ status: 'ok', account: { ...account, selected } });
+}));
+
+app.get('/api/ads/reports', auth, requireWorkspace('viewer'), requireModule('ads_report'), wrap(async (req, res) => {
+  const reports = await db.findMany('ad_reports', { workspace_id: req.workspace.id }, { orderBy: 'created_at', desc: true });
+  res.json({ status: 'ok', module: 'ads_report', reports });
+}));
+
 app.get('/api/ads/spy', auth, requireWorkspace('viewer'), requireModule('ads_spy'), wrap(async (req, res) => {
   res.json({ status: 'ok', module: 'ads_spy', competitors: [] });
 }));
