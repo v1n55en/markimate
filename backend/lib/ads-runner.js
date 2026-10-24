@@ -3,13 +3,13 @@
 
 import crypto from 'crypto';
 import { db } from '../db.js';
-import { charge, grant } from './credits.js';
+import { charge, grant, getPrices } from './credits.js';
 import { getAppUrl } from './config.js';
 import { getDecryptedAccessToken } from './ads-oauth.js';
 import { getTemplateById } from './ads-templates.js';
 import { calculateCredits, countAiPages } from '../shared/report-template.js';
 
-const TEN_MINUTES_MS = 10 * 60 * 1000;
+const FIFTEEN_MINUTES_MS = 15 * 60 * 1000;
 
 export function getN8nAdsReportUrl() {
   const base = (process.env.N8N_BASE_URL || 'https://n8n.3ourasia.id').replace(/\/+$/, '');
@@ -141,13 +141,22 @@ export async function triggerAdsReportGenerate({
     );
   });
 
-  // 6. Hitung kebutuhan kredit
-  const aiPages = countAiPages(spec);
-  const creditsRequired = calculateCredits({
-    accountsCount: preparedAccounts.length,
-    aiPagesCount: aiPages,
-    isRerun
-  });
+  // 6. Hitung kebutuhan kredit dinamis dari tabel credit_prices (bukan angka hardcoded)
+  const prices = await getPrices();
+  const basePrice = prices['ads.report']?.credits ?? 300;
+  const extraAccPrice = prices['ads.report.extra_account']?.credits ?? 50;
+  const aiPagePrice = prices['ads.report.ai_page']?.credits ?? 50;
+  const rerunPrice = prices['ads.report_rerun']?.credits ?? 100;
+
+  let creditsRequired;
+  if (isRerun) {
+    creditsRequired = rerunPrice;
+  } else {
+    const aiPages = countAiPages(spec);
+    const safeAccounts = Math.max(1, preparedAccounts.length);
+    const extraAccounts = Math.max(0, safeAccounts - 3);
+    creditsRequired = basePrice + (extraAccounts * extraAccPrice) + (aiPages * aiPagePrice);
+  }
 
   const reportId = crypto.randomUUID();
   const requestId = `req_ads_${crypto.randomUUID()}`;
@@ -421,16 +430,17 @@ export async function getReportStatus(reportId, workspaceId) {
     return null;
   }
 
-  // Cek apakah laporan running melebihi 10 menit (600 detik)
+  // Cek apakah laporan running melebihi 15 menit (900 detik sesuai PRD §3.7 langkah 4)
   if (report.status === 'running' || report.status === 'queued') {
     const startedAtMs = Date.parse(report.started_at || report.created_at);
-    if (!isNaN(startedAtMs) && Date.now() - startedAtMs > TEN_MINUTES_MS) {
+    if (!isNaN(startedAtMs) && Date.now() - startedAtMs > FIFTEEN_MINUTES_MS) {
       await refundReportCreditsAtomic(
         report,
-        'Refund ads report generation timeout (10m)',
+        'Refund ads report generation timeout (15m)',
         'ADS_REPORT_TIMEOUT'
       );
       const updated = await db.findOne('ad_reports', { id: report.id });
+      return updated || report;
     }
   }
 

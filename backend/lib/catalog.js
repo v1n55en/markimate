@@ -11,7 +11,7 @@ export const MODULES = {
   ads_report: {
     id: 'ads_report',
     name: 'Ads Report',
-    typicalMonthlyCredits: 400,
+    typicalMonthlyCredits: 350,
     desc: '1 laporan bulanan'
   },
   ads_spy: {

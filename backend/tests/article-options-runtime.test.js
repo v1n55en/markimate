@@ -385,13 +385,20 @@ async function runRuntimeTests() {
     const jsonEstPillar = await resEstPillar.json();
     assert.strictEqual(jsonEstPillar.credits, 140, 'Estimasi endpoint pillar 6 gambar harus 140 credit');
 
-    // Ads Report -> 400
+    // Ads Report -> 300 base (350 standar dengan 1 AI page)
     const resEstAds = await originalFetch(`http://localhost:${serverPort}/api/credits/estimate?action=ads.report`, {
       headers: authHeaders
     });
     assert.strictEqual(resEstAds.status, 200);
     const jsonEstAds = await resEstAds.json();
-    assert.strictEqual(jsonEstAds.credits, 400);
+    assert.strictEqual(jsonEstAds.credits, 300);
+
+    const resEstAdsStd = await originalFetch(`http://localhost:${serverPort}/api/credits/estimate?action=ads.report&accounts=1&aiPages=1`, {
+      headers: authHeaders
+    });
+    assert.strictEqual(resEstAdsStd.status, 200);
+    const jsonEstAdsStd = await resEstAdsStd.json();
+    assert.strictEqual(jsonEstAdsStd.credits, 350, 'Template standar (1 akun + 1 AI page) harus 350 credit');
 
     // Spy Scan -> 40
     const resEstSpy = await originalFetch(`http://localhost:${serverPort}/api/credits/estimate?action=spy.scan`, {

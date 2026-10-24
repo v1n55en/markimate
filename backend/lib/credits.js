@@ -178,6 +178,21 @@ export async function estimate(actionKey, qty = 1, extra = {}) {
     totalCredits += imgPrice * imgCount;
   }
 
+  // Jika komposit laporan iklan (PRD F5 §3.8: base 300 s.d. 3 akun + 50/extra akun + 50/ai page atau 100 rerun)
+  if (resolvedActionKey === 'ads.report') {
+    if (extra && extra.isRerun) {
+      totalCredits = prices['ads.report_rerun']?.credits ?? 100;
+    } else if (extra && (extra.accounts !== undefined || extra.aiPages !== undefined)) {
+      const basePrice = prices['ads.report']?.credits ?? 300;
+      const extraAccPrice = prices['ads.report.extra_account']?.credits ?? 50;
+      const aiPagePrice = prices['ads.report.ai_page']?.credits ?? 50;
+      const accountsCount = Math.max(1, Number(extra.accounts || 1));
+      const extraAccounts = Math.max(0, accountsCount - 3);
+      const aiPagesCount = Math.max(0, Number(extra.aiPages || 0));
+      totalCredits = basePrice + (extraAccounts * extraAccPrice) + (aiPagesCount * aiPagePrice);
+    }
+  }
+
   // Jika extra.credits ditentukan secara eksplisit (seperti kalkulasi dinamis ads report)
   if (extra && extra.credits !== undefined) {
     totalCredits = Math.max(0, Number(extra.credits));
@@ -189,7 +204,10 @@ export async function estimate(actionKey, qty = 1, extra = {}) {
     unitPrice,
     credits: totalCredits,
     ...(extra && extra.length ? { length: extra.length } : {}),
-    ...(extra && extra.images !== undefined ? { images: Number(extra.images || 0) } : {})
+    ...(extra && extra.images !== undefined ? { images: Number(extra.images || 0) } : {}),
+    ...(extra && extra.accounts !== undefined ? { accounts: Number(extra.accounts || 1) } : {}),
+    ...(extra && extra.aiPages !== undefined ? { aiPages: Number(extra.aiPages || 0) } : {}),
+    ...(extra && extra.isRerun ? { isRerun: true } : {})
   };
 }
 

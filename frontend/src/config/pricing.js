@@ -21,7 +21,7 @@ export const MODULES = {
   ads_report: {
     id: 'ads_report',
     name: 'Ads Report',
-    typicalMonthlyCredits: 400,
+    typicalMonthlyCredits: 350,
     desc: '1 laporan bulanan'
   },
   ads_spy: {
@@ -116,14 +116,14 @@ export const ACTION_COST_EXAMPLES = {
 export const AVERAGE_PRICE_PER_CREDIT = 900;
 
 const seoMonthly = MODULES.seo.typicalMonthlyCredits * AVERAGE_PRICE_PER_CREDIT; // 600 * 900 = 540.000
-const adsReportMonthly = MODULES.ads_report.typicalMonthlyCredits * AVERAGE_PRICE_PER_CREDIT; // 400 * 900 = 360.000
+const adsReportMonthly = MODULES.ads_report.typicalMonthlyCredits * AVERAGE_PRICE_PER_CREDIT; // 350 * 900 = 315.000
 const adsSpyMonthly = MODULES.ads_spy.typicalMonthlyCredits * AVERAGE_PRICE_PER_CREDIT; // 260 * 900 = 234.000
-export const TOTAL_TYPICAL_MONTHLY_CREDITS = MODULES.seo.typicalMonthlyCredits + MODULES.ads_report.typicalMonthlyCredits + MODULES.ads_spy.typicalMonthlyCredits; // 1.260
-const focus3Monthly = TOTAL_TYPICAL_MONTHLY_CREDITS * AVERAGE_PRICE_PER_CREDIT; // 1.260 * 900 = 1.134.000
+export const TOTAL_TYPICAL_MONTHLY_CREDITS = MODULES.seo.typicalMonthlyCredits + MODULES.ads_report.typicalMonthlyCredits + MODULES.ads_spy.typicalMonthlyCredits; // 1.210
+const focus3Monthly = TOTAL_TYPICAL_MONTHLY_CREDITS * AVERAGE_PRICE_PER_CREDIT; // 1.210 * 900 = 1.089.000
 
 export const TEAM_COST_BENCHMARK = {
   focus3: 29375000, // Rata-rata gaji 3 staf in-house
-  focus3Markimate: focus3Monthly, // 1.260 credit * Rp900 = Rp1.134.000
+  focus3Markimate: focus3Monthly, // 1.210 credit * Rp900 = Rp1.089.000
   focus3Savings: 29375000 - focus3Monthly, // Penghematan riil per bulan
   full: 64375000, // Gaji tim in-house lengkap 6-8 orang + tools berbayar
 };

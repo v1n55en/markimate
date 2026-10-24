@@ -82,7 +82,7 @@ export const PRIVACY_CONTENT = {
         number: '5',
         title: 'Penyimpanan Data & Keamanan Token OAuth',
         securityBox: 'Enkripsi Tingkat Tinggi: Kredensial otentikasi (Access Token & Refresh Token OAuth) disimpan secara terenkripsi menggunakan algoritma standar industri (AES-256) pada pangkalan data terisolasi. Token hanya didekripsi saat sistem melakukan panggilan API terjadwal untuk penyusunan laporan berkala.',
-        content: 'Kami menerapkan kontrol akses berbasis peran (RBAC), transmisi data terenkripsi SSL/TLS HTTPS end-to-end, dan pemantauan keamanan berkala untuk mencegah akses tanpa hak.',
+        content: 'Kami menerapkan kontrol akses berbasis peran (RBAC), transmisi data terenkripsi SSL/TLS HTTPS end-to-end, dan pemantauan keamanan berkala untuk mencegah akses tanpa hak. Khusus untuk integrasi Meta Ads: otorisasi beroperasi strictly read-only (ads_read, business_management) hanya untuk menyusun laporan performa. Data mentah Meta Insights tidak disimpan permanen pada pangkalan data kami (hanya ringkasan agregat serta berkas laporan akhir yang disimpan), dan token otorisasi Meta dihapus serta dicabut (revoked) secara permanen dari sistem saat koneksi diputus oleh pengguna.',
       },
       {
         number: '6',
@@ -153,7 +153,7 @@ export const PRIVACY_CONTENT = {
         number: '5',
         title: 'Data Storage & OAuth Token Security',
         securityBox: 'Enterprise-Grade Encryption: Authentication credentials (OAuth Access & Refresh Tokens) are stored using AES-256 encryption within isolated databases. Decryption occurs only during scheduled automated report generation runs.',
-        content: 'We enforce Role-Based Access Control (RBAC), end-to-end SSL/TLS HTTPS data transit encryption, and continuous vulnerability monitoring.',
+        content: 'We enforce Role-Based Access Control (RBAC), end-to-end SSL/TLS HTTPS data transit encryption, and continuous vulnerability monitoring. Specifically for Meta Ads integrations: authorization operates strictly under read-only permissions (ads_read, business_management) solely to generate performance reports. Raw Meta Insights data is never permanently stored in our database (only aggregated summaries and generated report files are retained), and Meta authorization tokens are permanently purged and revoked from our systems immediately upon disconnection by the user.',
       },
       {
         number: '6',

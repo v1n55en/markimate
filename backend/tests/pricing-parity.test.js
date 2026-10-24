@@ -40,7 +40,7 @@ async function runPricingParityTests() {
 
   // Cek nilai spesifik sesuai PRD F16
   assert.strictEqual(BE_MODULES.seo.typicalMonthlyCredits, 600, 'SEO typicalMonthlyCredits must be 600');
-  assert.strictEqual(BE_MODULES.ads_report.typicalMonthlyCredits, 400, 'Ads Report typicalMonthlyCredits must be 400');
+  assert.strictEqual(BE_MODULES.ads_report.typicalMonthlyCredits, 350, 'Ads Report typicalMonthlyCredits must be 350');
   assert.strictEqual(BE_MODULES.ads_spy.typicalMonthlyCredits, 260, 'Ads Spy typicalMonthlyCredits must be 260');
   console.log('   OK - MODULES BE dan FE setara 100% (bebas field price/monthlyCredits).');
 

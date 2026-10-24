@@ -343,7 +343,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
             </div>
             <div style={styles.rateItem}>
               <span style={styles.rateName}>{'ads.report'}</span>
-              <span style={styles.rateVal}>{t('billing.rateCr', { amount: 400 })}</span>
+              <span style={styles.rateVal}>{t('billing.rateCr', { amount: 350 })}</span>
               <span style={styles.rateDesc}>{t('billing.rateDescAdsReport')}</span>
             </div>
             <div style={styles.rateItem}>

@@ -432,7 +432,7 @@ console.log('   OK - Callback error/failed, proteksi idempoten ganda & refund pe
 // -------------------------------------------------------------
 // 8. Timeout 10 Menit Otomatis Refund
 // -------------------------------------------------------------
-console.log('8. Menguji timeout 10 menit otomatis refund...');
+console.log('8. Menguji timeout 15 menit otomatis refund (PRD §3.7 langkah 4)...');
 
 const thirdTrigger = await triggerAdsReportGenerate({
   workspaceId: wsA.id,
@@ -444,13 +444,13 @@ const thirdTrigger = await triggerAdsReportGenerate({
   fetchFn: mockSuccessFetch
 });
 
-// Simulasikan report sudah berjalan 11 menit lalu
-const elevenMinutesAgo = new Date(Date.now() - 11 * 60 * 1000).toISOString();
-await db.update('ad_reports', { id: thirdTrigger.reportId }, { started_at: elevenMinutesAgo });
+// Simulasikan report sudah berjalan 16 menit lalu (> 15 menit)
+const sixteenMinutesAgo = new Date(Date.now() - 16 * 60 * 1000).toISOString();
+await db.update('ad_reports', { id: thirdTrigger.reportId }, { started_at: sixteenMinutesAgo });
 
 const { totalBalance: balBeforeTimeoutCheck } = await getWallet(wsA.id);
 
-// Panggil getReportStatus (akan mendeteksi timeout > 10m)
+// Panggil getReportStatus (akan mendeteksi timeout > 15m)
 const timedOutReport = await getReportStatus(thirdTrigger.reportId, wsA.id);
 assert.strictEqual(timedOutReport.status, 'error');
 assert.strictEqual(timedOutReport.error_code, 'ADS_REPORT_TIMEOUT');
@@ -459,7 +459,7 @@ assert.strictEqual(timedOutReport.error_code, 'ADS_REPORT_TIMEOUT');
 const { totalBalance: balAfterTimeoutRefund } = await getWallet(wsA.id);
 assert.strictEqual(balAfterTimeoutRefund, balBeforeTimeoutCheck + 350);
 
-console.log('   OK - Deteksi timeout 10 menit & refund otomatis lolos.');
+console.log('   OK - Deteksi timeout 15 menit & refund otomatis lolos.');
 
 // -------------------------------------------------------------
 // 9. Rerun Discount (100 Kredit dalam 7 Hari)

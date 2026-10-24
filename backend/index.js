@@ -2083,10 +2083,13 @@ app.get('/api/credits', auth, requireWorkspace('viewer'), wrap(async (req, res) 
 }));
 
 app.get('/api/credits/estimate', auth, requireWorkspace('viewer'), wrap(async (req, res) => {
-  const { action, qty, images, length } = req.query;
+  const { action, qty, images, length, accounts, aiPages, isRerun } = req.query;
   const est = await estimate(action || 'seo.article', Number(qty || 1), {
     images: images !== undefined ? Number(images) : undefined,
-    length: length ? String(length) : undefined
+    length: length ? String(length) : undefined,
+    accounts: accounts !== undefined ? Number(accounts) : undefined,
+    aiPages: aiPages !== undefined ? Number(aiPages) : undefined,
+    isRerun: isRerun === 'true' || isRerun === true
   });
   res.json(est);
 }));
