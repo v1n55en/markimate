@@ -13,6 +13,9 @@ Workflow `n8n-ads-report-workflow.json` menyalin **base deck** (Google Slides mi
    - **Gemini Markimate** (Google Gemini (PaLM) API). Pasang di node `Gemini: Insight`.
    - **Supermat API Key (Header)** sudah ada. Dipakai di Webhook dan kedua node callback.
 6. Aktifkan workflow. Path webhook-nya `ads-report-generate`. URL production harus sama dengan `N8N_BASE_URL` di backend.
+7. Import `automation/n8n-ads-deck-check-workflow.json` (cek deck milik user, §3), pasang credential **Google Drive Markimate** di node *Slides: Baca Deck (Cek)*, lalu aktifkan. Path webhook-nya `ads-deck-check`.
+8. Di Vercel backend isi `ADS_SERVICE_EMAIL` (email akun Google credential Drive) dan `ADS_TEMPLATE_DECK_ID` (ID base deck). Base deck harus dibagikan **"Anyone with the link: Viewer"** supaya tombol *Salin template Markimate* (`/copy`) bisa dipakai user.
+9. Di Google Cloud, OAuth consent screen harus **In production**. Kalau masih *Testing*, refresh token credential Drive kedaluwarsa tiap 7 hari dan semua laporan gagal.
 
 Selama `CONFIG` masih `GANTI_…`, workflow membalas **503**. Backend akan langsung mengembalikan kredit, jadi user tidak dirugikan.
 
@@ -60,13 +63,29 @@ Isi lewat klik kanan → *Alt text* → kolom **Description**. Tulis huruf kecil
 
 Kalau tabel kosong, isinya 1 baris "Tidak ada data pada periode ini" dengan "–" di kolom lain.
 
-## 3. Hasil per laporan
+## 3. Deck Google Slides milik user (opsional, per template)
+
+User bisa memakai desain sendiri tanpa bantuan 3Our:
+
+1. Di *Template Laporan* → template milik workspace → **Desain Google Slides**, klik **Salin template Markimate**. Google membuat salinan base deck di Drive user.
+2. User mengubah desainnya (warna, font, logo, posisi). Aturan §2 tetap berlaku: speaker notes `layout:<type>`, placeholder `{{…}}`, dan alt text jangan dihapus.
+3. User membagikan deck ke `ADS_SERVICE_EMAIL` sebagai **Viewer**. Viewer cukup karena n8n hanya menyalin deck. Deck user tidak pernah diubah.
+4. User menempelkan URL deck, klik **Cek deck**, lalu **Pakai deck ini**. ID tersimpan di `spec.deck.presentationId` template.
+
+Alur teknis:
+
+- `POST /api/ads/deck/check` (admin, maks. 20× per 10 menit per workspace) → webhook n8n `ads-deck-check` → Slides API `GET presentations/<id>`. Balasan berisi layout yang ditemukan dan daftar masalah (`issues[].code`: `unknown_layout`, `duplicate_layout`, `unknown_placeholder`, `missing_placeholder`, `chart_in_group`, `not_image`, `not_table`, `table_too_small`, `missing_alt`, `no_layouts`). HTTP 403/404 dari Google berarti deck belum dibagikan → `ADS_DECK_UNAVAILABLE`.
+- Saat generate, payload membawa `deckId`. Node *Drive: Salin Base Deck* menyalin `deckId` kalau ada, kalau tidak `CONFIG.baseDeckId`. ID divalidasi (`[A-Za-z0-9_-]{20,100}`) sebelum masuk URL.
+- Kalau deck user gagal disalin (izin dicabut, deck dihapus), callback error memakai kode `ADS_DECK_UNAVAILABLE` dan kredit dikembalikan.
+- Jenis halaman yang tidak punya layout di deck user dilewati (warning `layout_missing:<type>`), sama seperti base deck.
+
+## 4. Hasil per laporan
 
 - File baru di `Markimate Reports/<workspace_id>/`. Isinya Slides laporan dan Sheet "Data – …" (satu tab per grafik, chart dengan ID 1000+n).
 - Akses: owner workspace sebagai **writer** (editor), pembuat laporan dan penerima sebagai **reader**. Google tidak mengirim email notifikasi karena `sendNotificationEmail=false`. Email "Laporan siap" dikirim oleh backend.
 - Callback: `status: 'ready'`, `slidesUrl`, `slidesFileId`, `pdfPath` (tautan ekspor PDF Google), `summary`, `aiPages`, `warnings`.
 
-## 4. Warning yang mungkin muncul
+## 5. Warning yang mungkin muncul
 
 | Kode | Arti |
 |---|---|
@@ -78,11 +97,12 @@ Kalau tabel kosong, isinya 1 baris "Tidak ada data pada periode ini" dengan "–
 | `layout_missing:<type>`, `unknown_placeholder:…`, `chart_without_data:…`, `table_columns_truncated:…` | Base deck belum lengkap. |
 | `share_failed:<email>` | Email bukan akun Google atau akses ditolak. |
 
-Kalau **semua** akun gagal atau ada langkah Google yang gagal, callback mengirim `status: 'error'` (`ADS_SOURCE_UNAVAILABLE` / `ADS_REPORT_FAILED`) dan kredit dikembalikan.
+Kalau **semua** akun gagal atau ada langkah Google yang gagal, callback mengirim `status: 'error'` (`ADS_SOURCE_UNAVAILABLE` / `ADS_DECK_UNAVAILABLE` / `ADS_REPORT_FAILED`) dan kredit dikembalikan.
 
-## 5. Keterbatasan yang diketahui
+## 6. Keterbatasan yang diketahui
 
 - Reach harian dan per breakdown dijumlahkan dari level campaign, jadi angkanya bisa sedikit lebih besar dari reach unik. Reach total periode diambil dari level akun.
 - Gambar creative memakai `image_url` atau `thumbnail_url` creative, bukan screenshot preview feed.
 - PDF berupa tautan ekspor Google (`/export/pdf`), belum diunggah ke Supabase Storage.
 - Google Ads menyusul di F5-Google.
+- Deck user divalidasi saat **Cek deck** saja. Kalau user mengubah deck setelahnya, masalah baru muncul sebagai warning saat laporan dibuat.

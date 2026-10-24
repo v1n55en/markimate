@@ -1,0 +1,247 @@
+{
+  "name": "Markimate Ads Deck Check (3Our)",
+  "nodes": [
+    {
+      "id": "st-sticky-ads-deck-check",
+      "name": "Sticky Ads Deck Check",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        -60
+      ],
+      "parameters": {
+        "width": 1500,
+        "height": 220,
+        "color": 5,
+        "content": "## 🔎 Markimate Ads Deck Check (PRD F5 opsi A) — `POST /webhook/ads-deck-check`\nDipanggil backend `POST /api/ads/deck/check` saat user menempelkan URL deck Google Slides miliknya di template.\nBody: `{ presentationId }`. Balasan 200: `{ accessible, httpStatus, title, slideCount, layouts, missingLayouts, issues[] }`.\n**Setelah import:** pasang credential **Google Drive Markimate** (sama dengan workflow Ads Report) di node *Slides: Baca Deck (Cek)*, lalu aktifkan."
+      }
+    },
+    {
+      "id": "n-webhook-ads-deck-check",
+      "name": "Webhook Deck Check",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -460,
+        300
+      ],
+      "webhookId": "4d3c2b1a-0f9e-4d8c-b7a6-5e4d3c2b1a0f",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ads-deck-check",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "yRMoELEk1ya3tXjx",
+          "name": "Supermat API Key (Header)"
+        }
+      }
+    },
+    {
+      "id": "n-validasi-deck-id",
+      "name": "Validasi Deck ID",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// automation/src/ads-deck-check-input.js\n// Validasi input workflow \"Markimate Ads Deck Check\". API key sudah dicek node Webhook (Header Auth).\n\nconst body = $input.first().json.body || $input.first().json;\nconst raw = typeof body.presentationId === 'string' ? body.presentationId.trim() : '';\nconst m = raw.match(/\\/presentation\\/(?:u\\/\\d+\\/)?d\\/([A-Za-z0-9_-]+)/);\nconst id = m ? m[1] : raw;\n\nif (!/^[A-Za-z0-9_-]{20,100}$/.test(id)) {\n  return [{ json: { ok: false, statusCode: 400, error: 'presentationId is invalid' } }];\n}\nreturn [{ json: { ok: true, presentationId: id } }];\n"
+      }
+    },
+    {
+      "id": "n-deck-id-ok-",
+      "name": "Deck ID OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -20,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n-respond-error-deck-",
+      "name": "Respond Error (Deck)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        500
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'error', message: $json.error, requestId: $json.requestId || null }) }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode || 400 }}"
+        }
+      }
+    },
+    {
+      "id": "n-slides-baca-deck-cek-",
+      "name": "Slides: Baca Deck (Cek)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "GET",
+        "url": "={{ 'https://slides.googleapis.com/v1/presentations/' + $json.presentationId }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "title,slides(objectId,pageElements,slideProperties(notesPage(pageElements)))"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "placeholder-drive",
+          "name": "Google Drive Markimate"
+        }
+      }
+    },
+    {
+      "id": "n-analisa-deck",
+      "name": "Analisa Deck",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// automation/src/ads-deck-check.js\n// Analisa deck Google Slides milik user sebelum dipakai untuk laporan (PRD F5 opsi A).\n// Input: respons penuh \"Slides: Baca Deck (Cek)\" ({ statusCode, body }).\n// Aturan sama dengan ads-render-slides.js — lihat automation/ADS-BASE-DECK.md.\n// Output selalu 200: { accessible, httpStatus, title, slideCount, layouts, missingLayouts, issues[{code,slide,layout,detail}], message }.\n\nconst res = $input.first().json || {};\nconst status = Number(res.statusCode) || 0;\nconst pres = res.body && typeof res.body === 'object' ? res.body : {};\n\nif (status !== 200 || !Array.isArray(pres.slides)) {\n  const gErr = (pres && pres.error) || {};\n  // 403/404 = belum dibagikan ke email layanan atau ID salah. Pesan Google diteruskan apa adanya (dipotong).\n  const message = `Google Slides HTTP ${status || '?'}${gErr.message ? ` - ${String(gErr.message).slice(0, 160)}` : ''}`;\n  return [{ json: { accessible: false, httpStatus: status || null, message } }];\n}\n\nconst TYPES = ['cover', 'section', 'kpi', 'trend', 'breakdown', 'table', 'creatives', 'ai_insight', 'custom_text', 'custom_image', 'closing'];\nconst COMMON = ['title', 'subtitle', 'period', 'account_name', 'workspace_name', 'client_name', 'ads_platform', 'insight', 'text', 'caption'];\nconst isKnown = (k) => COMMON.includes(k) || /^kpi[1-8]_(label|value|delta)$/.test(k) || /^c[1-9]_(name|metrics)$/.test(k);\n\nconst textOf = (te) => (Array.isArray(te) ? te.map((t) => (t.textRun ? t.textRun.content : '')).join('') : '');\nfunction walk(elements, fn, depth = 0) {\n  for (const el of elements || []) {\n    fn(el, depth);\n    if (el.elementGroup) walk(el.elementGroup.children, fn, depth + 1);\n  }\n}\nfunction notesText(slide) {\n  const np = slide.slideProperties && slide.slideProperties.notesPage;\n  const parts = [];\n  if (np) walk(np.pageElements, (el) => { if (el.shape && el.shape.text) parts.push(textOf(el.shape.text.textElements)); });\n  return parts.join('\\n');\n}\nfunction slideTexts(slide) {\n  const out = [];\n  walk(slide.pageElements, (el) => {\n    if (el.shape && el.shape.text) out.push(textOf(el.shape.text.textElements));\n    if (el.table) for (const r of el.table.tableRows || []) for (const c of r.tableCells || []) if (c.text) out.push(textOf(c.text.textElements));\n  });\n  return out.join('\\n');\n}\n\nconst layouts = [];\nconst issues = [];\npres.slides.forEach((slide, idx) => {\n  const m = notesText(slide).match(/layout\\s*:\\s*([a-z_]+)/i);\n  if (!m) return;\n  const type = m[1].toLowerCase();\n  const issue = (code, detail) => issues.push({ code, slide: idx + 1, layout: type, ...(detail ? { detail } : {}) });\n  if (!TYPES.includes(type)) {\n    issue('unknown_layout');\n    return;\n  }\n  if (layouts.includes(type)) {\n    issue('duplicate_layout');\n    return;\n  }\n  layouts.push(type);\n\n  // placeholder\n  const tokens = new Set();\n  const re = /\\{\\{\\s*([a-z0-9_]+)\\s*\\}\\}/gi;\n  let t;\n  const txt = slideTexts(slide);\n  while ((t = re.exec(txt))) tokens.add(t[1].toLowerCase());\n  for (const k of tokens) if (!isKnown(k)) issue('unknown_placeholder', k);\n  if (!tokens.has('title') && type !== 'custom_image') issue('missing_placeholder', 'title');\n\n  // alt text\n  const roles = [];\n  walk(slide.pageElements, (el, depth) => {\n    const r = String(el.description || '').trim().toLowerCase();\n    if (!r) return;\n    roles.push(r);\n    if (r === 'chart' && depth > 0) issue('chart_in_group');\n    if ((/^creative \\d+ img$/.test(r) || r === 'custom image') && !el.image) issue('not_image', r);\n    if (r === 'table') {\n      if (!el.table) issue('not_table');\n      else if ((el.table.rows || 0) < 2) issue('table_too_small');\n    }\n  });\n  const has = (r) => roles.includes(r);\n  if ((type === 'trend' || type === 'breakdown') && !has('chart')) issue('missing_alt', 'chart');\n  if (type === 'breakdown' && !tokens.has('insight')) issue('missing_placeholder', 'insight');\n  if (type === 'table' && !has('table')) issue('missing_alt', 'table');\n  if (type === 'kpi' && ![...tokens].some((k) => /^kpi\\d_value$/.test(k))) issue('missing_placeholder', 'kpiN_value');\n  if (type === 'creatives' && !roles.some((r) => /^creative \\d+( img)?$/.test(r))) issue('missing_alt', 'creative N');\n  if (type === 'ai_insight' && !tokens.has('insight')) issue('missing_placeholder', 'insight');\n  if (type === 'custom_text' && !tokens.has('text')) issue('missing_placeholder', 'text');\n  if (type === 'custom_image' && !has('custom image')) issue('missing_alt', 'custom image');\n});\n\nif (!layouts.length) issues.push({ code: 'no_layouts' });\n\nreturn [{\n  json: {\n    accessible: true,\n    httpStatus: 200,\n    title: pres.title || '',\n    slideCount: pres.slides.length,\n    layouts,\n    missingLayouts: TYPES.filter((x) => !layouts.includes(x)),\n    issues: issues.slice(0, 50)\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "n-respond-hasil-cek",
+      "name": "Respond Hasil Cek",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        640,
+        300
+      ],
+      "parameters": {
+        "respondWith": "firstIncomingItem",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Deck Check": {
+      "main": [
+        [
+          {
+            "node": "Validasi Deck ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validasi Deck ID": {
+      "main": [
+        [
+          {
+            "node": "Deck ID OK?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deck ID OK?": {
+      "main": [
+        [
+          {
+            "node": "Slides: Baca Deck (Cek)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error (Deck)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slides: Baca Deck (Cek)": {
+      "main": [
+        [
+          {
+            "node": "Analisa Deck",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analisa Deck": {
+      "main": [
+        [
+          {
+            "node": "Respond Hasil Cek",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
