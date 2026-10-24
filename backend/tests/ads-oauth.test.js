@@ -15,6 +15,7 @@ process.env.PORT = '5033';
 process.env.APP_URL = 'http://localhost:5033';
 process.env.META_APP_ID = 'test_meta_app_123';
 process.env.META_APP_SECRET = 'test_meta_secret_456';
+process.env.META_LOGIN_CONFIG_ID = 'test_config_789';
 
 let standaloneTmp = null;
 if (!process.env.DB_JSON_PATH) {
@@ -262,7 +263,19 @@ assert.strictEqual(urlRes.data.status, 'ok');
 const parsedUrl = new URL(urlRes.data.url);
 assert.strictEqual(parsedUrl.hostname, 'www.facebook.com');
 assert.strictEqual(parsedUrl.searchParams.get('client_id'), 'test_meta_app_123');
-assert.strictEqual(parsedUrl.searchParams.get('config_id'), getMetaLoginConfigId(), 'URL dialog harus memuat config_id');
+assert.strictEqual(parsedUrl.searchParams.get('config_id'), 'test_config_789', 'URL dialog harus memuat config_id dari env');
+
+// Tanpa META_LOGIN_CONFIG_ID: tidak ada fallback ID tetap, Meta dianggap belum dikonfigurasi
+{
+  const savedCfg = process.env.META_LOGIN_CONFIG_ID;
+  delete process.env.META_LOGIN_CONFIG_ID;
+  assert.strictEqual(getMetaLoginConfigId(), '', 'Tidak boleh ada fallback config_id hardcoded');
+  assert.strictEqual(isMetaOAuthConfigured(), false, 'Tanpa config_id, Meta OAuth = belum dikonfigurasi');
+  const noCfgRes = await req('/api/ads/oauth/meta/url', { headers: authHeaders });
+  assert.strictEqual(noCfgRes.data.status, 'unconfigured', 'Tanpa config_id endpoint harus melapor unconfigured');
+  assert.ok(!noCfgRes.data.url, 'URL OAuth tidak boleh dibuat tanpa config_id');
+  process.env.META_LOGIN_CONFIG_ID = savedCfg;
+}
 assert.strictEqual(parsedUrl.searchParams.has('scope'), false, 'URL dialog TIDAK boleh memuat scope');
 assert.strictEqual(parsedUrl.searchParams.get('redirect_uri'), getMetaRedirectUri(), 'redirect_uri dialog harus sama dengan getMetaRedirectUri()');
 assert.strictEqual(getMetaRedirectUri(), `${process.env.APP_URL}/app/ads/connect/meta/callback`);
