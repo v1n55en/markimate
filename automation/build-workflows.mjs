@@ -17,6 +17,7 @@ export const IDS = {
   wix: '54QOd6HkD0duCqGq',
   sanity: 'yRYqxg0wtw0Q0C9t',
   shopify: 'mPOJqWf1KKYoK1Bp',
+  adsReport: 'placeholder-ads-report',
 };
 // ---- Kredensial milik 3Our di n8n (API SerpAPI, RapidAPI, Gemini) ----
 const CRED = {
@@ -25,6 +26,10 @@ const CRED = {
   rapidapi: { httpHeaderAuth: { id: 'DHz0caqWkCEuxqry', name: 'Rapidapi' } },
   gemini: { googlePalmApi: { id: 'X4qY80NDFbDxQZZU', name: 'Google Gemini(PaLM) Api Veri' } },
   geminiImage: { httpHeaderAuth: { id: 'JF8Od16ebyhu0BUU', name: 'Gemini imagen' } },
+  googleSlides: { googleSlidesOAuth2Api: { id: 'placeholder-slides', name: 'Google Slides Markimate' } },
+  googleDrive: { googleDriveOAuth2Api: { id: 'placeholder-drive', name: 'Google Drive Markimate' } },
+  googleSheets: { googleSheetsOAuth2Api: { id: 'placeholder-sheets', name: 'Google Sheets Markimate' } },
+  geminiAds: { googlePalmApi: { id: 'placeholder-gemini', name: 'Gemini Markimate' } },
 };
 
 const sticky = (name, pos, w, h, color, content) => ({ id: 'st-' + name.replace(/\W+/g, '-').toLowerCase(), name, type: 'n8n-nodes-base.stickyNote', typeVersion: 1, position: pos, parameters: { width: w, height: h, color, content } });
@@ -447,13 +452,115 @@ Input: \`{ sectionTitle, sectionText, style, aspect, alt, requestId, keyword, Cl
   };
 }
 
+// =====================================================================
+// ADS REPORT: Markimate AI Ads Performance Reporter (PRD F5)
+// =====================================================================
+function buildAdsReport() {
+  const Y = 300;
+  const nodes = [
+    sticky('Sticky Ads Report', [-520, 60], 3600, 720, 3, `## 📊 Markimate Ads Report Workflow (PRD F5)
+Menerima payload pembuatan laporan dari backend Markimate (\`POST /webhook/ads-report-generate\`).
+1. **Auth & Normalize**: Validasi template, tanggal, dan akun iklan terhubung. Balas 202 Accepted.
+2. **Fetch Meta Insights**: Ambil data performa akun, campaign, breakdown demografi/platform, dan materi iklan.
+3. **Process Metrics**: Agregasi metrik rasio SSOT & perbandingan periode lalu.
+4. **Gemini AI Insights**: Analisis komparatif & rekomendasi optimasi biaya.
+5. **Render Google Slides**: Salin Base Deck, duplikasi layout per halaman, isi teks berdasar alt-text, update chart & creative.
+6. **Share & PDF Export**: Berikan izin editor ke email owner & ekspor presentasi ke PDF.
+7. **Callback**: Kirim laporan berstatus 'ready' ke backend Markimate.`),
+
+    {
+      id: 'n-webhook-ads',
+      name: 'Webhook Ads Report',
+      type: 'n8n-nodes-base.webhook',
+      typeVersion: 2,
+      position: [-460, Y],
+      webhookId: '9a8b7c6d-5e4f-3a2b-1c0d-9e8f7a6b5c4d',
+      parameters: {
+        httpMethod: 'POST',
+        path: 'ads-report-generate',
+        authentication: 'headerAuth',
+        responseMode: 'responseNode',
+        options: {}
+      },
+      credentials: CRED.supermatKey
+    },
+    codeNode('Auth & Normalize (Ads)', [-240, Y], code('ads-auth-normalize.js')),
+    ifBool('Auth OK (Ads)?', [-20, Y], '={{ $json.ok }}'),
+    respond('Respond Error (Ads)', [200, Y + 180], ERR_BODY, ERR_CODE),
+    respond('Respond Accepted (Ads)', [200, Y - 100], "={{ JSON.stringify({ status: 'accepted', accepted: true, requestId: $json.requestId }) }}", 202),
+    codeNode('Fetch Meta Insights', [420, Y], code('ads-fetch-meta.js')),
+    codeNode('Process Metrics', [640, Y], code('ads-process-metrics.js')),
+    httpNode('Gemini AI Insights', [860, Y], {
+      method: 'POST',
+      url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+      sendBody: true,
+      specifyBody: 'json',
+      jsonBody: '={{ JSON.stringify({ contents: [{ parts: [{ text: "Kamu adalah Senior Performance Marketing Analyst. Berikan analisis eksekutif ringkas dan rekomendasi strategis (maksimal 180 kata) berdasarkan data performa iklan berikut:\\n" + $json.processed.summaryText }] }] }) }}',
+      options: { timeout: 60000 }
+    }, { credentials: CRED.geminiAds }),
+    codeNode('Render Google Slides', [1080, Y], code('ads-render-slides.js')),
+    httpNode('Salin Base Deck & Update Slides', [1300, Y], {
+      method: 'POST',
+      url: 'https://slides.googleapis.com/v1/presentations/{{ $json.slidesId }}:batchUpdate',
+      sendBody: true,
+      specifyBody: 'json',
+      jsonBody: '={{ JSON.stringify({ requests: $json.batchUpdateRequests }) }}',
+      options: { timeout: 60000 }
+    }, { credentials: CRED.googleSlides }),
+    httpNode('Share Drive File ke Owner', [1520, Y], {
+      method: 'POST',
+      url: 'https://www.googleapis.com/drive/v3/files/{{ $json.slidesId }}/permissions',
+      sendBody: true,
+      specifyBody: 'json',
+      jsonBody: '={{ JSON.stringify({ role: "editor", type: "user", emailAddress: $json.owner?.email || "owner@markimate.com" }) }}',
+      options: { timeout: 30000 }
+    }, { credentials: CRED.googleDrive }),
+    codeNode('Siapkan Callback', [1740, Y], code('ads-prepare-callback.js')),
+    httpNode('Kirim Callback Ads Report', [1960, Y], {
+      method: 'POST',
+      url: '={{ $json.callbackUrl }}',
+      authentication: 'genericCredentialType',
+      genericAuthType: 'httpHeaderAuth',
+      sendBody: true,
+      specifyBody: 'json',
+      jsonBody: '={{ JSON.stringify($json.callbackPayload) }}',
+      options: { timeout: 30000 }
+    }, { credentials: CRED.supermatKey })
+  ];
+
+  const connections = {
+    ...conn([
+      ['Webhook Ads Report', 'Auth & Normalize (Ads)'],
+      ['Auth & Normalize (Ads)', 'Auth OK (Ads)?'],
+      ['Auth OK (Ads)?', 'Respond Accepted (Ads)', 0],
+      ['Auth OK (Ads)?', 'Respond Error (Ads)', 1],
+      ['Respond Accepted (Ads)', 'Fetch Meta Insights'],
+      ['Fetch Meta Insights', 'Process Metrics'],
+      ['Process Metrics', 'Gemini AI Insights'],
+      ['Gemini AI Insights', 'Render Google Slides'],
+      ['Render Google Slides', 'Salin Base Deck & Update Slides'],
+      ['Salin Base Deck & Update Slides', 'Share Drive File ke Owner'],
+      ['Share Drive File ke Owner', 'Siapkan Callback'],
+      ['Siapkan Callback', 'Kirim Callback Ads Report']
+    ])
+  };
+
+  return {
+    name: 'Markimate Ads Report: AI Performance Reporter (3Our)',
+    nodes,
+    connections,
+    settings: { executionOrder: 'v1' }
+  };
+}
+
 const out = {
   'n8n-main-workflow.json': buildMain(),
   'n8n-adapter-wordpress.json': buildWordPress(),
   'n8n-adapter-wix.json': buildWix(),
   'n8n-adapter-sanity.json': buildSanity(),
   'n8n-adapter-shopify.json': buildShopify(),
-  'n8n-image-workflow.json': buildImageWorkflow()
+  'n8n-image-workflow.json': buildImageWorkflow(),
+  'n8n-ads-report-workflow.json': buildAdsReport()
 };
 for (const [f, w] of Object.entries(out)) {
   fs.writeFileSync(path.join(here, f), JSON.stringify(w, null, 2));

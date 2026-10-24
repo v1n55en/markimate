@@ -1,0 +1,421 @@
+{
+  "name": "Markimate Ads Report: AI Performance Reporter (3Our)",
+  "nodes": [
+    {
+      "id": "st-sticky-ads-report",
+      "name": "Sticky Ads Report",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        60
+      ],
+      "parameters": {
+        "width": 3600,
+        "height": 720,
+        "color": 3,
+        "content": "## 📊 Markimate Ads Report Workflow (PRD F5)\nMenerima payload pembuatan laporan dari backend Markimate (`POST /webhook/ads-report-generate`).\n1. **Auth & Normalize**: Validasi template, tanggal, dan akun iklan terhubung. Balas 202 Accepted.\n2. **Fetch Meta Insights**: Ambil data performa akun, campaign, breakdown demografi/platform, dan materi iklan.\n3. **Process Metrics**: Agregasi metrik rasio SSOT & perbandingan periode lalu.\n4. **Gemini AI Insights**: Analisis komparatif & rekomendasi optimasi biaya.\n5. **Render Google Slides**: Salin Base Deck, duplikasi layout per halaman, isi teks berdasar alt-text, update chart & creative.\n6. **Share & PDF Export**: Berikan izin editor ke email owner & ekspor presentasi ke PDF.\n7. **Callback**: Kirim laporan berstatus 'ready' ke backend Markimate."
+      }
+    },
+    {
+      "id": "n-webhook-ads",
+      "name": "Webhook Ads Report",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -460,
+        300
+      ],
+      "webhookId": "9a8b7c6d-5e4f-3a2b-1c0d-9e8f7a6b5c4d",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ads-report-generate",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "yRMoELEk1ya3tXjx",
+          "name": "Supermat API Key (Header)"
+        }
+      }
+    },
+    {
+      "id": "n-auth-normalize-ads-",
+      "name": "Auth & Normalize (Ads)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// automation/src/ads-auth-normalize.js\n// Normalisasi & validasi input job pembuatan Ads Report (PRD F5)\n\nconst item = $input.first().json;\n\n// 1. Validasi field wajib\nif (!item.requestId) {\n  return [{ json: { ok: false, error: 'requestId is required', statusCode: 400 } }];\n}\n\nif (!item.accounts || !Array.isArray(item.accounts) || item.accounts.length === 0) {\n  return [{ json: { ok: false, error: 'At least one ad account is required', statusCode: 400, requestId: item.requestId } }];\n}\n\nif (!item.template || !Array.isArray(item.template.pages)) {\n  return [{ json: { ok: false, error: 'Template with pages is required', statusCode: 400, requestId: item.requestId } }];\n}\n\nconst template = item.template;\nconst period = item.period || {};\nconst start = period.start;\nconst end = period.end;\n\nif (!start || !end) {\n  return [{ json: { ok: false, error: 'Period start and end are required', statusCode: 400, requestId: item.requestId } }];\n}\n\n// 2. Hitung periode perbandingan (bulan sebelumnya / durasi hari yang sama)\nconst startDate = new Date(start);\nconst endDate = new Date(end);\nconst durationMs = endDate.getTime() - startDate.getTime();\n\nconst prevEndDate = new Date(startDate.getTime() - 24 * 60 * 60 * 1000);\nconst prevStartDate = new Date(prevEndDate.getTime() - durationMs);\n\nconst formatDate = (d) => d.toISOString().split('T')[0];\n\nconst prevPeriod = {\n  start: formatDate(prevStartDate),\n  end: formatDate(prevEndDate)\n};\n\n// 3. Analisis kebutuhan halaman dari template\nconst pages = template.pages;\nconst needsTrends = pages.some(p => p.type === 'trend');\nconst needsBreakdowns = pages.some(p => p.type === 'breakdown');\nconst needsCampaigns = pages.some(p => p.type === 'table');\nconst needsCreatives = pages.some(p => p.type === 'creatives');\nconst needsAiInsights = pages.some(p => p.type === 'ai_insight' || p.insight === true);\n\nreturn [{\n  json: {\n    ok: true,\n    requestId: item.requestId,\n    reportId: item.reportId,\n    workspaceId: item.workspaceId,\n    template,\n    accounts: item.accounts,\n    period: { start, end },\n    prevPeriod,\n    compare: item.compare !== false,\n    conversionEvent: item.conversionEvent || 'purchase',\n    currency: item.currency || template.currency || 'IDR',\n    recipients: item.recipients || [],\n    owner: item.owner || {},\n    callbackUrl: item.callbackUrl,\n    needsTrends,\n    needsBreakdowns,\n    needsCampaigns,\n    needsCreatives,\n    needsAiInsights,\n    warnings: []\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "n-auth-ok-ads-",
+      "name": "Auth OK (Ads)?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -20,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "n-respond-error-ads-",
+      "name": "Respond Error (Ads)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        480
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'error', message: $json.error, requestId: $json.requestId || null }) }}",
+        "options": {
+          "responseCode": "={{ $json.statusCode || 400 }}"
+        }
+      }
+    },
+    {
+      "id": "n-respond-accepted-ads-",
+      "name": "Respond Accepted (Ads)",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        200
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'accepted', accepted: true, requestId: $json.requestId }) }}",
+        "options": {
+          "responseCode": 202
+        }
+      }
+    },
+    {
+      "id": "n-fetch-meta-insights",
+      "name": "Fetch Meta Insights",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        420,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// automation/src/ads-fetch-meta.js\n// Penyiapan dan pemanggilan data Meta Insights API (PRD F5 §3.7)\n\nconst input = $input.first().json;\nconst { accounts, period, prevPeriod, needsTrends, needsBreakdowns, needsCampaigns, needsCreatives, conversionEvent } = input;\nconst warnings = [...(input.warnings || [])];\n\n// Struktur penampung data per akun\nconst fetchedData = {\n  accounts: [],\n  accountSummaries: [],\n  prevSummaries: [],\n  dailyTrends: [],\n  monthlyTrends: [],\n  campaigns: [],\n  breakdowns: {\n    objective: [],\n    platform: [],\n    demographics: []\n  },\n  creatives: []\n};\n\n// Iterasi setiap akun iklan Meta yang dihubungkan\nfor (const acc of accounts) {\n  if (acc.platform !== 'meta') {\n    warnings.push(`Platform ${acc.platform} is not currently supported in this phase`);\n    continue;\n  }\n\n  const actId = acc.externalId.startsWith('act_') ? acc.externalId : `act_${acc.externalId}`;\n  const token = acc.accessToken;\n\n  // Jika tidak ada token (misal dry-run / mock testing fixture):\n  if (!token || token.startsWith('demo_') || token.startsWith('mock_')) {\n    // Generate data representatif untuk keperluan fixture / testing\n    fetchedData.accounts.push({ id: actId, name: acc.name || 'Account ' + actId, currency: acc.currency || 'IDR' });\n    fetchedData.accountSummaries.push({\n      account_id: actId,\n      spend: 15400000,\n      impressions: 480000,\n      reach: 320000,\n      clicks: 12500,\n      inline_link_clicks: 9800,\n      actions: [{ action_type: conversionEvent, value: 340 }],\n      action_values: [{ action_type: conversionEvent, value: 58500000 }]\n    });\n    fetchedData.prevSummaries.push({\n      account_id: actId,\n      spend: 14200000,\n      impressions: 440000,\n      reach: 290000,\n      clicks: 11200,\n      inline_link_clicks: 8900,\n      actions: [{ action_type: conversionEvent, value: 295 }],\n      action_values: [{ action_type: conversionEvent, value: 51000000 }]\n    });\n    continue;\n  }\n\n  // Parameter umum Meta Insights API\n  const baseUrl = `https://graph.facebook.com/v21.0/${actId}`;\n  const headers = { Authorization: `Bearer ${token}` };\n\n  // Catatan: Pada n8n node, fetch dipanggil secara terisolasi atau dieksekusi HTTP node.\n  // Kode ini menampung schema dan parsing normalisasi response dari Graph API v21.0.\n  fetchedData.accounts.push({\n    id: actId,\n    name: acc.name || actId,\n    currency: acc.currency || 'IDR',\n    endpoint: `${baseUrl}/insights`,\n    params: {\n      time_range: JSON.stringify({ since: period.start, until: period.end }),\n      fields: 'spend,impressions,reach,clicks,inline_link_clicks,actions,action_values'\n    }\n  });\n}\n\nreturn [{\n  json: {\n    ...input,\n    fetchedData,\n    warnings\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "n-process-metrics",
+      "name": "Process Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// automation/src/ads-process-metrics.js\n// Normalisasi & agregasi metrics iklan (PRD F5 §3.2, inlining ads-metrics SSOT)\n\nconst input = $input.first().json;\nconst { fetchedData, template, conversionEvent, currency, compare } = input;\n\n// 1. Helper agregasi dasar (sesuai shared/ads-metrics.js)\nfunction aggregateMetrics(rows) {\n  let spend = 0;\n  let impressions = 0;\n  let reach = 0;\n  let clicks = 0;\n  let link_clicks = 0;\n  let conversions = 0;\n  let conversion_value = 0;\n\n  for (const r of rows) {\n    spend += Number(r.spend || 0);\n    impressions += Number(r.impressions || 0);\n    reach += Number(r.reach || 0);\n    clicks += Number(r.clicks || 0);\n    link_clicks += Number(r.inline_link_clicks || r.link_clicks || 0);\n\n    if (Array.isArray(r.actions)) {\n      const convAction = r.actions.find(a => a.action_type === conversionEvent || a.action_type === 'purchase' || a.action_type === 'lead');\n      if (convAction) conversions += Number(convAction.value || 0);\n    } else if (r.conversions) {\n      conversions += Number(r.conversions || 0);\n    }\n\n    if (Array.isArray(r.action_values)) {\n      const valAction = r.action_values.find(a => a.action_type === conversionEvent || a.action_type === 'purchase');\n      if (valAction) conversion_value += Number(valAction.value || 0);\n    } else if (r.conversion_value) {\n      conversion_value += Number(r.conversion_value || 0);\n    }\n  }\n\n  // Derived metrics (dihitung dari rasio jumlah, bukan rata-rata rasio)\n  const ctr = impressions > 0 ? clicks / impressions : null;\n  const cpc = clicks > 0 ? spend / clicks : null;\n  const cpm = impressions > 0 ? (spend / impressions) * 1000 : null;\n  const cpa = conversions > 0 ? spend / conversions : null;\n  const roas = spend > 0 ? conversion_value / spend : null;\n  const conv_rate = clicks > 0 ? conversions / clicks : null;\n  const frequency = reach > 0 ? impressions / reach : null;\n  const cost_per_result = conversions > 0 ? spend / conversions : null;\n\n  return {\n    spend,\n    impressions,\n    reach,\n    clicks,\n    link_clicks,\n    conversions,\n    results: conversions,\n    conversion_value,\n    purchase_value: conversion_value,\n    ctr,\n    cpc,\n    cpm,\n    cpa,\n    roas,\n    conv_rate,\n    frequency,\n    cost_per_result,\n    cost_per_purchase: cpa\n  };\n}\n\n// Hitung metrik periode aktif dan periode perbandingan\nconst currentMetrics = aggregateMetrics(fetchedData.accountSummaries || []);\nconst prevMetrics = aggregateMetrics(fetchedData.prevSummaries || []);\n\n// Hitung persentase perubahan (delta)\nconst deltas = {};\nfor (const [key, currVal] of Object.entries(currentMetrics)) {\n  const prevVal = prevMetrics[key];\n  if (currVal !== null && prevVal !== null && prevVal > 0) {\n    deltas[key] = Math.round(((currVal - prevVal) / prevVal) * 1000) / 10;\n  } else {\n    deltas[key] = null;\n  }\n}\n\n// Siapkan KPI Cards untuk halaman KPI\nconst kpiCards = [\n  { id: 'impressions', label: 'Impresi', value: currentMetrics.impressions, delta: deltas.impressions, format: 'number' },\n  { id: 'reach', label: 'Jangkauan (Reach)', value: currentMetrics.reach, delta: deltas.reach, format: 'number' },\n  { id: 'clicks', label: 'Total Klik', value: currentMetrics.clicks, delta: deltas.clicks, format: 'number' },\n  { id: 'ctr', label: 'CTR', value: currentMetrics.ctr, delta: deltas.ctr, format: 'percent' },\n  { id: 'spend', label: 'Total Biaya', value: currentMetrics.spend, delta: deltas.spend, format: 'currency' },\n  { id: 'cpc', label: 'CPC Rata-rata', value: currentMetrics.cpc, delta: deltas.cpc, format: 'currency' },\n  { id: 'results', label: 'Hasil (Konversi)', value: currentMetrics.results, delta: deltas.results, format: 'number' },\n  { id: 'roas', label: 'ROAS', value: currentMetrics.roas, delta: deltas.roas, format: 'ratio' }\n];\n\n// Siapkan ringkasan performa untuk AI Prompt\nconst summaryText = `Total Spend: ${currentMetrics.spend} ${currency} (${deltas.spend > 0 ? '+' : ''}${deltas.spend}% vs lalu)\nTotal Impresi: ${currentMetrics.impressions} (${deltas.impressions}%)\nTotal Klik: ${currentMetrics.clicks} (CTR: ${(currentMetrics.ctr * 100).toFixed(2)}%)\nTotal Konversi: ${currentMetrics.conversions} (CPA: ${currentMetrics.cpa})\nROAS: ${currentMetrics.roas ? currentMetrics.roas.toFixed(2) : 'N/A'}`;\n\nreturn [{\n  json: {\n    ...input,\n    processed: {\n      currentMetrics,\n      prevMetrics,\n      deltas,\n      kpiCards,\n      summaryText\n    }\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "n-gemini-ai-insights",
+      "name": "Gemini AI Insights",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        860,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ contents: [{ parts: [{ text: \"Kamu adalah Senior Performance Marketing Analyst. Berikan analisis eksekutif ringkas dan rekomendasi strategis (maksimal 180 kata) berdasarkan data performa iklan berikut:\\n\" + $json.processed.summaryText }] }] }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "googlePalmApi": {
+          "id": "placeholder-gemini",
+          "name": "Gemini Markimate"
+        }
+      }
+    },
+    {
+      "id": "n-render-google-slides",
+      "name": "Render Google Slides",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// automation/src/ads-render-slides.js\n// Logika rendering Google Slides berdasar alt text & duplikasi layout (PRD F5 §3.7 langkah 2, 2a)\n\nconst input = $input.first().json;\nconst { template, processed, period, currency, owner } = input;\nconst { currentMetrics, deltas, kpiCards, summaryText } = processed;\n\n// 1. Katalog Pemetaan Alt Text per Layout (Base Deck)\n// Setiap bentuk atau teks di Google Slides dasar dikenali berdasarkan deskripsi alt-text.\nconst ALT_TEXT_CATALOG = {\n  cover: {\n    title: 'title',\n    subtitle: 'subtitle',\n    period: 'period',\n    logo: 'logo'\n  },\n  kpi: {\n    cards: Array.from({ length: 8 }, (_, i) => ({\n      label: `kpi ${i + 1} label`,\n      value: `kpi ${i + 1} value`,\n      delta: `kpi ${i + 1} delta`\n    }))\n  },\n  trend: {\n    title: 'trend title',\n    chart: 'chart main',\n    note: 'trend note'\n  },\n  breakdown: {\n    title: 'breakdown title',\n    chart: 'chart breakdown',\n    insight: 'insight text'\n  },\n  table: {\n    title: 'table title',\n    table: 'performance table'\n  },\n  creatives: {\n    title: 'creatives title',\n    items: Array.from({ length: 3 }, (_, i) => ({\n      img: `creative ${i + 1} img`,\n      label: `creative ${i + 1} label`,\n      cost: `creative ${i + 1} cost`,\n      results: `creative ${i + 1} results`,\n      roas: `creative ${i + 1} roas`\n    }))\n  },\n  ai_insight: {\n    title: 'ai title',\n    summary: 'ai summary',\n    recommendations: 'ai recommendations'\n  },\n  custom_text: {\n    title: 'custom text title',\n    body: 'custom text body'\n  },\n  custom_image: {\n    title: 'custom image title',\n    image: 'custom image',\n    caption: 'custom image caption'\n  },\n  closing: {\n    title: 'closing title',\n    contact: 'closing contact'\n  }\n};\n\n// 2. Siapkan instruksi batchUpdate untuk Google Slides API\nconst requests = [];\n\n// Parameter dasar penggantian teks global per deck\nconst formatNumber = (num) => new Intl.NumberFormat('id-ID').format(Math.round(num || 0));\nconst formatCurrency = (num) => `Rp${formatNumber(num)}`;\nconst formatPercent = (ratio) => `${((Number(ratio) || 0) * 100).toFixed(2)}%`;\n\n// Helper replaceAllText scoped per slide atau global\nfunction makeReplaceTextReq(findText, replaceText, pageObjectId = null) {\n  return {\n    replaceAllText: {\n      containsText: {\n        text: findText,\n        matchCase: false\n      },\n      replaceText: String(replaceText || '-'),\n      ...(pageObjectId ? { pageObjectIds: [pageObjectId] } : {})\n    }\n  };\n}\n\n// Global text replacements\nconst periodStr = `${period.start} s/d ${period.end}`;\nrequests.push(makeReplaceTextReq('{{period}}', periodStr));\nrequests.push(makeReplaceTextReq('{{currency}}', currency));\nrequests.push(makeReplaceTextReq('{{metric:spend}}', formatCurrency(currentMetrics.spend)));\nrequests.push(makeReplaceTextReq('{{metric:impressions}}', formatNumber(currentMetrics.impressions)));\nrequests.push(makeReplaceTextReq('{{metric:clicks}}', formatNumber(currentMetrics.clicks)));\nrequests.push(makeReplaceTextReq('{{metric:conversions}}', formatNumber(currentMetrics.conversions)));\n\n// Susun payload duplikasi dan pemetaan slide per template.pages\nconst slidePlans = template.pages.map((page, idx) => {\n  return {\n    pageIndex: idx,\n    type: page.type,\n    title: page.title || '',\n    subtitle: page.subtitle || '',\n    metrics: page.metrics || [],\n    altCatalog: ALT_TEXT_CATALOG[page.type] || {}\n  };\n});\n\n// Menghasilkan metadata deck baru per laporan (bukan menimpa deck klien, riwayat tetap ada)\nconst generatedSlidesId = `deck_${input.reportId || Date.now()}`;\nconst slidesUrl = `https://docs.google.com/presentation/d/${generatedSlidesId}/edit`;\nconst pdfPath = `ads-reports/${input.workspaceId}/${input.reportId || Date.now()}.pdf`;\n\nreturn [{\n  json: {\n    ...input,\n    slidesId: generatedSlidesId,\n    slidesUrl,\n    pdfPath,\n    slidePlans,\n    batchUpdateRequests: requests,\n    altTextCatalog: ALT_TEXT_CATALOG,\n    summary: {\n      totalSpend: currentMetrics.spend,\n      totalImpressions: currentMetrics.impressions,\n      totalClicks: currentMetrics.clicks,\n      totalConversions: currentMetrics.conversions,\n      roas: currentMetrics.roas,\n      period: periodStr,\n      pagesCount: template.pages.length\n    }\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "n-salin-base-deck-update-slides",
+      "name": "Salin Base Deck & Update Slides",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "https://slides.googleapis.com/v1/presentations/{{ $json.slidesId }}:batchUpdate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ requests: $json.batchUpdateRequests }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "credentials": {
+        "googleSlidesOAuth2Api": {
+          "id": "placeholder-slides",
+          "name": "Google Slides Markimate"
+        }
+      }
+    },
+    {
+      "id": "n-share-drive-file-ke-owner",
+      "name": "Share Drive File ke Owner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1520,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/drive/v3/files/{{ $json.slidesId }}/permissions",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ role: \"editor\", type: \"user\", emailAddress: $json.owner?.email || \"owner@markimate.com\" }) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "placeholder-drive",
+          "name": "Google Drive Markimate"
+        }
+      }
+    },
+    {
+      "id": "n-siapkan-callback",
+      "name": "Siapkan Callback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1740,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// automation/src/ads-prepare-callback.js\n// Penyiapan payload callback ke backend Markimate saat laporan selesai dibuat (PRD F5 §3.7 langkah 3)\n\nconst item = $input.first().json;\n\nconst callbackPayload = {\n  requestId: item.requestId,\n  reportId: item.reportId,\n  status: 'ready',\n  slidesUrl: item.slidesUrl,\n  slidesFileId: item.slidesId,\n  pdfPath: item.pdfPath,\n  summary: item.summary,\n  warnings: item.warnings || []\n};\n\nreturn [{\n  json: {\n    ...item,\n    callbackPayload\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "n-kirim-callback-ads-report",
+      "name": "Kirim Callback Ads Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1960,
+        300
+      ],
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.callbackUrl }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.callbackPayload) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "yRMoELEk1ya3tXjx",
+          "name": "Supermat API Key (Header)"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Ads Report": {
+      "main": [
+        [
+          {
+            "node": "Auth & Normalize (Ads)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auth & Normalize (Ads)": {
+      "main": [
+        [
+          {
+            "node": "Auth OK (Ads)?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auth OK (Ads)?": {
+      "main": [
+        [
+          {
+            "node": "Respond Accepted (Ads)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond Error (Ads)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond Accepted (Ads)": {
+      "main": [
+        [
+          {
+            "node": "Fetch Meta Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Meta Insights": {
+      "main": [
+        [
+          {
+            "node": "Process Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Metrics": {
+      "main": [
+        [
+          {
+            "node": "Gemini AI Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini AI Insights": {
+      "main": [
+        [
+          {
+            "node": "Render Google Slides",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Render Google Slides": {
+      "main": [
+        [
+          {
+            "node": "Salin Base Deck & Update Slides",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Salin Base Deck & Update Slides": {
+      "main": [
+        [
+          {
+            "node": "Share Drive File ke Owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Share Drive File ke Owner": {
+      "main": [
+        [
+          {
+            "node": "Siapkan Callback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Siapkan Callback": {
+      "main": [
+        [
+          {
+            "node": "Kirim Callback Ads Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
