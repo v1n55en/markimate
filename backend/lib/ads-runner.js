@@ -262,24 +262,12 @@ export async function triggerAdsReportGenerate({
   } catch (triggerErr) {
     console.error('[AdsRunner] Gagal memicu webhook n8n:', triggerErr.message);
 
-    // ROLLBACK ATOMIK: Kembalikan kredit ke wallet
+    // ROLLBACK: pakai jalur refund yang sama (claim refunded_at + bucket asal + expiry asli)
     try {
-      await grant(workspaceId, 'topup', creditsRequired, null, 'refund', 'Rollback trigger n8n gagal', {
-        actionKey: 'ads.report_refund',
-        refType: 'ad_report',
-        refId: reportId
-      });
+      await refundReportCreditsAtomic(newReport, 'Rollback trigger n8n gagal', 'ADS_SOURCE_UNAVAILABLE');
     } catch (refundErr) {
       console.error('[AdsRunner] Gagal melakukan refund otomatis:', refundErr.message);
     }
-
-    // Perbarui status laporan menjadi error
-    await db.update('ad_reports', { id: reportId }, {
-      status: 'error',
-      error_code: 'ADS_SOURCE_UNAVAILABLE',
-      finished_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    });
 
     return {
       ok: false,
@@ -375,7 +363,11 @@ export async function refundReportCreditsAtomic(report, reason, errorCode) {
     return { refunded: 0, idempotent: true };
   }
 
-  // 2. Kembalikan ke bucket yang sama: periksa credit_ledger entri pemotongan laporan ini
+  // 2. Kembalikan ke bucket asal berdasarkan baris ledger pemotongan laporan ini.
+  //    PENTING: grant_wallet_atomic (migrasi 016) MENIMPA <bucket>_expires_at dengan p_expires_at,
+  //    dan bucket 'sub' MENIMPA saldo (bukan menambah). Jadi expiry yang sedang berlaku harus
+  //    diteruskan apa adanya, dan refund ke bucket yang sudah kedaluwarsa dilewati (tidak dikonversi
+  //    menjadi kredit permanen).
   const deductionRows = await db.findMany('credit_ledger', {
     workspace_id: report.workspace_id,
     ref_type: 'ad_report',
@@ -383,46 +375,69 @@ export async function refundReportCreditsAtomic(report, reason, errorCode) {
     kind: 'usage'
   });
 
+  // Gabungkan per bucket (charge bisa memecah pemotongan ke trial + sub + topup)
+  const perBucket = { trial: 0, sub: 0, topup: 0 };
+  for (const row of deductionRows || []) {
+    const amt = Math.abs(Number(row.delta || 0));
+    const bucket = ['trial', 'sub', 'topup'].includes(row.bucket) ? row.bucket : 'topup';
+    perBucket[bucket] += amt;
+  }
+
+  const wallet = await db.findOne('credit_wallets', { workspace_id: report.workspace_id });
+  const nowMs = Date.now();
+  const skipped = [];
   let totalRefunded = 0;
-  if (deductionRows && deductionRows.length > 0) {
-    for (const row of deductionRows) {
-      const amt = Math.abs(Number(row.delta || 0));
-      const bucket = ['trial', 'sub', 'topup'].includes(row.bucket) ? row.bucket : 'topup';
-      if (amt > 0) {
-        try {
-          await grant(report.workspace_id, bucket, amt, null, 'refund', reason, {
-            actionKey: 'ads.report_refund',
-            refType: 'ad_report',
-            refId: report.id
-          });
-          totalRefunded += amt;
-        } catch (err) {
-          console.error('[AdsRunner] Gagal grant refund per bucket:', err.message);
-        }
+
+  for (const bucket of ['trial', 'sub', 'topup']) {
+    const amt = perBucket[bucket];
+    if (amt <= 0) continue;
+
+    let expiresAt = null;
+    let grantAmount = amt;
+    if (bucket !== 'topup') {
+      expiresAt = wallet?.[`${bucket}_expires_at`] || null;
+      if (expiresAt && Date.parse(expiresAt) <= nowMs) {
+        skipped.push({ bucket, credits: amt, expiredAt: expiresAt });
+        continue;
       }
+      // Bucket 'sub' bersifat overwrite di RPC → kirim saldo saat ini + refund
+      if (bucket === 'sub') grantAmount = Number(wallet?.balance_sub || 0) + amt;
     }
-  } else {
-    // Fallback jika tidak ada ledger rows
-    const charged = Number(report.credits_charged || 0);
-    if (charged > 0) {
-      try {
-        await grant(report.workspace_id, 'topup', charged, null, 'refund', reason, {
-          actionKey: 'ads.report_refund',
-          refType: 'ad_report',
-          refId: report.id
-        });
-        totalRefunded = charged;
-      } catch (err) {
-        console.error('[AdsRunner] Gagal grant fallback refund:', err.message);
-      }
+
+    try {
+      await grant(report.workspace_id, bucket, grantAmount, expiresAt, 'refund', reason, {
+        actionKey: 'ads.report_refund',
+        refType: 'ad_report',
+        // refId per bucket: idempotensi grant memakai ref_id, jadi satu ref_id untuk
+        // semua bucket akan membuat refund bucket kedua dianggap duplikat dan dilewati.
+        refId: `${report.id}:${bucket}`
+      });
+      totalRefunded += amt;
+    } catch (err) {
+      console.error('[AdsRunner] Gagal grant refund per bucket:', err.message);
     }
   }
 
-  return { refunded: totalRefunded, idempotent: false };
+  // Tanpa baris ledger berarti tidak ada kredit yang benar-benar terpotong untuk laporan ini.
+  // Jangan grant apa pun (dulu fallback ke topup = kredit gratis permanen).
+  if (!deductionRows || deductionRows.length === 0) {
+    console.warn(`[AdsRunner] Refund dilewati: tidak ada ledger pemotongan untuk laporan ${report.id}`);
+  }
+
+  if (skipped.length > 0) {
+    const prevWarnings = Array.isArray(report.warnings) ? report.warnings : [];
+    const extra = skipped.map(s => `refund_skipped_expired:${s.bucket}:${s.credits}`);
+    await db.update('ad_reports', { id: report.id }, {
+      warnings: [...prevWarnings, ...extra],
+      updated_at: new Date().toISOString()
+    });
+  }
+
+  return { refunded: totalRefunded, skipped, idempotent: false };
 }
 
 /**
- * Ambil status laporan dengan deteksi timeout 10 menit (otomatis refund bila timeout).
+ * Ambil status laporan dengan deteksi timeout 15 menit (otomatis refund bila timeout).
  */
 export async function getReportStatus(reportId, workspaceId) {
   const report = await db.findOne('ad_reports', { id: reportId, workspace_id: workspaceId });
