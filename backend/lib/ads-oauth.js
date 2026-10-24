@@ -16,9 +16,13 @@ export function isMetaOAuthConfigured() {
   return Boolean(process.env.META_APP_ID && process.env.META_APP_SECRET);
 }
 
-export function getMetaRedirectUri(req) {
-  const base = process.env.ADS_OAUTH_REDIRECT_BASE || (process.env.NODE_ENV === 'production' ? 'https://api.markimate.com' : 'http://localhost:5001');
-  return `${base.replace(/\/+$/, '')}/api/ads/oauth/meta/callback`;
+export function getMetaLoginConfigId() {
+  return process.env.META_LOGIN_CONFIG_ID || '1377394724209008';
+}
+
+export function getMetaRedirectUri() {
+  const base = (process.env.APP_URL || getAppUrl()).replace(/\/+$/, '');
+  return `${base}/app/ads/connect/meta/callback`;
 }
 
 function getHmacSecret() {
@@ -58,13 +62,10 @@ export function verifyMetaOAuthState(stateStr) {
   const [dataB64, sig] = parts;
   const expectedSig = crypto.createHmac('sha256', getHmacSecret()).update(dataB64).digest('base64url');
 
-  try {
-    const isMatch = crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig));
-    if (!isMatch) {
-      return { valid: false, error: 'State signature mismatch' };
-    }
-  } catch {
-    return { valid: false, error: 'State signature comparison failed' };
+  const sigBuf = Buffer.from(sig);
+  const expBuf = Buffer.from(expectedSig);
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    return { valid: false, error: 'State signature mismatch' };
   }
 
   let payload;
@@ -87,7 +88,7 @@ export function verifyMetaOAuthState(stateStr) {
 }
 
 /**
- * Buat URL Dialog OAuth Facebook.
+ * Buat URL Dialog OAuth Facebook (Facebook Login for Business dengan config_id, tanpa scope).
  */
 export function getMetaOAuthUrl(state) {
   if (!isMetaOAuthConfigured()) {
@@ -95,15 +96,15 @@ export function getMetaOAuthUrl(state) {
   }
   const version = getMetaGraphVersion();
   const appId = process.env.META_APP_ID;
+  const configId = getMetaLoginConfigId();
   const redirectUri = getMetaRedirectUri();
-  const scope = 'ads_read,business_management';
 
   const params = new URLSearchParams({
     client_id: appId,
+    config_id: configId,
+    response_type: 'code',
     redirect_uri: redirectUri,
-    state,
-    scope,
-    response_type: 'code'
+    state
   });
 
   return `https://www.facebook.com/${version}/dialog/oauth?${params.toString()}`;
@@ -116,13 +117,14 @@ export function exchangeMetaCode(code, redirectUri) {
   const version = getMetaGraphVersion();
   const appId = process.env.META_APP_ID;
   const appSecret = process.env.META_APP_SECRET;
+  const finalRedirectUri = redirectUri || getMetaRedirectUri();
 
   return async function doExchange() {
     // 1. Tukar code -> short-lived access token
     const tokenUrl = new URL(`https://graph.facebook.com/${version}/oauth/access_token`);
     tokenUrl.searchParams.set('client_id', appId);
     tokenUrl.searchParams.set('client_secret', appSecret);
-    tokenUrl.searchParams.set('redirect_uri', redirectUri || getMetaRedirectUri());
+    tokenUrl.searchParams.set('redirect_uri', finalRedirectUri);
     tokenUrl.searchParams.set('code', code);
 
     const res1 = await fetch(tokenUrl.toString());
@@ -158,12 +160,16 @@ export function exchangeMetaCode(code, redirectUri) {
 }
 
 /**
- * Ambil profil pengguna Meta (/me)
+ * Ambil profil pengguna Meta (/me) via Authorization Bearer header
  */
 export async function fetchMetaProfile(accessToken) {
   const version = getMetaGraphVersion();
-  const url = `https://graph.facebook.com/${version}/me?fields=id,name&access_token=${accessToken}`;
-  const res = await fetch(url);
+  const url = `https://graph.facebook.com/${version}/me?fields=id,name`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    }
+  });
   const data = await res.json();
   if (!res.ok) {
     throw new Error(data.error?.message || 'Failed to fetch Meta profile');
@@ -172,12 +178,16 @@ export async function fetchMetaProfile(accessToken) {
 }
 
 /**
- * Ambil daftar akun iklan Meta (/me/adaccounts)
+ * Ambil daftar akun iklan Meta (/me/adaccounts) via Authorization Bearer header
  */
 export async function fetchMetaAdAccounts(accessToken) {
   const version = getMetaGraphVersion();
-  const url = `https://graph.facebook.com/${version}/me/adaccounts?fields=id,name,currency,timezone_name,account_status&limit=100&access_token=${accessToken}`;
-  const res = await fetch(url);
+  const url = `https://graph.facebook.com/${version}/me/adaccounts?fields=id,name,currency,timezone_name,account_status&limit=100`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    }
+  });
   const data = await res.json();
   if (!res.ok) {
     throw new Error(data.error?.message || 'Failed to fetch Meta ad accounts');
@@ -307,8 +317,13 @@ export async function disconnectAdConnection(connectionId, workspaceId, { fetchF
       const token = decrypt(conn.token_enc, conn.token_iv);
       if (token && conn.external_user_id) {
         const version = getMetaGraphVersion();
-        const revokeUrl = `https://graph.facebook.com/${version}/${conn.external_user_id}/permissions?access_token=${token}`;
-        await fetchFn(revokeUrl, { method: 'DELETE' });
+        const revokeUrl = `https://graph.facebook.com/${version}/${conn.external_user_id}/permissions`;
+        await fetchFn(revokeUrl, {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
       }
     } catch (err) {
       // Abaikan error revoke eksternal jika token memang sudah kedaluwarsa atau dicabut pengguna

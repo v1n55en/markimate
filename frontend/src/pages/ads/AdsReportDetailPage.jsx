@@ -14,7 +14,7 @@ import {
   Award,
 } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { getReport, approveReport, isAdsMock } from '../../ads/adsApi';
+import { getReport } from '../../ads/adsApi';
 import { PLATFORMS_META } from '../../ads/mockData';
 import {
   formatIDR,
@@ -28,11 +28,9 @@ import StatusChip from '../../components/ads/StatusChip';
 import KpiCard from '../../components/ads/KpiCard';
 import TrendChart from '../../components/ads/TrendChart';
 import DataTable from '../../components/ads/DataTable';
-import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
 
 export default function AdsReportDetailPage({ user }) {
   const { lang, t } = useLanguage();
-  const mockActive = isAdsMock();
   const { reportId } = useParams();
   const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
@@ -40,8 +38,6 @@ export default function AdsReportDetailPage({ user }) {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [approving, setApproving] = useState(false);
-  const [approveSuccess, setApproveSuccess] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -60,24 +56,6 @@ export default function AdsReportDetailPage({ user }) {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reportId]);
-
-  const handleApprove = async () => {
-    setApproving(true);
-    try {
-      await approveReport(report.id);
-      setReport((prev) => ({ ...prev, status: 'sent' }));
-      setApproveSuccess(true);
-      setTimeout(() => setApproveSuccess(false), 4000);
-    } catch (err) {
-      alert(err.message || t('ads.detail.approveError'));
-    } finally {
-      setApproving(false);
-    }
-  };
-
-  if (!mockActive) {
-    return <ModuleComingSoonCard roleKey="ads_report" />;
-  }
 
   if (loading) {
     return (
@@ -244,25 +222,8 @@ export default function AdsReportDetailPage({ user }) {
             </a>
           )}
 
-          {isAdmin && isPendingApproval && (
-            <button
-              onClick={handleApprove}
-              disabled={approving}
-              style={styles.approveBtn}
-            >
-              <CheckCircle size={16} />
-              <span>{approving ? t('ads.detail.processing') : t('ads.detail.approveAndSend')}</span>
-            </button>
-          )}
         </div>
       </div>
-
-      {approveSuccess && (
-        <div style={styles.successNotification}>
-          <CheckCircle size={18} color="var(--accent-green)" />
-          <span>{t('ads.reports.approveSuccess')}</span>
-        </div>
-      )}
 
       {/* 1. Ringkasan KPI + Delta vs Bulan Lalu */}
       {Object.keys(kpis).length > 0 && (

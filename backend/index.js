@@ -3813,6 +3813,38 @@ app.get('/api/ads/connections', auth, requireWorkspace('viewer'), requireModule(
   res.json({ status: 'ok', ...result });
 }));
 
+app.get('/api/ads/summary', auth, requireWorkspace('viewer'), requireModule('ads_report'), wrap(async (req, res) => {
+  const wsId = req.workspace.id;
+  const conns = await listAdConnections(wsId);
+  const reports = await db.findMany('ad_reports', { workspace_id: wsId });
+  const sortedReports = (reports || []).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+  const latestReport = sortedReports[0] || null;
+
+  const wallet = await db.findOne('credit_wallets', { workspace_id: wsId });
+
+  res.json({
+    status: 'ok',
+    connections: conns.connections,
+    connectedCount: conns.connections.filter((c) => c.status === 'active' || c.status === 'connected').length,
+    latestReport,
+    reportsCount: sortedReports.length,
+    balance: wallet?.balance ?? 0,
+    platforms: [
+      {
+        platform: 'meta',
+        name: 'Meta Ads',
+        isConnected: conns.connections.some((c) => c.platform === 'meta' && (c.status === 'active' || c.status === 'connected'))
+      },
+      {
+        platform: 'google',
+        name: 'Google Ads',
+        isConnected: false,
+        comingSoon: true
+      }
+    ]
+  });
+}));
+
 app.get('/api/ads/oauth/meta/url', auth, requireWorkspace('admin'), requireModule('ads_report'), wrap(async (req, res) => {
   if (!isMetaOAuthConfigured()) {
     return res.json({ status: 'unconfigured', message: 'Meta Ads integration is not configured' });
@@ -3822,63 +3854,49 @@ app.get('/api/ads/oauth/meta/url', auth, requireWorkspace('admin'), requireModul
   res.json({ status: 'ok', url, state });
 }));
 
-app.get('/api/ads/oauth/meta/callback', wrap(async (req, res) => {
-  const appUrl = getAppUrl();
-  const acceptsJson = req.headers.accept?.includes('application/json');
-
-  if (req.query.error) {
-    const errDesc = req.query.error_description || req.query.error;
-    if (acceptsJson) {
-      return sendError(res, 'BAD_REQUEST', String(errDesc));
-    }
-    return res.redirect(`${appUrl}/app/ads/connections?error=${encodeURIComponent(errDesc)}`);
+app.post('/api/ads/oauth/meta/exchange', auth, requireWorkspace('admin'), requireModule('ads_report'), wrap(async (req, res) => {
+  const { code, state } = req.body || {};
+  if (!state) {
+    return sendError(res, 'INVALID_OAUTH_STATE', 'State parameter is required');
   }
-
-  const stateStr = req.query.state;
-  const verified = verifyMetaOAuthState(stateStr);
+  const verified = verifyMetaOAuthState(state);
   if (!verified.valid) {
-    if (acceptsJson) {
-      return sendError(res, 'INVALID_OAUTH_STATE', verified.error);
-    }
-    return res.redirect(`${appUrl}/app/ads/connections?error=INVALID_OAUTH_STATE`);
+    return sendError(res, 'INVALID_OAUTH_STATE', verified.error);
   }
-
-  const { workspaceId, userId } = verified;
-  const code = req.query.code;
+  if (verified.workspaceId !== req.workspace.id || verified.userId !== req.user.id) {
+    return sendError(res, 'INVALID_OAUTH_STATE', 'State does not belong to active workspace/user session');
+  }
   if (!code) {
-    if (acceptsJson) {
-      return sendError(res, 'BAD_REQUEST', 'Missing authorization code');
-    }
-    return res.redirect(`${appUrl}/app/ads/connections?error=MISSING_CODE`);
+    return sendError(res, 'BAD_REQUEST', 'Missing authorization code');
   }
 
-  try {
-    const doExchange = exchangeMetaCode(code, getMetaRedirectUri(req));
-    const { accessToken, expiresIn } = await doExchange();
-    const profile = await fetchMetaProfile(accessToken);
-    const adAccounts = await fetchMetaAdAccounts(accessToken);
+  const redirectUri = getMetaRedirectUri();
+  const doExchange = exchangeMetaCode(code, redirectUri);
+  const { accessToken, expiresIn } = await doExchange();
+  const profile = await fetchMetaProfile(accessToken);
+  const adAccounts = await fetchMetaAdAccounts(accessToken);
 
-    await saveMetaConnection({
-      workspaceId,
-      userId,
-      externalUserId: profile.id,
-      displayName: profile.name,
-      accessToken,
-      expiresInSeconds: expiresIn,
-      adAccounts
-    });
+  const saved = await saveMetaConnection({
+    workspaceId: req.workspace.id,
+    userId: req.user.id,
+    externalUserId: profile.id,
+    displayName: profile.name,
+    accessToken,
+    expiresInSeconds: expiresIn,
+    adAccounts
+  });
 
-    if (acceptsJson) {
-      return res.json({ status: 'ok', connected: 'meta', adAccountsCount: adAccounts.length });
-    }
-    return res.redirect(`${appUrl}/app/ads/connections?connected=meta`);
-  } catch (err) {
-    log(`[AdsOAuth] Meta callback error: ${err.message}`);
-    if (acceptsJson) {
-      return sendError(res, 'BAD_REQUEST', err.message);
-    }
-    return res.redirect(`${appUrl}/app/ads/connections?error=${encodeURIComponent(err.message)}`);
-  }
+  res.json({
+    status: 'ok',
+    connected: 'meta',
+    connectionId: saved.connectionId,
+    adAccountsCount: adAccounts.length,
+    adAccounts: saved.adAccounts
+  });
+}));
+
+app.get('/api/ads/oauth/meta/callback', wrap(async (req, res) => {
+  res.status(410).json({ code: 'GONE', error: 'OAuth callback has been moved to frontend /app/ads/connect/meta/callback' });
 }));
 
 app.delete('/api/ads/connections/:id', auth, requireWorkspace('admin'), requireModule('ads_report'), wrap(async (req, res) => {
@@ -4165,8 +4183,15 @@ app.post('/api/ads/reports/generate', auth, requireWorkspace('admin'), requireMo
 
 app.post('/api/ads/reports/callback', wrap(async (req, res) => {
   const key = req.headers['x-supermat-key'] || req.headers['x-markimate-key'] || req.headers.authorization?.replace(/^Bearer\s+/i, '');
-  if (MARKIMATE_API_KEY && key !== MARKIMATE_API_KEY) {
-    return res.status(401).json({ error: 'unauthorized', code: 'UNAUTHORIZED' });
+  if (MARKIMATE_API_KEY) {
+    if (!key || typeof key !== 'string') {
+      return res.status(401).json({ error: 'unauthorized', code: 'UNAUTHORIZED' });
+    }
+    const keyBuf = Buffer.from(key);
+    const expectedBuf = Buffer.from(MARKIMATE_API_KEY);
+    if (keyBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(keyBuf, expectedBuf)) {
+      return res.status(401).json({ error: 'unauthorized', code: 'UNAUTHORIZED' });
+    }
   }
 
   const result = await handleAdsReportCallback(req.body || {});

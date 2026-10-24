@@ -116,7 +116,7 @@ export async function listConnections() {
 }
 
 // 3. Mulai Alur Hubungkan Platform (OAuth Start)
-export async function startConnect(platform) {
+export async function startConnect(platform = 'meta') {
   if (isAdsMock()) {
     await new Promise((r) => setTimeout(r, 80));
     // Simulasi: redirect langsung ke halaman callback mock Markimate dengan kode demo
@@ -124,18 +124,28 @@ export async function startConnect(platform) {
       authUrl: `/app/ads/connect/${platform}/callback?code=demo_token_${platform}_${Date.now()}&state=markimate_demo_state`,
     };
   }
-  return api(`/api/ads/connect/${platform}/start`, { method: 'POST' });
+  if (platform !== 'meta') {
+    throw new Error('Platform not supported yet');
+  }
+  const data = await getMetaOAuthUrl();
+  return { authUrl: data.url, state: data.state };
 }
 
-// 4. Selesaikan Koneksi Platform (OAuth Callback Finish)
+// 4. Selesaikan Koneksi Platform (OAuth Exchange)
+export async function exchangeMetaOAuth({ code, state }) {
+  return api('/api/ads/oauth/meta/exchange', {
+    method: 'POST',
+    body: { code, state },
+  });
+}
+
 export async function finishConnect(platform, query = {}) {
+  if (query.error) {
+    throw new Error(query.error_description || query.error || 'Otorisasi ditolak oleh pengguna pada platform.');
+  }
+
   if (isAdsMock()) {
     await new Promise((r) => setTimeout(r, 450));
-
-    // Jika parameter query berisi error simulasi
-    if (query.error) {
-      throw new Error(query.error_description || query.error || 'Otorisasi ditolak oleh pengguna pada platform.');
-    }
 
     const connections = getMockConnections();
     const meta = PLATFORMS_META[platform] || {
@@ -171,10 +181,11 @@ export async function finishConnect(platform, query = {}) {
     return { ok: true, connection: updatedConn };
   }
 
-  return api(`/api/ads/connect/${platform}/callback`, {
-    method: 'POST',
-    body: query,
-  });
+  if (platform === 'meta') {
+    return exchangeMetaOAuth({ code: query.code, state: query.state });
+  }
+
+  throw new Error('Platform not supported yet');
 }
 
 // 5. Putuskan Koneksi Platform
@@ -264,30 +275,6 @@ export async function getReport(id) {
     return found;
   }
   return api(`/api/ads/reports/${id}`);
-}
-
-// 8. Approve Laporan (Admin 3Our)
-export async function approveReport(id) {
-  if (isAdsMock()) {
-    await new Promise((r) => setTimeout(r, 300));
-    const reports = getMockReports();
-    const updated = reports.map((r) => {
-      if (r.id === id) {
-        return { ...r, status: 'sent' };
-      }
-      return r;
-    });
-    setStoredJson(getWsStorageKey(STORAGE_KEYS.REPORTS), updated);
-
-    const details = getMockDetails();
-    if (details[id]) {
-      details[id].status = 'sent';
-      setStoredJson(getWsStorageKey(STORAGE_KEYS.DETAILS), details);
-    }
-
-    return { ok: true, status: 'sent' };
-  }
-  return api(`/api/ads/reports/${id}/approve`, { method: 'POST' });
 }
 
 // 9. Meta Ads OAuth & Ad Accounts (PRD F5 Langkah 3)

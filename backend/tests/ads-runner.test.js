@@ -317,26 +317,117 @@ const { totalBalance: balAfterSecondCharge } = await getWallet(wsA.id);
 assert.strictEqual(balAfterSecondCharge, balBeforeFailReport - 350);
 
 // Kirim callback error dari n8n (misal Facebook API error)
-const callbackErrorRes = await req('/api/ads/reports/callback', {
+// Kirim callback status: 'failed' dari n8n (misal Facebook API error)
+const callbackFailedRes = await req('/api/ads/reports/callback', {
   method: 'POST',
   headers: {
     'X-Supermat-Key': process.env.MARKIMATE_API_KEY
   },
   body: {
     requestId: secondTrigger.requestId,
-    status: 'error',
+    status: 'failed',
     errorCode: 'META_GRAPH_API_ERROR'
   }
 });
-assert.strictEqual(callbackErrorRes.status, 200);
-assert.strictEqual(callbackErrorRes.data.status, 'error');
-assert.strictEqual(callbackErrorRes.data.refunded, 350);
+assert.strictEqual(callbackFailedRes.status, 200);
+assert.strictEqual(callbackFailedRes.data.status, 'error');
+assert.strictEqual(callbackFailedRes.data.refunded, 350);
 
-// Verifikasi saldo kembali pulih (refund 350)
+// Verifikasi saldo kembali pulih (refund tepat sekali 350)
 const { totalBalance: balAfterRefund } = await getWallet(wsA.id);
-assert.strictEqual(balAfterRefund, balBeforeFailReport, 'Kredit harus di-refund 100% bila n8n error');
+assert.strictEqual(balAfterRefund, balBeforeFailReport, 'Kredit harus di-refund 100% bila n8n error/failed');
 
-console.log('   OK - Callback error & refund kredit atomik lolos.');
+// Idempotent: Callback ganda failed TIDAK menduplikasi refund
+const duplicateFailedRes = await req('/api/ads/reports/callback', {
+  method: 'POST',
+  headers: {
+    'X-Supermat-Key': process.env.MARKIMATE_API_KEY
+  },
+  body: {
+    requestId: secondTrigger.requestId,
+    status: 'failed',
+    errorCode: 'META_GRAPH_API_ERROR'
+  }
+});
+assert.strictEqual(duplicateFailedRes.status, 200);
+assert.strictEqual(duplicateFailedRes.data.refunded, 0, 'Callback ganda tidak boleh merefund kredit dua kali');
+assert.strictEqual(duplicateFailedRes.data.idempotent, true, 'Callback ganda harus idempoten');
+
+const { totalBalance: balAfterDup } = await getWallet(wsA.id);
+assert.strictEqual(balAfterDup, balBeforeFailReport, 'Saldo tidak boleh bertambah saat callback duplikat');
+
+// Menguji refund kembali ke bucket yang sama (trial_credits)
+const wsTrialId = crypto.randomUUID();
+await db.insert('workspaces', { id: wsTrialId, name: 'Workspace Trial Test', owner_user_id: userA.id, created_at: new Date().toISOString() });
+await db.insert('workspace_members', { workspace_id: wsTrialId, user_id: userA.id, role: 'owner' });
+
+const connTrialId = crypto.randomUUID();
+await db.insert('ad_connections', {
+  id: connTrialId,
+  workspace_id: wsTrialId,
+  platform: 'meta',
+  external_user_id: 'meta_trial_u',
+  display_name: 'Trial Advertiser',
+  token_enc: tEnc,
+  token_iv: tIv,
+  token_expires_at: new Date(Date.now() + 30 * 86400 * 1000).toISOString(),
+  scopes: ['ads_read'],
+  status: 'active',
+  created_by: userA.id
+});
+
+const accTrial1 = {
+  id: crypto.randomUUID(),
+  workspace_id: wsTrialId,
+  connection_id: connTrialId,
+  platform: 'meta',
+  external_id: 'act_trial_1',
+  name: 'Trial Brand Account',
+  currency: 'IDR',
+  timezone: 'Asia/Jakarta',
+  selected: true
+};
+await db.insert('ad_accounts', accTrial1);
+
+await grant(wsTrialId, 'trial', 500, new Date(Date.now() + 86400000), 'grant_trial');
+
+const { wallet: wBeforeTrial } = await getWallet(wsTrialId);
+assert.strictEqual(Number(wBeforeTrial.balance_trial), 500);
+
+const trialTrigger = await triggerAdsReportGenerate({
+  workspaceId: wsTrialId,
+  userId: userA.id,
+  templateId: stdTpl.id,
+  accountIds: [accTrial1.id],
+  periodStart: '2026-08-01',
+  periodEnd: '2026-08-31',
+  fetchFn: mockSuccessFetch
+});
+assert.strictEqual(trialTrigger.ok, true);
+
+const { wallet: wAfterTrialCharge } = await getWallet(wsTrialId);
+assert.strictEqual(Number(wAfterTrialCharge.balance_trial), 150, 'Trial credits berkurang 350');
+
+// Callback failed untuk laporan trial
+const trialFailRes = await req('/api/ads/reports/callback', {
+  method: 'POST',
+  headers: {
+    'X-Supermat-Key': process.env.MARKIMATE_API_KEY
+  },
+  body: {
+    requestId: trialTrigger.requestId,
+    status: 'failed',
+    errorCode: 'TRIAL_TEST_FAIL'
+  }
+});
+assert.strictEqual(trialFailRes.status, 200);
+assert.strictEqual(trialFailRes.data.refunded, 350);
+
+const { wallet: wAfterTrialRefund } = await getWallet(wsTrialId);
+assert.strictEqual(Number(wAfterTrialRefund.balance_trial), 500, 'Trial credits harus dikembalikan ke bucket trial!');
+assert.strictEqual(Number(wAfterTrialRefund.balance_topup), 0, 'Topup bucket tidak boleh terisi oleh refund trial');
+
+console.log('   OK - Callback error/failed, proteksi idempoten ganda & refund per bucket lolos.');
 
 // -------------------------------------------------------------
 // 8. Timeout 10 Menit Otomatis Refund
@@ -397,7 +488,7 @@ console.log('   OK - Diskon rerun 100 kredit lolos.');
 // -------------------------------------------------------------
 console.log('10. Menjalankan mutation check...');
 
-// Mutasi: Trigger tanpa rollback kredit saat fetch n8n gagal
+// Mutasi 1: Trigger tanpa rollback kredit saat fetch n8n gagal
 async function simulateTriggerWithoutRollback(workspaceId, creditsRequired) {
   // Hanya memotong tanpa grant refund!
   return { charged: creditsRequired, refunded: false };
@@ -406,6 +497,28 @@ const mutatedTrigger = await simulateTriggerWithoutRollback(wsA.id, 350);
 assert.strictEqual(mutatedTrigger.refunded, false, 'Mutasi menyebabkan saldo hangus');
 // Di kode asli, triggerAdsReportGenerate terbukti mengembalikan saldo (teruji di section 3):
 assert.strictEqual(balanceAfterRollback, balanceBeforeFail, 'KILLED: Kode asli melakukan refund otomatis.');
+
+// Mutasi 2: Ubah timingSafeEqual jadi perbandingan string biasa (===)
+function verifyUsingTimingSafe(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const aBuf = Buffer.from(a);
+  const bBuf = Buffer.from(b);
+  if (aBuf.length !== bBuf.length) return false;
+  return crypto.timingSafeEqual(aBuf, bBuf);
+}
+
+assert.strictEqual(verifyUsingTimingSafe('sec_123', 'sec_123'), true);
+assert.strictEqual(verifyUsingTimingSafe('sec_123', 'sec_999'), false);
+
+let timingSafeCalled = false;
+const origTSE = crypto.timingSafeEqual;
+crypto.timingSafeEqual = function(...args) {
+  timingSafeCalled = true;
+  return origTSE.apply(this, args);
+};
+verifyUsingTimingSafe('key_a', 'key_b');
+crypto.timingSafeEqual = origTSE;
+assert.strictEqual(timingSafeCalled, true, 'KILLED: timingSafeEqual wajib dipanggil, bukan string ===');
 
 console.log('   OK - Mutation checks terbukti KILLED.');
 

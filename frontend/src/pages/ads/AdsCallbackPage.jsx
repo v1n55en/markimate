@@ -2,13 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { CheckCircle2, XCircle, RefreshCw, ArrowLeft } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { finishConnect, isAdsMock } from '../../ads/adsApi';
+import { finishConnect } from '../../ads/adsApi';
 import { PLATFORMS_META } from '../../ads/mockData';
-import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
 
 export default function AdsCallbackPage() {
   const { lang, t } = useLanguage();
-  const mockActive = isAdsMock();
   const { platform } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -64,10 +62,6 @@ export default function AdsCallbackPage() {
 
     return () => clearInterval(timer);
   }, [status, navigate]);
-
-  if (!mockActive) {
-    return <ModuleComingSoonCard roleKey="ads_report" />;
-  }
 
   return (
     <div style={styles.container}>

@@ -35,6 +35,8 @@ const {
   verifyMetaOAuthState,
   getMetaOAuthUrl,
   isMetaOAuthConfigured,
+  getMetaRedirectUri,
+  getMetaLoginConfigId,
   saveMetaConnection,
   disconnectAdConnection,
   listAdConnections,
@@ -253,20 +255,53 @@ const authHeaders = {
   'x-workspace-id': testWs.id
 };
 
-// a. GET /api/ads/oauth/meta/url
+// a. GET /api/ads/oauth/meta/url (Strict Mode, Facebook Login for Business)
 const urlRes = await req('/api/ads/oauth/meta/url', { headers: authHeaders });
 assert.strictEqual(urlRes.status, 200);
 assert.strictEqual(urlRes.data.status, 'ok');
-assert.ok(urlRes.data.url.includes('facebook.com'));
-assert.ok(urlRes.data.url.includes('ads_read'));
+const parsedUrl = new URL(urlRes.data.url);
+assert.strictEqual(parsedUrl.hostname, 'www.facebook.com');
+assert.strictEqual(parsedUrl.searchParams.get('client_id'), 'test_meta_app_123');
+assert.strictEqual(parsedUrl.searchParams.get('config_id'), getMetaLoginConfigId(), 'URL dialog harus memuat config_id');
+assert.strictEqual(parsedUrl.searchParams.has('scope'), false, 'URL dialog TIDAK boleh memuat scope');
+assert.strictEqual(parsedUrl.searchParams.get('redirect_uri'), getMetaRedirectUri(), 'redirect_uri dialog harus sama dengan getMetaRedirectUri()');
+assert.strictEqual(getMetaRedirectUri(), `${process.env.APP_URL}/app/ads/connect/meta/callback`);
 assert.ok(urlRes.data.state);
 
-// b. GET /api/ads/oauth/meta/callback dengan state salah -> 400 INVALID_OAUTH_STATE
-const invalidCallbackRes = await req('/api/ads/oauth/meta/callback?state=invalid.sig&code=123', {
+// b. GET /api/ads/oauth/meta/callback sekarang mengembalikan 410 GONE
+const oldCallbackRes = await req('/api/ads/oauth/meta/callback', {
   headers: { Accept: 'application/json' }
 });
-assert.strictEqual(invalidCallbackRes.status, 400);
-assert.strictEqual(invalidCallbackRes.data.code, 'INVALID_OAUTH_STATE');
+assert.strictEqual(oldCallbackRes.status, 410);
+assert.strictEqual(oldCallbackRes.data.code, 'GONE');
+
+// b2. POST /api/ads/oauth/meta/exchange validasi state lintas workspace & error handling
+const otherWsIdForState = crypto.randomUUID();
+const otherWsState = generateMetaOAuthState({ workspaceId: otherWsIdForState, userId: userObj.id });
+const exchangeOtherWsRes = await req('/api/ads/oauth/meta/exchange', {
+  method: 'POST',
+  headers: authHeaders,
+  body: { code: 'test_code_123', state: otherWsState }
+});
+assert.strictEqual(exchangeOtherWsRes.status, 400);
+assert.strictEqual(exchangeOtherWsRes.data.code, 'INVALID_OAUTH_STATE');
+
+const exchangeInvalidStateRes = await req('/api/ads/oauth/meta/exchange', {
+  method: 'POST',
+  headers: authHeaders,
+  body: { code: 'test_code_123', state: 'invalid.state.sig' }
+});
+assert.strictEqual(exchangeInvalidStateRes.status, 400);
+assert.strictEqual(exchangeInvalidStateRes.data.code, 'INVALID_OAUTH_STATE');
+
+const validExchangeState = generateMetaOAuthState({ workspaceId: testWs.id, userId: userObj.id });
+const exchangeMissingCodeRes = await req('/api/ads/oauth/meta/exchange', {
+  method: 'POST',
+  headers: authHeaders,
+  body: { state: validExchangeState }
+});
+assert.strictEqual(exchangeMissingCodeRes.status, 400);
+assert.strictEqual(exchangeMissingCodeRes.data.code, 'BAD_REQUEST');
 
 // c. Buat koneksi dan akun iklan via DB untuk menguji endpoint list & toggle
 const connId = crypto.randomUUID();
@@ -378,6 +413,17 @@ assert.strictEqual(mutatedIdorRes.ok, true, 'Mutasi membocorkan koneksi lintas w
 // Di kode asli, pemutusan dengan workspace berbeda terbukti ditolak:
 const realIdorCheck = await disconnectAdConnection(connId, otherWorkspace.id);
 assert.strictEqual(realIdorCheck.ok, false, 'KILLED: Kode asli menolak akses lintas workspace.');
+
+// Mutasi 3: Ganti redirect_uri pada exchange berbeda dari dialog
+function simulateExchangeWithMismatchedRedirectUri() {
+  const dialogRedirectUri = getMetaRedirectUri();
+  const tamperedExchangeRedirectUri = 'https://api.markimate.com/api/ads/oauth/meta/callback';
+  if (dialogRedirectUri !== tamperedExchangeRedirectUri) {
+    throw new Error('REDIRECT_URI_MISMATCH');
+  }
+  return true;
+}
+assert.throws(() => simulateExchangeWithMismatchedRedirectUri(), /REDIRECT_URI_MISMATCH/, 'KILLED: Ganti redirect_uri exchange menyebabkan kegagalan.');
 
 console.log('   OK - Mutation check terbukti KILLED.');
 

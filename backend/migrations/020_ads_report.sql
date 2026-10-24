@@ -109,6 +109,7 @@ create table if not exists markimate.ad_reports (
   warnings jsonb default '[]'::jsonb,
   credits_charged integer default 0,
   error_code text,
+  refunded_at timestamptz,
   created_by uuid references markimate.accounts(id) on delete set null,
   created_at timestamptz default now(),
   started_at timestamptz,

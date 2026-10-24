@@ -15,16 +15,14 @@ import {
   Plus,
 } from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { getAdsSummary, listConnections, isAdsMock } from '../../ads/adsApi';
+import { getAdsSummary, listConnections } from '../../ads/adsApi';
 import { PLATFORMS_META } from '../../ads/mockData';
 import { formatCompactIDR } from '../../ads/format';
 import KpiCard from '../../components/ads/KpiCard';
 import StatusChip from '../../components/ads/StatusChip';
-import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
 
 export default function AdsSummaryPage() {
   const { lang, t } = useLanguage();
-  const mockActive = isAdsMock();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -61,10 +59,6 @@ export default function AdsSummaryPage() {
 
   const connectedList = connections.filter((c) => c.status === 'connected');
   const hasNoConnections = connectedList.length === 0;
-
-  if (!mockActive) {
-    return <ModuleComingSoonCard roleKey="ads_report" />;
-  }
 
   if (loading) {
     return (

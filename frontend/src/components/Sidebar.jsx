@@ -30,7 +30,6 @@ import MarkimateLogo from './common/MarkimateLogo';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { ROLES, getLocalizedRole } from '../config/roles';
 import { getCredits } from '../api';
-import { isAdsMock } from '../ads/adsApi';
 import { isSpyMock } from '../spy/spyApi';
 import { TRIAL } from '../config/pricing';
 
@@ -124,11 +123,10 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
   }
 
   if (isAdsActive) {
-    const adsSoon = !isAdsMock();
     activeSections.push({
       group: t('sidebar.sectionAds', 'AI Ads Performance Reporter'),
       moduleKey: 'ads_report',
-      badge: adsSoon ? t('common.soon') : null,
+      badge: null,
       items: [
         {
           id: 'ads-summary',

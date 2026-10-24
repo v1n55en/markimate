@@ -305,7 +305,7 @@ export async function handleAdsReportCallback({
 
   // Idempoten jika sudah selesai
   if (report.status === 'ready' || (report.status === 'error' && report.finished_at)) {
-    return { ok: true, idempotent: true, status: report.status };
+    return { ok: true, idempotent: true, status: report.status, refunded: 0 };
   }
 
   const now = new Date().toISOString();
@@ -332,28 +332,84 @@ export async function handleAdsReportCallback({
     return { ok: true, status: 'ready', reportId: report.id };
   }
 
-  // Jika status error dari n8n: REFUND KREDIT ATOMIK
-  const charged = Number(report.credits_charged || 0);
-  if (charged > 0) {
-    try {
-      await grant(report.workspace_id, 'topup', charged, null, 'refund', `Refund report error: ${errorCode || 'Generation failed'}`, {
-        actionKey: 'ads.report_refund',
-        refType: 'ad_report',
-        refId: report.id
-      });
-    } catch (refErr) {
-      console.error('[AdsRunner] Error refunding report credits:', refErr.message);
-    }
+  // Jika status error / failed dari n8n: REFUND KREDIT ATOMIK (hanya sekali & sesuai bucket asal)
+  if (status === 'error' || status === 'failed') {
+    const refundRes = await refundReportCreditsAtomic(
+      report,
+      `Refund report error: ${errorCode || 'Generation failed'}`,
+      errorCode || 'ADS_REPORT_FAILED'
+    );
+    return { ok: true, status: 'error', reportId: report.id, refunded: refundRes.refunded, idempotent: refundRes.idempotent };
   }
 
-  await db.update('ad_reports', { id: report.id }, {
+  return { ok: true, status: report.status, reportId: report.id };
+}
+
+/**
+ * Refund kredit laporan secara atomik, idempoten (berdasarkan claim refunded_at),
+ * dan mengembalikan ke bucket yang sama persis (trial vs purchased/topup).
+ */
+export async function refundReportCreditsAtomic(report, reason, errorCode) {
+  const now = new Date().toISOString();
+
+  // 1. Claim refund atomik: update ad_reports set refunded_at = now() where id = $1 and refunded_at is null
+  const claimed = await db.claim('ad_reports', report.id, {
+    refunded_at: now,
     status: 'error',
     error_code: errorCode || 'ADS_REPORT_FAILED',
     finished_at: now,
     updated_at: now
+  }, 'refunded_at');
+
+  if (!claimed) {
+    // Rowcount == 0: sudah pernah di-refund sebelumnya (idempoten, cegah race condition)
+    return { refunded: 0, idempotent: true };
+  }
+
+  // 2. Kembalikan ke bucket yang sama: periksa credit_ledger entri pemotongan laporan ini
+  const deductionRows = await db.findMany('credit_ledger', {
+    workspace_id: report.workspace_id,
+    ref_type: 'ad_report',
+    ref_id: String(report.id),
+    kind: 'usage'
   });
 
-  return { ok: true, status: 'error', reportId: report.id, refunded: charged };
+  let totalRefunded = 0;
+  if (deductionRows && deductionRows.length > 0) {
+    for (const row of deductionRows) {
+      const amt = Math.abs(Number(row.delta || 0));
+      const bucket = ['trial', 'sub', 'topup'].includes(row.bucket) ? row.bucket : 'topup';
+      if (amt > 0) {
+        try {
+          await grant(report.workspace_id, bucket, amt, null, 'refund', reason, {
+            actionKey: 'ads.report_refund',
+            refType: 'ad_report',
+            refId: report.id
+          });
+          totalRefunded += amt;
+        } catch (err) {
+          console.error('[AdsRunner] Gagal grant refund per bucket:', err.message);
+        }
+      }
+    }
+  } else {
+    // Fallback jika tidak ada ledger rows
+    const charged = Number(report.credits_charged || 0);
+    if (charged > 0) {
+      try {
+        await grant(report.workspace_id, 'topup', charged, null, 'refund', reason, {
+          actionKey: 'ads.report_refund',
+          refType: 'ad_report',
+          refId: report.id
+        });
+        totalRefunded = charged;
+      } catch (err) {
+        console.error('[AdsRunner] Gagal grant fallback refund:', err.message);
+      }
+    }
+  }
+
+  return { refunded: totalRefunded, idempotent: false };
 }
 
 /**
@@ -369,34 +425,12 @@ export async function getReportStatus(reportId, workspaceId) {
   if (report.status === 'running' || report.status === 'queued') {
     const startedAtMs = Date.parse(report.started_at || report.created_at);
     if (!isNaN(startedAtMs) && Date.now() - startedAtMs > TEN_MINUTES_MS) {
-      // Timeout 10 menit tercapai: tandai error dan refund kredit atomik
-      const charged = Number(report.credits_charged || 0);
-      if (charged > 0) {
-        try {
-          await grant(workspaceId, 'topup', charged, null, 'refund', 'Refund ads report generation timeout (10m)', {
-            actionKey: 'ads.report_refund',
-            refType: 'ad_report',
-            refId: report.id
-          });
-        } catch (e) {
-          console.error('[AdsRunner] Timeout refund error:', e.message);
-        }
-      }
-
-      const now = new Date().toISOString();
-      await db.update('ad_reports', { id: report.id }, {
-        status: 'error',
-        error_code: 'ADS_REPORT_TIMEOUT',
-        finished_at: now,
-        updated_at: now
-      });
-
-      return {
-        ...report,
-        status: 'error',
-        error_code: 'ADS_REPORT_TIMEOUT',
-        finished_at: now
-      };
+      await refundReportCreditsAtomic(
+        report,
+        'Refund ads report generation timeout (10m)',
+        'ADS_REPORT_TIMEOUT'
+      );
+      const updated = await db.findOne('ad_reports', { id: report.id });
     }
   }
 
