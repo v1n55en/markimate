@@ -4186,15 +4186,17 @@ app.post('/api/ads/reports/generate', auth, requireWorkspace('admin'), requireMo
 
 app.post('/api/ads/reports/callback', wrap(async (req, res) => {
   const key = req.headers['x-supermat-key'] || req.headers['x-markimate-key'] || req.headers.authorization?.replace(/^Bearer\s+/i, '');
-  if (MARKIMATE_API_KEY) {
-    if (!key || typeof key !== 'string') {
-      return res.status(401).json({ error: 'unauthorized', code: 'UNAUTHORIZED' });
-    }
-    const keyBuf = Buffer.from(key);
-    const expectedBuf = Buffer.from(MARKIMATE_API_KEY);
-    if (keyBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(keyBuf, expectedBuf)) {
-      return res.status(401).json({ error: 'unauthorized', code: 'UNAUTHORIZED' });
-    }
+  // Tanpa key server, callback ditutup (bukan terbuka untuk siapa saja)
+  if (!MARKIMATE_API_KEY) {
+    return res.status(503).json({ error: 'callback not configured', code: 'CALLBACK_NOT_CONFIGURED' });
+  }
+  if (!key || typeof key !== 'string') {
+    return res.status(401).json({ error: 'unauthorized', code: 'UNAUTHORIZED' });
+  }
+  const keyBuf = Buffer.from(key);
+  const expectedBuf = Buffer.from(MARKIMATE_API_KEY);
+  if (keyBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(keyBuf, expectedBuf)) {
+    return res.status(401).json({ error: 'unauthorized', code: 'UNAUTHORIZED' });
   }
 
   const result = await handleAdsReportCallback(req.body || {});
