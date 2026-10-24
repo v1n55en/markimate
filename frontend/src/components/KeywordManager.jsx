@@ -539,7 +539,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
       </header>
 
       {!anyCms.length && (
-        <div className="card" style={{ ...styles.alert, borderColor: 'rgba(245,158,11,0.4)' }}>
+        <div className="card stack-mobile" style={{ ...styles.alert, borderColor: 'rgba(245,158,11,0.4)' }}>
           <AlertTriangle size={18} color="var(--accent-yellow)" />
           <div style={{ flex: 1 }}>{t('seo.noCmsAlert')}</div>
           <button className="btn btn-secondary" onClick={() => goTo && goTo('settings')}>{t('seo.openCmsSettings')}</button>
@@ -745,7 +745,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
       {/* Tabel keyword */}
       <div className="card" style={{ padding: 0 }}>
         <div className="table-container">
-          <table className="table">
+          <table className="table table-stack">
             <thead>
               <tr>
                 <th>{t('seo.thKeywordTitle')}</th>
@@ -775,7 +775,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
 
                 return (
                   <tr key={kw.id}>
-                    <td>
+                    <td data-label={t('seo.thKeywordTitle')} className="stack-full">
                       <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <span>{kw.keyword}</span>
                       </div>
@@ -802,7 +802,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                         </div>
                       )}
                     </td>
-                    <td>
+                    <td data-label={t('seo.thSource')}>
                       {isAutoTrends ? (
                         <span style={styles.sourceTrendsBadge} title={t('seo.keywords.trendsSourceTitle')}>
                           <TrendingUp size={12} /> Trends
@@ -813,14 +813,14 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                         <span style={styles.sourceBadge}>Manual</span>
                       )}
                     </td>
-                    <td><span style={styles.sub}>{kw.geo}{' · '}{kw.ln}</span></td>
-                    <td>
+                    <td data-label={t('seo.thTarget')}><span style={styles.sub}>{kw.geo}{' · '}{kw.ln}</span></td>
+                    <td data-label={t('seo.thVolumeKd')}>
                       {kw.volume ? (
                         <span>{formatNumber(kw.volume, lang)}<span style={styles.sub}>{' / KD '}{kw.difficulty ?? '–'}</span></span>
                       ) : <span style={styles.sub}>–</span>}
                     </td>
-                    <td><span className="badge badge-secondary">{CMS_LABEL[kw.cms] || kw.cms}</span></td>
-                    <td>
+                    <td data-label={t('seo.thCms')}><span className="badge badge-secondary">{CMS_LABEL[kw.cms] || kw.cms}</span></td>
+                    <td data-label={t('seo.thStatus')}>
                       <span className={`badge ${STATUS_BADGE[kw.status] || 'badge-secondary'}`}>
                         {kw.status === 'AI Writing...' && <Loader2 size={12} className="spin-icon" />}
                         {isDuplicate ? t('seo.statusDuplicate') : isSuggested ? t('seo.statusSuggested') : kw.status}
@@ -836,7 +836,7 @@ export default function KeywordManager({ me, refreshMe, goTo }) {
                         </div>
                       )}
                     </td>
-                    <td>
+                    <td data-label={t('seo.thAction')} className="stack-full">
                       <div style={styles.actionCell}>
                         {/* Suggested action buttons: Setujui vs Abaikan */}
                         {isSuggested && (
