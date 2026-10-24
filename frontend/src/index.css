@@ -33,6 +33,18 @@
   --radius-md: 8px;
   --radius-lg: 12px;
   
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* Alias yang dipakai halaman Ads/Billing/Admin (sebelumnya tidak terdefinisi → modal transparan) */
+  --bg-card: var(--bg-surface);
+  --card-bg: var(--bg-surface);
+  --bg-input: var(--bg-base);
+  --border-color: var(--border-active);
+  --accent-primary: var(--accent-cyan);
+  --accent-purple: #8b5cf6;
+  --shadow-modal: 0 20px 40px -8px rgba(0, 0, 0, 0.6);
+
   --transition-fast: 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   --transition-smooth: 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -1544,20 +1556,24 @@ h1, h2, h3, h4, h5, h6, p, span, strong, a {
 /* ========================================================
    Payment & Ledger Responsive Table/Card Views (PRD F14)
    ======================================================== */
-.desktop-only-table {
-  display: none;
+.desktop-only-table,
+.desktop-only-block {
+  display: none !important;
 }
 .mobile-only-cards {
   display: grid;
 }
 
+/* !important: beberapa komponen memberi display inline (flex) yang mengalahkan aturan class */
 @media (min-width: 640px) {
-  .desktop-only-table {
-    display: block;
+  .desktop-only-table,
+  .desktop-only-block {
+    display: block !important;
     overflow-x: auto;
   }
-  .mobile-only-cards {
-    display: none;
+  .mobile-only-cards,
+  .mobile-only-block {
+    display: none !important;
   }
 }
 
@@ -1745,7 +1761,18 @@ h1, h2, h3, h4, h5, h6, p, span, strong, a {
 @media (min-width: 640px) {
   .topup-stepper-row {
     flex-direction: row;
+    flex-wrap: wrap;
     align-items: center;
+  }
+
+  /* jangan sampai input angka tergencet tombol preset */
+  .topup-stepper-row .topup-input-box {
+    flex: 1 1 220px;
+    min-width: 220px;
+  }
+
+  .topup-number-input {
+    min-width: 90px;
   }
 }
 
@@ -2633,3 +2660,191 @@ h1, h2, h3, h4, h5, h6, p, span, strong, a {
 
 
 
+
+/* ==========================================================================
+   MOBILE POLISH (semua halaman app) — target sentuh, input anti-zoom iOS,
+   tabel jadi kartu, tab & header aksi yang tidak terpotong
+   ========================================================================== */
+
+/* Segmented control 2 pilihan (mis. mode generate laporan) */
+.ads-segment {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.ads-segment .ads-tab-btn {
+  justify-content: center;
+  text-align: center;
+  white-space: normal;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+/* Tombol aksi di header halaman Ads */
+.ads-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.ads-header-actions > .ads-btn {
+  flex: 1 1 150px;
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .ads-header-actions {
+    width: auto;
+    flex-wrap: nowrap;
+  }
+
+  .ads-header-actions > .ads-btn {
+    flex: 0 0 auto;
+    width: auto;
+  }
+}
+
+@media (max-width: 639px) {
+  /* iOS men-zoom otomatis bila font input < 16px */
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  input[type='checkbox'],
+  input[type='radio'] {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  /* Target sentuh minimal 40–44px */
+  .main-content button,
+  .main-content select,
+  .main-content .btn {
+    min-height: 40px;
+  }
+
+  .main-content button:has(> svg:only-child):not(.chip-remove) {
+    min-width: 40px;
+    justify-content: center;
+  }
+
+  .main-content button.chip-remove {
+    min-height: 28px;
+    min-width: 28px;
+  }
+
+  /* Tab ads: bungkus jadi beberapa baris, tidak terpotong di kanan */
+  .ads-tabs {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .ads-tabs .ads-tab-btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  /* Tab pengaturan akun: grid 2 kolom */
+  .settings-tabs {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow-x: visible !important;
+  }
+
+  .settings-tabs > .btn {
+    justify-content: center;
+    white-space: normal !important;
+    text-align: center;
+    min-width: 0;
+  }
+
+  /* Baris flex (judul + aksi) → bertumpuk */
+  .stack-mobile {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .stack-mobile > .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Hindari padding ganda (main-content sudah memberi padding) */
+  .security-page-container {
+    padding: 0;
+  }
+
+  /* Tabel utama → daftar kartu */
+  .table-stack,
+  .table-stack tbody,
+  .table-stack tr,
+  .table-stack td {
+    display: block;
+    width: 100%;
+  }
+
+  .table-stack thead {
+    display: none;
+  }
+
+  .table-stack tr {
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-md);
+    padding: 0.75rem 0.85rem !important;
+    margin-bottom: 0.75rem;
+    background: var(--bg-surface);
+  }
+
+  .table-stack td {
+    display: block;
+    padding: 0.35rem 0 !important;
+    border: none !important;
+    text-align: right !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+  }
+
+  .table-stack td::after {
+    content: '';
+    display: table;
+    clear: both;
+  }
+
+  .table-stack td[data-label]::before {
+    content: attr(data-label);
+    float: left;
+    margin-right: 0.75rem;
+    max-width: 45%;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-align: left;
+  }
+
+  .table-stack td.stack-full {
+    display: block;
+    text-align: left !important;
+  }
+
+  .table-stack td.stack-full::before {
+    display: block;
+    float: none;
+    max-width: none;
+    margin-bottom: 0.25rem;
+  }
+
+  .table-stack td:not([data-label]) {
+    display: block;
+    text-align: center !important;
+  }
+
+  .table-container:has(> .table-stack) {
+    overflow: visible;
+  }
+}

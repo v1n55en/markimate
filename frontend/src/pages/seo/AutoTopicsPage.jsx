@@ -185,7 +185,7 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
 
       {/* Form Konfigurasi Topik Otomatis */}
       <div className="card" style={{ marginBottom: '1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-muted)', paddingBottom: '0.75rem' }}>
+        <div className="stack-mobile" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-muted)', paddingBottom: '0.75rem' }}>
           <div>
             <h2 style={{ margin: 0, fontSize: '1.1rem' }}>
               {t('seo.autoTopics.configTitle')}
@@ -218,7 +218,7 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
               {seedKeywords.map(s => (
                 <span key={s} style={styles.chip}>
                   {s}
-                  <button type="button" onClick={() => removeSeed(s)} style={styles.chipRemoveBtn}>
+                  <button type="button" className="chip-remove" onClick={() => removeSeed(s)} style={styles.chipRemoveBtn}>
                     <X size={12} />
                   </button>
                 </span>
@@ -405,7 +405,7 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
 
           {runResult.topics && runResult.topics.length > 0 ? (
             <div className="table-container">
-              <table className="table">
+              <table className="table table-stack">
                 <thead>
                   <tr>
                     <th>{t('seo.autoTopics.thKeyword')}</th>
@@ -417,13 +417,13 @@ export default function AutoTopicsPage({ me = {}, refreshMe, goTo }) {
                 <tbody>
                   {runResult.topics.map((tItem, idx) => (
                     <tr key={idx}>
-                      <td style={{ fontWeight: 600 }}>{tItem.keyword}</td>
-                      <td><span style={styles.sub}>{tItem.seed}</span></td>
-                      <td>
+                      <td data-label={t('seo.autoTopics.thKeyword')} style={{ fontWeight: 600 }}>{tItem.keyword}</td>
+                      <td data-label={t('seo.autoTopics.thSeed')}><span style={styles.sub}>{tItem.seed}</span></td>
+                      <td data-label={t('seo.autoTopics.thVolumeKd')}>
                         {tItem.searchVolume ? formatNumber(Number(tItem.searchVolume), lang) : '–'}{' '}
                         <span style={styles.sub}>{`/ KD ${tItem.difficulty ?? '–'}`}</span>
                       </td>
-                      <td>
+                      <td data-label={t('seo.autoTopics.thPotential')}>
                         {tItem.trafficPotential ? formatNumber(Number(tItem.trafficPotential), lang) : '–'}
                       </td>
                     </tr>

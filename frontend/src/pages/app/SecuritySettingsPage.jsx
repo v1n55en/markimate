@@ -60,6 +60,27 @@ export default function SecuritySettingsPage() {
     }
   };
 
+  // Ringkas user agent mentah ("Mozilla/5.0 (…) Chrome/141 …") jadi "Chrome · Windows" supaya muat di HP
+  const describeDevice = (ua) => {
+    const s = String(ua || '');
+    if (!s) return '';
+    const browser = /Edg\//.test(s) ? 'Edge'
+      : /OPR\/|Opera/.test(s) ? 'Opera'
+      : /SamsungBrowser/.test(s) ? 'Samsung Internet'
+      : /Firefox\//.test(s) ? 'Firefox'
+      : /Chrome\/|CriOS/.test(s) ? 'Chrome'
+      : /Safari\//.test(s) ? 'Safari'
+      : s.split(/[\s/]/)[0];
+    const os = /iPhone|iPad|iPod/.test(s) ? 'iOS'
+      : /Android/.test(s) ? 'Android'
+      : /Windows/.test(s) ? 'Windows'
+      : /Mac OS X|Macintosh/.test(s) ? 'macOS'
+      : /CrOS/.test(s) ? 'ChromeOS'
+      : /Linux/.test(s) ? 'Linux'
+      : '';
+    return os ? `${browser} · ${os}` : browser;
+  };
+
   const getDeviceIcon = (ua) => {
     const lower = String(ua || '').toLowerCase();
     if (lower.includes('mobile') || lower.includes('android') || lower.includes('iphone')) {
@@ -154,7 +175,7 @@ export default function SecuritySettingsPage() {
 
                     <div className="session-text-content">
                       <div className="session-ua-title">
-                        <span>{s.userAgent || t('settings.security.webDeviceFallback')}</span>
+                        <span title={s.userAgent || ''}>{describeDevice(s.userAgent) || t('settings.security.webDeviceFallback')}</span>
                         {s.current && (
                         <span style={{
                           fontSize: '0.7rem',

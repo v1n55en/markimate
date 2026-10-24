@@ -274,7 +274,25 @@ export async function getReport(id) {
 
     return found;
   }
-  return api(`/api/ads/reports/${id}`);
+  const res = await api(`/api/ads/reports/${id}`);
+  return normalizeReport(res?.report || res);
+}
+
+// Backend mengirim { status: 'ok', report: <baris ad_reports> }. Halaman detail memakai bentuk
+// { title, periodLabel, clientName, status, slidesUrl, ... } → samakan di sini.
+// (Sebelumnya halaman detail membaca respons mentah: judul "Laporan undefined", status "ok".)
+export function normalizeReport(r) {
+  if (!r || typeof r !== 'object' || r.title) return r;
+  const accounts = Array.isArray(r.summary?.accounts) ? r.summary.accounts : [];
+  return {
+    ...r,
+    title: r.template_snapshot?.name || '',
+    periodLabel: [r.period_start, r.period_end].filter(Boolean).join(' – '),
+    clientName: accounts.map((a) => a?.name).filter(Boolean).join(', ') || '—',
+    slidesUrl: r.slides_url || null,
+    pdfUrl: r.pdf_path || null,
+    platforms: ['meta'],
+  };
 }
 
 // 9. Meta Ads OAuth & Ad Accounts (PRD F5 Langkah 3)

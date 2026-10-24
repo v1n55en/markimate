@@ -367,6 +367,9 @@ function AppContent() {
 
       const data = await api('/api/me');
       setMe(data);
+      // WorkspaceContext menunggu event ini untuk memuat daftar workspace setelah token tersedia
+      // (sebelumnya tidak pernah dikirim → user baru melihat "Pilih Workspace", peran VIEWER, "undefined")
+      window.dispatchEvent(new Event('markimate:login'));
       if (data?.user?.locale && (data.user.locale === 'id' || data.user.locale === 'en')) {
         setLang(data.user.locale, { syncBackend: false });
       }

@@ -521,7 +521,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
 
         {/* Ledger Table */}
         <div style={styles.tableWrapper} className="card">
-          <table style={styles.table}>
+          <table style={styles.table} className="table-stack">
             <thead>
               <tr style={styles.thRow}>
                 <th style={styles.th}>{t('billing.thDateTime')}</th>
@@ -547,21 +547,21 @@ export default function CreditWalletPage({ me, onTopupClick }) {
                   const isZero = row.delta === 0;
                   return (
                     <tr key={row.id} style={styles.tr}>
-                      <td style={styles.tdTime}>{formatDateTime(row.created_at, lang)}</td>
-                      <td style={styles.tdAction}>
+                      <td data-label={t('billing.thDateTime')} style={styles.tdTime}>{formatDateTime(row.created_at, lang)}</td>
+                      <td data-label={t('billing.thAction')} style={styles.tdAction}>
                         <div style={styles.actionBadgeRow}>
                           <span style={styles.actionKeyTag}>
                             {row.action_key || row.kind}
                           </span>
                         </div>
                       </td>
-                      <td style={styles.tdBucket}>
+                      <td data-label={t('billing.thBucket')} style={styles.tdBucket}>
                         <span style={styles.bucketTag}>{row.bucket || '-'}</span>
                       </td>
-                      <td style={styles.tdNote}>
+                      <td data-label={t('billing.thNote')} style={styles.tdNote}>
                         <span style={styles.noteText}>{row.note || '-'}</span>
                       </td>
-                      <td
+                      <td data-label={t('billing.thDelta')}
                         style={{
                           ...styles.tdDelta,
                           color: isZero
@@ -573,7 +573,7 @@ export default function CreditWalletPage({ me, onTopupClick }) {
                       >
                         {isPositive ? `+${row.delta}` : `${row.delta}`} cr
                       </td>
-                      <td style={styles.tdBalanceAfter}>
+                      <td data-label={t('billing.thBalanceAfter')} style={styles.tdBalanceAfter}>
                         {formatNumber(row.balance_after, lang)} cr
                       </td>
                     </tr>
