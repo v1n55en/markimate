@@ -120,6 +120,11 @@ import {
   deleteReportProfile
 } from './lib/ads-templates.js';
 import { evaluateFormula } from './shared/ads-metrics.js';
+import {
+  triggerAdsReportGenerate,
+  handleAdsReportCallback,
+  getReportStatus
+} from './lib/ads-runner.js';
 import { sendError } from './lib/error-codes.js';
 
 export { PLANS };
@@ -4121,6 +4126,55 @@ app.post('/api/ads/assets/upload', auth, requireWorkspace('admin'), requireModul
 app.get('/api/ads/reports', auth, requireWorkspace('viewer'), requireModule('ads_report'), wrap(async (req, res) => {
   const reports = await db.findMany('ad_reports', { workspace_id: req.workspace.id }, { orderBy: 'created_at', desc: true });
   res.json({ status: 'ok', module: 'ads_report', reports });
+}));
+
+app.get('/api/ads/reports/:id', auth, requireWorkspace('viewer'), requireModule('ads_report'), wrap(async (req, res) => {
+  const report = await getReportStatus(req.params.id, req.workspace.id);
+  if (!report) {
+    return sendError(res, 'NOT_FOUND', 'Report not found');
+  }
+  res.json({ status: 'ok', report });
+}));
+
+app.post('/api/ads/reports/generate', auth, requireWorkspace('admin'), requireModule('ads_report'), wrap(async (req, res) => {
+  const result = await triggerAdsReportGenerate({
+    workspaceId: req.workspace.id,
+    userId: req.user.id,
+    ...req.body
+  });
+
+  if (!result.ok) {
+    const status = result.status || (result.code === 'INSUFFICIENT_CREDITS' ? 402 : (result.code === 'ADS_RECONNECT_REQUIRED' ? 409 : (result.code === 'NOT_FOUND' ? 404 : 400)));
+    return res.status(status).json({
+      code: result.code || 'BAD_REQUEST',
+      error: result.message,
+      need: result.need,
+      have: result.have
+    });
+  }
+
+  res.status(202).json({
+    status: 'ok',
+    reportId: result.reportId,
+    requestId: result.requestId,
+    reportStatus: result.status,
+    creditsCharged: result.creditsCharged,
+    isRerun: result.isRerun
+  });
+}));
+
+app.post('/api/ads/reports/callback', wrap(async (req, res) => {
+  const key = req.headers['x-supermat-key'] || req.headers['x-markimate-key'] || req.headers.authorization?.replace(/^Bearer\s+/i, '');
+  if (MARKIMATE_API_KEY && key !== MARKIMATE_API_KEY) {
+    return res.status(401).json({ error: 'unauthorized', code: 'UNAUTHORIZED' });
+  }
+
+  const result = await handleAdsReportCallback(req.body || {});
+  if (!result.ok) {
+    return res.status(result.code === 'NOT_FOUND' ? 404 : 400).json({ error: result.message, code: result.code });
+  }
+
+  res.json({ status: 'ok', ...result });
 }));
 
 app.get('/api/ads/spy', auth, requireWorkspace('viewer'), requireModule('ads_spy'), wrap(async (req, res) => {

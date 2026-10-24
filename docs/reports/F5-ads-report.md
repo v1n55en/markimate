@@ -29,6 +29,11 @@
    - Mengimplementasikan endpoint upload aset gambar custom `/api/ads/assets/upload` (PNG/JPG/WEBP maks 2 MB) dengan dukungan Supabase Storage / fallback data URI.
    - Menyediakan `backend/shared/` untuk mendukung isolasi bundling deployment Vercel yang mandiri (`deploy-bundle.test.js`).
    - Membuat test suite `backend/tests/ads-templates.test.js` (31/31 test backend lulus 100%).
+5. `feat(ads): langkah 5 trigger webhook async n8n status polling dan rollback kredit (PRD F5)`:
+   - Membuat `backend/lib/ads-runner.js` untuk integrasi webhook async ke n8n (`workflow_ads_report`), pemotongan kredit atomik sebelum trigger, rollback kredit otomatis bila trigger network n8n gagal, penanganan callback webhook selesai (`ready`) maupun gagal (`error` dengan refund kredit atomik), serta deteksi timeout 10 menit dengan auto-refund.
+   - Mendukung perhitungan biaya rerun dalam 7 hari (diskon 100 kredit).
+   - Mengimplementasikan endpoint `POST /api/ads/reports/generate`, `GET /api/ads/reports/:id`, dan `POST /api/ads/reports/callback`.
+   - Membuat test suite `backend/tests/ads-runner.test.js` (32/32 test backend lulus 100%).
 
 ---
 
@@ -173,4 +178,50 @@
 ### 4. Hal yang Sengaja Tidak Dikerjakan pada Langkah Ini
 - Integrasi n8n generation & async polling status laporan (Langkah 5 & 6).
 - Halaman UI Ads Report di frontend (Langkah 7).
+
+---
+
+## Langkah 5: Trigger Webhook Async n8n, Polling Status & Rollback Kredit Atomik
+
+### 1. File yang Berubah / Dibuat
+- `backend/lib/ads-runner.js`:
+  - `triggerAdsReportGenerate`:
+    - Validasi profil, template, akun iklan (IDOR), dan masa aktif token koneksi (`ADS_RECONNECT_REQUIRED`).
+    - Pengecekan riwayat rerun dalam 7 hari (`isRerun`, biaya 100 kredit).
+    - Pemotongan kredit atomik via `charge(workspaceId, ...)` sebelum mengirim webhook ke n8n.
+    - Pengiriman payload lengkap ke endpoint n8n (`process.env.MARKIMATE_N8N_ADS_REPORT_URL` atau `${N8N_BASE_URL}/webhook/ads-report-generate`).
+    - **Rollback kredit atomik**: jika koneksi ke webhook n8n gagal, saldo kredit langsung dikembalikan utuh ke wallet pemanggil via `grant(..., 'refund')` dan laporan ditandai `error` dengan kode `ADS_SOURCE_UNAVAILABLE`.
+  - `handleAdsReportCallback`:
+    - Menangani callback status `ready` dari n8n untuk menyimpan link Google Slides, PDF, ringkasan, dan status selesai.
+    - Menangani callback status `error` dari n8n: otomatis melakukan **refund kredit 100%** ke wallet pengguna secara atomik.
+    - Idempoten: mengabaikan callback ganda jika laporan telah berstatus `ready` atau `error`.
+  - `getReportStatus`:
+    - Mengambil status laporan dengan isolasi workspace (IDOR protection).
+    - **Deteksi timeout 10 menit**: jika laporan berstatus `running` lebih dari 10 menit tanpa kabar dari n8n, otomatis status diubah menjadi `error` (`ADS_REPORT_TIMEOUT`) dan kredit di-refund secara atomik.
+- `backend/lib/credits.js`:
+  - Mendukung `extra.credits` eksplisit pada fungsi `estimate(...)` untuk memastikan perhitungan harga komposit dinamis Ads Report terakomodasi sempurna dalam engine wallet.
+- `backend/index.js`:
+  - `POST /api/ads/reports/generate`: trigger pembuatan laporan (role admin, 202 Accepted).
+  - `GET /api/ads/reports/:id`: polling status laporan (role viewer).
+  - `POST /api/ads/reports/callback`: webhook penerima hasil generasi dari n8n dengan proteksi API Key.
+- `backend/tests/ads-runner.test.js`:
+  - 10 kelompok pengujian unit & integrasi lengkap: saldo tidak cukup (402), token kedaluwarsa (409), rollback kredit saat trigger network gagal, trigger sukses & potongan saldo, polling status, webhook ready, webhook error & auto refund, timeout 10 menit & auto refund, diskon rerun 100 kredit, dan mutation checks.
+
+### 2. Cara Tes
+- `cd backend && node tests/ads-runner.test.js`
+- `cd backend && node tests/deploy-bundle.test.js`
+- `cd backend && npm test`
+- `cd frontend && npm test && npm run i18n:check && npm run lint && npm run build`
+
+### 3. Hasil Tes
+- Backend tests: 32/32 test suites lulus 100% (termasuk `ads-runner.test.js` dan `deploy-bundle.test.js`).
+- Frontend tests: 5/5 test scripts lulus.
+- i18n check: 0 errors.
+- Linter: 0 errors (clean hardcoded check).
+- Build: 42 static SEO pages generated successfully.
+
+### 4. Hal yang Sengaja Tidak Dikerjakan pada Langkah Ini
+- Cron pengiriman terjadwal bulanan (Langkah 6).
+- Halaman UI Ads Report di frontend (Langkah 7).
+
 

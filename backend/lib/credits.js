@@ -178,6 +178,11 @@ export async function estimate(actionKey, qty = 1, extra = {}) {
     totalCredits += imgPrice * imgCount;
   }
 
+  // Jika extra.credits ditentukan secara eksplisit (seperti kalkulasi dinamis ads report)
+  if (extra && extra.credits !== undefined) {
+    totalCredits = Math.max(0, Number(extra.credits));
+  }
+
   return {
     actionKey: resolvedActionKey,
     qty: Number(qty || 1),
