@@ -1,27 +1,48 @@
+// frontend/src/pages/ads/AdsConnectionsPage.jsx
+// Halaman Kelola Koneksi Akun Iklan (PRD F5 Langkah 7)
+
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldCheck, RefreshCw, AlertCircle, RotateCcw } from 'lucide-react';
+import {
+  ShieldCheck,
+  RefreshCw,
+  AlertCircle,
+  AlertTriangle,
+  ExternalLink,
+  CheckCircle2,
+  Unlink,
+  Check,
+  Building2
+} from 'lucide-react';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { listConnections, startConnect, disconnect, resetMockData, isAdsMock } from '../../ads/adsApi';
-import { PLATFORMS_META } from '../../ads/mockData';
-import PlatformCard from '../../components/ads/PlatformCard';
-import ModuleComingSoonCard from '../../components/common/ModuleComingSoonCard';
+import {
+  listConnections,
+  getMetaOAuthUrl,
+  disconnect,
+  getAdAccounts,
+  toggleSelectAccount
+} from '../../ads/adsApi';
 
 export default function AdsConnectionsPage() {
   const { t } = useLanguage();
-  const mockActive = isAdsMock();
   const [connections, setConnections] = useState([]);
+  const [adAccounts, setAdAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState('');
   const [successNotice, setSuccessNotice] = useState('');
+  const [confirmDisconnectId, setConfirmDisconnectId] = useState(null);
 
   const loadData = async () => {
     setLoading(true);
     setError('');
     try {
-      const res = await listConnections();
-      setConnections(res.connections || []);
+      const [connRes, accRes] = await Promise.all([
+        listConnections().catch(() => ({ connections: [] })),
+        getAdAccounts().catch(() => ({ accounts: [] }))
+      ]);
+      setConnections(connRes.connections || []);
+      setAdAccounts(accRes.accounts || []);
     } catch (err) {
       setError(err.message || t('ads.connections.loadError'));
     } finally {
@@ -38,15 +59,16 @@ export default function AdsConnectionsPage() {
       window.removeEventListener('markimate:workspace-changed', onWsChange);
       window.removeEventListener('supermat:workspace-changed', onWsChange);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleConnect = async (platformKey) => {
+  const handleConnectMeta = async () => {
     setActionLoading(true);
     setError('');
     try {
-      const { authUrl } = await startConnect(platformKey);
-      if (authUrl) {
-        window.location.href = authUrl;
+      const res = await getMetaOAuthUrl();
+      if (res.url) {
+        window.location.href = res.url;
       }
     } catch (err) {
       setError(err.message || t('ads.connections.authStartError'));
@@ -54,12 +76,13 @@ export default function AdsConnectionsPage() {
     }
   };
 
-  const handleDisconnect = async (connectionId) => {
+  const handleDisconnect = async (connId) => {
     setActionLoading(true);
     setError('');
     try {
-      await disconnect(connectionId);
+      await disconnect(connId);
       setSuccessNotice(t('ads.connections.disconnectSuccess'));
+      setConfirmDisconnectId(null);
       setTimeout(() => setSuccessNotice(''), 4000);
       await loadData();
     } catch (err) {
@@ -69,189 +92,276 @@ export default function AdsConnectionsPage() {
     }
   };
 
-  const handleResetMock = () => {
-    resetMockData();
-    setSuccessNotice(t('ads.connections.resetMockSuccess'));
-    setTimeout(() => setSuccessNotice(''), 4000);
-    loadData();
+  const handleToggleAccount = async (accId, currentVal) => {
+    try {
+      await toggleSelectAccount(accId, !currentVal);
+      setAdAccounts((prev) =>
+        prev.map((a) => (a.id === accId ? { ...a, selected: !currentVal } : a))
+      );
+    } catch (err) {
+      setError(err.message || t('ads.connections.loadError'));
+    }
   };
 
-  const platformKeys = ['meta', 'google', 'tiktok', 'tiktok_gmvmax', 'shopee'];
-
-  if (!mockActive) {
-    return <ModuleComingSoonCard roleKey="ads_report" />;
-  }
+  const metaConn = connections.find((c) => c.platform === 'meta');
+  const metaAccounts = adAccounts.filter((a) => a.platform === 'meta');
 
   return (
-    <div style={styles.page}>
+    <div className="ads-container">
       {/* Header */}
-      <div style={styles.header}>
+      <div className="ads-header">
         <div>
-          <h1 style={styles.heading}>{t('ads.connections.heading')}</h1>
-          <p style={styles.subheading}>
-            {t('ads.connections.subheading')}
-          </p>
+          <h1 className="ads-title">{t('ads.connections.heading')}</h1>
+          <p className="ads-subtitle">{t('ads.connections.subheading')}</p>
         </div>
-
-        {isAdsMock() && (
-          <button
-            onClick={handleResetMock}
-            style={styles.resetBtn}
-            title={t('ads.connections.resetMockTitle')}
-          >
-            <RotateCcw size={14} />
-            <span>{t('ads.connections.resetMockBtn')}</span>
-          </button>
-        )}
+        <button
+          className="ads-btn ads-btn-secondary"
+          onClick={loadData}
+          disabled={loading}
+          type="button"
+        >
+          <RefreshCw size={16} className={loading ? 'spin' : ''} />
+          <span>{t('ads.reports.reload')}</span>
+        </button>
       </div>
 
-      {/* Security & Read-Only Guarantee Alert */}
-      <div style={styles.guaranteeBox}>
-        <ShieldCheck size={20} color="var(--accent-green)" style={{ flexShrink: 0 }} />
-        <div style={styles.guaranteeText}>
-          <strong>{t('ads.connections.guaranteeTitle')}</strong> {t('ads.connections.guaranteeText')}{' '}
-          <Link to="/privacy" style={styles.guaranteeLink} target="_blank">
-            {t('ads.connections.readPrivacyPolicy')}
-          </Link>
+      {/* Security Guarantee Alert */}
+      <div className="ads-card" style={{ marginBottom: '1.5rem', borderLeft: '4px solid #10b981' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+          <ShieldCheck size={22} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
+          <div>
+            <strong style={{ color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+              {t('ads.connections.guaranteeTitle')}
+            </strong>
+            <p className="ads-form-help" style={{ marginTop: '0.25rem', marginBottom: '0.5rem' }}>
+              {t('ads.connections.guaranteeText')}
+            </p>
+            <Link to="/legal/privacy" style={{ color: 'var(--accent-cyan)', fontSize: '0.8rem', textDecoration: 'none' }} target="_blank">
+              {t('ads.connections.readPrivacyPolicy')}
+            </Link>
+          </div>
         </div>
       </div>
 
-      {/* Notifications */}
+      {/* Expiry Warning Banner (< 10 hari) */}
+      {metaConn && metaConn.expires_in_days !== undefined && metaConn.expires_in_days < 10 && (
+        <div className="ads-card" style={{ marginBottom: '1.5rem', borderLeft: '4px solid #f59e0b', background: 'rgba(245, 158, 11, 0.08)' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+            <AlertTriangle size={20} color="#f59e0b" style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <strong style={{ color: '#f59e0b', fontSize: '0.875rem' }}>
+                {t('ads.connections.expiryWarning', { days: metaConn.expires_in_days })}
+              </strong>
+            </div>
+            <button
+              className="ads-btn ads-btn-primary"
+              onClick={handleConnectMeta}
+              disabled={actionLoading}
+              type="button"
+              style={{ minHeight: '36px', padding: '0 0.75rem', fontSize: '0.8rem' }}
+            >
+              {t('ads.connections.btnReconnect')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Alerts */}
       {successNotice && (
-        <div style={styles.successAlert}>
-          <span>{successNotice}</span>
+        <div className="ads-card" style={{ marginBottom: '1.5rem', background: 'rgba(16, 185, 129, 0.12)', borderColor: '#10b981' }}>
+          <span style={{ color: '#10b981', fontSize: '0.875rem', fontWeight: 600 }}>{successNotice}</span>
         </div>
       )}
 
       {error && (
-        <div style={styles.errorAlert}>
-          <AlertCircle size={16} />
-          <span>{error}</span>
+        <div className="ads-card" style={{ marginBottom: '1.5rem', background: 'rgba(239, 68, 68, 0.12)', borderColor: '#ef4444' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#ef4444', fontSize: '0.875rem' }}>
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
         </div>
       )}
 
-      {loading ? (
-        <div style={styles.loadingContainer}>
-          <RefreshCw size={24} color="var(--accent-cyan)" style={{ animation: 'spin 1s linear infinite' }} />
-          <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-            {t('ads.connections.loading')}
-          </span>
-        </div>
-      ) : (
-        <div style={styles.cardsGrid}>
-          {platformKeys.map((key) => {
-            const config = PLATFORMS_META[key];
-            const platformConns = connections.filter((c) => c.platform === key);
+      {/* Connections Grid */}
+      <div className="ads-grid">
+        {/* Meta Ads Card */}
+        <div className="ads-card">
+          <div className="ads-card-header">
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                  {t('ads.connections.metaTitle')}
+                </h2>
+                {metaConn ? (
+                  <span className="ads-badge ads-badge-active">
+                    <CheckCircle2 size={12} />
+                    <span>{t('ads.status.connected')}</span>
+                  </span>
+                ) : (
+                  <span className="ads-badge ads-badge-soon">
+                    {t('ads.status.disconnected')}
+                  </span>
+                )}
+              </div>
+              <p className="ads-form-help">{t('ads.connections.metaDesc')}</p>
+            </div>
+          </div>
 
-            return (
-              <PlatformCard
-                key={key}
-                platformKey={key}
-                config={config}
-                connections={platformConns}
-                onConnect={handleConnect}
-                onDisconnect={handleDisconnect}
-                loading={actionLoading}
-              />
-            );
-          })}
+          {metaConn ? (
+            <div>
+              <div style={{ padding: '0.75rem', background: 'var(--bg-input, rgba(255,255,255,0.03))', borderRadius: 'var(--radius-md)', marginBottom: '1rem' }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t('ads.connections.connectedAdvertiser')}</div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                  {metaConn.display_name || t('ads.connections.metaTitle')}
+                </div>
+              </div>
+
+              {/* Accounts list */}
+              <div style={{ marginBottom: '1rem' }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                  {t('ads.connections.accountsList', { count: metaAccounts.length })}
+                </div>
+
+                {metaAccounts.length === 0 ? (
+                  <div className="ads-form-help">{t('ads.connections.noAccounts')}</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {metaAccounts.map((acc) => (
+                      <div
+                        key={acc.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '0.5rem 0.75rem',
+                          background: 'var(--bg-card)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: 'var(--radius-md)'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <Building2 size={16} color="var(--accent-cyan)" />
+                          <div>
+                            <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                              {acc.name}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                              {t('ads.connections.accountInfo', { id: acc.external_id, currency: acc.currency })}
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleToggleAccount(acc.id, acc.selected)}
+                          className={`ads-badge ${acc.selected ? 'ads-badge-active' : 'ads-badge-soon'}`}
+                          style={{ cursor: 'pointer', border: 'none', background: acc.selected ? 'rgba(16, 185, 129, 0.15)' : 'var(--bg-input)' }}
+                        >
+                          {acc.selected ? <Check size={12} /> : null}
+                          <span>{acc.selected ? t('ads.connections.accountSelected') : t('ads.connections.accountSkip')}</span>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  className="ads-btn ads-btn-secondary"
+                  onClick={handleConnectMeta}
+                  disabled={actionLoading}
+                >
+                  <RefreshCw size={14} />
+                  <span>{t('ads.connections.btnReconnect')}</span>
+                </button>
+                <button
+                  type="button"
+                  className="ads-btn ads-btn-danger"
+                  onClick={() => setConfirmDisconnectId(metaConn.id)}
+                  disabled={actionLoading}
+                >
+                  <Unlink size={14} />
+                  <span>{t('ads.connections.disconnect')}</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <button
+                type="button"
+                className="ads-btn ads-btn-primary"
+                onClick={handleConnectMeta}
+                disabled={actionLoading}
+              >
+                <ExternalLink size={16} />
+                <span>{t('ads.connections.btnConnect')}</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Google Ads Card (Coming Soon / Segera Hadir F5-Google) */}
+        <div className="ads-card" style={{ opacity: 0.85 }}>
+          <div className="ads-card-header">
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                  {t('ads.connections.googleTitle', 'Google Ads')}
+                </h2>
+                <span className="ads-badge ads-badge-soon">
+                  {t('ads.connections.googleSoon')}
+                </span>
+              </div>
+              <p className="ads-form-help">{t('ads.connections.googleDesc', 'Akses performa Search, Performance Max, dan YouTube Ads.')}</p>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 'auto' }}>
+            <button
+              type="button"
+              className="ads-btn ads-btn-secondary"
+              disabled
+              style={{ opacity: 0.5, cursor: 'not-allowed' }}
+            >
+              <span>{t('ads.connections.googleSoon')}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Disconnect Confirmation Modal */}
+      {confirmDisconnectId && (
+        <div className="ads-modal-overlay">
+          <div className="ads-modal-content">
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: '0 0 0.5rem 0', color: 'var(--text-primary)' }}>
+              {t('ads.connections.confirmDisconnectTitle', { platform: 'Meta Ads' })}
+            </h3>
+            <p className="ads-form-help" style={{ fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+              {t('ads.connections.confirmDisconnectDesc', { account: metaConn?.display_name || 'Meta Ads' })}
+            </p>
+            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="ads-btn ads-btn-secondary"
+                onClick={() => setConfirmDisconnectId(null)}
+                disabled={actionLoading}
+              >
+                {t('ads.connections.cancel')}
+              </button>
+              <button
+                type="button"
+                className="ads-btn ads-btn-danger"
+                onClick={() => handleDisconnect(confirmDisconnectId)}
+                disabled={actionLoading}
+              >
+                {t('ads.connections.yesDisconnect')}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
 }
-
-const styles = {
-  page: {
-    maxWidth: '1200px',
-    margin: '0 auto',
-  },
-  header: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: '1rem',
-    marginBottom: '1.5rem',
-  },
-  heading: {
-    fontSize: '1.75rem',
-    fontWeight: '700',
-    color: 'var(--text-primary)',
-    margin: 0,
-    lineHeight: 1.2,
-  },
-  subheading: {
-    fontSize: '0.875rem',
-    color: 'var(--text-secondary)',
-    marginTop: '0.35rem',
-  },
-  resetBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: '0.4rem',
-    padding: '0.45rem 0.85rem',
-    borderRadius: '6px',
-    backgroundColor: 'var(--bg-surface)',
-    border: '1px solid var(--border-muted)',
-    color: 'var(--text-muted)',
-    fontSize: '0.78rem',
-    cursor: 'pointer',
-    transition: 'all var(--transition-fast)',
-  },
-  guaranteeBox: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.85rem',
-    padding: '0.85rem 1.25rem',
-    borderRadius: '10px',
-    backgroundColor: 'rgba(16, 185, 129, 0.08)',
-    border: '1px solid rgba(16, 185, 129, 0.2)',
-    marginBottom: '2rem',
-  },
-  guaranteeText: {
-    fontSize: '0.8125rem',
-    color: 'var(--text-primary)',
-    lineHeight: 1.45,
-  },
-  guaranteeLink: {
-    color: 'var(--accent-cyan)',
-    textDecoration: 'none',
-    fontWeight: '600',
-    marginLeft: '0.35rem',
-  },
-  successAlert: {
-    padding: '0.75rem 1rem',
-    borderRadius: '8px',
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    border: '1px solid rgba(16, 185, 129, 0.25)',
-    color: 'var(--accent-green)',
-    fontSize: '0.85rem',
-    marginBottom: '1.5rem',
-  },
-  errorAlert: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    padding: '0.75rem 1rem',
-    borderRadius: '8px',
-    backgroundColor: 'rgba(239, 68, 68, 0.12)',
-    border: '1px solid rgba(239, 68, 68, 0.25)',
-    color: 'var(--accent-red)',
-    fontSize: '0.85rem',
-    marginBottom: '1.5rem',
-  },
-  loadingContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '1rem',
-    minHeight: '50vh',
-  },
-  cardsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-    gap: '1.5rem',
-  },
-};

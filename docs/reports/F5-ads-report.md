@@ -266,5 +266,82 @@
 ### 4. Hal yang Sengaja Tidak Dikerjakan pada Langkah Ini
 - Halaman UI Ads Report di frontend (Langkah 7).
 
+---
+
+## Langkah 7: Frontend UI untuk Ads Connections, Reports, Templates, Metrics, dan Profiles
+
+### 1. File yang Berubah / Dibuat
+- `frontend/src/ads/adsApi.js`:
+  - Kumpulan helper API klien untuk komunikasi dengan endpoint backend Ads Report: `getAuthUrl`, `listConnections`, `disconnectAccount`, `getAdAccounts`, `toggleAccountSelected`, `getTemplates`, `saveTemplate`, `removeTemplate`, `getCustomMetrics`, `saveCustomMetric`, `testFormula`, `removeCustomMetric`, `getProfiles`, `saveProfile`, `removeProfile`, `listReports`, `getReportStatus`, `generateAdsReport`, dan `downloadPdfReport`.
+- `frontend/src/pages/ads/AdsConnectionsPage.jsx`:
+  - Halaman manajemen integrasi akun periklanan Meta Ads.
+  - Alur OAuth popup / redirect terintegrasi dengan penanganan state HMAC anti-CSRF.
+  - Kartu koneksi platform aktif dengan info akun, badge status, dan tanggal kedaluwarsa token.
+  - Banner peringatan token kedaluwarsa otomatis muncul jika sisa masa aktif token kurang dari 10 hari.
+  - Banner jaminan keamanan & privasi read-only (`ads_read` only, tanpa izin mengubah kampanye atau membelanjakan budget).
+  - Daftar akun iklan terhubung dengan switch toggle pilih/abaikan untuk pelaporan.
+  - Dialog konfirmasi pemutusan koneksi yang aman.
+- `frontend/src/pages/ads/AdsReportsPage.jsx`:
+  - Halaman riwayat dan pelaporan performa iklan.
+  - Tampilan daftar laporan responsif: kartu vertikal pada layar mobile (< 640px) dan tabel tabular pada desktop (>= 640px).
+  - Indikator status real-time (`ready`, `running`, `queued`, `error` dengan info pengembalian saldo kredit otomatis).
+  - Tautan langsung pembukaan Google Slides interaktif dan pengunduhan berkas PDF.
+  - Modal Generator Laporan Baru (`handleOpenModal`):
+    - Pilihan mode profil tersimpan atau konfigurasi manual.
+    - Pemilihan template dan akun iklan multi-select via checkbox responsif.
+    - Pemilihan rentang tanggal (tanggal awal & akhir).
+    - Kalkulasi live preview estimasi kredit dinamis sesuai komposisi akun dan halaman AI analitik.
+    - Polling otomatis berkala tiap 4 detik selama ada laporan berstatus running/queued.
+- `frontend/src/pages/ads/AdsTemplatesPage.jsx`:
+  - Halaman Template Builder, Metrics Custom (F5b), dan Profil Laporan terpadu dalam 3 tab:
+    - **Tab 1: Template Builder**: Daftar template bawaan & kustom, duplikasi template bawaan sistem, reorder urutan slide pages (naik/turun), tambah tipe halaman baru (`+ KPI`, `+ Trend`, `+ Table`, `+ Breakdown`, `+ Creatives`, `+ AI Insight`), hapus halaman slide, dan kartu edukasi rumus kredit.
+    - **Tab 2: Custom Metrics (F5b)**: Form pembuatan metric kustom baru (nama, rumus, satuan: angka/mata uang/persentase/rasio, dan presisi desimal), pengujian formula interaktif secara langsung (`testFormula`) dengan indikator validasi real-time, serta direktori daftar metric bawaan platform & kustom.
+    - **Tab 3: Profil Laporan & Jadwal**: Form registrasi profil pelaporan (nama profil, pemilihan template dasar, jadwal eksekusi manual atau bulanan otomatis tiap tanggal 1 pukul 07:00 WIB, serta daftar email penerima laporan), dan kartu manajemen profil tersimpan.
+- `frontend/src/App.jsx`:
+  - Pendaftaran rute aplikasi terproteksi: `/app/ads/connections`, `/app/ads/reports`, dan `/app/ads/templates`.
+  - Dilindungi oleh gerbang `ModuleGuard moduleKey="ads_report"` dengan navigasi aktivasi modul jika belum aktif.
+- `frontend/src/components/Sidebar.jsx`:
+  - Menu navigasi kelompok Ads Report dengan submenu Laporan, Template & Metrics, dan Koneksi Akun.
+- `frontend/src/index.css`:
+  - Sistem style CSS modular untuk halaman Ads (`.ads-container`, `.ads-grid`, `.ads-card`, `.ads-badge`, `.ads-btn`, `.ads-tab-btn`, `.ads-form-group`, `.ads-modal`, responsive break-points mobile-first).
+- `frontend/src/i18n/locales/id/ads.js` & `frontend/src/i18n/locales/en/ads.js`:
+  - Kamus lokalisasi komprehensif untuk modul periklanan: koneksi, akun, template, kustom metric, profil, generator laporan, dan notifikasi status.
+- `frontend/src/i18n/locales/id/app.js` & `frontend/src/i18n/locales/en/app.js`:
+  - Penambahan label navigasi menu sidebar Ads Report.
+
+### 2. Cara Tes
+- `cd backend && npm test`
+- `cd frontend && npm test && npm run i18n:check && npm run lint && npm run build`
+- `node scratch/capture-f5-screenshots.mjs`
+
+### 3. Hasil Tes
+- Backend tests: 33/33 test suites lulus 100% tanpa regresi.
+- Frontend tests: 5/5 test scripts lulus.
+- i18n check: 0 errors (paritas sempurna 2.427 keys antara EN dan ID).
+- Hardcoded string audit: Lulus 100% (68 file di `src/` bebas dari string statis hardcoded bahasa Indonesia).
+- Linter ESLint: 0 errors.
+- Build Produksi: 42 static HTML SEO pages & sitemap generated successfully.
+- Tangkapan layar Google Chrome Headless CDP (10 berkas beresolusi 390px dan 1280px dengan hash MD5 100% unik dan lulus uji horizontal scroll).
+
+### 4. Rekap Tangkapan Layar & Uji Mobile Responsif (Langkah 7)
+
+| File Tangkapan Layar | Resolusi & Bahasa | MD5 Hash | Ukuran | Cek Overflow Horizontal |
+|---|---|---|---|---|
+| `docs/reports/img/f5-connections-390-id.png` | 390×844 (Mobile ID) | `20f6c2058fe3e418b521f023b753f68b` | 169.312 B | PASSED (no horizontal scroll) |
+| `docs/reports/img/f5-connections-1280-id.png` | 1280×900 (Desktop ID) | `0315094630b27f31f421bb76b98cced5` | 288.160 B | PASSED (no horizontal scroll) |
+| `docs/reports/img/f5-connections-390-en.png` | 390×844 (Mobile EN) | `e959a6e8103d7b1a172b97c9a9062c51` | 167.972 B | PASSED (no horizontal scroll) |
+| `docs/reports/img/f5-reports-390-id.png` | 390×844 (Mobile ID) | `2c90d0289696609133a966c445d4fbaa` | 88.339 B | PASSED (no horizontal scroll) |
+| `docs/reports/img/f5-reports-1280-id.png` | 1280×900 (Desktop ID) | `8cd8f28474ce1760d645c9bfe32f4db7` | 208.052 B | PASSED (no horizontal scroll) |
+| `docs/reports/img/f5-reports-390-en.png` | 390×844 (Mobile EN) | `888dc0104f1e1bccffead017f5b8cfd7` | 89.368 B | PASSED (no horizontal scroll) |
+| `docs/reports/img/f5-reports-modal-390-id.png` | 390×844 (Modal ID) | `2110864931e5617677ba901339e0dfca` | 145.510 B | PASSED (no horizontal scroll) |
+| `docs/reports/img/f5-templates-390-id.png` | 390×844 (Mobile ID) | `6206d0adda0621ac689cb37ae72c18e8` | 86.715 B | PASSED (no horizontal scroll) |
+| `docs/reports/img/f5-templates-1280-id.png` | 1280×900 (Desktop ID) | `1e7848d5c1b61cf8e090b1de1a84b1e9` | 210.040 B | PASSED (no horizontal scroll) |
+| `docs/reports/img/f5-templates-390-en.png` | 390×844 (Mobile EN) | `ba5454b6a6748b897d1210d0c74e55ac` | 88.924 B | PASSED (no horizontal scroll) |
+
+### 5. Hal yang Sengaja Tidak Dikerjakan pada Langkah Ini
+- Integrasi Google Ads OAuth (fase berikutnya: PRD F5-Google).
+- Live preview canvas interaktif Google Slides slide-by-slide di browser (menggunakan direct embed / edit link ke Google Slides resmi).
+
+
 
 

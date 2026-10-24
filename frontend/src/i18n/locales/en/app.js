@@ -86,6 +86,8 @@ export const app = {
     "adsOverview": "Executive Summary",
     "adsConnections": "Ad Channel Accounts",
     "adsReports": "Monthly Reports & Slides",
+    "adsTemplates": "Templates & Metrics",
+    "adsProfiles": "Profiles & Schedule",
     "sectionSpy": "AI Ads Creative Spy",
     "spyOverview": "Spy Overview",
     "spyCompetitors": "Tracked Competitors",

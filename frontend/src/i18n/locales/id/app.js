@@ -86,6 +86,8 @@ export const app = {
     "adsOverview": "Ringkasan Eksekutif",
     "adsConnections": "Koneksi Akun Iklan",
     "adsReports": "Laporan Bulanan & Slide",
+    "adsTemplates": "Template & Metrics",
+    "adsProfiles": "Profil & Jadwal",
     "sectionSpy": "AI Ads Creative Spy",
     "spyOverview": "Ikhtisar Spy",
     "spyCompetitors": "Kompetitor Dipantau",

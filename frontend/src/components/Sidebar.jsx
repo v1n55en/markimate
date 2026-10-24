@@ -23,6 +23,7 @@ import {
   LayoutGrid,
   Coins,
   Shield,
+  LayoutTemplate,
 } from 'lucide-react';
 import WorkspaceSelector from './common/WorkspaceSelector';
 import MarkimateLogo from './common/MarkimateLogo';
@@ -147,6 +148,13 @@ export default function Sidebar({ user, onLogout, plan, usage }) {
           path: '/app/ads/reports',
           label: t('sidebar.adsReports', 'Monthly Reports & Slides'),
           icon: FileText,
+          matchPrefix: true,
+        },
+        {
+          id: 'ads-templates',
+          path: '/app/ads/templates',
+          label: t('sidebar.adsTemplates', 'Templates & Metrics'),
+          icon: LayoutTemplate,
           matchPrefix: true,
         },
       ],

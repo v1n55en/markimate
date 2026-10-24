@@ -37,6 +37,7 @@ import AdsConnectionsPage from './pages/ads/AdsConnectionsPage';
 import AdsReportsPage from './pages/ads/AdsReportsPage';
 import AdsReportDetailPage from './pages/ads/AdsReportDetailPage';
 import AdsCallbackPage from './pages/ads/AdsCallbackPage';
+import AdsTemplatesPage from './pages/ads/AdsTemplatesPage';
 
 import { api, getToken, setToken, refreshSession, API_BASE_URL } from './api';
 import { WorkspaceProvider } from './context/WorkspaceContext';
@@ -158,6 +159,22 @@ function ProtectedLayout({ me, onLogout, refreshMe }) {
               element={
                 <ModuleGuard moduleKey="ads_report">
                   <AdsReportDetailPage user={user} />
+                </ModuleGuard>
+              }
+            />
+            <Route
+              path="ads/templates"
+              element={
+                <ModuleGuard moduleKey="ads_report">
+                  <AdsTemplatesPage />
+                </ModuleGuard>
+              }
+            />
+            <Route
+              path="ads/profiles"
+              element={
+                <ModuleGuard moduleKey="ads_report">
+                  <AdsTemplatesPage />
                 </ModuleGuard>
               }
             />

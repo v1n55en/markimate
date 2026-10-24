@@ -289,3 +289,103 @@ export async function approveReport(id) {
   }
   return api(`/api/ads/reports/${id}/approve`, { method: 'POST' });
 }
+
+// 9. Meta Ads OAuth & Ad Accounts (PRD F5 Langkah 3)
+export async function getMetaOAuthUrl() {
+  return api('/api/ads/oauth/meta/url');
+}
+
+export async function getAdAccounts() {
+  return api('/api/ads/accounts');
+}
+
+export async function toggleSelectAccount(id, selected) {
+  return api(`/api/ads/accounts/${id}/select`, {
+    method: 'PATCH',
+    body: { selected }
+  });
+}
+
+// 10. Template Laporan (PRD F5 Langkah 4)
+export async function getTemplates() {
+  return api('/api/ads/templates');
+}
+
+export async function getTemplate(id) {
+  return api(`/api/ads/templates/${id}`);
+}
+
+export async function saveTemplate(data, id = null) {
+  if (id) {
+    return api(`/api/ads/templates/${id}`, {
+      method: 'PUT',
+      body: data
+    });
+  }
+  return api('/api/ads/templates', {
+    method: 'POST',
+    body: data
+  });
+}
+
+export async function removeTemplate(id) {
+  return api(`/api/ads/templates/${id}`, { method: 'DELETE' });
+}
+
+// 11. Metrics Custom & Formula Tester (PRD F5 Langkah 4 / F5b)
+export async function getCustomMetrics() {
+  return api('/api/ads/metrics');
+}
+
+export async function saveCustomMetric(data) {
+  return api('/api/ads/metrics', {
+    method: 'POST',
+    body: data
+  });
+}
+
+export async function testFormula(formula) {
+  return api('/api/ads/metrics/test', {
+    method: 'POST',
+    body: { formula }
+  });
+}
+
+export async function removeCustomMetric(id) {
+  return api(`/api/ads/metrics/${id}`, { method: 'DELETE' });
+}
+
+// 12. Profil Laporan & Jadwal (PRD F5 Langkah 4 & 6)
+export async function getProfiles() {
+  return api('/api/ads/profiles');
+}
+
+export async function saveProfile(data, id = null) {
+  if (id) {
+    return api(`/api/ads/profiles/${id}`, {
+      method: 'PUT',
+      body: data
+    });
+  }
+  return api('/api/ads/profiles', {
+    method: 'POST',
+    body: data
+  });
+}
+
+export async function removeProfile(id) {
+  return api(`/api/ads/profiles/${id}`, { method: 'DELETE' });
+}
+
+// 13. Trigger Generate Laporan & Status Polling (PRD F5 Langkah 5)
+export async function generateAdsReport(payload) {
+  return api('/api/ads/reports/generate', {
+    method: 'POST',
+    body: payload
+  });
+}
+
+export async function getAdsReportStatus(id) {
+  return api(`/api/ads/reports/${id}`);
+}
+
