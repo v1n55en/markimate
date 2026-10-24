@@ -6,7 +6,7 @@ import { db } from '../db.js';
 import { encrypt, decrypt } from './crypto.js';
 import { getAppUrl } from './config.js';
 
-const DEFAULT_GRAPH_VERSION = 'v21.0';
+const DEFAULT_GRAPH_VERSION = 'v26.0';
 
 export function getMetaGraphVersion() {
   return process.env.META_GRAPH_VERSION || DEFAULT_GRAPH_VERSION;

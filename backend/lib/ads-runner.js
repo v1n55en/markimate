@@ -236,6 +236,8 @@ export async function triggerAdsReportGenerate({
       decimals: m.decimals
     })),
     template: spec,
+    // Deck Google Slides milik user (opsional, diatur di template). null → n8n memakai base deck Markimate.
+    deckId: spec?.deck?.presentationId || null,
     accounts: preparedAccounts,
     period: {
       start: resolvedPeriodStart,

@@ -429,6 +429,11 @@ export const ERROR_CODES = {
     status: 502,
     message: 'Ad platform source accounts are unavailable or unauthorized.'
   },
+  ADS_DECK_UNAVAILABLE: {
+    code: 'ADS_DECK_UNAVAILABLE',
+    status: 502,
+    message: 'The custom Google Slides deck could not be read. Make sure it is shared with the Markimate service email.'
+  },
   INVALID_TEMPLATE: {
     code: 'INVALID_TEMPLATE',
     status: 400,
