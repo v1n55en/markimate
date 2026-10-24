@@ -125,6 +125,7 @@ import {
   handleAdsReportCallback,
   getReportStatus
 } from './lib/ads-runner.js';
+import { getDeckConfig, checkDeck } from './lib/ads-deck.js';
 import { sendError } from './lib/error-codes.js';
 
 export { PLANS };
@@ -3986,6 +3987,25 @@ app.delete('/api/ads/templates/:id', auth, requireWorkspace('admin'), requireMod
     });
   }
   res.json({ status: 'ok', message: 'Template deleted successfully' });
+}));
+
+// ---------- Deck Google Slides milik user (PRD F5, opsi A) ----------
+app.get('/api/ads/deck/config', auth, requireWorkspace('viewer'), requireModule('ads_report'), wrap(async (req, res) => {
+  res.json({ status: 'ok', ...getDeckConfig() });
+}));
+
+app.post('/api/ads/deck/check', auth, requireWorkspace('admin'), requireModule('ads_report'), wrap(async (req, res) => {
+  // Tiap cek = 1 eksekusi n8n + 1 panggilan Slides API → batasi per workspace
+  if (await enforceRateLimit(res, `ads_deck_check:${req.workspace.id}`, 600, 20, 'Too many deck checks. Please wait a few minutes.')) return;
+  const result = await checkDeck({ input: req.body?.url, pageTypes: req.body?.pageTypes });
+  if (!result.ok) {
+    return res.status(result.status || 400).json({
+      code: result.code,
+      error: result.message,
+      presentationId: result.presentationId || null
+    });
+  }
+  res.json({ status: 'ok', deck: result });
 }));
 
 // ---------- Metrics Custom & Library (F5b) ----------
