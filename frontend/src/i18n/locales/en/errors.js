@@ -95,6 +95,7 @@ export const errors = {
   "ADS_ACCOUNT_NOT_FOUND": "Ad account not found.",
   "ADS_RECONNECT_REQUIRED": "Ad platform connection has expired. Please reconnect.",
   "ADS_SOURCE_UNAVAILABLE": "Ad platform source accounts are unavailable or unauthorized.",
+  "ADS_DECK_UNAVAILABLE": "Your Google Slides deck could not be read. Make sure it is shared with the Markimate service email (Viewer).",
   "INVALID_TEMPLATE": "Report template specification is invalid.",
   "INVALID_FORMULA": "Custom metric formula is invalid.",
   "ADS_REPORT_TIMEOUT": "Ad report generation timed out. Please try again.",
