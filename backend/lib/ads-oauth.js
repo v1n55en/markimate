@@ -13,11 +13,12 @@ export function getMetaGraphVersion() {
 }
 
 export function isMetaOAuthConfigured() {
-  return Boolean(process.env.META_APP_ID && process.env.META_APP_SECRET);
+  return Boolean(process.env.META_APP_ID && process.env.META_APP_SECRET && process.env.META_LOGIN_CONFIG_ID);
 }
 
+// Tanpa fallback: ID config Facebook Login for Business wajib dari env META_LOGIN_CONFIG_ID.
 export function getMetaLoginConfigId() {
-  return process.env.META_LOGIN_CONFIG_ID || '1377394724209008';
+  return process.env.META_LOGIN_CONFIG_ID || '';
 }
 
 export function getMetaRedirectUri() {

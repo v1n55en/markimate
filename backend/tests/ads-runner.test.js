@@ -429,6 +429,101 @@ assert.strictEqual(Number(wAfterTrialRefund.balance_topup), 0, 'Topup bucket tid
 
 console.log('   OK - Callback error/failed, proteksi idempoten ganda & refund per bucket lolos.');
 
+// Refund ke trial wajib MEMPERTAHANKAN trial_expires_at (grant_wallet_atomic menimpa expiry)
+assert.ok(wAfterTrialRefund.trial_expires_at, 'trial_expires_at tidak boleh hilang (null) setelah refund');
+assert.strictEqual(
+  Date.parse(wAfterTrialRefund.trial_expires_at),
+  Date.parse(wBeforeTrial.trial_expires_at),
+  'trial_expires_at harus sama persis dengan sebelum refund'
+);
+
+// Helper workspace baru dengan 1 akun Meta
+async function makeWs(label) {
+  const wsId = crypto.randomUUID();
+  await db.insert('workspaces', { id: wsId, name: `WS ${label}`, owner_user_id: userA.id, created_at: new Date().toISOString() });
+  await db.insert('workspace_members', { workspace_id: wsId, user_id: userA.id, role: 'owner' });
+  const cId = crypto.randomUUID();
+  await db.insert('ad_connections', {
+    id: cId, workspace_id: wsId, platform: 'meta', external_user_id: `meta_${label}`,
+    display_name: label, token_enc: tEnc, token_iv: tIv,
+    token_expires_at: new Date(Date.now() + 30 * 86400 * 1000).toISOString(),
+    scopes: ['ads_read'], status: 'active', created_by: userA.id
+  });
+  const acc = {
+    id: crypto.randomUUID(), workspace_id: wsId, connection_id: cId, platform: 'meta',
+    external_id: `act_${label}`, name: label, currency: 'IDR', timezone: 'Asia/Jakarta', selected: true
+  };
+  await db.insert('ad_accounts', acc);
+  return { wsId, acc };
+}
+async function failCallback(requestId) {
+  return req('/api/ads/reports/callback', {
+    method: 'POST',
+    headers: { 'X-Supermat-Key': process.env.MARKIMATE_API_KEY },
+    body: { requestId, status: 'failed', errorCode: 'TEST_FAIL' }
+  });
+}
+
+// a. Charge terpecah trial (200) + topup (150) → refund kembali ke dua bucket, expiry trial tetap
+{
+  const { wsId, acc } = await makeWs('split');
+  const trialExp = new Date(Date.now() + 20 * 86400000);
+  await grant(wsId, 'trial', 200, trialExp, 'grant_trial');
+  await grant(wsId, 'topup', 500, null, 'topup', 'test topup', { refId: `seed_${wsId}` });
+  const t = await triggerAdsReportGenerate({
+    workspaceId: wsId, userId: userA.id, templateId: stdTpl.id, accountIds: [acc.id],
+    periodStart: '2026-08-01', periodEnd: '2026-08-31', fetchFn: mockSuccessFetch
+  });
+  assert.strictEqual(t.ok, true);
+  const r = await failCallback(t.requestId);
+  assert.strictEqual(r.status, 200);
+  assert.strictEqual(r.data.refunded, 350, 'Refund terpecah harus total 350');
+  const { wallet: w } = await getWallet(wsId);
+  assert.strictEqual(Number(w.balance_trial), 200, 'Bucket trial kembali 200');
+  assert.strictEqual(Number(w.balance_topup), 500, 'Bucket topup kembali 500 (refund bucket kedua tidak boleh dianggap duplikat)');
+  assert.strictEqual(Date.parse(w.trial_expires_at), trialExp.getTime(), 'Expiry trial tetap');
+}
+
+// b. Trial sudah kedaluwarsa saat refund → tidak di-refund, dicatat di warnings
+{
+  const { wsId, acc } = await makeWs('expired');
+  await grant(wsId, 'trial', 400, new Date(Date.now() + 86400000), 'grant_trial');
+  const t = await triggerAdsReportGenerate({
+    workspaceId: wsId, userId: userA.id, templateId: stdTpl.id, accountIds: [acc.id],
+    periodStart: '2026-08-01', periodEnd: '2026-08-31', fetchFn: mockSuccessFetch
+  });
+  assert.strictEqual(t.ok, true);
+  // Majukan waktu: trial habis sebelum callback gagal datang
+  await db.update('credit_wallets', { workspace_id: wsId }, { trial_expires_at: new Date(Date.now() - 1000).toISOString() });
+  const r = await failCallback(t.requestId);
+  assert.strictEqual(r.status, 200);
+  assert.strictEqual(r.data.refunded, 0, 'Trial kedaluwarsa tidak boleh di-refund');
+  const { wallet: w } = await getWallet(wsId);
+  assert.strictEqual(Number(w.balance_topup || 0), 0, 'Trial kedaluwarsa tidak boleh berubah jadi topup');
+  const rep = await db.findOne('ad_reports', { id: t.reportId });
+  assert.ok((rep.warnings || []).some(x => String(x).startsWith('refund_skipped_expired:trial')), 'Warning refund_skipped_expired harus tercatat');
+}
+
+// c. Trigger n8n gagal → rollback ke bucket trial (bukan topup) dengan expiry tetap
+{
+  const { wsId, acc } = await makeWs('rollback');
+  const trialExp = new Date(Date.now() + 10 * 86400000);
+  await grant(wsId, 'trial', 400, trialExp, 'grant_trial');
+  const failingFetch = async () => ({ ok: false, status: 500, json: async () => ({}) });
+  const t = await triggerAdsReportGenerate({
+    workspaceId: wsId, userId: userA.id, templateId: stdTpl.id, accountIds: [acc.id],
+    periodStart: '2026-08-01', periodEnd: '2026-08-31', fetchFn: failingFetch
+  });
+  assert.strictEqual(t.ok, false);
+  assert.strictEqual(t.code, 'ADS_SOURCE_UNAVAILABLE');
+  const { wallet: w } = await getWallet(wsId);
+  assert.strictEqual(Number(w.balance_trial), 400, 'Rollback harus kembali ke trial');
+  assert.strictEqual(Number(w.balance_topup || 0), 0, 'Rollback tidak boleh masuk topup');
+  assert.strictEqual(Date.parse(w.trial_expires_at), trialExp.getTime(), 'Expiry trial tetap setelah rollback');
+}
+console.log('   OK - Refund mempertahankan expiry, refund terpecah, trial kedaluwarsa dilewati, rollback ke bucket asal.');
+
+
 // -------------------------------------------------------------
 // 8. Timeout 10 Menit Otomatis Refund
 // -------------------------------------------------------------
