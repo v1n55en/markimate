@@ -104,6 +104,22 @@ import {
   disconnectAdConnection,
   listAdConnections
 } from './lib/ads-oauth.js';
+import {
+  ensureDefaultReportTemplate,
+  listTemplates,
+  getTemplateById,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
+  listAllAvailableMetrics,
+  createCustomMetric,
+  deleteCustomMetric,
+  listReportProfiles,
+  createReportProfile,
+  updateReportProfile,
+  deleteReportProfile
+} from './lib/ads-templates.js';
+import { evaluateFormula } from './shared/ads-metrics.js';
 import { sendError } from './lib/error-codes.js';
 
 export { PLANS };
@@ -3884,6 +3900,222 @@ app.patch('/api/ads/accounts/:id/select', auth, requireWorkspace('admin'), requi
     updated_at: new Date().toISOString()
   });
   res.json({ status: 'ok', account: { ...account, selected } });
+}));
+
+// ---------- Template Laporan & Builder (PRD F5 Langkah 4) ----------
+app.get('/api/ads/templates', auth, requireWorkspace('viewer'), requireModule('ads_report'), wrap(async (req, res) => {
+  const templates = await listTemplates(req.workspace.id);
+  res.json({ status: 'ok', templates });
+}));
+
+app.get('/api/ads/templates/:id', auth, requireWorkspace('viewer'), requireModule('ads_report'), wrap(async (req, res) => {
+  const template = await getTemplateById(req.params.id, req.workspace.id);
+  if (!template) {
+    return sendError(res, 'NOT_FOUND', 'Template not found');
+  }
+  res.json({ status: 'ok', template });
+}));
+
+app.post('/api/ads/templates', auth, requireWorkspace('admin'), requireModule('ads_report'), wrap(async (req, res) => {
+  const result = await createTemplate({
+    workspaceId: req.workspace.id,
+    userId: req.user.id,
+    name: req.body.name,
+    spec: req.body.spec,
+    duplicateFromId: req.body.duplicateFromId
+  });
+  if (!result.ok) {
+    return res.status(result.code === 'INVALID_TEMPLATE' ? 400 : (result.code === 'NOT_FOUND' ? 404 : 400)).json({
+      code: result.code || 'INVALID_TEMPLATE',
+      error: result.message,
+      errors: result.errors
+    });
+  }
+  res.status(201).json({ status: 'ok', template: result.template });
+}));
+
+app.put('/api/ads/templates/:id', auth, requireWorkspace('admin'), requireModule('ads_report'), wrap(async (req, res) => {
+  const result = await updateTemplate(req.params.id, req.workspace.id, {
+    name: req.body.name,
+    spec: req.body.spec
+  });
+  if (!result.ok) {
+    return res.status(result.code === 'FORBIDDEN' ? 403 : (result.code === 'NOT_FOUND' ? 404 : 400)).json({
+      code: result.code || 'INVALID_TEMPLATE',
+      error: result.message,
+      errors: result.errors
+    });
+  }
+  res.json({ status: 'ok', template: result.template });
+}));
+
+app.delete('/api/ads/templates/:id', auth, requireWorkspace('admin'), requireModule('ads_report'), wrap(async (req, res) => {
+  const result = await deleteTemplate(req.params.id, req.workspace.id);
+  if (!result.ok) {
+    const status = result.code === 'TEMPLATE_IN_USE' ? 409 : (result.code === 'FORBIDDEN' ? 403 : 404);
+    return res.status(status).json({
+      code: result.code,
+      error: result.message,
+      profiles: result.profiles
+    });
+  }
+  res.json({ status: 'ok', message: 'Template deleted successfully' });
+}));
+
+// ---------- Metrics Custom & Library (F5b) ----------
+app.get('/api/ads/metrics', auth, requireWorkspace('viewer'), requireModule('ads_report'), wrap(async (req, res) => {
+  const metrics = await listAllAvailableMetrics(req.workspace.id);
+  res.json({ status: 'ok', ...metrics });
+}));
+
+app.post('/api/ads/metrics', auth, requireWorkspace('admin'), requireModule('ads_report'), wrap(async (req, res) => {
+  const result = await createCustomMetric({
+    workspaceId: req.workspace.id,
+    userId: req.user.id,
+    name: req.body.name,
+    formula: req.body.formula,
+    unit: req.body.unit,
+    decimals: req.body.decimals
+  });
+  if (!result.ok) {
+    return res.status(400).json({
+      code: result.code || 'INVALID_FORMULA',
+      error: result.message,
+      position: result.position
+    });
+  }
+  res.status(201).json({ status: 'ok', metric: result.metric });
+}));
+
+app.post('/api/ads/metrics/test', auth, requireWorkspace('viewer'), requireModule('ads_report'), wrap(async (req, res) => {
+  const { formula, sampleData } = req.body || {};
+  if (!formula || typeof formula !== 'string') {
+    return sendError(res, 'PARAMS_REQUIRED', 'Formula is required');
+  }
+  try {
+    const result = evaluateFormula(formula, sampleData || {
+      spend: 1000000,
+      impressions: 50000,
+      clicks: 1000,
+      conversions: 50,
+      conversion_value: 3000000,
+      leads: 30,
+      purchases: 20,
+      results: 50
+    });
+    res.json({ status: 'ok', result });
+  } catch (err) {
+    res.status(400).json({ code: 'INVALID_FORMULA', error: err.message });
+  }
+}));
+
+app.delete('/api/ads/metrics/:id', auth, requireWorkspace('admin'), requireModule('ads_report'), wrap(async (req, res) => {
+  const result = await deleteCustomMetric(req.params.id, req.workspace.id);
+  if (!result.ok) {
+    const status = result.code === 'CUSTOM_METRIC_IN_USE' ? 409 : 404;
+    return res.status(status).json({
+      code: result.code,
+      error: result.message,
+      template: result.template
+    });
+  }
+  res.json({ status: 'ok', message: 'Custom metric deleted successfully' });
+}));
+
+// ---------- Profil Laporan (Report Profiles) ----------
+app.get('/api/ads/profiles', auth, requireWorkspace('viewer'), requireModule('ads_report'), wrap(async (req, res) => {
+  const profiles = await listReportProfiles(req.workspace.id);
+  res.json({ status: 'ok', profiles });
+}));
+
+app.get('/api/ads/profiles/:id', auth, requireWorkspace('viewer'), requireModule('ads_report'), wrap(async (req, res) => {
+  const profile = await db.findOne('report_profiles', { id: req.params.id, workspace_id: req.workspace.id });
+  if (!profile) {
+    return sendError(res, 'NOT_FOUND', 'Report profile not found');
+  }
+  const tpl = profile.template_id ? await getTemplateById(profile.template_id, req.workspace.id) : null;
+  res.json({ status: 'ok', profile: { ...profile, template: tpl } });
+}));
+
+app.post('/api/ads/profiles', auth, requireWorkspace('admin'), requireModule('ads_report'), wrap(async (req, res) => {
+  const result = await createReportProfile({
+    workspaceId: req.workspace.id,
+    userId: req.user.id,
+    ...req.body
+  });
+  if (!result.ok) {
+    const status = result.code === 'FORBIDDEN' ? 403 : (result.code === 'NOT_FOUND' ? 404 : 400);
+    return res.status(status).json({ code: result.code || 'BAD_REQUEST', error: result.message });
+  }
+  res.status(201).json({ status: 'ok', profile: result.profile });
+}));
+
+app.put('/api/ads/profiles/:id', auth, requireWorkspace('admin'), requireModule('ads_report'), wrap(async (req, res) => {
+  const result = await updateReportProfile(req.params.id, req.workspace.id, req.body);
+  if (!result.ok) {
+    const status = result.code === 'FORBIDDEN' ? 403 : (result.code === 'NOT_FOUND' ? 404 : 400);
+    return res.status(status).json({ code: result.code || 'BAD_REQUEST', error: result.message });
+  }
+  res.json({ status: 'ok', profile: result.profile });
+}));
+
+app.delete('/api/ads/profiles/:id', auth, requireWorkspace('admin'), requireModule('ads_report'), wrap(async (req, res) => {
+  const result = await deleteReportProfile(req.params.id, req.workspace.id);
+  if (!result.ok) {
+    return sendError(res, 'NOT_FOUND', result.message);
+  }
+  res.json({ status: 'ok', message: 'Report profile deleted successfully' });
+}));
+
+// ---------- Upload Custom Asset (F5b) ----------
+app.post('/api/ads/assets/upload', auth, requireWorkspace('admin'), requireModule('ads_report'), wrap(async (req, res) => {
+  const { filename, mimeType, dataBase64 } = req.body || {};
+  if (!dataBase64) {
+    return sendError(res, 'PARAMS_REQUIRED', 'dataBase64 image payload is required');
+  }
+
+  const allowedMime = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+  const safeMime = allowedMime.includes(mimeType) ? mimeType : 'image/png';
+
+  const buffer = Buffer.from(dataBase64, 'base64');
+  if (buffer.length > 2 * 1024 * 1024) {
+    return res.status(400).json({ code: 'VALIDATION_ERROR', error: 'Image exceeds maximum size of 2 MB' });
+  }
+
+  const ext = safeMime.split('/')[1] || 'png';
+  const assetPath = `ads-assets/${req.workspace.id}/${crypto.randomUUID()}.${ext}`;
+
+  // Supabase Storage upload bila tersedia
+  let assetUrl = null;
+  const sUrl = process.env.SUPABASE_URL;
+  const sKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY;
+  if (sUrl && sKey && !sUrl.includes('placeholder') && process.env.NODE_ENV !== 'test' && process.env.FORCE_LOCAL_DB !== 'true') {
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(sUrl, sKey, { auth: { persistSession: false } });
+      const { data, error } = await supabase.storage.from('ads-assets').upload(assetPath, buffer, {
+        contentType: safeMime,
+        upsert: true
+      });
+      if (!error && data) {
+        const { data: signed } = await supabase.storage.from('ads-assets').createSignedUrl(assetPath, 3600);
+        assetUrl = signed?.signedUrl || null;
+      }
+    } catch (e) {
+      log(`[Upload] Supabase storage error: ${e.message}`);
+    }
+  }
+
+  // Fallback data URI jika storage offline / mode test
+  if (!assetUrl) {
+    assetUrl = `data:${safeMime};base64,${dataBase64}`;
+  }
+
+  res.json({
+    status: 'ok',
+    assetPath,
+    assetUrl
+  });
 }));
 
 app.get('/api/ads/reports', auth, requireWorkspace('viewer'), requireModule('ads_report'), wrap(async (req, res) => {

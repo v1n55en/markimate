@@ -22,6 +22,13 @@
    - Mengimplementasikan endpoint `/api/ads/connections` (GET), `/api/ads/oauth/meta/url` (GET), `/api/ads/oauth/meta/callback` (GET), `/api/ads/connections/:id` (DELETE dengan pemanggilan revoke permission eksternal), `/api/ads/accounts` (GET), dan `/api/ads/accounts/:id/select` (PATCH).
    - Menambahkan 11 standar ERROR_CODES terkait Ads Report di backend dan frontend locales (EN & ID).
    - Membuat test suite `backend/tests/ads-oauth.test.js` dengan pengujian unit, HTTP endpoint, IDOR isolation, deteksi kedaluwarsa (< 10 hari), dan mutation checks (terbukti KILLED).
+4. `feat(ads): langkah 4 api template metrics custom profile dan asset upload (PRD F5)`:
+   - Membuat `backend/lib/ads-templates.js` untuk seed template bawaan 'Markimate Standard' idempoten, CRUD template laporan dengan validasi spesifikasi mendalam, duplikasi template, dan pencegahan hapus bila sedang dipakai profil laporan (`TEMPLATE_IN_USE`).
+   - Mengimplementasikan Metrics Custom (F5b): evaluasi rumus, pencegahan hapus bila sedang dipakai template (`CUSTOM_METRIC_IN_USE`), dan endpoint uji coba rumus `/api/ads/metrics/test`.
+   - Mengimplementasikan CRUD profil laporan (`report_profiles`) dengan proteksi kepemilikan akun iklan multi-workspace (IDOR check).
+   - Mengimplementasikan endpoint upload aset gambar custom `/api/ads/assets/upload` (PNG/JPG/WEBP maks 2 MB) dengan dukungan Supabase Storage / fallback data URI.
+   - Menyediakan `backend/shared/` untuk mendukung isolasi bundling deployment Vercel yang mandiri (`deploy-bundle.test.js`).
+   - Membuat test suite `backend/tests/ads-templates.test.js` (31/31 test backend lulus 100%).
 
 ---
 
@@ -128,3 +135,42 @@
 - CRUD template laporan dan custom metrics (Langkah 4).
 - Panggilan n8n async pembuatan laporan (Langkah 5 & 6).
 - Halaman antarmuka frontend (Langkah 7).
+
+---
+
+## Langkah 4: API Template Laporan, Metrics Custom (F5b), Profil & Upload Aset
+
+### 1. File yang Berubah / Dibuat
+- `backend/lib/ads-templates.js`:
+  - Pustaka logika seed template bawaan 'Markimate Standard' (`ensureDefaultReportTemplate`).
+  - CRUD Template Laporan (`listTemplates`, `getTemplateById`, `createTemplate`, `updateTemplate`, `deleteTemplate`).
+  - Proteksi: template sistem dilarang diubah/dihapus; template yang sedang dipakai profil laporan ditolak penghapusannya dengan kode `TEMPLATE_IN_USE`.
+  - Pustaka Metrics Custom (`listAllAvailableMetrics`, `createCustomMetric`, `deleteCustomMetric`): rumus divalidasi shunting-yard; penghapusan ditolak jika sedang dipakai template (`CUSTOM_METRIC_IN_USE`).
+  - Pustaka Profil Laporan (`listReportProfiles`, `createReportProfile`, `updateReportProfile`, `deleteReportProfile`): validasi kepemilikan akun iklan antar workspace (IDOR protection).
+- `backend/shared/ads-metrics.js` & `backend/shared/report-template.js`:
+  - Modul SSOT metrics & template yang mandiri di dalam folder `backend/` untuk menjaga kompatibilitas deployment bundle Vercel tanpa dependensi eksternal.
+- `backend/index.js`:
+  - Endpoint Templates: `GET /api/ads/templates`, `GET /api/ads/templates/:id`, `POST /api/ads/templates`, `PUT /api/ads/templates/:id`, `DELETE /api/ads/templates/:id`.
+  - Endpoint Metrics: `GET /api/ads/metrics`, `POST /api/ads/metrics`, `POST /api/ads/metrics/test`, `DELETE /api/ads/metrics/:id`.
+  - Endpoint Profil: `GET /api/ads/profiles`, `GET /api/ads/profiles/:id`, `POST /api/ads/profiles`, `PUT /api/ads/profiles/:id`, `DELETE /api/ads/profiles/:id`.
+  - Endpoint Upload Aset: `POST /api/ads/assets/upload` (gambar PNG/JPG/WEBP maks 2 MB ke Supabase Storage / fallback data URI).
+- `backend/tests/ads-templates.test.js`:
+  - Test suite lengkap menguji template sistem read-only, duplikasi template, validasi spec, custom metrics F5b, proteksi hapus in-use, profile IDOR protection, upload custom asset, dan mutation checks.
+
+### 2. Cara Tes
+- `cd backend && node tests/ads-templates.test.js`
+- `cd backend && node tests/deploy-bundle.test.js`
+- `cd backend && npm test`
+- `cd frontend && npm test && npm run i18n:check && npm run lint && npm run build`
+
+### 3. Hasil Tes
+- Backend tests: 31/31 test suites lulus 100% (termasuk `deploy-bundle.test.js` dan `ads-templates.test.js`).
+- Frontend tests: 5/5 test scripts lulus.
+- i18n check: 0 errors.
+- Linter: 0 errors (clean hardcoded check).
+- Build: 42 static SEO pages generated successfully.
+
+### 4. Hal yang Sengaja Tidak Dikerjakan pada Langkah Ini
+- Integrasi n8n generation & async polling status laporan (Langkah 5 & 6).
+- Halaman UI Ads Report di frontend (Langkah 7).
+

@@ -159,8 +159,14 @@ export function isValidPlaceholder(placeholder, customMetricIds = new Set()) {
     return true;
   }
   if (placeholder.startsWith('metric:')) {
-    const metricId = placeholder.slice(7).trim();
-    if (isKnownMetric(metricId) || customMetricIds.has(metricId) || customMetricIds.has(`custom:${metricId}`)) {
+    const rawMetric = placeholder.slice(7).trim();
+    const cleanId = rawMetric.startsWith('custom:') ? rawMetric.slice(7).trim() : rawMetric;
+    if (
+      isKnownMetric(cleanId) ||
+      customMetricIds.has(cleanId) ||
+      customMetricIds.has(rawMetric) ||
+      customMetricIds.has(`custom:${cleanId}`)
+    ) {
       return true;
     }
   }
