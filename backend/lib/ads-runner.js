@@ -322,6 +322,13 @@ export async function handleAdsReportCallback({
       finished_at: now,
       updated_at: now
     });
+    const updated = await db.findOne('ad_reports', { id: report.id });
+    try {
+      const { dispatchReportEmails } = await import('./ads-scheduler.js');
+      await dispatchReportEmails(updated);
+    } catch (e) {
+      console.warn('[AdsRunner] Email dispatch notice:', e.message);
+    }
     return { ok: true, status: 'ready', reportId: report.id };
   }
 

@@ -34,6 +34,12 @@
    - Mendukung perhitungan biaya rerun dalam 7 hari (diskon 100 kredit).
    - Mengimplementasikan endpoint `POST /api/ads/reports/generate`, `GET /api/ads/reports/:id`, dan `POST /api/ads/reports/callback`.
    - Membuat test suite `backend/tests/ads-runner.test.js` (32/32 test backend lulus 100%).
+6. `feat(ads): langkah 6 cron pengiriman bulanan terjadwal dan email notifikasi (PRD F5)`:
+   - Membuat `backend/lib/ads-scheduler.js` untuk eksekusi profil laporan bulanan terjadwal (`schedule = 'monthly'`), kalkulasi rentang tanggal bulan sebelumnya secara presisi, dan pemajuan jadwal eksekusi ke tanggal 1 bulan berikutnya.
+   - Mengintegrasikan pengiriman email notifikasi via Resend dengan KPI summary, link presentasi Google Slides, dan attachment PDF jika ukuran <= 10 MB (atau tautan unduh jika > 10 MB).
+   - Memasukkan pemrosesan laporan bulanan ke dalam cron utama backend `GET /api/cron/run-scheduled`.
+   - Menghubungkan dispatch email otomatis ke pemangku kepentingan klien saat laporan berstatus `ready`.
+   - Membuat test suite `backend/tests/ads-scheduler.test.js` (33/33 test backend lulus 100%).
 
 ---
 
@@ -223,5 +229,42 @@
 ### 4. Hal yang Sengaja Tidak Dikerjakan pada Langkah Ini
 - Cron pengiriman terjadwal bulanan (Langkah 6).
 - Halaman UI Ads Report di frontend (Langkah 7).
+
+---
+
+## Langkah 6: Cron Pengiriman Terjadwal Bulanan & Email Notifikasi
+
+### 1. File yang Berubah / Dibuat
+- `backend/lib/ads-scheduler.js`:
+  - `getPreviousMonthRange(now)`: Helper kalkulasi tanggal bulan sebelumnya (tanggal 1 s.d. tanggal terakhir bulan lalu).
+  - `getNextMonthlyRunDate(now)`: Helper penentu jadwal eksekusi berikutnya pada tanggal 1 bulan depan pukul 07:00 WIB (00:00 UTC).
+  - `sendAdsReportEmail`: Template email transaksional dwibahasa (ID & EN) memuat ringkasan performa iklan, tautan langsung ke deck Google Slides, serta attachment PDF (jika ukuran <= 10 MB) atau tautan unduh jika melebihi 10 MB.
+  - `dispatchReportEmails`: Mengirim notifikasi email otomatis ke seluruh email pemangku kepentingan klien (`profile.recipients`) saat webhook laporan selesai (`ready`).
+  - `processScheduledAdsReports`: Mengidentifikasi profil laporan dengan `schedule = 'monthly'` dan jatuh tempo (`next_run_at <= now`), memverifikasi hak modul workspace, memicu pembuatan laporan secara otomatis, dan memajukan jadwal ke tanggal 1 bulan berikutnya.
+- `backend/lib/mailer.js`:
+  - Menambahkan dukungan lampiran berkas (`attachments`) pada fungsi `sendMail` untuk integrasi Resend REST API dan pencatatan dev log.
+- `backend/lib/ads-runner.js`:
+  - Menghubungkan pemanggilan `dispatchReportEmails` otomatis saat callback dari n8n berhasil mengubah status laporan menjadi `ready`.
+- `backend/index.js`:
+  - Memasukkan eksekusi `processScheduledAdsReports` ke dalam endpoint cron utama `GET /api/cron/run-scheduled` (Langkah 3 di cron harian).
+- `backend/tests/ads-scheduler.test.js`:
+  - 6 kelompok pengujian unit & integrasi lengkap: kalkulasi rentang tanggal, formatting email & batas ukuran lampiran PDF, dispatch email otomatis saat callback selesai, eksekusi cron bulanan, integrasi HTTP GET /api/cron/run-scheduled, dan mutation checks (terbukti KILLED).
+
+### 2. Cara Tes
+- `cd backend && node tests/ads-scheduler.test.js`
+- `cd backend && node tests/deploy-bundle.test.js`
+- `cd backend && npm test`
+- `cd frontend && npm test && npm run i18n:check && npm run lint && npm run build`
+
+### 3. Hasil Tes
+- Backend tests: 33/33 test suites lulus 100% (termasuk `ads-scheduler.test.js` dan `deploy-bundle.test.js`).
+- Frontend tests: 5/5 test scripts lulus.
+- i18n check: 0 errors.
+- Linter: 0 errors (clean hardcoded check).
+- Build: 42 static SEO pages generated successfully.
+
+### 4. Hal yang Sengaja Tidak Dikerjakan pada Langkah Ini
+- Halaman UI Ads Report di frontend (Langkah 7).
+
 
 

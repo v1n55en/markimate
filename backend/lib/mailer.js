@@ -92,7 +92,7 @@ export function renderEmailTemplate({ title, contentHtml, actionUrl, actionText,
 /**
  * Mengirim email transaksional melalui Resend REST API
  */
-export async function sendMail({ to, subject, html, text, actionUrl, actionText, locale = 'id', tag = 'auth' }) {
+export async function sendMail({ to, subject, html, text, actionUrl, actionText, locale = 'id', tag = 'auth', attachments }) {
   if (!to) return { success: false, error: 'Recipient email required' };
 
   const lang = normalizeLocale(locale);
@@ -105,28 +105,33 @@ export async function sendMail({ to, subject, html, text, actionUrl, actionText,
   const fullText = text || (actionUrl ? `${subject}\n\n${actionUrl}` : subject);
 
   if (isDevLog || !resendApiKey) {
-    log(`[MAIL-DEV-LOG] To: ${to} | Subject: "${subject}" | Lang: ${lang} | Tag: ${tag}${actionUrl ? ` | Link: ${actionUrl}` : ''}`);
-    return { success: true, simulated: true, actionUrl, locale: lang, subject, html: fullHtml, text: fullText };
+    log(`[MAIL-DEV-LOG] To: ${to} | Subject: "${subject}" | Lang: ${lang} | Tag: ${tag}${actionUrl ? ` | Link: ${actionUrl}` : ''}${attachments?.length ? ` | Attachments: ${attachments.length}` : ''}`);
+    return { success: true, simulated: true, actionUrl, locale: lang, subject, html: fullHtml, text: fullText, attachments };
   }
 
   try {
+    const payload = {
+      from: mailFrom,
+      to: [to],
+      subject,
+      text: fullText,
+      html: fullHtml,
+      tags: [
+        { name: 'category', value: tag },
+        { name: 'locale', value: lang }
+      ]
+    };
+    if (Array.isArray(attachments) && attachments.length > 0) {
+      payload.attachments = attachments;
+    }
+
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${resendApiKey}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        from: mailFrom,
-        to: [to],
-        subject,
-        text: fullText,
-        html: fullHtml,
-        tags: [
-          { name: 'category', value: tag },
-          { name: 'locale', value: lang }
-        ]
-      })
+      body: JSON.stringify(payload)
     });
 
     const data = await res.json().catch(() => null);

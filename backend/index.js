@@ -4264,6 +4264,15 @@ app.get('/api/cron/run-scheduled', wrap(async (req, res) => {
     log(`[CRON] topic sources check error: ${err.message}`);
   }
 
+  // 3. Scheduled Ads Reports (bulanan setiap tanggal 1) (PRD F5 Langkah 6)
+  let adsReportsSummary = { ran: 0, results: [] };
+  try {
+    const { processScheduledAdsReports } = await import('./lib/ads-scheduler.js');
+    adsReportsSummary = await processScheduledAdsReports(new Date(now));
+  } catch (err) {
+    log(`[CRON] ads reports check error: ${err.message}`);
+  }
+
   // 0d. Pengingat perpanjangan langganan (PRD F15: langganan dihapus, pengingat dinonaktifkan)
   const renewalReminderSummary = { status: 'discontinued', sentH7: 0, sentH1: 0 };
 
@@ -4272,7 +4281,8 @@ app.get('/api/cron/run-scheduled', wrap(async (req, res) => {
     results,
     alerts: alertSummary,
     marginSentinel: marginSentinelSummary,
-    renewalReminders: renewalReminderSummary
+    renewalReminders: renewalReminderSummary,
+    adsReports: adsReportsSummary
   });
 }));
 
