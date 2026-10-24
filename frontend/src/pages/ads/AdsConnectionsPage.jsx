@@ -188,7 +188,7 @@ export default function AdsConnectionsPage() {
         <div className="ads-card">
           <div className="ads-card-header">
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.25rem' }}>
                 <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
                   {t('ads.connections.metaTitle')}
                 </h2>
@@ -306,7 +306,7 @@ export default function AdsConnectionsPage() {
         <div className="ads-card" style={{ opacity: 0.85 }}>
           <div className="ads-card-header">
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.25rem' }}>
                 <h2 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
                   {t('ads.connections.googleTitle', 'Google Ads')}
                 </h2>

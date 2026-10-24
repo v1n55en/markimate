@@ -174,7 +174,7 @@ export default function AdsReportsPage() {
           <h1 className="ads-title">{t('ads.reports.heading')}</h1>
           <p className="ads-subtitle">{t('ads.reports.subheading')}</p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem', width: '100%', maxWidth: '360px' }}>
+        <div className="ads-header-actions">
           <button
             type="button"
             className="ads-btn ads-btn-secondary"
@@ -440,12 +440,11 @@ export default function AdsReportsPage() {
 
             <form onSubmit={handleStartGenerate}>
               {/* Mode Selection */}
-              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
+              <div className="ads-segment">
                 <button
                   type="button"
                   className={`ads-tab-btn ${genMode === 'profile' ? 'active' : ''}`}
                   onClick={() => setGenMode('profile')}
-                  style={{ flex: 1, justifyContent: 'center' }}
                 >
                   {t('ads.reports.generateModeProfile')}
                 </button>
@@ -453,7 +452,6 @@ export default function AdsReportsPage() {
                   type="button"
                   className={`ads-tab-btn ${genMode === 'manual' ? 'active' : ''}`}
                   onClick={() => setGenMode('manual')}
-                  style={{ flex: 1, justifyContent: 'center' }}
                 >
                   {t('ads.reports.generateModeManual')}
                 </button>

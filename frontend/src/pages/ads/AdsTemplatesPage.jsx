@@ -458,7 +458,7 @@ export default function AdsTemplatesPage() {
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', width: '20px' }}>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', minWidth: '28px', whiteSpace: 'nowrap' }}>
                           #{idx + 1}
                         </span>
                         <Layers size={16} color="var(--accent-cyan)" />
